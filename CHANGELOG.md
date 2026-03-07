@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — Vision realignment
+- **Project vision updated**: shifted from abstract Bayesian worlds to realistic
+  research problems with semantic layer on top of formal networks
+- Revised implementation plan: 9 phases (was 7). Added Phase 6 (semantic layer),
+  Phase 7 (LLM agent solver), renumbered Phase 8 (templates) and Phase 9 (eval)
+- Created `docs/CURRENT_STATE.md` — detailed description of what exists today
+- Updated PROJECT.md with full vision:
+  - Two-layer architecture: formal (BN) + semantic (narrative, data, actions)
+  - Rich data presentation: tabular, multi-dataset, observations, experiments
+  - Agent freedom: free to reason however it wants, only actions cost budget
+  - Semi-real naming: real vocabulary in fictional domains
+  - Comprehensive evaluation framework: inference, causal, structure, optimization,
+    hypothesis selection, multiple evaluations per task, rubrics, SOTA references
+  - Clear version roadmap (v0-v3) with evaluation types mapped to versions
+- Updated TODO.md, CLAUDE.md, IMPLEMENTATION_PLAN.md to reflect new direction
+- Added configurable model via AZURE_MODEL env var and auto-load .env
+- Rewrote orchestrator test script with step-by-step pretty output
+
 ### 2026-03-07
 - **Phase 4 complete**: episodes, tasks, verifier, and environment interface
   - `EpisodeGenTool`: generates episodes from worlds (budget, costs, initial evidence)

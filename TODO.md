@@ -40,22 +40,50 @@
 - [x] Implement orchestrator loop (propose → check → refine → accept)
 - [x] Mocked tests (full loop, retry, max iterations)
 
-## Phase 6 — More templates + more tasks
-- [ ] Implement causal chain template
-- [ ] Implement fork/collider template
-- [ ] Implement `next_best_observation` task type
-- [ ] Validate: same world produces both task types
+## Phase 6 — Semantic layer
+- [ ] Extend World model with semantic metadata (scenario_title, scenario_description, domain)
+- [ ] Semantic node names and descriptions (water_temperature not indicator_1)
+- [ ] Semantic edge mechanisms (causal descriptions in context)
+- [ ] Semantic action descriptions with costs ("solicitar análisis" not "observe node_3")
+- [ ] Simple theoretical context per world (prior theories, hints, partial findings)
+- [ ] Data presentation: tabular dataset format (sample from BN, present as DataFrame)
+- [ ] Data presentation: isolated observations format
+- [ ] Configurable data presentation per world
+- [ ] Orchestrator accepts narrative seeds ("contaminación de suelos", scenarios, etc.)
+- [ ] Update orchestrator prompt to generate semantic content from seed
+- [ ] `ResearchProblem` model that packages everything the agent sees
+- [ ] Update display.py for semantic worlds
+- [ ] Update demo script and notebook
 
-## Phase 7 — Dataset generation + baseline eval
-- [ ] Generate teacher trajectories and export as dataset
-- [ ] Implement baseline LLM agent evaluation harness
-- [ ] Run baseline LLM through episodes and collect metrics
+## Phase 7 — LLM Agent solver
+- [ ] Agent interface: receive ResearchProblem, interact via EpisodeRunner
+- [ ] Agent orchestrator: LLM agentic loop with observe/submit tools
+- [ ] Agent system prompt and tool definitions
+- [ ] Agent evaluation: score vs teacher and random baseline
+- [ ] Comparison reports: agent vs teacher across problems
+
+## Phase 8 — More templates + more tasks
+- [ ] Implement causal chain template (with semantic layer from start)
+- [ ] Implement fork/collider template (with semantic layer from start)
+- [ ] Implement `next_best_observation` task type
+- [ ] Implement `hypothesis_selection` task type
+- [ ] Validate: same world produces multiple task types
+
+## Phase 9 — Dataset generation + eval harness
+- [ ] Generate teacher trajectories and export as JSONL dataset
+- [ ] Implement batch evaluation harness
+- [ ] Run agent across 100+ problems, collect metrics
+- [ ] Comparative analysis: teacher vs agent across templates/difficulties
 - [ ] Document results
 
 ## Backlog (not v0)
-- [ ] Hypothesis selection task type
-- [ ] Synthetic document artifacts
+- [ ] Synthetic document artifacts (papers, reports, notes)
+- [ ] Seeds from real papers (LLM extracts structure)
+- [ ] Automatic paper search for seeds
 - [ ] Intervention tasks (do-calculus)
 - [ ] Structure recovery tasks
+- [ ] Complex agent actions (multi-node, conditional)
+- [ ] Agent actions defined freely per world (beyond observe)
 - [ ] Approximate inference teacher (larger worlds)
 - [ ] Curriculum over world complexity
+- [ ] RL training loop with verifier as reward

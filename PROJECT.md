@@ -3,285 +3,490 @@
 
 ## La idea en una oración
 
-Vamos a construir una **fábrica de mundos ficticios** donde un agente LLM puede investigar, recolectar evidencia, y tomar decisiones — y nosotros sabemos exactamente cuál era la respuesta correcta, así que podemos medir qué tan bien razona.
+SREG genera **problemas de investigación ficticios pero realistas** — con contexto, datos,
+preguntas abiertas y restricciones — donde la verdad subyacente es una red bayesiana formal,
+lo que permite evaluar con exactitud matemática qué tan bien razona un agente LLM.
 
 ---
 
 ## Pensalo así
 
-Imaginá que sos profesor de medicina y querés evaluar si tus alumnos saben diagnosticar. Tenés dos opciones:
+Imaginá que sos director de un laboratorio y querés evaluar si un investigador junior
+sabe investigar de verdad. Tenés dos opciones:
 
-**Opción A**: Les das casos reales. Problema: un alumno que se memorizó el libro de patología puede acertar sin entender realmente el razonamiento clínico.
+**Opción A**: Le das un problema real publicado. Problema: si leyó el paper, ya sabe la
+respuesta. No estás midiendo razonamiento — estás midiendo memoria.
 
-**Opción B**: Inventás una enfermedad ficticia con síntomas ficticios, pero con una lógica interna perfectamente consistente. Le das al alumno síntomas parciales y lo dejás pedir estudios adicionales. Como la enfermedad no existe, no puede haberla memorizado — si llega al diagnóstico correcto, es porque **razonó bien**.
+**Opción B**: Inventás un problema ficticio pero realista. Le das datos parciales, contexto
+teórico, y algunas pistas. El dominio no existe, así que no puede haberlo memorizado.
+Si llega a conclusiones correctas, es porque **razonó bien con la evidencia**.
 
 SREG es la Opción B, pero para LLMs y razonamiento científico.
 
 ---
 
-## Qué construye SREG exactamente
+## Qué genera SREG — el producto final
 
-SREG genera **mundos** — pequeños universos ficticios con reglas causales internas. Cada mundo tiene:
+Cada "ambiente de investigación" que SREG genera tiene dos capas:
 
-- **Variables** (algunas visibles, otras ocultas)
-- **Relaciones causales** entre ellas (un grafo dirigido — un DAG)
-- **Probabilidades** que definen cómo una variable influye en otra
-- **Un target**: algo que el agente tiene que descubrir
+### Capa formal (oculta) — la verdad matemática
 
-Un ejemplo concreto de un mundo:
+Una red bayesiana que define con precisión exacta las relaciones causales del mundo:
+- **Variables** (algunas observables, otras latentes)
+- **Relaciones causales** (un DAG — grafo dirigido acíclico)
+- **Distribuciones de probabilidad** condicionales (CPDs)
+- **Un target**: lo que el agente tiene que descubrir
+
+Esta capa nunca la ve el agente. Es la referencia contra la que se evalúa.
+
+### Capa semántica (visible) — el problema de investigación
+
+Encima de la red bayesiana se construye una presentación que simula lo que un
+investigador o ingeniero recibiría en la realidad. Esto incluye:
+
+- **Narrativa del problema**: qué está pasando, por qué importa, cuál es el contexto.
+  No un paper completo — una descripción clara de la situación y por qué hay que
+  investigarla.
+
+- **Datos disponibles**: lo que el investigador ya tiene en la mano. Puede incluir
+  cualquier combinación de:
+  - Un dataset tabular (CSV/DataFrame con columnas nombradas, N filas)
+  - Múltiples datasets de distintas fuentes
+  - Observaciones puntuales ("en la estación 3 se midió temperatura de 24.3°C")
+  - Resultados de experimentos previos
+  - Datos parciales o incompletos (valores faltantes, mediciones con ruido)
+  - Metadata (cuándo se tomó, quién lo midió, con qué instrumento)
+
+  Todos los datos se derivan sampleando de la red bayesiana, pero se presentan
+  en el formato que tendría sentido para el dominio.
+
+- **Nombres semánticos**: vocabulario científico real (`water_temperature`,
+  `enzyme_activity`) en un dominio ficticio ("Síndrome de Harmon", "ecosistema
+  del planeta Kepler-442")
+
+- **Preguntas de investigación**: una o varias preguntas que el agente tiene que
+  resolver. Pueden ser preguntas principales y sub-preguntas. Cada pregunta
+  tiene un tipo de evaluación asociado (inferencia, causal, selección de
+  hipótesis, etc.) — ver la sección de evaluación para el espacio completo.
+
+- **Acciones disponibles**: qué "experimentos" o "mediciones" puede solicitar el
+  agente, cada uno con un costo. Son las únicas interacciones que cuestan budget.
+
+- **Restricciones**: presupuesto total, qué se puede medir y qué no, limitaciones
+  del contexto.
+
+- **Contexto teórico (opcional)**: teorías existentes, hallazgos previos, hints,
+  información parcial que orienta (o despista) al agente.
+
+Un mismo mundo formal puede generar múltiples escenarios con distintas
+combinaciones de datos, preguntas, y restricciones.
+
+### Por qué nombres semi-reales
+
+Los nodos usan vocabulario científico real en contextos ficticios. No `indicator_1`
+(demasiado abstracto) ni nombres completamente inventados como `zorbax_flux`
+(el LLM no puede usar intuición científica). Queremos `water_temperature` en el
+"archipiélago de Thalassia" — así el LLM puede usar su conocimiento real para
+guiar su investigación, pero las relaciones causales pueden diferir de la realidad.
+Esto testea si el agente se adapta a la evidencia o se queda con priors memorizados.
+
+### Ejemplo concreto del objetivo final
 
 ```
-Mundo: "Cristalografía energética en el planeta Zephyr"
+PROBLEMA DE INVESTIGACIÓN
+Declive de producción en cultivos de algas del archipiélago ficticio de Nelvara
 
-Variables:
-  - resonance_field (oculta) → alta / baja
-  - thermal_flux (observable) → baja / media / alta
-  - crystal_growth (target) → lento / medio / rápido
-  - growth_inhibitor (observable) → presente / ausente
+CONTEXTO:
+Investigadores del Instituto Oceánico de Nelvara han reportado una caída del 40%
+en la producción de algas Spirulina en las granjas del sector norte durante los
+últimos 6 meses. Se sospechan múltiples factores: cambios en la temperatura del
+agua, niveles de nutrientes, y un posible compuesto no identificado en sedimentos.
 
-Relaciones:
-  resonance_field → thermal_flux
-  resonance_field → crystal_growth
-  growth_inhibitor → crystal_growth
+Estudios previos en la región de Korvath (publicados en el ficticio Journal of
+Nelvaran Marine Biology) sugieren que la temperatura y los nutrientes son los
+drivers principales del crecimiento de Spirulina, pero los investigadores de
+campo sospechan que hay un factor no considerado en esos estudios.
 
-La pregunta para el agente:
-  "Dado lo que podés observar, ¿cuál es la probabilidad
-   de que crystal_growth sea rápido?"
+DATOS DISPONIBLES:
+- Dataset 1: 150 mediciones de 4 estaciones de monitoreo
+  (columnas: station_id, date, water_temp, pH, nitrogen, luminosity)
+- Dataset 2: 12 muestras de sedimento del sector norte
+  (columnas: sample_id, location,ite_concentration,ite_depth)
+- Observación aislada: "el sector sur, que no muestra declive, tiene
+  temperaturas similares pero sedimentos distintos"
+
+ACCIONES POSIBLES (cada una tiene un costo):
+- Solicitar análisis completo de sedimentos (sector norte + sur) → costo: 2
+- Medir concentración de compuesto X en agua de las estaciones → costo: 1
+- Obtener datos históricos de temperatura (3 años) → costo: 1
+- Realizar cultivo experimental controlado → costo: 3
+- Comparar composición de sedimentos norte vs sur → costo: 2
+
+PRESUPUESTO: 5 unidades
+
+PREGUNTAS:
+1. ¿Cuál es la causa principal del declive en producción? (principal)
+2. ¿Qué medición adicional sería la más informativa? (sub-pregunta)
+3. Si el compuesto X se elimina del sedimento, ¿se recuperaría la producción? (causal)
+
+[Detrás de todo esto: una red bayesiana de 8 nodos con CPDs exactas.
+Cada pregunta tiene una respuesta verificable matemáticamente.
+El agente puede hacer lo que quiera — pensar, analizar datos, escribir
+código, formular hipótesis — pero los "experimentos" cuestan budget.]
 ```
-
-Nada de esto es real. Pero la matemática detrás (las probabilidades, las relaciones) es precisa y permite calcular la respuesta correcta exacta. No hace falta un humano ni otro LLM para evaluar — es pura matemática.
 
 ---
 
-## Por qué los mundos son ficticios a propósito
+## Las dos capas en detalle
 
-Si el mundo fuera sobre química real, un LLM podría responder correctamente porque tiene química memorizada de su entrenamiento. No estaría razonando — estaría haciendo recall.
+### La red bayesiana (siempre presente, siempre formal)
 
-Con mundos ficticios, la única forma de acertar es **razonar con la evidencia que te dan**. Si un modelo entrenado en mundos ficticios después funciona bien en problemas reales, eso prueba que aprendió a razonar, no a memorizar.
+Esto NO cambia. Es el motor del sistema:
+
+```
+Variables:
+  sediment_compound (latente) → presente / ausente
+  water_temperature (observable) → baja / media / alta
+  nitrogen_level (observable) → bajo / medio / alto
+  algae_production (target) → baja / media / alta
+  light_exposure (observable) → baja / media / alta
+
+Relaciones causales (DAG):
+  sediment_compound → water_temperature
+  sediment_compound → algae_production
+  nitrogen_level → algae_production
+  light_exposure → algae_production
+
+CPDs: tablas de probabilidad condicional exactas para cada nodo
+```
+
+La respuesta correcta a cualquier pregunta sobre este mundo se calcula
+matemáticamente. No hace falta un humano ni otro LLM para evaluar.
+
+### La capa semántica (se construye encima)
+
+La misma red bayesiana se presenta como un problema de investigación:
+- El LLM orchestrator genera la narrativa y los nombres
+- Los datos se sampean de la red bayesiana y se presentan en formato realista
+- Las acciones disponibles corresponden a observar nodos (con costos)
+- Las preguntas corresponden a inferir el target o elegir la mejor acción
+
+Esta capa es modular — se puede mejorar independientemente sin tocar la formalización.
+
+---
+
+## El agente solver — filosofía
+
+El agente que resuelve los problemas es un LLM. Principios clave:
+
+### El agente tiene libertad total para razonar
+
+El agente puede hacer lo que quiera para resolver el problema:
+- Leer y analizar el contexto (gratis)
+- Analizar los datos disponibles (gratis)
+- Formular hipótesis (gratis)
+- Escribir código para analizar datos (gratis)
+- Razonar, comparar explicaciones, pensar (gratis)
+
+**Nosotros no prescribimos cómo debe pensar.** No le decimos "primero hacé X,
+después hacé Y". Le damos el problema y que haga lo que quiera.
+
+### Lo único que cuesta son las "acciones del mundo real"
+
+Lo que sí controlamos son las acciones que equivalen a hacer cosas en el mundo
+real — experimentos, mediciones, recolección de datos nuevos:
+
+- Pedir una medición nueva → cuesta budget
+- Solicitar un análisis de laboratorio → cuesta budget
+- Obtener datos adicionales → cuesta budget
+
+Estas acciones están definidas como parte del mundo. Cada una tiene un costo
+y corresponde a observar un nodo (o conjunto de nodos) de la red bayesiana.
+
+### Las acciones se definen por mundo
+
+Qué puede hacer el agente, cuánto cuesta cada cosa, y qué restricciones tiene
+se define como parte de la configuración del mundo/episodio. Esto permite:
+- Mundos donde todo es barato pero hay muchas variables
+- Mundos donde hay pocas acciones pero son caras
+- Mundos con acciones que revelan mucho vs poco
+- Mundos con restricciones específicas
+
+En las primeras versiones, las acciones son simples (observar variable X con
+costo Y). Después se puede escalar a acciones más complejas.
+
+---
+
+## Cómo se genera un mundo — el pipeline
+
+### Seed (input)
+
+El sistema recibe una semilla para crear el mundo. Puede ser:
+- Un tema: "epidemiología", "ecología marina", "materiales"
+- Un escenario narrativo: "hay un problema con la producción de X..."
+- Un paper o documento de referencia (el LLM extrae la estructura)
+- Parámetros técnicos: "6 nodos, dificultad media"
+- Nada (generación libre)
+
+### Generación (LLM + tools)
+
+1. **El LLM orchestrator** recibe el seed y decide la estructura del mundo
+2. **WorldGenTool** construye la red bayesiana (DAG + CPDs) — programático
+3. **WorldCheckTool** valida que el mundo sea interesante y no trivial
+4. Si falla, el LLM ajusta parámetros y reintenta
+5. **El LLM genera la capa semántica**: nombres, narrativa, descripción
+6. **EpisodeGenTool** crea episodios con datos y acciones disponibles
+7. **TaskGenTool** formula las preguntas de investigación
+
+El LLM **nunca toca los números**. Propone estructura y semántica.
+Las tools construyen y verifican la matemática.
+
+### Validación
+
+- DAG válido (acíclico)
+- Entropía adecuada (ni trivial ni imposible)
+- D-separaciones no triviales
+- El teacher solver puede resolverlo con >90% accuracy
+
+---
+
+## El Teacher Solver — el investigador perfecto
+
+El teacher es un motor bayesiano exacto (no es un LLM) que resuelve cada
+problema de forma óptima:
+
+- Siempre elige la acción que más información le da
+- Siempre mantiene la distribución de probabilidad exacta
+- Siempre da la respuesta correcta al final
+
+Sirve para:
+1. **Validar mundos**: si el teacher no puede resolver bien, el mundo está mal
+2. **Línea base perfecta**: comparar cualquier agente contra lo mejor posible
+3. **Generar trayectorias óptimas**: secuencias de decisiones perfectas que
+   pueden usarse como datos de entrenamiento
+
+---
+
+## Evaluación — qué se mide y cómo
+
+La gran ventaja de tener una red bayesiana formal como verdad oculta es que
+**muchas cosas distintas se pueden evaluar de forma verificable** — sin LLM judges,
+sin humanos, con matemática pura.
+
+### Tipos de evaluación posibles
+
+No todos se implementan en v0, pero es importante entender el espacio completo
+porque define qué tipo de tareas podemos generar:
+
+**Inferencia de variables**
+- Estimar P(target | evidencia) — ¿cuál es la distribución de probabilidad?
+- Evaluación: KL divergence entre la respuesta del agente y la posterior exacta
+- Variante simple: ¿cuál es el estado más probable? (accuracy)
+
+**Mejor próxima acción**
+- ¿Qué variable conviene observar/medir next?
+- Evaluación: information gain logrado vs máximo posible
+
+**Selección de hipótesis**
+- Dado un conjunto de explicaciones posibles, ¿cuál es la más plausible?
+- Evaluación: ¿eligió la hipótesis con mayor probabilidad posterior?
+
+**Efecto causal**
+- Si intervenimos en X (forzamos un valor), ¿qué pasa con Y?
+- Evaluación: P(Y | do(X=x)) se calcula exactamente desde el DAG (do-calculus)
+
+**Predicción**
+- Dado lo observado, ¿qué valor va a tener Z?
+- Evaluación: accuracy, calibración, Brier score
+
+**Descubrimiento de estructura**
+- Redescubrir el DAG completo o partes de él
+- Evaluación: Structural Hamming Distance, edge F1
+- Importante: grafos Markov-equivalentes se aceptan como correctos
+
+**Optimización**
+- ¿Qué acción maximiza/minimiza un outcome?
+- Evaluación: regret respecto al óptimo
+
+### Múltiples evaluaciones por tarea
+
+Un mismo problema de investigación puede tener varias preguntas y
+sub-evaluaciones. Ejemplo:
+
+```
+Problema: Declive de producción de algas
+
+Evaluación 1 (principal): ¿Cuál es la causa más probable?
+  → inferencia de variable, scored por accuracy/KL
+
+Evaluación 2: ¿Qué medición adicional sería más informativa?
+  → mejor próxima acción, scored por info gain
+
+Evaluación 3: Si eliminamos el compuesto del sedimento, ¿se recupera la producción?
+  → efecto causal, scored por accuracy de la predicción intervencionista
+
+Sub-evaluación: Calidad del proceso
+  → ¿Usó el budget eficientemente? ¿Pidió observaciones relevantes?
+  → scored por información acumulada vs budget gastado
+```
+
+### Métricas transversales
+
+Además de la evaluación específica por tarea, hay métricas que aplican siempre:
+
+- **Eficiencia**: ¿cuánto budget usó para llegar a su respuesta?
+- **Calibración**: cuando dice "70% seguro", ¿acierta el 70% de las veces?
+- **Mejora incremental**: ¿mejora su respuesta a medida que obtiene más evidencia,
+  o se queda con su primer guess? (El teacher siempre mejora — un buen agente también)
+- **Comparación vs teacher**: ¿qué tan lejos está del óptimo?
+- **Comparación vs random**: ¿es mejor que elegir al azar?
+
+### Rúbricas y evaluación de proceso
+
+Más allá de "¿acertó la respuesta?", se puede evaluar la calidad del razonamiento:
+
+- ¿Pidió las observaciones más informativas?
+- ¿Actualizó sus creencias coherentemente con la evidencia?
+- ¿Consideró hipótesis alternativas?
+- ¿Identificó correctamente qué variables son relevantes?
+
+Estas evaluaciones de proceso son más difíciles de automatizar, pero se pueden
+aproximar comparando la trayectoria del agente con la del teacher óptimo,
+o definiendo rúbricas programáticas basadas en las acciones tomadas.
+
+### Referencia al estado del arte
+
+El diseño de evaluación debe tomar como referencia (sin limitarse a) los
+frameworks existentes para evaluar agentes en tareas long-horizon:
+
+- Benchmarks de agentes de código (SWE-bench y similares)
+- Evaluación de agentes web (WebArena)
+- Evaluación de tareas long-horizon (METR)
+- Bayesian teaching (Qiu et al., Nature Communications 2026)
+- Rúbricas para evaluación de razonamiento científico
+
+Pero SREG tiene una ventaja sobre muchos de estos: la verdad es matemática,
+no necesita jueces. Esto permite definir métricas nuevas que se adapten
+específicamente al razonamiento científico bajo incertidumbre.
+
+El diseño exacto de las métricas evoluciona con el proyecto. Lo importante
+es que el formalismo bayesiano permite verificar prácticamente cualquier
+pregunta que tenga sentido hacer sobre el mundo oculto.
 
 ---
 
 ## Qué NO es SREG
 
-- **No es el agente que resuelve.** Es el gimnasio donde se entrena. Nosotros construimos las pesas, no al atleta.
-- **No es un benchmark estático.** No son 500 preguntas fijas. Es un generador que puede producir infinitos mundos distintos.
-- **No es un entrenamiento de LLMs.** Eso puede venir después. Nosotros generamos los mundos, las tareas, y los datos. Si alguien quiere usar eso para entrenar, tiene todo listo.
-
----
-
-## Cómo funciona paso a paso
-
-### Paso 1: Se genera un mundo oculto
-
-Un LLM orquestador (pensalo como un "director creativo") le pide a herramientas programáticas que construyan un mundo. El LLM decide cosas como "quiero 7 variables, dificultad media, dominio: biología marina ficticia". Las herramientas construyen el DAG, asignan las probabilidades, y validan que todo sea consistente.
-
-El LLM **nunca toca los números**. Solo propone la estructura y los nombres. La matemática la hace el código.
-
-### Paso 2: Se valida que el mundo sea interesante
-
-Una herramienta de validación verifica que el mundo no sea trivial (respuesta obvia) ni imposible (sin suficiente información para resolver). Si no pasa, el orquestador ajusta parámetros y regenera.
-
-### Paso 3: Se genera evidencia
-
-Del mundo se samplea evidencia: datos tabulares, observaciones parciales. Esto es lo que el agente va a poder ver.
-
-### Paso 4: Se generan tareas
-
-Del mundo se derivan preguntas verificables. Por ejemplo:
-- "¿Cuál es la distribución de probabilidad del target dado lo que observaste?" (respuesta correcta: cálculo bayesiano exacto)
-- "¿Qué variable conviene observar ahora para maximizar lo que aprendés?" (respuesta correcta: la que maximiza information gain)
-
-### Paso 5: Un agente interactúa con el entorno
-
-El agente (un LLM) ve la descripción del mundo, la tarea, y la evidencia inicial. Puede pedir observar variables (cada una tiene un costo) dentro de un presupuesto limitado. Al final, da su respuesta.
-
-### Paso 6: Se evalúa automáticamente
-
-El verificador compara la respuesta del agente contra la verdad matemática del mundo oculto. Puntaje objetivo, sin jueces humanos ni LLMs.
-
----
-
-## El Teacher Solver — el "jugador perfecto"
-
-El teacher es un motor bayesiano exacto (no es un LLM, es puro código) que juega cada episodio de forma óptima:
-
-- Siempre elige observar la variable que más información le da
-- Siempre mantiene la distribución de probabilidad exacta dado lo que vio
-- Siempre da la respuesta correcta al final
-
-¿Para qué sirve?
-
-1. **Para validar mundos**: si el teacher no puede resolver un mundo con buena accuracy, el mundo está mal diseñado.
-2. **Para tener una línea base perfecta**: podemos comparar cualquier agente contra "lo mejor posible".
-3. **Para generar trayectorias óptimas**: el teacher produce secuencias de (estado → acción → resultado) que muestran cómo se ve el razonamiento perfecto paso a paso. Esas trayectorias son un producto valioso del sistema — alguien podría usarlas después para fine-tuning, pero eso ya no es nuestro problema.
+- **No es el agente que resuelve.** Es el gimnasio donde se entrena.
+- **No es un benchmark estático.** Es un generador que produce infinitos problemas.
+- **No entrena LLMs.** Genera los mundos, tareas, y datos. Si alguien quiere
+  usar eso para entrenar, tiene todo listo.
+- **No prescribe cómo debe razonar el agente.** Solo le da el problema y las
+  acciones disponibles. El agente decide cómo proceder.
 
 ---
 
 ## Versiones del proyecto
 
-### v0 — El motor que funciona
+### v0 — Motor formal + semántica mínima + agent solver POC
 
-El objetivo de v0 es tener un sistema end-to-end funcional: generar mundos, generar tareas, correr un agente, puntuar.
+El objetivo de v0 es tener un sistema que genera problemas de investigación
+ficticios pero creíbles, y un agente LLM que intenta resolverlos.
 
-**Lo que incluye v0:**
-
-- Generación de mundos con DAGs probabilísticos (usando pgmpy)
-- 3 familias de templates: latent preference, causal chain, fork/collider
-- 2 tipos de tareas: inferir el target + elegir la mejor próxima observación
-- Generación de evidencia: datos tabulares + observaciones secuenciales
-- Teacher solver (bayesiano exacto) que resuelve cada mundo óptimamente
-- Interfaz de interacción por JSON para agentes LLM
-- Verificador/scorer automático (KL divergence, information gain)
-- LLM orquestador que llama a las herramientas para generar mundos
-- Evaluación baseline: correr un LLM sin fine-tuning para ver cómo le va
+**Incluye:**
+- Red bayesiana como verdad oculta (pgmpy)
+- 1 familia de templates (latent preference) con capa semántica
+- Capa semántica mínima: nombres semi-reales, narrativa breve del problema,
+  datos presentados de forma realista (configurable: tabular o datapoints)
+- Acciones del agente: observar variables (con costo) + submit respuesta
+- Teacher solver exacto como referencia
+- Agente LLM solver básico que recibe el problema e interactúa
+- Evaluación: inferencia de target (KL divergence), eficiencia de budget
+- LLM orchestrator que genera mundos con semántica
 - Exportación de trayectorias del teacher como dataset
 
-**Lo que NO incluye v0:**
+**No incluye:**
+- Documentos sintéticos elaborados (papers ficticios, reportes largos)
+- Seeds desde papers reales (input manual sí, búsqueda automática no)
+- Evaluación de efectos causales o intervenciones
+- Acciones complejas del agente (solo observar variables)
+- Múltiples preguntas por tarea (solo la pregunta principal)
+- Rúbricas de proceso
+- Entrenamiento de modelos
 
-- Documentos sintéticos (papers ficticios, reportes)
-- Intervenciones (do-calculus)
-- Descubrimiento de estructura (proponer el grafo)
-- Entrenamiento de modelos (SFT, RL)
-- Dominios científicos reales
-- Búsqueda web u otras herramientas para agentes
+### v1 — Más templates + más evaluación + datos más ricos
 
-### v1 — Mundos más ricos
-
-- Documentos sintéticos simples (generados con templates, no free-form)
-- Tareas de intervención: "si forzás X a este valor, ¿qué pasa con Y?"
-- Tareas de descubrimiento de estructura: el agente propone las relaciones
-- Mundos más grandes (10-20 nodos, con inferencia aproximada)
-- Más familias de templates
+- 3 familias de templates: latent preference, causal chain, fork/collider
+- Datos más ricos: múltiples datasets por problema, múltiples formatos
+- Más tipos de evaluación: next_best_observation, hypothesis_selection
+- Múltiples preguntas/sub-evaluaciones por tarea
+- Acciones más variadas (siguen mapeando a nodos bayesianos)
+- Seeds desde papers o documentos (el LLM extrae estructura)
+- Narrativas más elaboradas con contexto teórico y hints
 
 ### v2 — Hacia investigación real
 
-- Documentos generados por LLM con ruido controlado
-- Tareas multi-paso: leer docs + consultar datos + proponer hipótesis + testearla
-- Evaluación de transferencia: entrenar en template A, testear en template B
+- Evaluación causal: efecto de intervenciones (do-calculus)
+- Evaluación de estructura: redescubrir el DAG
+- Documentos generados por LLM con ruido controlado (papers ficticios, notas)
+- Rúbricas de proceso: evaluar calidad del razonamiento, no solo la respuesta
+- Tareas multi-paso con sub-evaluaciones encadenadas
+- Evaluación de transferencia entre templates
 - Currículo de complejidad creciente
 
 ### v3 — Escala
 
 - RL loop con el verificador como señal de reward
-- Herramientas externas disponibles para agentes (búsqueda web)
+- Herramientas externas para agentes (ejecución de código, búsqueda)
+- Métricas de calibración y mejora incremental
 - Currículo completo
 - Evaluación contra benchmarks científicos reales
+- Framework de rúbricas customizable
 
 ---
 
-## Cómo se implementa v0 — el plan paso a paso
-
-### Fase 1: Contratos y estructuras de datos
-
-Antes de escribir una línea de lógica, definimos todos los tipos de datos:
-- World, Node, Edge, CPD (el mundo y sus componentes)
-- Episode, Action, StepResult (la interacción)
-- Task, TaskSpec (las tareas)
-- Score (los resultados)
-- Schemas JSON para inputs/outputs de todas las herramientas
-
-Esto es lo primero porque todo lo demás depende de que estas interfaces estén estables.
-
-### Fase 2: Generación y validación de mundos
-
-Implementar la generación de mundos para un template (latent preference).
-- Construir DAGs válidos con pgmpy
-- Asignar probabilidades condicionales
-- Validar que la dificultad sea la deseada
-
-Prueba: generar 100 mundos, verificar que todos tienen DAGs válidos y dificultad variable.
-
-### Fase 3: Teacher solver
-
-El motor bayesiano exacto que resuelve mundos.
-- Inferencia exacta con pgmpy (VariableElimination)
-- Cálculo de information gain para cada observación posible
-- Generación de la trayectoria óptima completa
-
-Prueba: el teacher llega a >90% accuracy después de un episodio completo.
-
-### Fase 4: Episodios, tareas y verificador
-
-Conectar todo: generar episodios, formular tareas, correr el teacher como agente, verificar los scores.
-
-Prueba: un episodio end-to-end funciona y el scoring da resultados coherentes.
-
-### Fase 5: LLM Orquestador
-
-Conectar un LLM (vía Anthropic API) como orquestador que llama a las herramientas.
-- El LLM propone mundos
-- Inspecciona la validación
-- Ajusta parámetros si el mundo no pasa
-- Converge en 1-3 iteraciones
-
-Prueba: el orquestador genera un mundo, rechaza uno trivial, y converge.
-
-### Fase 6: Más templates y más tareas
-
-Agregar causal chain y fork/collider como templates.
-Agregar next_best_observation como tipo de tarea.
-
-Prueba: el mismo mundo puede generar ambos tipos de tarea.
-
-### Fase 7: Dataset y evaluación baseline
-
-- Generar trayectorias del teacher y exportarlas como dataset
-- Correr un LLM sin fine-tuning por los episodios
-- Medir su performance como baseline
-
----
-
-## El stack técnico
+## Stack técnico
 
 - **Python 3.11+**
 - **pgmpy** — construcción de redes bayesianas, inferencia exacta
 - **networkx** — validación y manipulación de DAGs
 - **numpy / scipy** — sampling y operaciones con distribuciones
-- **pydantic** — schemas y validación de datos
-- **anthropic SDK** — para el LLM orquestador
-- **pytest** — tests desde el día uno
+- **pydantic v2** — schemas y validación de datos
+- **openai SDK** — LLM via Azure AI Foundry
+- **pytest** — tests
+- **ruff** — linting y formatting
 
 ---
 
-## Cómo se ve el resultado final de v0
-
-Cuando v0 esté completo, vas a poder hacer esto:
+## Cómo se ve v0 cuando esté completo
 
 ```
-> "Generame 50 mundos de dificultad media sobre distintos dominios ficticios"
+> "Generame un problema de investigación sobre ecología marina, dificultad media"
 
 El sistema:
-1. El orquestador LLM genera 50 especificaciones de mundos
-2. Las herramientas construyen cada mundo (DAG + probabilidades)
-3. Se valida cada mundo (descarta los triviales o imposibles)
-4. Se generan episodios con evidencia parcial
-5. Se generan tareas verificables para cada mundo
-6. El teacher resuelve cada episodio óptimamente
-7. Se exporta todo: mundos, episodios, tareas, trayectorias del teacher, scores
+1. El orchestrator LLM elige la estructura y genera nombres/narrativa
+2. Las tools construyen la red bayesiana formal
+3. Se valida que el mundo sea interesante
+4. Se generan datos (muestreados de la red bayesiana, presentados como
+   un dataset realista o como observaciones puntuales)
+5. Se definen las acciones disponibles con sus costos
+6. Se formula la pregunta de investigación
+7. El teacher resuelve el problema óptimamente (referencia)
 
-Resultado: un dataset listo con miles de episodios donde sabés
-exactamente cuál era la respuesta correcta en cada paso.
+Resultado: un problema de investigación completo, listo para que un
+agente LLM lo intente resolver.
 ```
 
-Y por separado, podés correr cualquier LLM como agente:
+Y por separado:
 
 ```
-> "Evaluá GPT-4 en estos 50 mundos"
+> "Evaluá GPT-5 resolviendo estos 50 problemas"
 
 El sistema:
-1. Le presenta cada episodio al LLM
-2. El LLM decide qué observar y da sus respuestas
-3. El verificador puntúa automáticamente
-4. Obtenés métricas: accuracy, eficiencia, calibración
+1. Le presenta cada problema al LLM agent (contexto, datos, acciones)
+2. El LLM agent razona libremente — analiza, hipotetiza, pide datos
+3. Las acciones que pide (observaciones) cuestan budget
+4. El agente da su respuesta final
+5. El verificador puntúa contra la verdad matemática
+6. Métricas: accuracy, eficiencia, calibración vs teacher perfecto
 ```
-
----
-
-## Preguntas que deberías hacerme
-
-- ¿Tiene sentido la división en fases?
-- ¿Falta algo que te parezca importante en v0?
-- ¿Hay algo que te parezca que sobra en v0?
-- ¿Los 3 templates son los correctos o preferís otros?
-- ¿Te interesa que hypothesis_selection sea un tercer tipo de tarea en v0?
-- ¿Querés que el orquestador use Claude (Anthropic) o preferís que sea agnóstico al proveedor?

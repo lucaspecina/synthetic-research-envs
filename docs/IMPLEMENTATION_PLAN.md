@@ -5,7 +5,9 @@
 
 ## Overview
 
-v0 delivers a working end-to-end system: generate worlds, generate tasks, run agents, score results.
+v0 delivers: realistic-looking research problems backed by formal Bayesian networks,
+a teacher solver, and an LLM agent solver that attempts to solve them.
+
 Each phase produces something independently testable before moving to the next.
 
 | Phase | Name | Status | Depends on |
@@ -15,239 +17,223 @@ Each phase produces something independently testable before moving to the next.
 | 3 | Teacher solver | **Done** | Phase 1, 2 |
 | 4 | Episodes, tasks, verifier | **Done** | Phase 1, 2, 3 |
 | 5 | LLM Orchestrator | **Done** | Phase 2, 4 |
-| 6 | More templates + more tasks | Pending | Phase 2, 4 |
-| 7 | Dataset generation + baseline eval | Pending | Phase 3, 4, 5 |
+| 6 | Semantic layer | Pending | Phase 5 |
+| 7 | LLM Agent solver | Pending | Phase 6 |
+| 8 | More templates + more tasks | Pending | Phase 6, 7 |
+| 9 | Dataset generation + eval harness | Pending | Phase 7, 8 |
 
 ---
 
-## Phase 1 — Contracts and data structures
+## Phase 1 — Contracts and data structures — DONE
 
-**Goal**: Define every data type before writing any logic. Nothing else starts until these are stable.
+**Goal**: Define every data type before writing any logic.
 
-**What to build**:
-
-```
-src/sreg/models/
-├── __init__.py
-├── world.py          # World, Node, Edge, CPD
-├── episode.py        # Episode, Action, StepResult
-├── task.py           # Task, TaskSpec, TaskType
-├── teacher.py        # TeacherOutput (posterior, action, info_gain)
-└── score.py          # Score (functional, structural, per_step)
-```
-
-**Data models**:
-
-- `Node`: name (semantic), type (observable/latent/target), description, states list
-- `Edge`: from_node, to_node, mechanism description
-- `CPD`: node name, parents list, probability table (numpy array), state names
-- `World`: id, seed, template_family, nodes, edges, cpds, description, difficulty_profile
-- `Episode`: world_id, steps list, budget, initial_evidence
-- `Action`: type (observe/submit/query), parameters
-- `StepResult`: action taken, observation returned, remaining budget
-- `Task`: id, type, world_id, question, available_evidence, correct_answer (hidden), scoring_fn
-- `TeacherOutput`: posterior distribution, recommended action, information gain
-- `Score`: functional_score (KL div), structural_score (SHD/F1), per_step_scores
-
-**Also in this phase**:
-- `pyproject.toml` with all dependencies
-- `pytest` skeleton with one smoke test
-- `ruff` config
-
-**Done when**: All models pass validation tests, can serialize to/from JSON, and cover all interfaces between layers.
+All Pydantic models defined and tested: World, Node, Edge, CPD, Episode, Action,
+StepResult, Task, TaskSpec, TeacherOutput, Score. JSON serialization roundtrips working.
 
 ---
 
-## Phase 2 — World generation + validation
+## Phase 2 — World generation + validation — DONE
 
-**Goal**: Generate valid, interesting Bayesian network worlds from one template family.
+**Goal**: Generate valid Bayesian network worlds from one template family.
 
-**What to build**:
-
-```
-src/sreg/world/
-├── __init__.py
-├── templates/
-│   └── latent_preference.py    # First template
-└── parameterizer.py            # Assigns CPDs to LLM-proposed structures
-
-src/sreg/tools/
-├── __init__.py
-├── world_gen.py                # WorldGenTool
-└── world_check.py              # WorldCheckTool
-```
-
-**WorldGenTool** receives:
-- template family, node count, latent/observable ratio, sparsity, difficulty, semantic domain
-- Returns: World object with DAG, CPDs, node metadata, seed
-
-**WorldCheckTool** validates:
-- DAG is valid (acyclic)
-- Min path length between observables and target
-- Min number of latent nodes
-- Posterior entropy above threshold (not trivially solvable)
-- At least one non-trivial d-separation
-- Returns: pass/fail + specific failure reasons
-
-**Implementation details**:
-- Use `pgmpy` for BN construction and CPD specification
-- Use `networkx` for DAG validation
-- All worlds deterministic from seed
-
-**Template: Latent Preference**:
-- One hidden variable drives multiple observables
-- Agent must infer the latent from observable effects
-- 5-8 nodes, 1-2 latent, 1 target, rest observable
-
-**Done when**: Generate 100 worlds, all valid DAGs, difficulty varies controllably with parameters.
+Latent preference template implemented. WorldGenTool and WorldCheckTool working.
+100 worlds generated and validated, difficulty varies with parameters.
 
 ---
 
-## Phase 3 — Teacher solver
+## Phase 3 — Teacher solver — DONE
 
-**Goal**: An exact Bayesian engine that plays each episode optimally.
+**Goal**: Exact Bayesian engine that plays each episode optimally.
 
-**What to build**:
-
-```
-src/sreg/solver/
-├── __init__.py
-└── exact_bayes.py    # Exact inference + info gain calculation
-```
-
-**What the teacher does**:
-1. Maintains exact posterior P(all variables | evidence so far)
-2. At each step, computes expected information gain for every observable node
-3. Selects the node that maximizes entropy reduction on the target
-4. Produces the full optimal trajectory: (state, action, result) triples
-
-**Implementation**: pgmpy `VariableElimination` for posterior computation.
-
-**Why this matters**:
-- Validates that worlds are solvable (teacher should reach >90%)
-- Provides the "perfect score" baseline
-- Generates optimal trajectories that can be exported as training data
-
-**Done when**: Teacher reaches >90% accuracy on `infer_target` after full episode across 50+ worlds.
+ExactBayesSolver implemented with pgmpy VariableElimination. Teacher reaches >90%
+accuracy across 50 worlds (250 episodes).
 
 ---
 
-## Phase 4 — Episodes, tasks, verifier
+## Phase 4 — Episodes, tasks, verifier — DONE
 
-**Goal**: Connect everything end-to-end. Generate episodes, formulate tasks, score agent performance.
+**Goal**: Connect everything end-to-end.
 
-**What to build**:
-
-```
-src/sreg/tools/
-├── episode_gen.py    # EpisodeGenTool
-├── task_gen.py       # TaskGenTool
-└── verifier.py       # VerifierTool
-
-src/sreg/env/
-├── __init__.py
-├── interface.py      # Episode step loop
-├── actions.py        # Action schemas
-└── episode.py        # Episode runner
-```
-
-**EpisodeGenTool**: generates episodes from a world — initial evidence, available nodes, costs, budget.
-
-**TaskGenTool**: formulates tasks from a world.
-- `infer_target`: estimate P(target | evidence). Scored by KL divergence.
-- (next_best_observation added in Phase 6)
-
-**VerifierTool**: computes scores.
-- Functional score (primary): KL divergence between agent posterior and true posterior
-- Information efficiency: budget used vs accuracy achieved
-
-**Environment interface**:
-- Agent sends JSON actions: `observe`, `query_distribution`, `submit`
-- Environment returns: observation in natural language + structured data, remaining budget
-- Observations use semantic names: "thermal_flux was observed to be HIGH (value: 0.84)"
-
-**Done when**: Full episode works end-to-end with teacher as agent. Scores are correct and consistent.
+EpisodeGenTool, TaskGenTool (infer_target), VerifierTool, and EpisodeRunner all working.
+Full episodes run end-to-end with teacher as agent.
 
 ---
 
-## Phase 5 — LLM Orchestrator
+## Phase 5 — LLM Orchestrator — DONE
 
-**Goal**: An LLM (via Azure Foundry) orchestrates world generation by calling tools in a loop.
+**Goal**: LLM drives world generation via tool calling.
 
-**What to build**:
-
-```
-src/sreg/orchestrator/
-├── __init__.py
-├── orchestrator.py   # Main agentic loop
-└── prompts.py        # System prompts
-```
-
-**How it works**:
-1. Orchestrator receives a high-level goal ("generate a medium-difficulty world about X")
-2. Calls WorldGenTool with proposed parameters
-3. Calls WorldCheckTool to validate
-4. If validation fails, adjusts parameters and regenerates
-5. Once valid, calls EpisodeGenTool and TaskGenTool
-6. LLM does a final semantic quality check (coherent names, non-trivial structure)
-7. World registered and stored
-
-**LLM integration**:
-- Azure Foundry via `openai` SDK (v1 API, `OpenAI` not `AzureOpenAI`)
-- Tool use / function calling for the 5 tools
-- Converges in 1-3 iterations typically
-
-**Done when**: Orchestrator generates a world, rejects a trivial one, converges in <=3 iterations.
+Orchestrator loop working with gpt-5.2-chat via Azure Foundry. Proposes worlds,
+validates, adjusts on failure, generates episodes and tasks. Converges in 1-5 iterations.
 
 ---
 
-## Phase 6 — More templates + more tasks
+## Phase 6 — Semantic layer
 
-**Goal**: Add diversity — two more template families and one more task type.
+**Goal**: Transform abstract worlds into realistic research problems.
 
-**Templates to add**:
+This is where the system goes from "estimate P(target_outcome)" to
+"determine the main cause of algae production decline in Nelvara."
 
-**Causal chain**: A -> B -> C -> target with noise at each step.
-Tests whether the agent tracks evidence propagation across multiple hops.
+### What to build
 
-**Fork with collider**: A latent common cause produces two observables; a collider downstream creates a dependency trap.
-Tests understanding of d-separation and Berkson's bias.
+**6.1 — Semantic world model extensions**
 
-**Task to add**:
+Extend the World model to include semantic metadata:
+- `scenario_title`: name of the research problem
+- `scenario_description`: narrative context (2-3 paragraphs)
+- `domain`: scientific domain (ecology, epidemiology, materials, etc.)
+- Node names become semantic: `water_temperature` not `indicator_1`
+- Node descriptions explain what each variable represents in the scenario
+- Edge mechanisms describe causal relationships in plain language
+- Action descriptions: what each observation means in context
+  ("solicitar análisis de sedimentos" not "observe node_3")
 
-**`next_best_observation`**: Given current evidence and remaining budget, which node should be observed next?
-- Correct answer: node that maximizes expected information gain
-- Score: achieved info gain vs maximum possible info gain
+**6.2 — Data presentation**
 
-**Done when**: Same world can produce both task types. All 3 templates generate valid, diverse worlds.
+Generate evidence from the Bayesian network in realistic formats:
+- **Tabular dataset**: N rows sampled from the joint distribution, with named
+  columns, presented as a DataFrame/CSV the agent can analyze
+- **Isolated observations**: individual datapoints ("in station 3, temperature
+  was measured at 24.3°C on March 5")
+- **Experimental results**: structured outputs ("the controlled experiment
+  showed growth rate of 0.7 under condition X")
+- Configurable per world: which format(s) to use
+
+The underlying data always comes from sampling the Bayesian network.
+The presentation format is the semantic layer.
+
+**6.3 — Orchestrator semantic generation**
+
+Expand the orchestrator prompt so the LLM also generates:
+- Scenario title and description
+- Semantic names for all nodes
+- Descriptions for all edges (causal mechanisms in context)
+- Action descriptions with costs
+- The research question in natural language
+
+The orchestrator still calls the same programmatic tools for the formal layer.
+The semantic content is LLM-generated metadata that doesn't affect the math.
+
+**6.4 — Research problem packaging**
+
+A `ResearchProblem` model that bundles everything the agent sees:
+- Problem title and description
+- Available data (in chosen format)
+- Available actions with costs and descriptions
+- Budget constraint
+- Research question(s)
+- Any initial evidence or context
+
+### What NOT to build yet
+
+- Synthetic documents (papers, reports) — that's v1/v2
+- Automatic paper search for seeds — that's v1
+- Complex action types — just observe with semantic names
+
+### Done when
+
+- Same Bayesian network produces a research problem with narrative, names, and data
+- Orchestrator generates semantic layer via LLM
+- Agent-facing output looks like a realistic (if simple) research brief
+- All existing tests still pass
 
 ---
 
-## Phase 7 — Dataset generation + baseline evaluation
+## Phase 7 — LLM Agent solver
 
-**Goal**: Produce output datasets and measure baseline LLM performance.
+**Goal**: An LLM agent that receives research problems and tries to solve them.
 
-**What to build**:
+### What to build
 
-```
-src/sreg/harness/
-├── __init__.py
-├── generate_dataset.py   # Teacher trajectories → exportable dataset
-└── evaluate_agent.py     # Run LLM agent through episodes, collect metrics
-```
+**7.1 — Agent interface**
 
-**Teacher trajectory dataset**:
-- For each episode: sequence of (history, optimal_action, posterior_state) triples
-- Export as JSON/JSONL
-- This is a valuable product — usable for future SFT by anyone
+The agent receives a `ResearchProblem` and interacts via the existing EpisodeRunner,
+but with semantic presentation:
+- Sees the problem description, context, available data
+- Can request observations (semantically described, with costs)
+- Can submit its answer
+- Everything else (reasoning, analysis, hypothesis generation) is free and
+  up to the agent — we don't prescribe how it thinks
 
-**Baseline evaluation**:
-- Run a baseline LLM (no fine-tuning) through episodes
-- Measure: accuracy, information efficiency, calibration
-- Expected result: baseline plateaus after first observation (doesn't improve with more evidence)
-- This confirms the environment captures the reasoning failure we want to train against
+**7.2 — Agent orchestrator**
 
-**Done when**: Dataset exported correctly. Baseline LLM shows expected plateau behavior.
+An LLM agentic loop (similar to the world orchestrator) that:
+- Receives the research problem as context
+- Decides what to observe based on the problem
+- Reasons about the evidence
+- Submits its final answer
+
+The agent uses the same OpenAI function calling pattern:
+- `observe(node)` → returns observation in semantic format
+- `submit(answer)` → submits final probability distribution
+
+**7.3 — Agent evaluation**
+
+Compare the agent's performance against:
+- The teacher solver (perfect baseline)
+- A random agent (worst-case baseline)
+- Metrics: KL divergence, accuracy, information efficiency, budget usage
+
+### Done when
+
+- An LLM agent can receive a research problem and attempt to solve it
+- The agent's performance is scored against the teacher
+- We can identify where the agent fails vs the teacher
+
+---
+
+## Phase 8 — More templates + more tasks
+
+**Goal**: Add diversity in world structure and task types.
+
+### Templates to add
+
+**Causal chain**: A → B → C → target. Tests evidence propagation across hops.
+Each template gets semantic layer support from the start.
+
+**Fork with collider**: Latent common cause + collider downstream.
+Tests d-separation understanding and Berkson's bias.
+
+### Tasks to add
+
+**`next_best_observation`**: Given current evidence, which action should be taken next?
+Correct answer: the action maximizing expected information gain.
+
+**`hypothesis_selection`**: Given a set of possible explanations, which is most plausible?
+Correct answer: the hypothesis with highest posterior probability.
+
+### Done when
+
+- 3 templates generating valid worlds with semantic layers
+- Same world can produce multiple task types
+- Agent solver works across all templates
+
+---
+
+## Phase 9 — Dataset generation + evaluation harness
+
+**Goal**: Produce exportable datasets and systematic evaluation.
+
+### What to build
+
+**Teacher trajectory dataset**: For each episode, export the full optimal
+trajectory as (problem, action, result, posterior) sequences. JSONL format.
+
+**Batch evaluation harness**: Run the LLM agent across many problems,
+collect metrics, produce summary reports.
+
+**Comparative analysis**: Teacher vs agent performance across:
+- Different templates
+- Different difficulty levels
+- Different budget constraints
+
+### Done when
+
+- Dataset exported correctly as JSONL
+- Batch eval runs across 100+ problems
+- Results show where the agent fails relative to the teacher
 
 ---
 
@@ -255,16 +241,18 @@ src/sreg/harness/
 
 | Criterion | What it proves |
 |---|---|
-| Generate 1,000+ reproducible episodes across 3 templates | Generator is stable and diverse |
-| Teacher reaches >90% on infer_target after full episode | World quality is sufficient |
-| LLM Orchestrator converges in <=3 iterations | Orchestrator loop works |
-| Same world produces both task types | Layer 3 architecture is correct |
-| Baseline LLM shows plateau effect | Environment captures the target failure mode |
+| Generate research problems with narrative + data + actions | Semantic layer works |
+| Same Bayesian network → realistic research problem | Two-layer architecture is correct |
+| Teacher reaches >90% on infer_target | World quality is sufficient |
+| LLM agent can interact with research problems | Agent interface works |
+| Agent performance scored vs teacher | Evaluation pipeline works |
+| Generate 100+ reproducible problems across templates | Generator is stable |
 | Teacher trajectories exported as dataset | Output pipeline works |
-| All components pass unit tests independently | Architecture is modular and correct |
 
 ---
 
 ## What comes after v0
 
 See `PROJECT.md` sections on v1, v2, v3 for the full roadmap.
+Key additions: richer data formats, paper-based seeds, synthetic documents,
+more action types, intervention tasks, RL training loop.
