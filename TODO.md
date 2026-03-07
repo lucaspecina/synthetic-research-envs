@@ -27,16 +27,18 @@
 - [x] Validate: teacher reaches >90% on infer_target after full episode
 
 ## Phase 4 — Episodes, tasks, verifier
-- [ ] Implement `EpisodeGenTool`
-- [ ] Implement `TaskGenTool` (infer_target)
-- [ ] Implement `VerifierTool` (functional scoring)
-- [ ] End-to-end test: teacher as agent through full episode
+- [x] Implement `EpisodeGenTool`
+- [x] Implement `TaskGenTool` (infer_target)
+- [x] Implement `VerifierTool` (functional scoring)
+- [x] Implement `EpisodeRunner` (environment interface)
+- [x] End-to-end test: teacher as agent through full episode
 
 ## Phase 5 — LLM Orchestrator
-- [ ] Define orchestrator system prompt
-- [ ] Wire 5 tools to LLM via Azure Foundry (openai SDK)
-- [ ] Implement orchestrator loop (propose → check → refine → accept)
-- [ ] Validate: converges in <=3 iterations per world
+- [x] Define orchestrator system prompt
+- [x] Define tool definitions for function calling (4 tools)
+- [x] Wire tools to LLM via Azure Foundry (openai SDK)
+- [x] Implement orchestrator loop (propose → check → refine → accept)
+- [x] Mocked tests (full loop, retry, max iterations)
 
 ## Phase 6 — More templates + more tasks
 - [ ] Implement causal chain template

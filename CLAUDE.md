@@ -69,7 +69,8 @@ sreg/
 │   ├── plan.md                       # /plan — review implementation plan
 │   ├── status.md                     # /status — project status
 │   ├── test.md                       # /test — run tests
-│   └── review.md                     # /review — code review
+│   ├── review.md                     # /review — code review
+│   └── phase.md                      # /phase — start a specific phase
 ├── docs/
 │   ├── IMPLEMENTATION_PLAN.md        # Detailed build phases
 │   └── references/                   # Original design documents (read-only)

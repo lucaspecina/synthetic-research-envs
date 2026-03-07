@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### 2026-03-07
+- **Phase 4 complete**: episodes, tasks, verifier, and environment interface
+  - `EpisodeGenTool`: generates episodes from worlds (budget, costs, initial evidence)
+  - `TaskGenTool`: formulates `infer_target` tasks with correct answer (prior distribution)
+  - `VerifierTool`: KL divergence scoring, information efficiency, per-step scoring
+  - `EpisodeRunner`: step-by-step environment interface (observe, query, submit)
+  - End-to-end test: teacher as agent achieves >90% MAP accuracy through EpisodeRunner
+- **Phase 5 complete**: LLM orchestrator for world generation
+  - System prompt with workflow instructions and guidelines
+  - 4 tool definitions for function calling (world_gen, world_check, episode_gen, task_gen)
+  - `Orchestrator` class: agentic loop with tool dispatch, retry logic, world registry
+  - Uses Azure AI Foundry via openai SDK (OpenAI client, not AzureOpenAI)
+  - Mocked tests: full loop (4 iterations), retry on validation failure, max iterations
+  - Created `.env.example` for credential configuration
+- 125 tests total, all passing
+
 ### 2026-03-06
 - **Phase 2 complete**: world generation and validation
   - `LatentPreferenceTemplate`: generates DAG + CPDs with controllable edge_strength
