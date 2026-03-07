@@ -1,3 +1,9 @@
+---
+name: test
+description: Run tests for the project.
+disable-model-invocation: true
+---
+
 Run tests for the project.
 
 1. If arguments are provided, run tests matching: $ARGUMENTS

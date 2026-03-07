@@ -1,3 +1,9 @@
+---
+name: review
+description: Review recent code changes for quality and correctness.
+disable-model-invocation: true
+---
+
 Review recent code changes for quality and correctness.
 
 1. Run `git diff` to see unstaged changes, or `git diff --cached` for staged changes

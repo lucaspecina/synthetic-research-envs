@@ -1,3 +1,9 @@
+---
+name: phase
+description: Start working on a specific implementation phase.
+disable-model-invocation: true
+---
+
 Start working on a specific implementation phase.
 
 1. Read `docs/IMPLEMENTATION_PLAN.md` for the phase: $ARGUMENTS

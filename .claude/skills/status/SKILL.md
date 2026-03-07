@@ -1,3 +1,8 @@
+---
+name: status
+description: Give a concise project status overview. Use when the user asks about progress, how things are going, or what percentage is complete.
+---
+
 Give a concise project status overview.
 
 1. Read `TODO.md` and `CHANGELOG.md`

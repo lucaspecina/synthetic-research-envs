@@ -65,12 +65,12 @@ sreg/
 ├── TODO.md                           # Task tracking
 ├── CHANGELOG.md                      # Version history
 ├── pyproject.toml                    # Package config
-├── .claude/commands/                 # Custom slash commands
-│   ├── plan.md                       # /plan — review implementation plan
-│   ├── status.md                     # /status — project status
-│   ├── test.md                       # /test — run tests
-│   ├── review.md                     # /review — code review
-│   └── phase.md                      # /phase — start a specific phase
+├── .claude/skills/                   # Project skills (slash commands)
+│   ├── plan/SKILL.md                 # /plan — review implementation plan
+│   ├── status/SKILL.md              # /status — project status
+│   ├── test/SKILL.md                # /test — run tests
+│   ├── review/SKILL.md             # /review — code review
+│   └── phase/SKILL.md              # /phase — start a specific phase
 ├── docs/
 │   ├── IMPLEMENTATION_PLAN.md        # Detailed build phases
 │   └── references/                   # Original design documents (read-only)

@@ -1,3 +1,8 @@
+---
+name: plan
+description: Review the implementation plan and project status. Use when the user asks about the project roadmap, current phase, or what needs to be done next.
+---
+
 Review the current implementation plan and project status.
 
 1. Read `docs/IMPLEMENTATION_PLAN.md` and `TODO.md`
