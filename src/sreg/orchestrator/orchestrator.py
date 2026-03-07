@@ -7,7 +7,10 @@ import logging
 import os
 from typing import Any
 
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv()
 
 from sreg.models.task import TaskSpec, TaskType
 from sreg.models.world import NodeType, World
@@ -41,12 +44,12 @@ class Orchestrator:
 
     def __init__(
         self,
-        model: str = "gpt-4o",
+        model: str | None = None,
         max_iterations: int = 10,
         max_gen_attempts: int = 3,
         client: OpenAI | None = None,
     ):
-        self.model = model
+        self.model = model or os.environ.get("AZURE_MODEL", "gpt-4o")
         self.max_iterations = max_iterations
         self.max_gen_attempts = max_gen_attempts
 
