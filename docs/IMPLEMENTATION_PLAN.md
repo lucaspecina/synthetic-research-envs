@@ -11,8 +11,8 @@ Each phase produces something independently testable before moving to the next.
 | Phase | Name | Status | Depends on |
 |---|---|---|---|
 | 1 | Contracts and data structures | **Done** | — |
-| 2 | World generation + validation | Pending | Phase 1 |
-| 3 | Teacher solver | Pending | Phase 1, 2 |
+| 2 | World generation + validation | **Done** | Phase 1 |
+| 3 | Teacher solver | **Done** | Phase 1, 2 |
 | 4 | Episodes, tasks, verifier | Pending | Phase 1, 2, 3 |
 | 5 | LLM Orchestrator | Pending | Phase 2, 4 |
 | 6 | More templates + more tasks | Pending | Phase 2, 4 |

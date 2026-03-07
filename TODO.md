@@ -15,16 +15,16 @@
 - [x] Set up `pytest` skeleton
 
 ## Phase 2 — World generation + validation
-- [ ] Implement latent preference template
-- [ ] Implement `WorldGenTool` for one template
-- [ ] Implement `WorldCheckTool` (difficulty validation)
-- [ ] Validate: 100 worlds, all valid DAGs, difficulty varies with params
+- [x] Implement latent preference template
+- [x] Implement `WorldGenTool` for one template
+- [x] Implement `WorldCheckTool` (difficulty validation)
+- [x] Validate: 100 worlds, all valid DAGs, difficulty varies with params
 
 ## Phase 3 — Teacher solver
-- [ ] Implement exact Bayesian inference (pgmpy VariableElimination)
-- [ ] Implement information gain calculation
-- [ ] Implement optimal action sequence generation
-- [ ] Validate: teacher reaches >90% on infer_target after full episode
+- [x] Implement exact Bayesian inference (pgmpy VariableElimination)
+- [x] Implement information gain calculation
+- [x] Implement optimal action sequence generation
+- [x] Validate: teacher reaches >90% on infer_target after full episode
 
 ## Phase 4 — Episodes, tasks, verifier
 - [ ] Implement `EpisodeGenTool`

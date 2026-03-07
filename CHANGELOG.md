@@ -6,6 +6,20 @@
 ## [Unreleased]
 
 ### 2026-03-06
+- **Phase 2 complete**: world generation and validation
+  - `LatentPreferenceTemplate`: generates DAG + CPDs with controllable edge_strength
+  - `WorldGenTool`: generates worlds from config (template, num_nodes, edge_strength, seed)
+  - `WorldCheckTool`: validates DAG acyclicity, latent nodes, paths, entropy, d-separation
+  - `world_to_pgmpy()`: converts World models to pgmpy DiscreteBayesianNetwork
+  - 100 worlds generated and validated, difficulty varies with parameters
+- **Phase 3 complete**: exact Bayesian teacher solver
+  - `ExactBayesSolver`: posterior computation, information gain, optimal action selection
+  - Ancestral sampling for world state generation
+  - Trajectory generation with optimal observation ordering
+  - Teacher reaches >90% MAP accuracy across 50 worlds (250 episodes)
+- 81 tests total, all passing
+
+### 2026-03-06
 - **Phase 1 complete**: all Pydantic data contracts defined and tested
   - `World`, `Node`, `Edge`, `CPD`, `DifficultyProfile` (world.py)
   - `Episode`, `Action`, `ActionType`, `Observation`, `StepResult` (episode.py)
