@@ -80,3 +80,5 @@ ruff format src/ tests/                   # Format
 4. **Add a dependency** → add to `pyproject.toml` and tech stack above
 5. **Change conventions** → update this file immediately
 6. **Change scope** → update `PROJECT.md` first, then propagate
+7. **Add/change a NodeType** → update `_node_styles()` and `_HTML_NODE_COLORS` in `src/sreg/display.py`
+8. **Add a new display need** → add function to `display.py`, update `scripts/demo.py` and notebook
