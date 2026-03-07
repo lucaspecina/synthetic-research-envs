@@ -10,7 +10,7 @@ Each phase produces something independently testable before moving to the next.
 
 | Phase | Name | Status | Depends on |
 |---|---|---|---|
-| 1 | Contracts and data structures | Pending | — |
+| 1 | Contracts and data structures | **Done** | — |
 | 2 | World generation + validation | Pending | Phase 1 |
 | 3 | Teacher solver | Pending | Phase 1, 2 |
 | 4 | Episodes, tasks, verifier | Pending | Phase 1, 2, 3 |

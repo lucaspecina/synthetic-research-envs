@@ -4,15 +4,15 @@
 > Statuses: `[ ]` pending | `[~]` in progress | `[x]` done | `[-]` cancelled
 
 ## Phase 1 — Contracts and data structures
-- [ ] Define `World`, `Node`, `Edge` models
-- [ ] Define `CPD` (conditional probability distribution) model
-- [ ] Define `Episode`, `Action`, `StepResult` models
-- [ ] Define `Task`, `TaskSpec` models
-- [ ] Define `TeacherOutput` model (posterior, recommended action, info gain)
-- [ ] Define `Score` model (functional, structural, per-step)
-- [ ] Define JSON schemas for all tool inputs/outputs
-- [ ] Set up `pyproject.toml` with dependencies
-- [ ] Set up `pytest` skeleton
+- [x] Define `World`, `Node`, `Edge` models
+- [x] Define `CPD` (conditional probability distribution) model
+- [x] Define `Episode`, `Action`, `StepResult` models
+- [x] Define `Task`, `TaskSpec` models
+- [x] Define `TeacherOutput` model (posterior, recommended action, info gain)
+- [x] Define `Score` model (functional, structural, per-step)
+- [x] Define JSON schemas for all tool inputs/outputs
+- [x] Set up `pyproject.toml` with dependencies
+- [x] Set up `pytest` skeleton
 
 ## Phase 2 — World generation + validation
 - [ ] Implement latent preference template
