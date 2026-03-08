@@ -46,9 +46,9 @@ Every research problem has two layers:
 
 ### Current state
 
-Phases 1-5 complete (formal engine works end-to-end). 125 tests passing.
-**Next: Phase 6 (semantic layer)** — transform abstract worlds into realistic
-research problems. Then Phase 7 (LLM agent solver).
+Phases 1-7 complete (formal engine + semantic layer + agent solver). 153 tests passing.
+**Next: Phase 8 (more templates + tasks)** — causal chain, fork/collider,
+new task types. Then Phase 9 (dataset gen + eval harness).
 
 See `docs/CURRENT_STATE.md` for full details.
 
@@ -93,7 +93,8 @@ src/sreg/
 
 scripts/
 ├── demo.py                # Terminal demo: world gen + teacher solving
-└── test_orchestrator.py   # Step-by-step orchestrator run with real LLM
+├── test_orchestrator.py   # Step-by-step orchestrator run with real LLM
+└── test_agent.py          # Agent vs teacher vs random baseline comparison
 
 notebooks/
 └── 01_explore_system.ipynb  # Interactive exploration

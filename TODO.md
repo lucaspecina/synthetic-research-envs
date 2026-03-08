@@ -57,11 +57,12 @@
 - [ ] Update demo script and notebook
 
 ## Phase 7 — LLM Agent solver
-- [ ] Agent interface: receive ResearchProblem, interact via EpisodeRunner
-- [ ] Agent orchestrator: LLM agentic loop with observe/submit tools
-- [ ] Agent system prompt and tool definitions
-- [ ] Agent evaluation: score vs teacher and random baseline
-- [ ] Comparison reports: agent vs teacher across problems
+- [x] Agent interface: receive ResearchProblem, interact via EpisodeRunner
+- [x] Agent orchestrator: LLM agentic loop with observe/submit tools
+- [x] Agent system prompt and tool definitions
+- [x] Agent evaluation: score vs teacher and random baseline
+- [x] Comparison script: agent vs teacher vs random baseline
+- [ ] Run agent with real LLM and validate end-to-end
 
 ## Phase 8 — More templates + more tasks
 - [ ] Implement causal chain template (with semantic layer from start)

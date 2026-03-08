@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — Phase 7: LLM Agent solver
+- **Agent solver implemented**: LLM agent that receives ResearchProblem and solves it
+  - `AgentSolver`: agentic loop with observe/submit tools routed through EpisodeRunner
+  - `build_agent_system_prompt()`: presents problem narrative, data, actions, question
+  - `AgentResult`: captures submitted answer, observations, score, messages
+  - Observe tool: validates variable, checks budget, returns observed state
+  - Submit tool: validates distribution states, normalizes, scores via VerifierTool
+  - Comparison script (`scripts/test_agent.py`): runs agent vs teacher vs random baseline
+  - 13 tests: prompt generation, tool dispatch, mocked full loops
+- 153 tests total, all passing
+
 ### 2026-03-07 — Phase 6: Semantic layer
 - **Semantic layer implemented**: transforms abstract BN worlds into realistic research problems
   - `ResearchProblem` model: packages title, narrative, data, actions, question, budget

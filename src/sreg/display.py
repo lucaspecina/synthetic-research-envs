@@ -410,6 +410,61 @@ def show_research_problem(problem: ResearchProblem) -> None:
     _safe_print(_box("PROBLEMA DE INVESTIGACION", lines, _C.MAGENTA, width=90))
 
 
+def show_agent_comparison(
+    true_state_value: str,
+    teacher_kl: float,
+    random_kl: float,
+    agent_kl: float | None,
+    agent_budget_used: int,
+    agent_budget_total: int,
+) -> None:
+    """Pretty-print a 3-way comparison: teacher vs agent vs random baseline."""
+    if _in_notebook():
+        _show_agent_comparison_html(
+            true_state_value, teacher_kl, random_kl, agent_kl,
+            agent_budget_used, agent_budget_total,
+        )
+        return
+
+    lines = [
+        f"Estado verdadero: {_c(_C.BOLD + _C.YELLOW, true_state_value)}",
+        "",
+        f"  {'':20} {'Teacher':>12}   {'Agente':>12}   {'Random':>12}",
+        f"  {'-' * 58}",
+    ]
+
+    # KL row
+    t_kl = f"{teacher_kl:.4f}"
+    r_kl = f"{random_kl:.4f}"
+    a_kl = f"{agent_kl:.4f}" if agent_kl is not None else "---"
+    lines.append(f"  {'KL divergence':<20} {t_kl:>12}   {a_kl:>12}   {r_kl:>12}")
+
+    # Budget row
+    agent_bud = f"{agent_budget_used}/{agent_budget_total}"
+    lines.append(
+        f"  {'Budget usado':<20} {'optimo':>12}   {agent_bud:>12}   {'0':>12}"
+    )
+
+    # Rating
+    lines.append("")
+    if agent_kl is not None:
+        if agent_kl <= teacher_kl + 0.01:
+            lines.append(f"  Resultado: {_c(_C.GREEN + _C.BOLD, 'EXCELENTE')} (nivel teacher)")
+        elif agent_kl < random_kl:
+            lines.append(f"  Resultado: {_c(_C.YELLOW + _C.BOLD, 'BIEN')} (mejor que random)")
+        else:
+            lines.append(
+                f"  Resultado: {_c(_C.RED + _C.BOLD, 'POBRE')} (peor que random)"
+            )
+    else:
+        lines.append(f"  Resultado: {_c(_C.RED + _C.BOLD, 'NO ENVIO RESPUESTA')}")
+
+    lines.append("")
+    lines.append(_c(_C.DIM, "  KL mas bajo = mejor (0 = perfecto)"))
+
+    _safe_print(_box("COMPARACION: TEACHER vs AGENTE vs RANDOM", lines, _C.MAGENTA, width=70))
+
+
 def show_score(score: Score) -> None:
     """Pretty-print a Score object."""
     if _in_notebook():
@@ -689,6 +744,45 @@ def _show_research_problem_html(problem: ResearchProblem) -> None:
     _nb_card(problem.title, body, color="#7048e8")
 
 
+def _show_agent_comparison_html(
+    true_state_value: str,
+    teacher_kl: float,
+    random_kl: float,
+    agent_kl: float | None,
+    agent_budget_used: int,
+    agent_budget_total: int,
+) -> None:
+    a_kl_str = f"<b>{agent_kl:.4f}</b>" if agent_kl is not None else "---"
+    if agent_kl is not None:
+        if agent_kl <= teacher_kl + 0.01:
+            verdict = '<span style="color:#2b8a3e;font-weight:700;">EXCELENTE</span>'
+        elif agent_kl < random_kl:
+            verdict = '<span style="color:#e67700;font-weight:700;">BIEN</span>'
+        else:
+            verdict = '<span style="color:#e03131;font-weight:700;">POBRE</span>'
+    else:
+        verdict = '<span style="color:#e03131;font-weight:700;">NO ENVIO</span>'
+
+    _nb_card(
+        f"Comparacion - Estado verdadero: {true_state_value}",
+        f"Veredicto: {verdict}",
+        color="#7048e8",
+    )
+    _nb_table(
+        ["", "Teacher", "Agente", "Random"],
+        [
+            ["KL div", f"<b>{teacher_kl:.4f}</b>", a_kl_str, f"{random_kl:.4f}"],
+            [
+                "Budget",
+                "optimo",
+                f"{agent_budget_used}/{agent_budget_total}",
+                "0",
+            ],
+        ],
+        highlight_col=2,
+    )
+
+
 def _show_score_html(score: Score) -> None:
     _nb_card(
         "Score",
@@ -700,6 +794,7 @@ def _show_score_html(score: Score) -> None:
 
 
 __all__ = [
+    "show_agent_comparison",
     "show_comparison",
     "show_prior",
     "show_research_problem",
