@@ -31,9 +31,9 @@
 ## v1 — More templates + more tasks
 - [x] Causal chain template (with semantic layer from start)
 - [x] Fork/collider template (with semantic layer from start)
-- [ ] `next_best_observation` task type
+- [x] `next_best_observation` task type
 - [ ] `hypothesis_selection` task type
-- [ ] Validate: same world produces multiple task types
+- [ ] Multiple evaluations per problem: same world generates all 3 task types together
 
 ## Backlog
 - [ ] Synthetic document artifacts (papers, reports, notes)

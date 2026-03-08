@@ -10,6 +10,23 @@ from sreg.models.score import Score, StepScore
 class VerifierTool:
     """Computes scores for agent performance on an episode."""
 
+    def score_nbo(
+        self,
+        agent_choice: str,
+        ig_ranking: dict[str, float],
+    ) -> float:
+        """Score a next_best_observation answer.
+
+        Returns the ratio of the agent's chosen node's IG to the optimal IG.
+        1.0 = perfect choice, 0.0 = worst possible or invalid choice.
+        """
+        best_ig = max(ig_ranking.values()) if ig_ranking else 0.0
+        if best_ig <= 0:
+            # All nodes have zero IG — any choice is equally good
+            return 1.0
+        agent_ig = ig_ranking.get(agent_choice, 0.0)
+        return min(1.0, agent_ig / best_ig)
+
     def score(
         self,
         agent_posterior: dict[str, float],

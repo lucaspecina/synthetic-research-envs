@@ -33,11 +33,15 @@ class Task(BaseModel):
         description="Node names the agent can observe",
     )
     correct_answer: dict[str, float] = Field(
-        description="Hidden ground truth: true posterior distribution over target states",
+        description="Hidden ground truth: distribution (infer_target) or IG ranking (NBO)",
     )
     scoring_method: str = Field(
         default="kl_divergence",
         description="How to score: 'kl_divergence' or 'info_gain_ratio'",
+    )
+    given_evidence: dict[str, str] = Field(
+        default_factory=dict,
+        description="Evidence already provided to the agent (for NBO tasks)",
     )
 
 

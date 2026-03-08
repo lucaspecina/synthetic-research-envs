@@ -11,7 +11,7 @@ SREG generates fictional research problems backed by Bayesian networks. The full
 pipeline works end-to-end: generate a BN world → validate → add semantic layer →
 present as a research problem → LLM agent solves it → score against ground truth.
 
-**196 tests passing. 3 template families. Agent, teacher, and batch evaluation working.**
+**208 tests passing. 3 template families. 2 task types. Agent, teacher, and batch evaluation working.**
 
 ---
 
@@ -111,8 +111,8 @@ With more nodes: up to 3 branches, remaining become mediators between collider a
 | **World check** | `src/sreg/tools/world_check.py` | Validates: DAG acyclicity, entropy, d-separation, paths to target |
 | **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Exact Bayesian inference via pgmpy VariableElimination; posteriors, info gain, optimal actions |
 | **Episode gen** | `src/sreg/tools/episode_gen.py` | Creates episodes: budget, available nodes, observation costs |
-| **Task gen** | `src/sreg/tools/task_gen.py` | Creates `infer_target` tasks with exact correct answer (prior distribution) |
-| **Verifier** | `src/sreg/tools/verifier.py` | KL divergence scoring, information efficiency, per-step tracking. Clips zeros to avoid NaN. |
+| **Task gen** | `src/sreg/tools/task_gen.py` | Creates tasks: `infer_target` (posterior) and `next_best_observation` (IG ranking) |
+| **Verifier** | `src/sreg/tools/verifier.py` | KL divergence scoring, IG ratio scoring (NBO), information efficiency, per-step tracking. |
 | **Episode runner** | `src/sreg/env/` | Step-by-step environment interface (observe → submit) |
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | `apply_semantics` (LLM renames nodes), `build_problem` (packages ResearchProblem) |
 | **Data sampler** | `src/sreg/tools/data_sampler.py` | Samples from BN joint distribution, presents as tabular observations |
@@ -169,17 +169,29 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 # episode.budget, episode.available_nodes, episode.node_costs
 ```
 
+### TaskGenTool (next_best_observation)
+```python
+spec = TaskSpec(type=TaskType.NEXT_BEST_OBSERVATION, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)  # → Task
+# task.given_evidence → {"branch_1": "low", "collider": "high"}  (what agent already knows)
+# task.correct_answer → {"branch_2": 0.42, "mediator_1": 0.15}   (IG ranking)
+# task.available_evidence → ["branch_2", "mediator_1"]            (remaining choices)
+```
+
 ### VerifierTool
 ```python
 score = VerifierTool().score(agent_posterior, true_posterior)  # → Score
 # score.functional_score (KL divergence), score.information_efficiency
+
+ratio = VerifierTool().score_nbo("branch_2", ig_ranking)  # → float (0.0 to 1.0)
+# 1.0 = chose the optimal node, 0.0 = chose a useless node
 ```
 
 ---
 
 ## Test coverage
 
-- **196 tests** across all modules
+- **208 tests** across all modules
 - Tests mirror src structure: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Key validations:
   - 100 worlds validated per template (all pass)

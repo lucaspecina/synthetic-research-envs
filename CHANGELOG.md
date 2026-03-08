@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — next_best_observation task type
+- **`next_best_observation` task type**: "which variable should you measure next?"
+  - `TaskGenTool` generates NBO tasks: samples state, gives partial evidence, asks what to observe
+  - `Task.given_evidence`: new field for evidence already provided to the agent
+  - `Task.correct_answer` holds IG ranking: `{node: info_gain}` for each remaining node
+  - `VerifierTool.score_nbo()`: scores agent's choice as ratio of chosen IG to optimal IG
+  - Works across all 3 templates (latent_preference, causal_chain, fork_collider)
+  - 13 new tests (NBO generation + verifier scoring), 208 total, all passing
+
 ### 2026-03-07 — Fork-collider template
 - **`fork_collider` template**: common cause (fork) + collider with explaining away
   - Structure: hidden_factor → branch_1, branch_2 → collider → [mediators] → target
