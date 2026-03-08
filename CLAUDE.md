@@ -134,7 +134,13 @@ ruff format src/ tests/                   # Format
 **EVERY commit MUST pass this checklist. No exceptions. Do not commit without verifying each item.**
 
 1. **Tests pass** — run `pytest tests/ -q` and confirm all green
-2. **Functional validation** — if the commit adds a feature or changes behavior, run the actual program end-to-end (not just unit tests). Generate worlds/tasks/problems with different configs (vary template, seed, num_nodes, edge_strength), inspect the output, and verify it makes sense. Unit tests check correctness; functional tests check that the system actually works as a user would run it.
+2. **Real end-to-end execution + manual analysis** — if the commit adds a feature or changes behavior, this step is **NOT optional**. Unit tests are necessary but NOT sufficient. You MUST:
+   - Write a script (inline `python -c` is fine) that exercises the new feature **exactly as a user would run it in production** — not programmatic asserts, but actual execution with printed output you can read.
+   - Run it with **at least 5-10 different configurations** (vary template, seed, num_nodes, edge_strength, task type, etc.).
+   - **Read the full output carefully, line by line.** Look at the actual values: Do the distributions make sense? Do the edges reflect the template structure? Is the IG ranking consistent with the causal structure? Are the hypotheses distinguishable? Does the evidence match the true state?
+   - **Think about whether the results align with PROJECT.md's vision.** Not just "does it crash?" but "does it produce the kind of problems we want?"
+   - If you find anything surprising or suspicious (e.g., 25% trivial NBO tasks, near-identical hypotheses with low edge_strength), investigate it, report it, and log it as a known issue if appropriate.
+   - This is the equivalent of a researcher looking at their data before publishing — you don't just check the p-value, you look at the actual numbers.
 3. **TODO.md reflects reality** — any task completed? Mark `[x]`. New task discovered? Add it. Status changed? Update it.
 4. **CHANGELOG.md updated** — if the commit adds/changes functionality, add an entry
 5. **CURRENT_STATE.md still accurate** — if you added modules, templates, APIs, changed test count, or modified architecture: update it NOW. This is the detailed technical snapshot of the system.

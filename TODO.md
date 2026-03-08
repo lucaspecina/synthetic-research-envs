@@ -27,6 +27,8 @@
 - [ ] Orchestrator ignores difficulty in goal: always generates "easy" regardless of "hard difficulty" in prompt
 - [ ] `apply_semantics` always fails first call: LLM sends empty `node_renames`, then retries correctly (wastes 1 API call)
 - [ ] Agent variable selection suboptimal: doesn't pick most informative variables (different order than teacher)
+- [ ] NBO trivial tasks (25%): when enough evidence is given, all remaining nodes have IG=0 (0% in latent_preference, 28% in causal_chain, 48% in fork_collider). Should filter or regenerate so at least one node has IG > 0
+- [ ] Hypothesis near-indistinguishable with low edge_strength: at es=0.3, true posterior vs reversed can have KL as low as 0.0097, making the task nearly impossible to solve correctly
 
 ## v1 — More templates + more tasks
 - [x] Causal chain template (with semantic layer from start)

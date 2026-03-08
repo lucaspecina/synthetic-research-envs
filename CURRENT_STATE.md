@@ -466,6 +466,8 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 - Orchestrator ignora la dificultad pedida (siempre genera "easy")
 - `apply_semantics` falla en la primera llamada (manda `node_renames` vacío, reintenta)
 - Agent elige variables en orden subóptimo (distinto al teacher)
+- NBO triviales (25%): cuando se da mucha evidencia, todos los nodos restantes tienen IG=0 (0% en latent_preference, 28% en causal_chain, 48% en fork_collider). Debería filtrarse para que al menos un nodo tenga IG > 0
+- Hipótesis casi indistinguibles con edge_strength baja: con es=0.3 la posterior verdadera y la reversed pueden tener KL=0.0097, haciendo la tarea casi imposible
 
 ---
 
