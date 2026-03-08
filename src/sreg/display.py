@@ -6,6 +6,7 @@ import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from sreg.models.research_problem import ResearchProblem
     from sreg.models.score import Score
     from sreg.models.world import World
 
@@ -359,6 +360,56 @@ def show_comparison(
     _safe_print(_box("TEACHER vs RANDOM", lines, _C.MAGENTA))
 
 
+def show_research_problem(problem: ResearchProblem) -> None:
+    """Pretty-print a ResearchProblem — what the agent sees."""
+    if _in_notebook():
+        _show_research_problem_html(problem)
+        return
+
+    lines = [
+        f"Titulo:    {_c(_C.BOLD + _C.CYAN, problem.title)}",
+        f"Dominio:   {problem.domain}",
+        f"Budget:    {_c(_C.BOLD, str(problem.budget))} observaciones",
+        f"Target:    {_c(_C.YELLOW, problem.target_node)} ({', '.join(problem.target_states)})",
+        "",
+    ]
+
+    # Description (wrap long text)
+    lines.append(_c(_C.DIM, "Descripcion:"))
+    desc = problem.description
+    for i in range(0, len(desc), 80):
+        lines.append(f"  {desc[i:i+80]}")
+    lines.append("")
+
+    # Theoretical context
+    if problem.theoretical_context:
+        lines.append(_c(_C.DIM, "Contexto teorico:"))
+        ctx = problem.theoretical_context
+        for i in range(0, len(ctx), 80):
+            lines.append(f"  {ctx[i:i+80]}")
+        lines.append("")
+
+    # Research question
+    lines.append(_c(_C.DIM, "Pregunta de investigacion:"))
+    lines.append(f"  {_c(_C.BOLD, problem.research_question)}")
+    lines.append("")
+
+    # Data assets
+    lines.append(_c(_C.DIM, f"Datos disponibles ({len(problem.data_assets)}):"))
+    for asset in problem.data_assets:
+        n_items = len(asset.data)
+        rows_info = f"{n_items} filas" if asset.format == "tabular" else f"{n_items} obs"
+        lines.append(f"  {_c(_C.GREEN, 'o')} {asset.name} ({asset.format}, {rows_info})")
+    lines.append("")
+
+    # Available actions
+    lines.append(_c(_C.DIM, f"Acciones disponibles ({len(problem.available_actions)}):"))
+    for action in problem.available_actions:
+        lines.append(f"  {_c(_C.CYAN, '>')} {action.description} (costo: {action.cost})")
+
+    _safe_print(_box("PROBLEMA DE INVESTIGACION", lines, _C.MAGENTA, width=90))
+
+
 def show_score(score: Score) -> None:
     """Pretty-print a Score object."""
     if _in_notebook():
@@ -607,6 +658,37 @@ def _show_comparison_html(
     )
 
 
+def _show_research_problem_html(problem: ResearchProblem) -> None:
+    body = f"<b>Dominio:</b> {problem.domain}<br>"
+    body += f"<b>Budget:</b> {problem.budget} observaciones<br>"
+    states_str = ", ".join(problem.target_states)
+    body += f"<b>Target:</b> <code>{problem.target_node}</code> ({states_str})<br><br>"
+    body += (
+        f"<div style='font-size:12px;color:#495057;margin-bottom:8px;'>"
+        f"{problem.description}</div>"
+    )
+
+    if problem.theoretical_context:
+        body += (
+            "<div style='font-size:11px;color:#868e96;font-style:italic;"
+            f"margin-bottom:8px;'>{problem.theoretical_context}</div>"
+        )
+
+    body += f"<b>Pregunta:</b> {problem.research_question}<br><br>"
+
+    body += "<b>Datos:</b><ul style='margin:4px 0;'>"
+    for asset in problem.data_assets:
+        body += f"<li>{asset.name} ({asset.format}, {len(asset.data)} items)</li>"
+    body += "</ul>"
+
+    body += "<b>Acciones:</b><ul style='margin:4px 0;'>"
+    for action in problem.available_actions:
+        body += f"<li>{action.description} (costo: {action.cost})</li>"
+    body += "</ul>"
+
+    _nb_card(problem.title, body, color="#7048e8")
+
+
 def _show_score_html(score: Score) -> None:
     _nb_card(
         "Score",
@@ -620,6 +702,7 @@ def _show_score_html(score: Score) -> None:
 __all__ = [
     "show_comparison",
     "show_prior",
+    "show_research_problem",
     "show_result",
     "show_score",
     "show_step",

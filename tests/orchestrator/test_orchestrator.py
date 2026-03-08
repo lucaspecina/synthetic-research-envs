@@ -17,8 +17,8 @@ def test_tool_definitions_complete():
     names = {t["function"]["name"] for t in TOOL_DEFINITIONS}
     assert "world_gen" in names
     assert "world_check" in names
-    assert "episode_gen" in names
-    assert "task_gen" in names
+    assert "apply_semantics" in names
+    assert "build_problem" in names
 
 
 def test_tool_definitions_have_required_fields():
@@ -123,6 +123,156 @@ def test_dispatch_task_gen():
     assert output["task_id"] is not None
     assert output["type"] == "infer_target"
     assert result.task is not None
+
+
+def test_dispatch_apply_semantics():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    # Generate a world first
+    orch._dispatch_tool(
+        "world_gen",
+        {"template_family": "latent_preference", "num_nodes": 6, "edge_strength": 0.7, "seed": 42},
+        result,
+    )
+
+    output = orch._dispatch_tool(
+        "apply_semantics",
+        {
+            "world_id": result.world.id,
+            "scenario_title": "Coral Bleaching in the Nelvara Archipelago",
+            "scenario_description": "Researchers studying coral health...",
+            "domain": "marine ecology",
+            "node_renames": {
+                "hidden_cause": "water_acidity",
+                "indicator_1": "coral_coverage",
+                "indicator_2": "fish_diversity",
+                "indicator_3": "algae_growth",
+                "indicator_4": "sediment_level",
+                "target_outcome": "bleaching_severity",
+            },
+            "node_descriptions": {
+                "water_acidity": "pH levels measured at reef stations",
+                "coral_coverage": "Percentage of live coral cover",
+                "bleaching_severity": "Degree of coral bleaching observed",
+            },
+        },
+        result,
+    )
+
+    assert output["scenario_title"] == "Coral Bleaching in the Nelvara Archipelago"
+    assert output["domain"] == "marine ecology"
+    assert output["nodes_renamed"] == 6
+    # Verify the world was actually updated
+    assert result.world.scenario_title == "Coral Bleaching in the Nelvara Archipelago"
+    node_names = [n.name for n in result.world.nodes]
+    assert "water_acidity" in node_names
+    assert "hidden_cause" not in node_names
+
+
+def test_dispatch_apply_semantics_empty_renames():
+    """apply_semantics rejects empty node_renames with an error."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    orch._dispatch_tool(
+        "world_gen",
+        {"template_family": "latent_preference", "num_nodes": 6, "edge_strength": 0.7, "seed": 42},
+        result,
+    )
+
+    output = orch._dispatch_tool(
+        "apply_semantics",
+        {
+            "world_id": result.world.id,
+            "scenario_title": "X",
+            "scenario_description": "X",
+            "domain": "X",
+            "node_renames": {},
+        },
+        result,
+    )
+    assert "error" in output
+    assert "node_renames is empty" in output["error"]
+
+
+def test_dispatch_apply_semantics_unknown_world():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "apply_semantics",
+        {
+            "world_id": "nonexistent",
+            "scenario_title": "X",
+            "scenario_description": "X",
+            "domain": "X",
+            "node_renames": {"a": "b"},
+        },
+        result,
+    )
+    assert "error" in output
+
+
+def _full_renames() -> dict[str, str]:
+    """Standard renames for a 6-node latent_preference world."""
+    return {
+        "hidden_cause": "soil_acidity",
+        "indicator_1": "water_ph",
+        "indicator_2": "nitrogen_level",
+        "indicator_3": "microbial_count",
+        "indicator_4": "root_depth",
+        "target_outcome": "crop_yield",
+    }
+
+
+def test_dispatch_build_problem():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    # Generate and enrich a world
+    orch._dispatch_tool(
+        "world_gen",
+        {"template_family": "latent_preference", "num_nodes": 6, "edge_strength": 0.7, "seed": 42},
+        result,
+    )
+    orch._dispatch_tool(
+        "apply_semantics",
+        {
+            "world_id": result.world.id,
+            "scenario_title": "Test Problem",
+            "scenario_description": "A test scenario.",
+            "domain": "testing",
+            "node_renames": _full_renames(),
+            "node_descriptions": {},
+        },
+        result,
+    )
+
+    output = orch._dispatch_tool(
+        "build_problem",
+        {"world_id": result.world.id, "budget": 4, "data_format": "tabular"},
+        result,
+    )
+
+    assert output["title"] == "Test Problem"
+    assert output["budget"] == 4
+    assert output["num_data_assets"] == 1
+    assert output["num_actions"] > 0
+    assert result.problem is not None
+    assert result.problem.budget == 4
+
+
+def test_dispatch_build_problem_unknown_world():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "build_problem",
+        {"world_id": "nonexistent", "budget": 5, "data_format": "tabular"},
+        result,
+    )
+    assert "error" in output
 
 
 def test_dispatch_unknown_tool():

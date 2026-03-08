@@ -109,6 +109,20 @@ class World(BaseModel):
     cpds: list[CPD]
     difficulty: DifficultyProfile
 
+    # Semantic layer (Phase 6) — optional for backwards compatibility
+    scenario_title: str | None = Field(
+        default=None, description="Title of the research problem"
+    )
+    scenario_description: str | None = Field(
+        default=None, description="Narrative context (2-3 paragraphs)"
+    )
+    domain: str | None = Field(
+        default=None, description="Scientific domain (ecology, epidemiology, etc.)"
+    )
+    theoretical_context: str | None = Field(
+        default=None, description="Prior theories, hints, partial findings"
+    )
+
     @model_validator(mode="after")
     def validate_node_references(self) -> World:
         node_names = {n.name for n in self.nodes}

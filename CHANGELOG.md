@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — Phase 6: Semantic layer
+- **Semantic layer implemented**: transforms abstract BN worlds into realistic research problems
+  - `ResearchProblem` model: packages title, narrative, data, actions, question, budget
+  - `DataSampler`: samples from BN joint distribution, presents as tabular/observations
+  - `ProblemBuilder`: builds agent-facing ResearchProblem from enriched World
+  - `apply_semantics` tool: LLM renames nodes, adds scenario narrative and domain
+  - `build_problem` tool: samples data and packages everything the agent sees
+  - `show_research_problem()` display function (terminal + notebook)
+  - Node renaming propagates through nodes, edges, CPDs, and state_names
+  - Orchestrator workflow: world_gen -> world_check -> apply_semantics -> build_problem
+  - Updated test script with pretty output for semantic tools
+- 139 tests total, all passing (14 new tests for data_sampler, problem_builder, orchestrator)
+
 ### 2026-03-07 — Vision realignment
 - **Project vision updated**: shifted from abstract Bayesian worlds to realistic
   research problems with semantic layer on top of formal networks

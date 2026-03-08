@@ -41,18 +41,19 @@
 - [x] Mocked tests (full loop, retry, max iterations)
 
 ## Phase 6 — Semantic layer
-- [ ] Extend World model with semantic metadata (scenario_title, scenario_description, domain)
-- [ ] Semantic node names and descriptions (water_temperature not indicator_1)
-- [ ] Semantic edge mechanisms (causal descriptions in context)
-- [ ] Semantic action descriptions with costs ("solicitar análisis" not "observe node_3")
-- [ ] Simple theoretical context per world (prior theories, hints, partial findings)
-- [ ] Data presentation: tabular dataset format (sample from BN, present as DataFrame)
-- [ ] Data presentation: isolated observations format
-- [ ] Configurable data presentation per world
-- [ ] Orchestrator accepts narrative seeds ("contaminación de suelos", scenarios, etc.)
-- [ ] Update orchestrator prompt to generate semantic content from seed
-- [ ] `ResearchProblem` model that packages everything the agent sees
-- [ ] Update display.py for semantic worlds
+- [x] Extend World model with semantic metadata (scenario_title, scenario_description, domain)
+- [x] Semantic node names and descriptions (water_temperature not indicator_1)
+- [x] Semantic edge mechanisms (causal descriptions in context)
+- [x] Semantic action descriptions with costs ("solicitar análisis" not "observe node_3")
+- [x] Simple theoretical context per world (prior theories, hints, partial findings)
+- [x] Data presentation: tabular dataset format (sample from BN, present as DataFrame)
+- [x] Data presentation: isolated observations format
+- [x] Configurable data presentation per world
+- [x] Orchestrator accepts narrative seeds ("contaminación de suelos", scenarios, etc.)
+- [x] Update orchestrator prompt to generate semantic content from seed
+- [x] `ResearchProblem` model that packages everything the agent sees
+- [x] Update display.py for semantic worlds
+- [x] Update test_orchestrator.py script for semantic output
 - [ ] Update demo script and notebook
 
 ## Phase 7 — LLM Agent solver

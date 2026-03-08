@@ -80,7 +80,8 @@ def main():
 
     model = args.model or os.environ.get("AZURE_MODEL", "gpt-4o")
     goal = args.goal or (
-        "Generate a world with 6 nodes about medical diagnosis, medium difficulty"
+        "Generate a research problem about marine ecology in a fictional archipelago, "
+        "medium difficulty, 6 nodes"
     )
 
     _header("SREG ORCHESTRATOR")
@@ -153,8 +154,8 @@ def main():
     _kv("Tools llamadas", str(len(tool_results)))
     _kv("Mundo generado", _c(B, "Si" if result.world else "No"))
     _kv("Validacion paso", _c(GRN, "Si") if result.validation_passed else _c(RED, "No"))
-    _kv("Episodio generado", _c(B, "Si" if result.episode else "No"))
-    _kv("Task generada", _c(B, "Si" if result.task else "No"))
+    _kv("Semantica aplicada", _c(B, "Si" if result.world and result.world.scenario_title else "No"))
+    _kv("Problema construido", _c(B, "Si" if result.problem else "No"))
 
     if result.world:
         print()
@@ -162,19 +163,11 @@ def main():
 
         show_world(result.world)
 
-    if result.task:
+    if result.problem:
         print()
-        print(_c(B + MAG, "  TAREA GENERADA"))
-        _line("-")
-        _kv("Pregunta", result.task.question)
-        _kv("Nodo target", result.task.target_node)
-        _kv("Variables disponibles", ", ".join(result.task.available_evidence))
-        correct = result.task.correct_answer
-        print(f"    {_c(DIM, 'Respuesta correcta:')}")
-        for state, prob in correct.items():
-            bar_w = round(prob * 20)
-            bar = "#" * bar_w + "." * (20 - bar_w)
-            print(f"      {state:<12} {bar} {prob:.1%}")
+        from sreg.display import show_research_problem
+
+        show_research_problem(result.problem)
 
     # -- Show what the LLM said at the end --
     last_assistant = None
@@ -225,6 +218,27 @@ def _show_tool_result(name: str, result: dict) -> None:
         if len(q) > 100:
             q = q[:100] + "..."
         print(f"         Pregunta: {q}")
+
+    elif name == "apply_semantics":
+        print(f"      {_c(GRN, 'OK')} Semantica aplicada al mundo {_c(B, result['world_id'])}")
+        title = result.get("scenario_title", "")
+        print(f"         Titulo: {_c(B + MAG, _safe(title))}")
+        print(f"         Dominio: {result.get('domain', '?')}")
+        print(f"         Nodos renombrados: {result.get('nodes_renamed', 0)}")
+        for n in result.get("nodes", []):
+            icon = {"latent": _c(RED, "*"), "observable": _c(GRN, "o"), "target": _c(YLW, "@")}
+            print(f"         {icon.get(n['type'], '?')} {n['name']}")
+
+    elif name == "build_problem":
+        print(f"      {_c(GRN, 'OK')} Problema de investigacion construido")
+        print(f"         Titulo: {_c(B + MAG, _safe(result.get('title', '')))}")
+        print(f"         Budget: {result.get('budget', '?')}")
+        print(f"         Datasets: {result.get('num_data_assets', 0)}")
+        print(f"         Acciones: {result.get('num_actions', 0)}")
+        q = result.get("research_question", "")
+        if len(q) > 120:
+            q = q[:120] + "..."
+        print(f"         Pregunta: {_safe(q)}")
 
 
 if __name__ == "__main__":

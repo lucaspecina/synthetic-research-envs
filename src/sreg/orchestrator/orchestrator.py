@@ -12,10 +12,13 @@ from openai import OpenAI
 
 load_dotenv()
 
+from sreg.models.research_problem import ResearchProblem
 from sreg.models.task import TaskSpec, TaskType
 from sreg.models.world import NodeType, World
 from sreg.orchestrator.prompts import SYSTEM_PROMPT, TOOL_DEFINITIONS
+from sreg.tools.data_sampler import DataSamplerConfig
 from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
+from sreg.tools.problem_builder import ProblemBuilder
 from sreg.tools.task_gen import TaskGenTool
 from sreg.tools.world_check import WorldCheckTool
 from sreg.tools.world_gen import WorldGenConfig, WorldGenTool
@@ -28,6 +31,7 @@ class OrchestratorResult:
 
     def __init__(self):
         self.world: World | None = None
+        self.problem: ResearchProblem | None = None
         self.episode: Any = None
         self.task: Any = None
         self.attempts: int = 0
@@ -65,6 +69,7 @@ class Orchestrator:
         self._world_check = WorldCheckTool()
         self._episode_gen = EpisodeGenTool()
         self._task_gen = TaskGenTool()
+        self._problem_builder = ProblemBuilder()
         self._worlds: dict[str, World] = {}
 
     def run(self, goal: str) -> OrchestratorResult:
@@ -149,6 +154,10 @@ class Orchestrator:
                 return self._handle_episode_gen(args, result)
             elif name == "task_gen":
                 return self._handle_task_gen(args, result)
+            elif name == "apply_semantics":
+                return self._handle_apply_semantics(args, result)
+            elif name == "build_problem":
+                return self._handle_build_problem(args, result)
             else:
                 return {"error": f"Unknown tool: {name}"}
         except Exception as e:
@@ -239,6 +248,142 @@ class Orchestrator:
             "target_node": task.target_node,
             "num_available_evidence": len(task.available_evidence),
         }
+
+    def _handle_apply_semantics(self, args: dict, result: OrchestratorResult) -> dict:
+        world_id = args["world_id"]
+        world = self._worlds.get(world_id)
+        if world is None:
+            return {"error": f"World '{world_id}' not found"}
+
+        node_renames: dict[str, str] = args.get("node_renames", {})
+        node_descriptions: dict[str, str] = args.get("node_descriptions", {})
+        edge_descriptions: dict[str, str] = args.get("edge_descriptions", {})
+
+        # Guard: warn if no renames provided
+        world_node_names = {n.name for n in world.nodes}
+        if not node_renames:
+            return {
+                "error": (
+                    "node_renames is empty. You MUST provide a mapping for every node. "
+                    f"Current nodes: {sorted(world_node_names)}. "
+                    "Call apply_semantics again with node_renames populated."
+                ),
+            }
+
+        missing = world_node_names - set(node_renames.keys())
+        if missing:
+            return {
+                "error": (
+                    f"node_renames is missing entries for: {sorted(missing)}. "
+                    "You must rename ALL nodes. "
+                    "Call apply_semantics again with the complete mapping."
+                ),
+            }
+
+        world = self._rename_world_nodes(world, node_renames, node_descriptions, edge_descriptions)
+
+        # Apply semantic metadata
+        world = world.model_copy(
+            update={
+                "scenario_title": args.get("scenario_title"),
+                "scenario_description": args.get("scenario_description"),
+                "domain": args.get("domain"),
+                "theoretical_context": args.get("theoretical_context"),
+            }
+        )
+
+        # Store updated world
+        self._worlds[world_id] = world
+        result.world = world
+
+        return {
+            "world_id": world_id,
+            "scenario_title": world.scenario_title,
+            "domain": world.domain,
+            "nodes_renamed": len(node_renames),
+            "nodes": [{"name": n.name, "type": n.type} for n in world.nodes],
+            "next_step": "Now call build_problem to sample data and produce the final problem.",
+        }
+
+    def _handle_build_problem(self, args: dict, result: OrchestratorResult) -> dict:
+        world_id = args["world_id"]
+        world = self._worlds.get(world_id)
+        if world is None:
+            return {"error": f"World '{world_id}' not found"}
+
+        budget = args.get("budget", 5)
+        data_format = args.get("data_format", "tabular")
+        num_rows = args.get("num_data_rows", 50)
+
+        data_config = DataSamplerConfig(
+            num_rows=num_rows,
+            format=data_format,
+            seed=world.seed,
+        )
+
+        problem = self._problem_builder.build(world, budget=budget, data_config=data_config)
+        result.problem = problem
+
+        return {
+            "title": problem.title,
+            "domain": problem.domain,
+            "budget": problem.budget,
+            "research_question": problem.research_question,
+            "num_data_assets": len(problem.data_assets),
+            "num_actions": len(problem.available_actions),
+            "target_node": problem.target_node,
+            "target_states": problem.target_states,
+        }
+
+    @staticmethod
+    def _rename_world_nodes(
+        world: World,
+        renames: dict[str, str],
+        descriptions: dict[str, str],
+        edge_descs: dict[str, str],
+    ) -> World:
+        """Create a new World with nodes/edges/CPDs renamed according to the mapping."""
+        from sreg.models.world import CPD, Edge, Node
+
+        def r(name: str) -> str:
+            return renames.get(name, name)
+
+        new_nodes = [
+            Node(
+                name=r(n.name),
+                type=n.type,
+                description=descriptions.get(r(n.name), n.description),
+                states=list(n.states),
+            )
+            for n in world.nodes
+        ]
+
+        new_edges = [
+            Edge(
+                from_node=r(e.from_node),
+                to_node=r(e.to_node),
+                mechanism=edge_descs.get(f"{r(e.from_node)}->{r(e.to_node)}", e.mechanism),
+            )
+            for e in world.edges
+        ]
+
+        new_cpds = [
+            CPD(
+                node=r(cpd.node),
+                parents=[r(p) for p in cpd.parents],
+                table=[list(row) for row in cpd.table],
+                state_names={r(k): list(v) for k, v in cpd.state_names.items()},
+            )
+            for cpd in world.cpds
+        ]
+
+        return world.model_copy(
+            update={
+                "nodes": new_nodes,
+                "edges": new_edges,
+                "cpds": new_cpds,
+            }
+        )
 
 
 __all__ = ["Orchestrator", "OrchestratorResult"]
