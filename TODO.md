@@ -28,7 +28,9 @@
 - [ ] `apply_semantics` always fails first call: LLM sends empty `node_renames`, then retries correctly (wastes 1 API call)
 - [ ] Agent variable selection suboptimal: doesn't pick most informative variables (different order than teacher)
 - [ ] NBO trivial tasks (25%): when enough evidence is given, all remaining nodes have IG=0 (0% in latent_preference, 28% in causal_chain, 48% in fork_collider). Should filter or regenerate so at least one node has IG > 0
+  - **Fix**: in `_next_best_observation_task`, after sampling evidence, check `max(ig_ranking.values()) > 0`. If not, resample with less evidence (loop until at least one remaining node is informative). Cap retries to avoid infinite loop on degenerate worlds.
 - [ ] Hypothesis near-indistinguishable with low edge_strength: at es=0.3, true posterior vs reversed can have KL as low as 0.0097, making the task nearly impossible to solve correctly
+  - **Fix**: after generating hypotheses, check min KL between true posterior and nearest distractor is above a threshold (e.g., 0.05). If not, either regenerate with different evidence, replace the reversed distractor with a different one (e.g., sample from a Dirichlet), or skip hypothesis_selection for that world/seed combo.
 
 ## v1 — More templates + more tasks
 - [x] Causal chain template (with semantic layer from start)
