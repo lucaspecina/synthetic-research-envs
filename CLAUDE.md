@@ -127,17 +127,28 @@ ruff format src/ tests/                   # Format
 
 - Branch naming: `feature/<name>`, `fix/<name>`, `refactor/<name>`
 - Commit messages: imperative mood, concise
-- Run tests before committing
-- Update `CHANGELOG.md` and `TODO.md` with every meaningful change
 - User must push manually (wincredman credential store issue)
 
-## Maintenance rules
+## Pre-commit checklist — MANDATORY
 
-1. **Complete a task** → mark done in `TODO.md`, add entry to `CHANGELOG.md`
-2. **Add a module** → update project structure above
-3. **Add a dependency** → add to `pyproject.toml` and tech stack above
-4. **Change conventions** → update this file immediately
-5. **Change scope** → update `PROJECT.md` first, then propagate
-6. **Add/change a NodeType** → update `_node_styles()` and `_HTML_NODE_COLORS` in `src/sreg/display.py`
-7. **Add a new display need** → add function to `display.py`, update `scripts/demo.py` and notebook
-8. **Change the vision or architecture** → update `PROJECT.md`, this file, and `MEMORY.md`
+**EVERY commit MUST pass this checklist. No exceptions. Do not commit without verifying each item.**
+
+1. **Tests pass** — run `pytest tests/ -q` and confirm all green
+2. **TODO.md reflects reality** — any task completed? Mark `[x]`. New task discovered? Add it. Status changed? Update it.
+3. **CHANGELOG.md updated** — if the commit adds/changes functionality, add an entry
+4. **CLAUDE.md still accurate** — if you added/removed files, modules, dependencies, or changed conventions: update the relevant section NOW, in this same commit
+5. **No stale references** — if you deleted or renamed a file/module, grep for old references in CLAUDE.md, TODO.md, and CHANGELOG.md
+
+### Trigger-specific updates
+
+These are common changes that REQUIRE updating specific docs:
+
+| What changed | Update |
+|---|---|
+| Completed a task | `TODO.md`: mark `[x]`. `CHANGELOG.md`: add entry |
+| Added/removed a file or module | `CLAUDE.md`: project structure section |
+| Added a dependency | `pyproject.toml` AND `CLAUDE.md`: tech stack |
+| Changed a convention | `CLAUDE.md`: update immediately |
+| Changed scope or vision | `PROJECT.md` first, then propagate to `CLAUDE.md` and `TODO.md` |
+| Added/changed a NodeType | `display.py`: `_node_styles()` and `_HTML_NODE_COLORS` |
+| New display function | `display.py`, update `scripts/demo.py` and notebook |
