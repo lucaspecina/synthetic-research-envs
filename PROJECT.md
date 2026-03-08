@@ -137,6 +137,38 @@ código, formular hipótesis — pero los "experimentos" cuestan budget.]
 
 ---
 
+## Dirección final del proyecto
+
+Es fundamental entender que los templates iniciales, los mundos pequeños y las tasks acotadas son solo el punto de partida.
+
+La dirección final de SREG no es quedarse en problemas pequeños y estáticos, sino avanzar hacia mundos subyacentes mucho más complejos y que se parezcan, en estructura y dificultad, a problemas reales de investigación científica y técnica.
+
+A largo plazo, los mundos formales deberían poder representar:
+
+- muchas más variables,
+- múltiples causas latentes,
+- relaciones indirectas y mecanismos acoplados,
+- historial temporal,
+- varias fuentes de evidencia,
+- ruido, datos faltantes y proxies imperfectos,
+- múltiples targets,
+- y acciones/intervenciones más realistas.
+
+De igual manera, las tasks tampoco deberían quedarse en una sola pregunta aislada. La visión final es que un mismo research case pueda incluir múltiples preguntas y múltiples evaluaciones conectadas, por ejemplo:
+
+- inferir la causa más probable,
+- decidir qué evidencia conviene pedir después,
+- comparar hipótesis rivales,
+- estimar el efecto de una intervención,
+- y evaluar si el agente investigó de manera eficiente.
+
+En otras palabras: todo el diseño de SREG debe apuntar hacia ese destino final.  
+Los templates fijos, la semántica inicial y las evaluaciones actuales son una base controlada para comenzar, pero la arquitectura debe construirse desde el principio pensando en research cases cada vez más ricos, multi-step, multi-task y más cercanos a problemas de investigación del mundo real.
+
+**Importante**: las versiones tempranas simplifican el problema para poder construir un núcleo sólido y verificable. Pero el objetivo final del roadmap es llegar a research cases mucho más complejos, con mundos subyacentes más ricos, múltiples preguntas por caso y tareas más parecidas a investigaciones reales.
+
+---
+
 ## Las dos capas en detalle
 
 ### La red bayesiana (siempre presente, siempre formal)
@@ -447,6 +479,129 @@ es matemática**. En SWE-bench necesitás tests que pueden no cubrir todos los
 casos. En WebArena necesitás heurísticas para verificar resultados. En SREG,
 la red bayesiana te da la respuesta exacta a cualquier pregunta que tenga
 sentido hacer sobre el mundo oculto — sin jueces, sin ambigüedad.
+
+---
+
+## Dos ejemplos concretos
+
+### Ejemplo 1 - Arenamiento de pozos de petróleo tras frac hits
+
+Imaginemos un research case inspirado en un problema petrolero real.
+
+**Contexto**  
+En una cuenca no convencional, ciertos pozos muestran episodios de arenamiento después de frac hits en pozos vecinos. El equipo quiere entender:
+- Qué mecanismos explican mejor el arenamiento.
+- Qué variables conviene analizar para reducir incertidumbre.
+- Qué intervención podría reducir el problema en futuros eventos.
+
+**Mundo oculto formal**  
+Debajo del caso visible, SREG define un mundo probabilístico con variables como:
+- Intensidad del frac hit en pozos vecinos.
+- Presión de fondo.
+- Configuración de completación.
+- Tipo de arena / formación.
+- Integridad del pack.
+- Historial de producción.
+- Geometría del pozo.
+- Cambios de drawdown.
+- Entrada de finos.
+- Severidad del arenamiento.
+
+Algunas variables son observables directamente.  
+Otras son latentes o solo accesibles mediante proxies.  
+Puede haber historial temporal: antes del frac hit, durante el evento, después del evento.
+
+La verdad del caso no es “una ecuación inventada a mano” sino una estructura probabilística completa que define cómo se relacionan esas variables.
+
+**Evidencia visible para el agente**  
+El agente podría recibir:
+- Historial de producción por pozo.
+- Presión y caudal en distintas ventanas temporales.
+- Eventos operativos.
+- Registros de frac hits.
+- Características de completación.
+- Observaciones de arena producida.
+- Datos faltantes en algunos pozos.
+- Y contexto técnico narrativo.
+
+**Acciones posibles**  
+Con budget limitado, el agente podría pedir cosas como:
+- Revisar historial de un pozo vecino.
+- Solicitar análisis granulométrico.
+- Comparar eventos antes/después del frac hit.
+- Pedir un diagnóstico adicional sobre integridad del completamiento.
+- Consultar una serie temporal más larga de presión.
+
+Cada acción revela evidencia nueva y consume costo.
+
+**Preguntas dentro del mismo caso**  
+Un mismo case podría incluir:
+- Pregunta principal: ¿cuál es el mecanismo más probable del arenamiento?
+- Task estratégica: ¿qué dato adicional conviene pedir ahora?
+- Task causal: si redujéramos el drawdown después del frac hit, ¿bajaría la probabilidad de arenamiento?
+- Task de comparación: ¿qué hipótesis explica mejor las diferencias entre pozos afectados y no afectados?
+
+**Qué testea este caso**  
+Este tipo de caso ya no testea solo inferencia simple. Testea:
+- Razonamiento con muchas variables.
+- Evidencia histórica.
+- Múltiples hipótesis plausibles.
+- Decisiones de adquisición de información.
+- Y evaluación de intervenciones.
+
+Es mucho más parecido a una investigación técnica real que a una task aislada.
+
+### Ejemplo 2 - Falla inesperada en un nuevo material anticorrosivo
+
+**Contexto**  
+Un laboratorio está desarrollando un recubrimiento anticorrosivo para uso marino. En ensayos acelerados, algunas muestras muestran degradación temprana, pero no está claro cuál es la causa principal. El equipo quiere entender:
+- Qué mecanismo explica la falla.
+- Qué modificación experimental convendría probar.
+
+**Mundo oculto formal**  
+El mundo subyacente puede incluir variables como:
+- Composición del recubrimiento.
+- Espesor de capa.
+- Temperatura de curado.
+- Humedad del proceso.
+- Adhesión al sustrato.
+- Presencia de microdefectos.
+- Exposición salina.
+- Formación de grietas.
+- Severidad de corrosión observada.
+
+Algunas variables son latentes, como microdefectos internos o tensiones residuales, que no se observan directamente.
+
+**Evidencia visible para el agente**  
+El agente podría recibir:
+- Tablas de ensayos de distintas formulaciones.
+- Resultados de cámaras salinas.
+- Micrografías resumidas como metadata.
+- Historial de lote y curado.
+- Resultados parciales de adherencia.
+- Observaciones contradictorias entre distintos ensayos.
+
+**Acciones posibles**  
+Con budget limitado, el agente podría:
+- Pedir un ensayo adicional de adherencia.
+- Consultar una medición de espesor no disponible.
+- Comparar lotes con distinta temperatura de curado.
+- Solicitar un análisis de microdefectos.
+- Simular una modificación de formulación.
+
+**Preguntas dentro del caso**  
+Un mismo caso podría incluir:
+- ¿Cuál es la causa más probable de la degradación temprana?
+- ¿Qué ensayo convendría hacer ahora para maximizar información?
+- ¿Qué modificación del proceso tendría más probabilidad de mejorar el material?
+- ¿Cuál de varias hipótesis mecanísticas explica mejor los resultados observados?
+
+**Qué testea este caso**  
+Este caso testea:
+- Diagnóstico de tipo mechanistic-style.
+- Selección de evidencia útil.
+- Comparación de explicaciones rivales.
+- Elección de una intervención experimental.
 
 ---
 
