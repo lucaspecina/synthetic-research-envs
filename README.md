@@ -36,7 +36,7 @@ See `CLAUDE.md` for the full project structure and conventions.
 ## Documentation
 
 - `PROJECT.md` — What the project is, how it works, version roadmap
-- `docs/IMPLEMENTATION_PLAN.md` — Detailed phase-by-phase build plan
+- `CURRENT_STATE.md` — What the system does today, in detail
 - `TODO.md` — Current task tracking
 - `CHANGELOG.md` — Version history
 
