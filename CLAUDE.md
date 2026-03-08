@@ -134,11 +134,12 @@ ruff format src/ tests/                   # Format
 **EVERY commit MUST pass this checklist. No exceptions. Do not commit without verifying each item.**
 
 1. **Tests pass** — run `pytest tests/ -q` and confirm all green
-2. **TODO.md reflects reality** — any task completed? Mark `[x]`. New task discovered? Add it. Status changed? Update it.
-3. **CHANGELOG.md updated** — if the commit adds/changes functionality, add an entry
-4. **CURRENT_STATE.md still accurate** — if you added modules, templates, APIs, changed test count, or modified architecture: update it NOW. This is the detailed technical snapshot of the system.
-5. **CLAUDE.md still accurate** — if you added/removed files, modules, dependencies, or changed conventions: update the relevant section NOW, in this same commit
-6. **No stale references** — if you deleted or renamed a file/module, grep for old references in all docs (CLAUDE.md, TODO.md, CURRENT_STATE.md, CHANGELOG.md)
+2. **Functional validation** — if the commit adds a feature or changes behavior, run the actual program end-to-end (not just unit tests). Generate worlds/tasks/problems with different configs (vary template, seed, num_nodes, edge_strength), inspect the output, and verify it makes sense. Unit tests check correctness; functional tests check that the system actually works as a user would run it.
+3. **TODO.md reflects reality** — any task completed? Mark `[x]`. New task discovered? Add it. Status changed? Update it.
+4. **CHANGELOG.md updated** — if the commit adds/changes functionality, add an entry
+5. **CURRENT_STATE.md still accurate** — if you added modules, templates, APIs, changed test count, or modified architecture: update it NOW. This is the detailed technical snapshot of the system.
+6. **CLAUDE.md still accurate** — if you added/removed files, modules, dependencies, or changed conventions: update the relevant section NOW, in this same commit
+7. **No stale references** — if you deleted or renamed a file/module, grep for old references in all docs (CLAUDE.md, TODO.md, CURRENT_STATE.md, CHANGELOG.md)
 
 ### Trigger-specific updates
 
