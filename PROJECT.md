@@ -272,6 +272,11 @@ especificación al template `custom`. El sistema genera CPDs que producen un
 mundo formalmente correcto pero ficticio — las relaciones pueden diferir del
 paper real, que es exactamente el punto.
 
+> **Para la estrategia detallada de cómo pasar de mundos de juguete a mundos
+> realistas** — incluyendo la progresión de etapas, el diseño mechanism-first,
+> los contratos MechanismSpec/DAGSpec, quality gates, y las conclusiones de
+> investigación sobre proyectos similares — ver **`WORLD_DESIGN.md`**.
+
 ### Variables discretas y continuas
 
 Hoy todas las variables son categóricas (`low`, `medium`, `high`). Pero el

@@ -41,13 +41,16 @@
 
 ## v2 — Custom template + research cases realistas
 
-### Template custom (DAGs arbitrarios)
+> Estrategia de investigacion y diseno detallado en **`WORLD_DESIGN.md`**.
+
+### Template custom (DAGs arbitrarios) — Etapa 2: composicion controlada
 - [ ] `DAGSpec` model: Pydantic contract to specify an arbitrary DAG (nodes with names/types/states, edges)
 - [ ] `CustomTemplate`: accepts a DAGSpec, generates valid CPDs using generic edge_strength logic
 - [ ] Validation: custom worlds pass WorldCheck (acyclic, entropy, d-separations, teacher solvable)
 - [ ] All 3 task types work with custom worlds (TaskGenTool + TaskBundle)
 - [ ] Registration in WorldGenTool alongside existing templates
 - [ ] Tests: custom worlds with 10-15+ nodes, multiple latents, complex topologies
+- [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
 
 ### Datos más ricos
 - [ ] Multiple datasets per problem (tabular + observations + partial data)
@@ -59,6 +62,14 @@
 - [ ] Theoretical context: prior studies, hints, misleading context
 - [ ] Richer semantic layer: apply_semantics generates multi-paragraph narrative
 - [ ] Domain-specific action descriptions (not just "observe X")
+
+### Mechanism-first design — Etapa 3
+- [ ] `MechanismSpec` model: subgraph + semantics + shared variables
+- [ ] Mechanism library: 5-10 reusable base mechanisms
+- [ ] `WorldComposer`: combines mechanisms into a world (resolves conflicts, shared vars)
+- [ ] Rival mechanisms as competing hypotheses (structure selection tasks)
+- [ ] Generator health metrics: acceptance rate, structural diversity, distinguishability
+- [ ] `CaseBundle` concept: world + semantics + evidence + actions + multiple evaluations
 
 ### Research cases integrados
 - [ ] Integrated multi-question problems: one budget, multiple evaluation points

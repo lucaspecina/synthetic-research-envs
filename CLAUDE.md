@@ -9,9 +9,12 @@ Before doing anything, understand the project by reading these docs in order:
    Every technical decision, every implementation choice, every TODO must align
    with the spirit described here. When in doubt about any decision, go back
    to PROJECT.md — it's the ultimate source of truth for the project's direction.
-2. **`CURRENT_STATE.md`** — Detailed description of what the system does TODAY. APIs, modules, templates, test coverage. **Must stay current.**
-3. **`TODO.md`** — Task tracking + known issues. Single source of truth for what's done/pending.
-4. **`CHANGELOG.md`** — History of what's been done.
+2. **`WORLD_DESIGN.md`** — **Research document** for realistic world generation.
+   Conclusions, strategies, open questions, and references for evolving from
+   toy worlds to realistic research cases. Dynamic — updated as we learn.
+3. **`CURRENT_STATE.md`** — Detailed description of what the system does TODAY. APIs, modules, templates, test coverage. **Must stay current.**
+4. **`TODO.md`** — Task tracking + known issues. Single source of truth for what's done/pending.
+5. **`CHANGELOG.md`** — History of what's been done.
 
 ## Project overview
 
@@ -99,6 +102,8 @@ notebooks/
 
 tests/               # Mirrors src/ structure
 
+WORLD_DESIGN.md              # Research doc: toy worlds → realistic worlds (strategy, references, open questions)
+
 docs/
 └── references/              # Original design docs (read-only)
 
@@ -161,5 +166,6 @@ These are common changes that REQUIRE updating specific docs:
 | Added a dependency | `pyproject.toml` AND `CLAUDE.md`: tech stack |
 | Changed a convention | `CLAUDE.md`: update immediately |
 | Changed scope or vision | `PROJECT.md` first, then propagate to `CLAUDE.md` and `TODO.md` |
+| New research findings on world generation | `WORLD_DESIGN.md`: update relevant section |
 | Added/changed a NodeType | `display.py`: `_node_styles()` and `_HTML_NODE_COLORS` |
 | New display function | `display.py`, update `scripts/demo.py` and notebook |
