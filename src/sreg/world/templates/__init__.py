@@ -1,5 +1,6 @@
 """World generation templates."""
 
+from sreg.world.templates.causal_chain import CausalChainTemplate
 from sreg.world.templates.latent_preference import LatentPreferenceTemplate
 
-__all__ = ["LatentPreferenceTemplate"]
+__all__ = ["CausalChainTemplate", "LatentPreferenceTemplate"]

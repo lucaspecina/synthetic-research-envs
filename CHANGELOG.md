@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — Causal chain template + KL fix
+- **`causal_chain` template**: linear chain root → stage_1 → ... → target
+  - Tests evidence propagation: closer nodes are more informative than distant ones
+  - 13 new tests: structure, validation, 100 worlds, teacher accuracy, proximity IG
+  - Validated: 5/5 agent beats random, mean KL 0.37 vs random 1.67
+- **WorldCheckTool d-separation fix**: now also conditions on individual observables
+  (chains have d-separations like stage_1 ⊥ stage_3 | stage_2, not just given latents)
+- **KL divergence NaN fix**: verifier now clips zero probabilities to epsilon
+  (agent sometimes submits 0 for a state, causing 0*log(0)=NaN)
+- Batch eval supports `--template` parameter for cross-template comparison
+- 180 tests total, all passing
+
 ### 2026-03-07 — Phase 8: Dataset export + batch evaluation
 - **Teacher trajectory export**: generates optimal teacher trajectory, exports as JSONL
   - `TeacherTrajectory` / `TrajectoryStep`: structured dataclasses with full step info

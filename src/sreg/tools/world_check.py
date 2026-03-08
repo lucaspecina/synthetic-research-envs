@@ -111,20 +111,35 @@ class WorldCheckTool:
         obs_nodes: list,
         latent_nodes: list,
     ) -> bool:
-        """Check for at least one pair of observables d-separated given latent nodes."""
+        """Check for at least one non-trivial d-separation.
+
+        Tries conditioning on latent nodes first (star structures),
+        then on individual observables (chain structures where
+        conditioning on an intermediate node blocks the path).
+        """
         if len(obs_nodes) < 2:
             return False
 
-        latent_names = frozenset(n.name for n in latent_nodes)
         obs_names = [n.name for n in obs_nodes]
+        all_node_names = [n.name for n in latent_nodes] + obs_names
 
-        for i, n1 in enumerate(obs_names):
-            for n2 in obs_names[i + 1 :]:
-                try:
-                    if nx.is_d_separator(dag, n1, n2, latent_names):
-                        return True
-                except nx.NetworkXError:
+        # Build conditioning sets to try: latents, then each individual observable
+        cond_sets = [frozenset(n.name for n in latent_nodes)]
+        for obs in obs_names:
+            cond_sets.append(frozenset([obs]))
+
+        for cond_set in cond_sets:
+            for i, n1 in enumerate(obs_names):
+                if n1 in cond_set:
                     continue
+                for n2 in obs_names[i + 1 :]:
+                    if n2 in cond_set:
+                        continue
+                    try:
+                        if nx.is_d_separator(dag, n1, n2, cond_set):
+                            return True
+                    except nx.NetworkXError:
+                        continue
         return False
 
 

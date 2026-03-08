@@ -107,11 +107,13 @@ class BatchEvaluator:
         num_nodes: int = 6,
         edge_strength: float = 0.7,
         budget: int = 4,
+        template: str = "latent_preference",
     ) -> list[tuple[World, ResearchProblem]]:
         """Generate worlds + problems programmatically (no LLM calls)."""
         problems = []
         for seed in seeds:
             config = WorldGenConfig(
+                template_family=template,
                 seed=seed,
                 num_nodes=num_nodes,
                 edge_strength=edge_strength,

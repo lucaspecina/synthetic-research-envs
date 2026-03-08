@@ -47,6 +47,7 @@ def run_batch(args):
     seeds = list(range(args.seed_start, args.seed_start + args.problems))
 
     _safe_print(_c(_C.BOLD, "\n=== SREG Batch Evaluation ===\n"))
+    _safe_print(f"  {_c(_C.DIM, 'Template:')} {args.template}")
     _safe_print(f"  {_c(_C.DIM, 'Problemas:')} {args.problems}")
     _safe_print(f"  {_c(_C.DIM, 'Nodos:')} {args.nodes}")
     _safe_print(f"  {_c(_C.DIM, 'Budget:')} {args.budget}")
@@ -60,6 +61,7 @@ def run_batch(args):
         num_nodes=args.nodes,
         edge_strength=args.edge_strength,
         budget=args.budget,
+        template=args.template,
     )
 
     _safe_print(_c(_C.BOLD, "Evaluando...\n"))
@@ -97,6 +99,7 @@ def run_export(args):
 
     for seed in seeds:
         config = WorldGenConfig(
+            template_family=args.template,
             seed=seed,
             num_nodes=args.nodes,
             edge_strength=args.edge_strength,
@@ -122,6 +125,8 @@ def main():
     parser.add_argument("--nodes", type=int, default=6)
     parser.add_argument("--budget", type=int, default=4)
     parser.add_argument("--edge-strength", type=float, default=0.7)
+    parser.add_argument("--template", type=str, default="latent_preference",
+                        choices=["latent_preference", "causal_chain"])
     parser.add_argument("--seed-start", type=int, default=0)
     parser.add_argument("--export-trajectories", type=str, default=None,
                         help="Export teacher trajectories to JSONL (no agent eval)")

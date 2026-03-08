@@ -29,7 +29,7 @@
 - [ ] Agent variable selection suboptimal: doesn't pick most informative variables (different order than teacher)
 
 ## v1 — More templates + more tasks
-- [ ] Causal chain template (with semantic layer from start)
+- [x] Causal chain template (with semantic layer from start)
 - [ ] Fork/collider template (with semantic layer from start)
 - [ ] `next_best_observation` task type
 - [ ] `hypothesis_selection` task type

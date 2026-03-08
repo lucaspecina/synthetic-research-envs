@@ -72,6 +72,10 @@ class VerifierTool:
         p_vals = np.array([p.get(s, eps) for s in states])
         q_vals = np.array([q.get(s, eps) for s in states])
 
+        # Clip to avoid log(0) and 0*log(0) = NaN
+        p_vals = np.clip(p_vals, eps, None)
+        q_vals = np.clip(q_vals, eps, None)
+
         # Normalize
         p_vals = p_vals / p_vals.sum()
         q_vals = q_vals / q_vals.sum()
