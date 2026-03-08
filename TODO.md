@@ -14,11 +14,12 @@
 - [x] LLM Agent solver (observe/submit loop, comparison with teacher/random)
 - [x] End-to-end pipeline: orchestrator -> agent -> score (scripts/test_e2e.py)
 
-## Next — Dataset export + eval (closes v0)
-- [ ] Teacher trajectory export as JSONL (problem, actions, observations, posteriors)
-- [ ] Batch evaluation: generate ~10 problems programmatically, run agent + teacher, collect metrics
-- [ ] Summary report: agent vs teacher vs random across difficulty levels
+## Next — Closes v0
+- [x] Teacher trajectory export as JSONL (problem, actions, observations, posteriors)
+- [x] Batch evaluation: generate N problems programmatically, run agent + teacher, collect metrics
+- [x] Summary report: agent vs teacher vs random across difficulty levels
 - [ ] Update demo script and notebook
+- [ ] Run batch eval across varying parameters (nodes, edge_strength, budget)
 
 ## Known issues (from E2E testing, 2026-03-07)
 - [ ] Agent submit format: LLM sends flat keys instead of `{"distribution": {...}}`, wastes 1 turn on retry every time

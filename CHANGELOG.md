@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — Phase 8: Dataset export + batch evaluation
+- **Teacher trajectory export**: generates optimal teacher trajectory, exports as JSONL
+  - `TeacherTrajectory` / `TrajectoryStep`: structured dataclasses with full step info
+  - `generate_teacher_trajectory()`: runs teacher, records action, observation, IG, posterior per step
+  - `export_trajectories()`: writes list of trajectories to JSONL file
+- **Batch evaluation harness**: generate N problems, run agent + teacher, collect metrics
+  - `BatchEvaluator`: generates problems programmatically, evaluates agent vs teacher vs random
+  - `ProblemResult` / `BatchResult`: structured results with aggregation (mean KL, beats-random count)
+  - `scripts/batch_eval.py`: CLI for batch eval and trajectory export
+  - Validated: 5/5 agent beats random, mean KL agent=0.30 vs random=2.04
+- 167 tests total, all passing (14 new harness tests)
+
 ### 2026-03-07 — Phase 7: LLM Agent solver + E2E pipeline
 - **Agent solver implemented**: LLM agent that receives ResearchProblem and solves it
   - `AgentSolver`: agentic loop with observe/submit tools routed through EpisodeRunner

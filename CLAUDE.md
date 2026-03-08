@@ -45,8 +45,8 @@ Every research problem has two layers:
 
 ### Current state
 
-Phases 1-7 complete (formal engine + semantic layer + agent solver). 153 tests passing.
-**Next: dataset export + batch eval (closes v0).** See TODO.md.
+Phases 1-8 complete (formal engine + semantic layer + agent solver + eval harness). 167 tests.
+**Next: run comparative analysis across parameters, update demo/notebook.** See TODO.md.
 
 ## Environment setup
 
@@ -84,14 +84,15 @@ src/sreg/
 ├── env/             # EpisodeRunner (step-by-step environment interface)
 ├── orchestrator/    # LLM orchestrator loop (system prompt, tool definitions)
 ├── agent/           # LLM agent solver (Phase 7)
-├── display.py       # Dual-mode pretty printing (terminal ANSI + notebook HTML)
-└── harness/         # Dataset generation + agent evaluation (Phase 9)
+├── harness/         # Teacher trajectory export + batch evaluation (Phase 8)
+└── display.py       # Dual-mode pretty printing (terminal ANSI + notebook HTML)
 
 scripts/
 ├── demo.py                # Terminal demo: world gen + teacher solving
 ├── test_orchestrator.py   # Step-by-step orchestrator run with real LLM
 ├── test_agent.py          # Agent vs teacher vs random baseline comparison
-└── test_e2e.py            # End-to-end: orchestrator -> agent -> score
+├── test_e2e.py            # End-to-end: orchestrator -> agent -> score
+└── batch_eval.py          # Batch eval + teacher trajectory JSONL export
 
 notebooks/
 └── 01_explore_system.ipynb  # Interactive exploration
