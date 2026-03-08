@@ -1,6 +1,12 @@
 # SREG — Qué vamos a construir y cómo
 ## Synthetic Research Environment Generator
 
+> **Este documento es la estrella polar del proyecto.** Define el destino final
+> — qué queremos que SREG sea cuando esté completo. No describe el estado actual
+> ni qué está implementado (eso está en `CURRENT_STATE.md` y `TODO.md`). Cada
+> decisión técnica debe medirse contra lo que este documento describe. Si algo
+> no está alineado con esta visión, hay que corregir el rumbo o actualizar la visión.
+
 ## La idea en una oración
 
 SREG genera **problemas de investigación ficticios pero realistas** — con contexto, datos,
@@ -235,12 +241,12 @@ tres cosas:
 
 ### Templates actuales y futuros
 
-| Template | Estructura | Tipo de razonamiento | Estado |
-|---|---|---|---|
-| `latent_preference` | Estrella: 1 latente → N observables → 1 target | Diagnóstico (inferir causa desde síntomas) | Implementado |
-| `causal_chain` | Cadena: A → B → C → ... → target | Predicción (seguir la cadena causal) | Futuro |
-| `fork_collider` | Forks y colliders mezclados | Causal puro (confounders, explaining away) | Futuro |
-| `custom` | **Cualquier DAG arbitrario** | Depende de la estructura | Futuro |
+| Template | Estructura | Tipo de razonamiento |
+|---|---|---|
+| `latent_preference` | Estrella: 1 latente → N observables → 1 target | Diagnóstico (inferir causa desde síntomas) |
+| `causal_chain` | Cadena: A → B → C → ... → target | Propagación (seguir la cadena causal) |
+| `fork_collider` | Forks y colliders mezclados | Causal puro (confounders, explaining away) |
+| `custom` | **Cualquier DAG arbitrario** | Depende de la estructura |
 
 ### La evolución: de templates fijos a DAGs arbitrarios
 
@@ -394,49 +400,57 @@ Sirve para:
 ## Evaluación — qué se mide y cómo
 
 La gran ventaja de tener una red bayesiana formal como verdad oculta es que
-**muchas cosas distintas se pueden evaluar**. Hay dos familias de evaluación,
-fundamentalmente distintas en cómo funcionan.
+**cualquier pregunta que se pueda responder desde el BN puede convertirse en
+una evaluación**. Esto abre un espacio enorme de evaluaciones posibles —
+las que se listan acá son ejemplos ilustrativos, no una lista cerrada.
 
-### Familia 1: Evaluaciones formales (automáticas, exactas)
+A medida que el sistema evolucione, se pueden agregar nuevos tipos de
+evaluación, combinar evaluaciones formales con semánticas, crear
+evaluaciones específicas para ciertos dominios, o inventar métricas
+nuevas. Lo único que se necesita es que la pregunta tenga una respuesta
+computable desde la red bayesiana.
 
-Estas evaluaciones se calculan **directamente de la matemática del BN**. No
-necesitan LLM judge ni humano. La respuesta correcta se computa con certeza
-y la comparación es objetiva.
+### Evaluaciones formales (automáticas, exactas)
+
+Se calculan **directamente de la matemática del BN**. No necesitan LLM
+judge ni humano. La respuesta correcta se computa con certeza y la
+comparación es objetiva.
 
 Funcionan con **cualquier template** — la ground truth viene del BN formal,
-no de la forma del grafo. Lo que cambia entre templates es el *tipo de
-razonamiento* que requiere, no el mecanismo de evaluación.
+no de la forma del grafo. Algunos ejemplos del tipo de preguntas que se
+pueden evaluar formalmente:
 
-| Evaluación | Pregunta | Cómo se evalúa | Estado |
-|---|---|---|---|
-| **Inferir target** | ¿Cuál es P(target \| evidencia)? | KL divergence entre la predicción del agente y la posterior exacta. Variante simple: accuracy del estado más probable. | Implementado |
-| **Mejor próxima acción** | ¿Qué variable conviene medir? | Information gain de la acción elegida vs la óptima (calculada por el teacher). | Implementado (teacher lo calcula) |
-| **Efecto causal** | Si intervenimos en X, ¿qué pasa con Y? | Diferencia entre la estimación y P(Y \| do(X=x)), calculada exactamente desde el DAG (do-calculus). | Futuro |
-| **Descubrimiento de estructura** | ¿Cuál es el DAG real? | Structural Hamming Distance, edge F1. Grafos Markov-equivalentes se aceptan como correctos. | Futuro |
-| **Selección de hipótesis** | De estas explicaciones, ¿cuál es la más plausible? | ¿Eligió la hipótesis con mayor probabilidad posterior? | Futuro |
-| **Predicción** | Dado lo observado, ¿qué valor tendrá Z? | Accuracy, calibración, Brier score contra la distribución real. | Futuro |
-| **Optimización** | ¿Qué acción maximiza/minimiza un outcome? | Regret respecto al óptimo calculado desde el BN. | Futuro |
-
-**Lo clave**: todas estas evaluaciones son posibles porque tenemos el BN
-completo con CPDs exactas. No importa cuántos templates agreguemos — la
-evaluación funciona igual en todos.
-
-### Familia 2: Evaluaciones semánticas (soft, requieren juez)
-
-Estas evalúan la **calidad del razonamiento**, no solo la respuesta final.
-Son más difíciles de automatizar y menos precisas, pero capturan aspectos
-que las formales no pueden.
-
-| Evaluación | Pregunta | Cómo se evalúa |
+| Tipo de evaluación | Pregunta | Cómo se evalúa |
 |---|---|---|
-| **Coherencia del razonamiento** | ¿El argumento tiene sentido? | Rúbrica + LLM-as-judge |
-| **Uso de evidencia** | ¿Actualizó creencias al recibir datos nuevos? | Comparar trayectoria vs teacher |
-| **Consideración de alternativas** | ¿Exploró hipótesis distintas? | Análisis de la cadena de razonamiento |
-| **Eficiencia de budget** | ¿Pidió las observaciones más útiles? | Info acumulada vs budget gastado (esto es computable) |
+| **Inferir target** | ¿Cuál es P(target \| evidencia)? | KL divergence entre la predicción del agente y la posterior exacta |
+| **Mejor próxima acción** | ¿Qué variable conviene medir? | Information gain de la acción elegida vs la óptima |
+| **Selección de hipótesis** | De estas explicaciones, ¿cuál es más plausible? | ¿Eligió la hipótesis con mayor probabilidad posterior? |
+| **Efecto causal** | Si intervenimos en X, ¿qué pasa con Y? | Diferencia con P(Y \| do(X=x)) calculada desde el DAG |
+| **Descubrimiento de estructura** | ¿Cuál es el DAG real? | Structural Hamming Distance, edge F1 |
+| **Predicción** | Dado lo observado, ¿qué valor tendrá Z? | Accuracy, calibración, Brier score |
+| **Optimización** | ¿Qué acción maximiza/minimiza un outcome? | Regret respecto al óptimo calculado desde el BN |
+
+Pero estos son solo ejemplos. Cualquier pregunta que tenga respuesta
+computable desde el BN puede ser una evaluación formal — incluyendo
+combinaciones de las anteriores, evaluaciones condicionales ("si ya hiciste
+X, ¿cuánto mejora tu estimación?"), evaluaciones secuenciales, etc.
+
+### Evaluaciones semánticas (soft, requieren juez)
+
+Evalúan la **calidad del razonamiento**, no solo la respuesta final.
+Son más difíciles de automatizar y menos precisas, pero capturan aspectos
+que las formales no pueden. Algunos ejemplos:
+
+- **Coherencia del razonamiento**: ¿el argumento tiene sentido? (rúbrica + LLM-as-judge)
+- **Uso de evidencia**: ¿actualizó creencias al recibir datos nuevos? (comparar trayectoria vs teacher)
+- **Consideración de alternativas**: ¿exploró hipótesis distintas?
+- **Eficiencia de budget**: ¿pidió las observaciones más útiles? (info acumulada vs budget gastado)
 
 Algunas de estas se pueden **aproximar formalmente** comparando la trayectoria
-del agente con la del teacher óptimo. Otras requieren LLM-judge o rúbricas
-humanas.
+del agente con la del teacher óptimo. Otras requieren LLM-judge o rúbricas.
+Y al igual que las formales, no son una lista cerrada — se pueden diseñar
+evaluaciones semánticas nuevas según el dominio o el tipo de razonamiento
+que se quiera medir.
 
 ### Múltiples evaluaciones por tarea
 
@@ -616,64 +630,48 @@ Este caso testea:
 
 ---
 
-## Versiones del proyecto
+## Evolución del proyecto
 
-### v0 — Motor formal + semántica mínima + agent solver POC
+Cada versión amplía las capacidades del sistema hacia la visión final.
+Las versiones tempranas simplifican para construir un núcleo sólido; las
+posteriores acercan el sistema a research cases realistas como los
+ejemplos de arriba.
 
-El objetivo de v0 es tener un sistema que genera problemas de investigación
-ficticios pero creíbles, y un agente LLM que intenta resolverlos.
+### v0 — La base funciona
 
-**Incluye:**
-- Red bayesiana como verdad oculta (pgmpy)
-- 1 familia de templates (latent preference) con capa semántica
-- Capa semántica mínima: nombres semi-reales, narrativa breve del problema,
-  datos presentados de forma realista (configurable: tabular o datapoints)
-- Acciones del agente: observar variables (con costo) + submit respuesta
-- Teacher solver exacto como referencia
-- Agente LLM solver básico que recibe el problema e interactúa
-- Evaluación: inferencia de target (KL divergence), eficiencia de budget
-- LLM orchestrator que genera mundos con semántica
-- Exportación de trayectorias del teacher como dataset
+El motor formal produce mundos con verdad matemática verificable. Hay un
+agente que interactúa, un teacher que resuelve óptimamente, y un
+verificador que puntúa. El sistema genera, resuelve, y evalúa end-to-end.
 
-**No incluye:**
-- Documentos sintéticos elaborados (papers ficticios, reportes largos)
-- Seeds desde papers reales (input manual sí, búsqueda automática no)
-- Evaluación de efectos causales o intervenciones
-- Acciones complejas del agente (solo observar variables)
-- Múltiples preguntas por tarea (solo la pregunta principal)
-- Rúbricas de proceso
-- Entrenamiento de modelos
+### v1 — Más formas de testear razonamiento
 
-### v1 — Más templates + más evaluación + datos más ricos
+El sistema sabe generar distintos tipos de problemas (templates con
+distintas estructuras causales) y evaluarlos de distintas formas
+(inferencia, selección de información, comparación de hipótesis).
+Múltiples evaluaciones por problema.
 
-- 3 familias de templates predefinidos: latent preference, causal chain, fork/collider
-- Datos más ricos: múltiples datasets por problema, múltiples formatos
-- Más tipos de evaluación formal: next_best_observation, hypothesis_selection
-- Múltiples preguntas/sub-evaluaciones por tarea
-- Acciones más variadas (siguen mapeando a nodos bayesianos)
-- Seeds desde papers o documentos (el LLM extrae estructura)
-- Narrativas más elaboradas con contexto teórico y hints
+### v2 — Research cases realistas
 
-### v2 — DAGs arbitrarios + variables continuas
+El sistema acepta cualquier estructura causal (DAGs arbitrarios) y
+produce research cases que se parecen a investigaciones reales: mundos
+más grandes, datos ricos (múltiples datasets, datos parciales,
+observaciones aisladas), narrativas elaboradas con contexto teórico,
+acciones con costos variados, y problemas integrados con múltiples
+preguntas conectadas.
 
-- Template `custom`: acepta cualquier especificación de DAG, genera CPDs
-- Redes bayesianas grandes (decenas de variables, relaciones complejas)
-- Variables continuas (Gaussianas) además de discretas, mundos mixtos
-- Seeds desde papers: LLM extrae estructura causal → template `custom`
-- Evaluación causal: efecto de intervenciones (do-calculus)
-- Evaluación de estructura: redescubrir el DAG
-- Documentos generados por LLM con ruido controlado (papers ficticios, notas)
-- Rúbricas de proceso: evaluar calidad del razonamiento, no solo la respuesta
+### v3 — Mundos complejos y evaluación profunda
 
-### v3 — Escala
+Variables continuas y mixtas. Evaluación de intervenciones (do-calculus).
+Descubrimiento de estructura. Documentos sintéticos elaborados (papers
+ficticios, reportes). Rúbricas de proceso para evaluar calidad del
+razonamiento, no solo la respuesta final.
 
-- Tareas multi-paso con sub-evaluaciones encadenadas
-- RL loop con el verificador como señal de reward
-- Herramientas externas para agentes (ejecución de código, búsqueda)
-- Métricas de calibración y mejora incremental
-- Currículo de complejidad creciente
-- Evaluación contra benchmarks científicos reales
-- Framework de rúbricas customizable
+### v4 — Escala
+
+Tareas multi-paso con sub-evaluaciones encadenadas. Currículo de
+complejidad creciente. RL loop con el verificador como reward.
+Herramientas externas para agentes. Evaluación contra benchmarks
+científicos reales.
 
 ---
 
@@ -688,37 +686,3 @@ ficticios pero creíbles, y un agente LLM que intenta resolverlos.
 - **pytest** — tests
 - **ruff** — linting y formatting
 
----
-
-## Cómo se ve v0 cuando esté completo
-
-```
-> "Generame un problema de investigación sobre ecología marina, dificultad media"
-
-El sistema:
-1. El orchestrator LLM elige la estructura y genera nombres/narrativa
-2. Las tools construyen la red bayesiana formal
-3. Se valida que el mundo sea interesante
-4. Se generan datos (muestreados de la red bayesiana, presentados como
-   un dataset realista o como observaciones puntuales)
-5. Se definen las acciones disponibles con sus costos
-6. Se formula la pregunta de investigación
-7. El teacher resuelve el problema óptimamente (referencia)
-
-Resultado: un problema de investigación completo, listo para que un
-agente LLM lo intente resolver.
-```
-
-Y por separado:
-
-```
-> "Evaluá GPT-5 resolviendo estos 50 problemas"
-
-El sistema:
-1. Le presenta cada problema al LLM agent (contexto, datos, acciones)
-2. El LLM agent razona libremente — analiza, hipotetiza, pide datos
-3. Las acciones que pide (observaciones) cuestan budget
-4. El agente da su respuesta final
-5. El verificador puntúa contra la verdad matemática
-6. Métricas: accuracy, eficiencia, calibración vs teacher perfecto
-```

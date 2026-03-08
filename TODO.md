@@ -39,14 +39,38 @@
 - [x] `hypothesis_selection` task type
 - [x] Multiple evaluations per problem: same world generates all 3 task types together
 
-## Backlog
-- [ ] Synthetic document artifacts (papers, reports, notes)
-- [ ] Seeds from real papers (LLM extracts structure)
-- [ ] Automatic paper search for seeds
+## v2 — Custom template + research cases realistas
+
+### Template custom (DAGs arbitrarios)
+- [ ] `DAGSpec` model: Pydantic contract to specify an arbitrary DAG (nodes with names/types/states, edges)
+- [ ] `CustomTemplate`: accepts a DAGSpec, generates valid CPDs using generic edge_strength logic
+- [ ] Validation: custom worlds pass WorldCheck (acyclic, entropy, d-separations, teacher solvable)
+- [ ] All 3 task types work with custom worlds (TaskGenTool + TaskBundle)
+- [ ] Registration in WorldGenTool alongside existing templates
+- [ ] Tests: custom worlds with 10-15+ nodes, multiple latents, complex topologies
+
+### Datos más ricos
+- [ ] Multiple datasets per problem (tabular + observations + partial data)
+- [ ] Missing data / incomplete observations
+- [ ] Variable action costs (not all cost 1)
+- [ ] Richer data sampler: multiple formats, metadata
+
+### Narrativa elaborada
+- [ ] Theoretical context: prior studies, hints, misleading context
+- [ ] Richer semantic layer: apply_semantics generates multi-paragraph narrative
+- [ ] Domain-specific action descriptions (not just "observe X")
+
+### Research cases integrados
+- [ ] Integrated multi-question problems: one budget, multiple evaluation points
+- [ ] Seeds from papers or documents (LLM extracts DAG structure → CustomTemplate)
+
+## Backlog (v3+)
+- [ ] Continuous variables (Gaussian CPDs, mixed worlds)
 - [ ] Intervention tasks (do-calculus)
 - [ ] Structure recovery tasks
-- [ ] Complex agent actions (multi-node, conditional)
-- [ ] Agent actions defined freely per world (beyond observe)
+- [ ] Synthetic document artifacts (papers, reports, notes)
+- [ ] Process rubrics (evaluate reasoning quality, not just answer)
 - [ ] Approximate inference teacher (larger worlds)
+- [ ] Complex agent actions (multi-node, conditional)
 - [ ] Curriculum over world complexity
 - [ ] RL training loop with verifier as reward
