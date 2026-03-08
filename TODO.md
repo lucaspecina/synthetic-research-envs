@@ -62,7 +62,8 @@
 - [x] Agent system prompt and tool definitions
 - [x] Agent evaluation: score vs teacher and random baseline
 - [x] Comparison script: agent vs teacher vs random baseline
-- [ ] Run agent with real LLM and validate end-to-end
+- [x] Run agent with real LLM and validate end-to-end
+- [x] End-to-end script: orchestrator -> agent (scripts/test_e2e.py)
 
 ## Phase 8 — More templates + more tasks
 - [ ] Implement causal chain template (with semantic layer from start)

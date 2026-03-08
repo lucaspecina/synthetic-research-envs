@@ -5,7 +5,7 @@
 
 ## [Unreleased]
 
-### 2026-03-07 — Phase 7: LLM Agent solver
+### 2026-03-07 — Phase 7: LLM Agent solver + E2E pipeline
 - **Agent solver implemented**: LLM agent that receives ResearchProblem and solves it
   - `AgentSolver`: agentic loop with observe/submit tools routed through EpisodeRunner
   - `build_agent_system_prompt()`: presents problem narrative, data, actions, question
@@ -14,6 +14,12 @@
   - Submit tool: validates distribution states, normalizes, scores via VerifierTool
   - Comparison script (`scripts/test_agent.py`): runs agent vs teacher vs random baseline
   - 13 tests: prompt generation, tool dispatch, mocked full loops
+- **End-to-end pipeline**: orchestrator → agent in a single script
+  - `scripts/test_e2e.py`: orchestrator generates semantic world, agent solves it
+  - Full flow: world_gen → world_check → apply_semantics → build_problem → agent → score
+  - Agent receives semantic node names (e.g., `coral_bleaching_severity` not `target_outcome`)
+  - Step-by-step output for both orchestrator and agent phases
+  - Validated: agent KL=0.16 vs teacher KL=0.00 vs random KL=0.89 on marine ecology problem
 - 153 tests total, all passing
 
 ### 2026-03-07 — Phase 6: Semantic layer
