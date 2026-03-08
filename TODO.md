@@ -33,7 +33,7 @@
 - [x] Fork/collider template (with semantic layer from start)
 - [x] `next_best_observation` task type
 - [x] `hypothesis_selection` task type
-- [ ] Multiple evaluations per problem: same world generates all 3 task types together
+- [x] Multiple evaluations per problem: same world generates all 3 task types together
 
 ## Backlog
 - [ ] Synthetic document artifacts (papers, reports, notes)

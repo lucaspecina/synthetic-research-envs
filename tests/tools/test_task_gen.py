@@ -2,7 +2,7 @@
 
 import pytest
 
-from sreg.models.task import Task, TaskSpec, TaskType
+from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.models.world import NodeType
 from sreg.tools.task_gen import TaskGenTool
 from sreg.tools.verifier import VerifierTool
@@ -356,3 +356,109 @@ def test_verifier_hypothesis_invalid():
     kl_scores = {"A": 0.5, "B": 0.001}
     score = verifier.score_hypothesis("Z", kl_scores)
     assert score == 0.0
+
+
+# --- generate_all / TaskBundle tests ---
+
+
+def test_generate_all_returns_bundle(world):
+    tool = TaskGenTool()
+    bundle = tool.generate_all(world, seed=42)
+
+    assert isinstance(bundle, TaskBundle)
+    assert bundle.world_id == world.id
+    assert bundle.target_node == "target_outcome"
+    assert bundle.seed == 42
+
+
+def test_bundle_has_all_3_task_types(world):
+    tool = TaskGenTool()
+    bundle = tool.generate_all(world, seed=42)
+
+    assert set(bundle.tasks.keys()) == {
+        TaskType.INFER_TARGET,
+        TaskType.NEXT_BEST_OBSERVATION,
+        TaskType.HYPOTHESIS_SELECTION,
+    }
+
+
+def test_bundle_property_accessors(world):
+    tool = TaskGenTool()
+    bundle = tool.generate_all(world, seed=42)
+
+    assert bundle.infer_target.type == TaskType.INFER_TARGET
+    assert bundle.next_best_observation.type == TaskType.NEXT_BEST_OBSERVATION
+    assert bundle.hypothesis_selection.type == TaskType.HYPOTHESIS_SELECTION
+
+
+def test_bundle_all_tasks_share_world(world):
+    tool = TaskGenTool()
+    bundle = tool.generate_all(world, seed=42)
+
+    for task in bundle.tasks.values():
+        assert task.world_id == world.id
+        assert task.target_node == "target_outcome"
+
+
+def test_bundle_tasks_have_different_scoring(world):
+    tool = TaskGenTool()
+    bundle = tool.generate_all(world, seed=42)
+
+    assert bundle.infer_target.scoring_method == "kl_divergence"
+    assert bundle.next_best_observation.scoring_method == "info_gain_ratio"
+    assert bundle.hypothesis_selection.scoring_method == "hypothesis_accuracy"
+
+
+def test_bundle_deterministic(world):
+    tool = TaskGenTool()
+    b1 = tool.generate_all(world, seed=99)
+    b2 = tool.generate_all(world, seed=99)
+
+    for tt in TaskType:
+        assert b1.tasks[tt].correct_answer == b2.tasks[tt].correct_answer
+
+
+def test_bundle_different_seeds_differ(world):
+    tool = TaskGenTool()
+    b1 = tool.generate_all(world, seed=0)
+    b2 = tool.generate_all(world, seed=1)
+
+    # NBO and hypothesis tasks depend on seed, so at least one should differ
+    nbo_differ = (
+        b1.next_best_observation.given_evidence != b2.next_best_observation.given_evidence
+        or b1.next_best_observation.correct_answer != b2.next_best_observation.correct_answer
+    )
+    hyp_differ = (
+        b1.hypothesis_selection.given_evidence != b2.hypothesis_selection.given_evidence
+        or b1.hypothesis_selection.hypotheses != b2.hypothesis_selection.hypotheses
+    )
+    assert nbo_differ or hyp_differ
+
+
+def test_bundle_works_across_templates():
+    gen = WorldGenTool()
+    tool = TaskGenTool()
+
+    for template in ["latent_preference", "causal_chain", "fork_collider"]:
+        nodes = 7 if template == "fork_collider" else 6
+        world = gen.generate(WorldGenConfig(
+            template_family=template, seed=42, num_nodes=nodes, edge_strength=0.7
+        ))
+        bundle = tool.generate_all(world, seed=42)
+
+        assert len(bundle.tasks) == 3, f"Missing tasks for {template}"
+        for tt in TaskType:
+            assert tt in bundle.tasks, f"Missing {tt} for {template}"
+
+
+def test_bundle_serialization(world):
+    tool = TaskGenTool()
+    bundle = tool.generate_all(world, seed=42)
+
+    data = bundle.model_dump()
+    restored = TaskBundle.model_validate(data)
+
+    assert restored.world_id == bundle.world_id
+    assert len(restored.tasks) == 3
+    for tt in TaskType:
+        assert restored.tasks[tt].correct_answer == bundle.tasks[tt].correct_answer

@@ -3,7 +3,7 @@
 from sreg.models.episode import Action, ActionType, Episode, Observation, StepResult
 from sreg.models.research_problem import AvailableAction, DataAsset, ResearchProblem
 from sreg.models.score import Score, StepScore
-from sreg.models.task import Task, TaskSpec, TaskType
+from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.models.teacher import TeacherOutput
 from sreg.models.world import CPD, DifficultyProfile, Edge, Node, NodeType, World
 
@@ -24,6 +24,7 @@ __all__ = [
     "StepResult",
     "StepScore",
     "Task",
+    "TaskBundle",
     "TaskSpec",
     "TaskType",
     "TeacherOutput",

@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — Multiple evaluations per problem (v1 complete)
+- **`TaskBundle` model + `generate_all()` method**: one world → all 3 task types
+  - `TaskGenTool.generate_all(world, target, budget, seed)` → `TaskBundle`
+  - `TaskBundle`: groups infer_target, NBO, and hypothesis_selection tasks
+  - Property accessors: `.infer_target`, `.next_best_observation`, `.hypothesis_selection`
+  - Full JSON serialization roundtrip support
+  - Validated across 18 configs (6 template/node/ES combos × 3 seeds), 0 failures
+  - 9 new tests, 229 total, all passing
+- **v1 milestone complete**: 3 templates + 3 task types + multi-task generation
+
 ### 2026-03-07 — hypothesis_selection task type
 - **`hypothesis_selection` task type**: "which of these explanations is most plausible?"
   - Generates 4 hypotheses: true posterior, prior, uniform, reversed posterior

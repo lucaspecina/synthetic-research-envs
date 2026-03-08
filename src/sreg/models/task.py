@@ -50,4 +50,27 @@ class Task(BaseModel):
     )
 
 
-__all__ = ["Task", "TaskSpec", "TaskType"]
+class TaskBundle(BaseModel):
+    """A bundle of all task types generated from the same world."""
+
+    world_id: str
+    target_node: str
+    seed: int
+    tasks: dict[TaskType, Task] = Field(
+        description="One task per task type, all derived from the same world",
+    )
+
+    @property
+    def infer_target(self) -> Task:
+        return self.tasks[TaskType.INFER_TARGET]
+
+    @property
+    def next_best_observation(self) -> Task:
+        return self.tasks[TaskType.NEXT_BEST_OBSERVATION]
+
+    @property
+    def hypothesis_selection(self) -> Task:
+        return self.tasks[TaskType.HYPOTHESIS_SELECTION]
+
+
+__all__ = ["Task", "TaskBundle", "TaskSpec", "TaskType"]

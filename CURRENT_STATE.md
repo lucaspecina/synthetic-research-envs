@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 220 tests. 3 familias de templates. 3 tipos de tarea. Pipeline completo funcionando.**
+**Estado actual: 229 tests. 3 familias de templates. 3 tipos de tarea. Multi-task bundles. Pipeline completo. v1 completo.**
 
 ---
 
@@ -276,6 +276,23 @@ print(f"Edges: {[(e.from_node, e.to_node) for e in world.edges]}")
 ```
 
 ### Generar los 3 tipos de tarea para un mundo
+
+**Opción 1: Todos juntos (recomendado)**
+```python
+from sreg.tools.task_gen import TaskGenTool
+
+bundle = TaskGenTool().generate_all(world, target_node="target_outcome", max_budget=4, seed=42)
+
+# Acceder a cada tarea
+bundle.infer_target          # → Task (KL divergence)
+bundle.next_best_observation # → Task (IG ratio)
+bundle.hypothesis_selection  # → Task (accuracy)
+
+# Todos comparten el mismo world_id
+assert bundle.infer_target.world_id == bundle.hypothesis_selection.world_id
+```
+
+**Opción 2: Uno a uno**
 ```python
 from sreg.tools.task_gen import TaskGenTool
 from sreg.models.task import TaskSpec, TaskType
@@ -379,6 +396,11 @@ out = solver.optimal_action("target", evidence, nodes)     # → TeacherOutput
 
 ### Generar tareas
 ```python
+# Todos juntos (TaskBundle)
+bundle = TaskGenTool().generate_all(world, seed=42)
+# bundle.infer_target, bundle.next_best_observation, bundle.hypothesis_selection
+
+# O uno a uno:
 # infer_target
 spec = TaskSpec(type=TaskType.INFER_TARGET, target_node="target_outcome", max_budget=5)
 task = TaskGenTool().generate(world, spec)
@@ -426,7 +448,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **220 tests** en todos los módulos
+- **229 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

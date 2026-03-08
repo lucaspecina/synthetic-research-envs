@@ -4,13 +4,36 @@ from __future__ import annotations
 
 import numpy as np
 
-from sreg.models.task import Task, TaskSpec, TaskType
+from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.models.world import NodeType, World
 from sreg.solver.exact_bayes import ExactBayesSolver
 
 
 class TaskGenTool:
     """Generates tasks from a world and task specification."""
+
+    def generate_all(
+        self,
+        world: World,
+        target_node: str = "target_outcome",
+        max_budget: int = 5,
+        seed: int = 0,
+    ) -> TaskBundle:
+        """Generate all 3 task types from the same world.
+
+        Returns a TaskBundle grouping infer_target, next_best_observation,
+        and hypothesis_selection tasks derived from the same world and seed.
+        """
+        tasks: dict[TaskType, Task] = {}
+        for task_type in TaskType:
+            spec = TaskSpec(type=task_type, target_node=target_node, max_budget=max_budget)
+            tasks[task_type] = self.generate(world, spec, seed=seed)
+        return TaskBundle(
+            world_id=world.id,
+            target_node=target_node,
+            seed=seed,
+            tasks=tasks,
+        )
 
     def generate(self, world: World, spec: TaskSpec, seed: int = 0) -> Task:
         """Generate a task from a world and specification.
