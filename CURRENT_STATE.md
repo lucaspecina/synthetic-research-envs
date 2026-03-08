@@ -1,151 +1,373 @@
 # SREG — Current State
 
-> Detailed technical description of what the system does TODAY.
-> Updated: 2026-03-07
+> Qué hace el sistema hoy, cómo funciona cada parte, y cómo ejecutarlo.
+> Actualizado: 2026-03-07
 
 ---
 
-## Summary
+## Qué es SREG en una oración
 
-SREG generates fictional research problems backed by Bayesian networks. The full
-pipeline works end-to-end: generate a BN world → validate → add semantic layer →
-present as a research problem → LLM agent solves it → score against ground truth.
+SREG genera **problemas de investigación ficticios** donde la verdad oculta es una
+red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
+qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**220 tests passing. 3 template families. 3 task types. Agent, teacher, and batch evaluation working.**
+**Estado actual: 220 tests. 3 familias de templates. 3 tipos de tarea. Pipeline completo funcionando.**
 
 ---
 
-## Architecture (implemented)
+## Cómo funciona — el flujo completo
 
 ```
-User goal (text or params)
-    |
-    v
-[LLM Orchestrator] -- calls tools in a loop -->
-    |-- WorldGenTool ------> World (DAG + CPDs + metadata)
-    |-- WorldCheckTool ----> Validation (acyclicity, entropy, d-separation)
-    |-- apply_semantics ---> Semantic names + narrative (LLM generates)
-    |-- build_problem -----> ResearchProblem (data, actions, question)
-    |
-    v
-ResearchProblem (what the agent sees)
-    |-- Title + narrative context
-    |-- Tabular data (sampled from BN)
-    |-- Available actions with costs
-    |-- Research question + target states
-    |
-    v
-[LLM Agent Solver] -- observe/submit loop -->
-    |-- Reads context, data, question (free)
-    |-- Requests observations (costs budget)
-    |-- Submits probability distribution
-    |
-    v
-[VerifierTool] -- scores against BN truth -->
-    |-- KL divergence (agent posterior vs true posterior)
-    |-- Information efficiency (agent vs teacher)
-    |-- Per-step tracking
-    |
-    v
-Score + comparison vs teacher + comparison vs random
+1. GENERAR EL MUNDO
+   Le pedís al sistema un problema (o le das parámetros).
+   El sistema construye una red bayesiana: variables, relaciones causales,
+   y tablas de probabilidad. Todo con matemática exacta.
+
+2. VESTIRLO CON SEMÁNTICA
+   Un LLM le pone nombres reales a las variables ("water_temperature" en vez
+   de "indicator_1"), inventa una narrativa ("Declive de algas en Nelvara"),
+   y genera datos tabulares muestreando de la red bayesiana.
+
+3. PRESENTAR AL AGENTE
+   El agente recibe el problema como lo recibiría un investigador:
+   contexto, datos, acciones posibles (cada una tiene un costo), y una pregunta.
+   El agente NO ve la red bayesiana — solo ve el "paper".
+
+4. EL AGENTE INVESTIGA
+   El agente puede analizar los datos (gratis), razonar (gratis), pero si quiere
+   hacer un "experimento" (observar una variable), le cuesta budget. Tiene que
+   decidir qué medir y cuándo parar.
+
+5. EVALUAR
+   El sistema compara la respuesta del agente contra la verdad matemática
+   de la red bayesiana. No hay ambigüedad: la respuesta correcta se calcula
+   con exactitud.
 ```
 
 ---
 
-## Two-layer system
+## Las dos capas
 
-### Formal layer (hidden from agent)
+### Capa formal (oculta — la verdad)
 
-A Bayesian network defines the mathematical truth:
-- **Nodes**: latent (hidden), observable, target
-- **DAG**: directed acyclic graph of causal relationships
-- **CPDs**: conditional probability tables (Dirichlet-based, controlled by `edge_strength`)
-- All evaluation is exact computation against this network
+Una red bayesiana con:
+- **Nodos**: variables del mundo. Algunas son **latentes** (el agente no las puede
+  ver directamente), algunas son **observables** (el agente puede pagar para verlas),
+  y una es el **target** (lo que tiene que descubrir).
+- **Flechas**: relaciones causales. "La temperatura afecta la producción de algas."
+- **Tablas de probabilidad (CPDs)**: cuánto influye cada padre en cada hijo.
+  Controladas por `edge_strength`: 0.1 = casi no influye, 0.9 = influye mucho.
 
-### Semantic layer (visible to agent)
+### Capa semántica (visible — lo que ve el agente)
 
-Built on top by the LLM orchestrator:
-- Node renaming: `target_outcome` → `coral_bleaching_severity`
-- Narrative context: research scenario with background
-- Data: tabular observations sampled from the BN joint distribution
-- Actions: "Request sediment analysis" instead of "observe node X"
+- Nombres realistas: `coral_bleaching_severity` en vez de `target_outcome`
+- Narrativa: "Investigadores del Instituto Oceánico reportaron..."
+- Datos: tabla con 100 filas de mediciones (muestreadas de la red bayesiana)
+- Acciones: "Solicitar análisis de sedimentos (costo: 2)"
+
+La misma red bayesiana puede vestirse con distintas semánticas.
 
 ---
 
-## Template families (3 implemented)
+## Templates — las formas del mundo
 
-Each template defines a DAG topology + CPD generator. The CPD formula is generic
-(Dirichlet with `edge_strength`), so all templates produce worlds with tunable
-signal strength.
+Un template define **qué forma tiene la red bayesiana** y **cómo se generan las
+probabilidades**. Cada forma testea un tipo de razonamiento diferente.
 
-| Template | Structure | Reasoning tested | Nodes | Teacher accuracy |
-|---|---|---|---|---|
-| `latent_preference` | Star: latent → N observables + target | Diagnostic inference (infer cause from symptoms) | 3-20 | ~100% |
-| `causal_chain` | Linear: root → stage_1 → ... → target | Propagation (closer nodes more informative) | 3-20 | ~95% |
-| `fork_collider` | Fork + collider: latent → branches → collider → target | Explaining away / Berkson's paradox | 5-20 | ~85% |
+### `latent_preference` — La estrella
 
-### fork_collider structure (most complex)
+```
+         hidden_cause (LATENT)
+        ↙    ↓    ↓    ↘
+  ind_1   ind_2  ind_3  ind_4   (OBSERVABLE)
+                  ↓
+           target_outcome       (TARGET)
+```
+
+**Qué es:** Una causa oculta que afecta a varios indicadores observables y al target.
+
+**Qué testea:** Diagnóstico. Es como un médico: ves síntomas (indicadores) y tenés
+que inferir la enfermedad oculta para predecir el resultado. Cuantos más síntomas
+observás, mejor podés inferir la causa y predecir el target.
+
+**Ejemplo real:** Hay un compuesto oculto en el suelo. Afecta el pH, la temperatura,
+el nitrógeno, y la producción de algas. Si observás pH=alto y nitrógeno=bajo, ¿qué
+le pasa a la producción?
+
+**Dificultad:** La más fácil. El teacher acierte ~100%. Todos los indicadores ayudan.
+
+### `causal_chain` — La cadena
+
+```
+  root → stage_1 → stage_2 → stage_3 → stage_4 → target
+```
+
+**Qué es:** Una cadena lineal donde la info se propaga de nodo en nodo.
+
+**Qué testea:** Propagación. Los nodos más cercanos al target son más informativos
+que los lejanos. Si observás `stage_4` (pegado al target), sabés mucho. Si observás
+`stage_1` (lejos), sabés poco — la info se "diluye" en el camino.
+
+**Ejemplo real:** Una cadena de producción industrial. La materia prima afecta el
+proceso 1, que afecta el proceso 2, que afecta la calidad final. Medir la calidad
+del proceso 2 te dice más sobre el resultado que medir la materia prima.
+
+**Dificultad:** Media. El teacher acierta ~95%. El agente tiene que entender que
+la distancia importa.
+
+### `fork_collider` — El más tramposo
 
 ```
     hidden_factor (LATENT)
       ↙          ↘
   branch_1(O)  branch_2(O)  [branch_3(O)]
       ↘          ↙
-      collider(O)           ← explaining away
+      collider(O)           ← acá está la trampa
           ↓
-     [mediator(O)]          ← if extra nodes
+     [mediator(O)]
           ↓
      target_outcome(T)
 ```
 
-With more nodes: up to 3 branches, remaining become mediators between collider and target.
+**Qué es:** Combina dos patrones de razonamiento:
+
+1. **Fork (arriba):** Una causa oculta afecta a varias ramas. Las ramas están
+   correlacionadas AUNQUE no se causen entre sí (porque comparten la causa).
+
+2. **Collider (medio):** Las ramas confluyen en el collider. Acá pasa algo
+   contraintuitivo: si observás el collider, las ramas que antes eran
+   independientes se VUELVEN dependientes. Esto se llama "explaining away"
+   o paradoja de Berkson.
+
+**Qué testea:** Razonamiento causal avanzado. El agente tiene que entender que
+observar el collider cambia la relación entre las ramas. No alcanza con
+"observar todo" — hay que entender la estructura.
+
+**Ejemplo real:** Dos factores independientes (genética y dieta) ambos causan
+una enfermedad. Si sabés que alguien tiene la enfermedad (observás el collider),
+y descubrís que NO tiene predisposición genética, entonces es MÁS probable que
+sea por la dieta. Observar el efecto cambia cómo interpretás las causas.
+
+**Dificultad:** La más difícil. El teacher acierta ~85%. Requiere razonamiento
+causal, no solo estadístico.
+
+### Parámetros que controlan la dificultad
+
+| Parámetro | Qué hace | Rango |
+|---|---|---|
+| `num_nodes` | Más nodos = más variables = más complejo | 3-20 |
+| `num_states` | Más estados por variable (low/med/high vs 5 niveles) | 2-5 |
+| `edge_strength` | Qué tan fuerte es la influencia entre variables | 0.1-1.0 |
+| `seed` | Semilla para reproducibilidad | cualquier int |
 
 ---
 
-## Modules
+## Task types — las preguntas que hacemos
 
-| Module | Location | What it does |
-|--------|----------|-------------|
-| **Models** | `src/sreg/models/` | Pydantic data contracts: World, Node, Edge, CPD, Episode, Task, Score, TeacherOutput, ResearchProblem |
-| **Templates** | `src/sreg/world/templates/` | 3 templates: latent_preference, causal_chain, fork_collider |
-| **World check** | `src/sreg/tools/world_check.py` | Validates: DAG acyclicity, entropy, d-separation, paths to target |
-| **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Exact Bayesian inference via pgmpy VariableElimination; posteriors, info gain, optimal actions |
-| **Episode gen** | `src/sreg/tools/episode_gen.py` | Creates episodes: budget, available nodes, observation costs |
-| **Task gen** | `src/sreg/tools/task_gen.py` | Creates tasks: `infer_target`, `next_best_observation`, `hypothesis_selection` |
-| **Verifier** | `src/sreg/tools/verifier.py` | KL divergence, IG ratio (NBO), hypothesis accuracy, information efficiency, per-step tracking. |
-| **Episode runner** | `src/sreg/env/` | Step-by-step environment interface (observe → submit) |
-| **Semantic tools** | `src/sreg/tools/problem_builder.py` | `apply_semantics` (LLM renames nodes), `build_problem` (packages ResearchProblem) |
-| **Data sampler** | `src/sreg/tools/data_sampler.py` | Samples from BN joint distribution, presents as tabular observations |
-| **Orchestrator** | `src/sreg/orchestrator/` | LLM agentic loop: calls tools via function calling (Azure AI Foundry) |
-| **Agent solver** | `src/sreg/agent/` | LLM agent that receives ResearchProblem, observes, submits answer |
-| **Batch eval** | `src/sreg/harness/eval.py` | Generates N problems programmatically, runs agent + teacher, collects metrics |
-| **Trajectory export** | `src/sreg/harness/trajectory.py` | Teacher trajectory as JSONL (step, action, observation, IG, posterior) |
-| **Display** | `src/sreg/display.py` | Dual-mode pretty printing (terminal ANSI + notebook HTML) |
+Cada mundo puede generar distintos tipos de preguntas. Hoy hay 3:
+
+### `infer_target` — "¿Cuál es la respuesta?"
+
+**La pregunta:** "Dada la evidencia, ¿cuál es la distribución de probabilidad
+del target?"
+
+**Cómo funciona:**
+1. El agente recibe datos + acciones disponibles
+2. Elige qué observar (cada observación cuesta budget)
+3. Al final, manda su estimación: `{low: 0.1, medium: 0.3, high: 0.6}`
+4. Se compara con la posterior verdadera usando KL divergence (menor = mejor)
+
+**Ejemplo:** "¿Cuál es la probabilidad de que la producción de algas sea baja,
+media, o alta? Observá lo que necesites (tenés budget=4) y mandá tu estimación."
+
+**Scoring:** KL divergence. 0.0 = perfecto. >2.0 = peor que random.
+
+### `next_best_observation` — "¿Qué conviene medir?"
+
+**La pregunta:** "Ya tenés esta evidencia. Si pudieras hacer UNA medición más,
+¿cuál sería la más informativa?"
+
+**Cómo funciona:**
+1. El agente recibe evidencia parcial (ya se observaron algunos nodos)
+2. Tiene que elegir qué nodo medir de los que quedan
+3. Se compara su elección con la del teacher (que elige por information gain)
+
+**Ejemplo:** "Ya sabés que temperature=high y pH=low. Podés medir: nitrogen,
+luminosity, o sediment_compound. ¿Cuál medirías?"
+
+**Scoring:** Ratio de IG. Si tu elección tiene IG=0.3 y la óptima tiene IG=0.5,
+tu score es 0.6. Score=1.0 significa que elegiste la mejor opción.
+
+**Por qué es interesante:** Testea una habilidad diferente. No es "¿sabés la
+respuesta?" sino "¿sabés cómo buscar la respuesta eficientemente?".
+
+### `hypothesis_selection` — "¿Cuál de estas explicaciones es la correcta?"
+
+**La pregunta:** "Dada la evidencia, ¿cuál de estas 4 hipótesis explica mejor
+los datos?"
+
+**Cómo funciona:**
+1. El agente recibe evidencia parcial
+2. Se le presentan 4 hipótesis (distribuciones sobre el target):
+   - Una es la posterior verdadera (la correcta)
+   - Las otras son distractores: el prior (sin evidencia), uniforme, y reversed
+3. Tiene que elegir la más plausible
+
+**Ejemplo:**
+```
+Ya observaste: temperature=high, pH=low.
+¿Cuál hipótesis es más plausible?
+
+  A: low=0.70, medium=0.20, high=0.10
+  B: low=0.33, medium=0.33, high=0.34
+  C: low=0.10, medium=0.20, high=0.70
+  D: low=0.05, medium=0.25, high=0.70
+
+Elegí A, B, C, o D.
+```
+
+**Scoring:** Accuracy. 1.0 = eligió la correcta. 0.0 = eligió otra.
+
+**Por qué es interesante:** Es cómo funciona la investigación real. No te piden
+calcular P(X=0.73) — te piden comparar teorías y elegir la que mejor explica
+los datos.
+
+### Diferencias clave entre los 3 task types
+
+| | infer_target | next_best_observation | hypothesis_selection |
+|---|---|---|---|
+| **Qué mide** | Calidad de la estimación | Calidad de la estrategia | Capacidad de comparar |
+| **Input** | Datos + acciones | Evidencia parcial + opciones | Evidencia parcial + 4 hipótesis |
+| **Output** | Distribución de probabilidad | Un nodo (cuál medir) | Una letra (A/B/C/D) |
+| **Scoring** | KL divergence (continuo) | IG ratio (continuo) | Accuracy (binario) |
+| **Agente interactúa?** | Sí, hace observaciones | No, solo elige | No, solo elige |
 
 ---
 
-## Scripts & notebooks
+## Cómo ejecutar
 
-| Script | What it does |
-|--------|-------------|
-| `scripts/demo.py` | Terminal demo: world gen → teacher solving (with display) |
-| `scripts/test_orchestrator.py` | Step-by-step orchestrator run with real LLM |
-| `scripts/test_agent.py` | Agent vs teacher vs random baseline comparison |
-| `scripts/test_e2e.py` | End-to-end: orchestrator → semantic → agent → score |
-| `scripts/batch_eval.py` | Batch eval + teacher trajectory JSONL export (`--template`, `--problems`, `--nodes`) |
-| `notebooks/01_explore_system.ipynb` | Interactive exploration notebook |
+### Setup
+```bash
+conda create -n sreg python=3.11 -y
+conda activate sreg
+pip install -e ".[dev]"
+```
+
+### Correr tests
+```bash
+pytest tests/ -v                          # Todos (220 tests)
+pytest tests/tools/test_task_gen.py -v    # Solo task generation
+pytest tests/tools/test_fork_collider.py  # Solo fork_collider template
+```
+
+### Generar un mundo y verlo
+```python
+from sreg.tools.world_gen import WorldGenConfig, WorldGenTool
+
+world = WorldGenTool().generate(WorldGenConfig(
+    template_family="fork_collider",  # o "latent_preference" o "causal_chain"
+    seed=42,
+    num_nodes=7,
+    edge_strength=0.7,
+))
+
+print(f"Nodes: {[n.name for n in world.nodes]}")
+print(f"Edges: {[(e.from_node, e.to_node) for e in world.edges]}")
+```
+
+### Generar los 3 tipos de tarea para un mundo
+```python
+from sreg.tools.task_gen import TaskGenTool
+from sreg.models.task import TaskSpec, TaskType
+
+tool = TaskGenTool()
+
+# Tarea 1: inferir el target
+task = tool.generate(world, TaskSpec(
+    type=TaskType.INFER_TARGET, target_node="target_outcome", max_budget=4
+))
+
+# Tarea 2: mejor próxima observación
+task = tool.generate(world, TaskSpec(
+    type=TaskType.NEXT_BEST_OBSERVATION, target_node="target_outcome", max_budget=4
+), seed=42)
+
+# Tarea 3: selección de hipótesis
+task = tool.generate(world, TaskSpec(
+    type=TaskType.HYPOTHESIS_SELECTION, target_node="target_outcome", max_budget=4
+), seed=42)
+```
+
+### Correr el teacher (solver bayesiano exacto)
+```python
+from sreg.solver.exact_bayes import ExactBayesSolver
+
+solver = ExactBayesSolver(world)
+
+# Samplear un estado del mundo
+true_state = solver.sample_state(seed=42)
+
+# Calcular posterior dado evidencia
+posterior = solver.posterior("target_outcome", {"branch_1": "low"})
+
+# Cuál es la mejor variable para observar
+out = solver.optimal_action("target_outcome", evidence={}, available=["branch_1", "branch_2"])
+print(f"Observar: {out.recommended_action.node}, IG: {out.information_gain:.4f}")
+```
+
+### Batch evaluation (N problemas, agente vs teacher)
+```bash
+# Evaluar 10 problemas con fork_collider
+python scripts/batch_eval.py --template fork_collider --problems 10 --nodes 7
+
+# Exportar trayectorias del teacher como JSONL
+python scripts/batch_eval.py --export-trajectories output.jsonl --problems 20
+```
+
+### Pipeline completo (con LLM)
+```bash
+# Necesita: AZURE_INFERENCE_CREDENTIAL, AZURE_FOUNDRY_BASE_URL en .env
+
+# Orchestrator genera mundo con semántica, agent lo resuelve
+python scripts/test_e2e.py
+
+# Agent vs teacher vs random en un mundo
+python scripts/test_agent.py
+```
 
 ---
 
-## Key APIs
+## Modules — qué hace cada parte
 
-### WorldGenTool
+| Módulo | Ubicación | Qué hace |
+|--------|----------|----------|
+| **Models** | `src/sreg/models/` | Contratos de datos (Pydantic): World, Episode, Task, Score, ResearchProblem |
+| **Templates** | `src/sreg/world/templates/` | Los 3 generadores de mundos (latent_preference, causal_chain, fork_collider) |
+| **World check** | `src/sreg/tools/world_check.py` | Valida que un mundo sea correcto: DAG acíclico, entropía, d-separaciones |
+| **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Inferencia bayesiana exacta: posteriors, information gain, acciones óptimas |
+| **Episode gen** | `src/sreg/tools/episode_gen.py` | Crea episodios: budget, nodos disponibles, costos por observación |
+| **Task gen** | `src/sreg/tools/task_gen.py` | Genera los 3 tipos de tarea con su respuesta correcta |
+| **Verifier** | `src/sreg/tools/verifier.py` | Puntúa al agente: KL divergence, IG ratio, hypothesis accuracy |
+| **Episode runner** | `src/sreg/env/` | Interfaz paso a paso: el agente observa → el runner responde |
+| **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
+| **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la red bayesiana en formato tabular |
+| **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica) |
+| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve observando/enviando |
+| **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
+| **Trajectory export** | `src/sreg/harness/trajectory.py` | Exporta trayectorias del teacher como JSONL |
+| **Display** | `src/sreg/display.py` | Pretty printing para terminal y notebooks |
+
+---
+
+## Key APIs — referencia rápida
+
+### Generar mundos
 ```python
 config = WorldGenConfig(template_family="fork_collider", seed=42, num_nodes=7, edge_strength=0.7)
 world = WorldGenTool().generate(config)  # → World
 ```
 
-### ExactBayesSolver
+### Teacher solver
 ```python
 solver = ExactBayesSolver(world)
 state = solver.sample_state(seed=42)                      # → dict[str, str]
@@ -155,77 +377,79 @@ out = solver.optimal_action("target", evidence, nodes)     # → TeacherOutput
 # out.recommended_action.node → str, out.information_gain → float
 ```
 
-### ProblemBuilder
+### Generar tareas
+```python
+# infer_target
+spec = TaskSpec(type=TaskType.INFER_TARGET, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec)
+# task.correct_answer → {"low": 0.7, "medium": 0.2, "high": 0.1}  (prior distribution)
+
+# next_best_observation
+spec = TaskSpec(type=TaskType.NEXT_BEST_OBSERVATION, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)
+# task.given_evidence → {"branch_1": "low", "collider": "high"}
+# task.correct_answer → {"branch_2": 0.42, "mediator_1": 0.15}  (IG ranking)
+
+# hypothesis_selection
+spec = TaskSpec(type=TaskType.HYPOTHESIS_SELECTION, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)
+# task.hypotheses → {"A": {"low": 0.7, ...}, "B": {...}, "C": {...}, "D": {...}}
+# task.correct_answer → {"A": 0.0, "B": 1.5, "C": 0.8, "D": 2.0}  (KL from true)
+```
+
+### Scoring
+```python
+verifier = VerifierTool()
+
+# infer_target: KL divergence
+score = verifier.score(agent_posterior, true_posterior)  # → Score
+# score.functional_score → float (0.0 = perfecto)
+
+# next_best_observation: IG ratio
+ratio = verifier.score_nbo("branch_2", ig_ranking)  # → float (0.0 to 1.0)
+
+# hypothesis_selection: accuracy
+acc = verifier.score_hypothesis("B", kl_scores)  # → 1.0 or 0.0
+```
+
+### Problem builder + episode
 ```python
 problem = ProblemBuilder().build(world, budget=4)  # → ResearchProblem
 # problem.target_node, problem.target_states, problem.budget
-# problem.available_actions → list[AvailableAction] (each has .node, .description, .cost)
-# problem.data_assets → list[DataAsset]
-```
+# problem.available_actions → list[AvailableAction] (.node, .description, .cost)
 
-### EpisodeGenTool
-```python
 episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Episode
 # episode.budget, episode.available_nodes, episode.node_costs
-```
-
-### TaskGenTool (next_best_observation)
-```python
-spec = TaskSpec(type=TaskType.NEXT_BEST_OBSERVATION, target_node="target_outcome", max_budget=5)
-task = TaskGenTool().generate(world, spec, seed=42)  # → Task
-# task.given_evidence → {"branch_1": "low", "collider": "high"}  (what agent already knows)
-# task.correct_answer → {"branch_2": 0.42, "mediator_1": 0.15}   (IG ranking)
-# task.available_evidence → ["branch_2", "mediator_1"]            (remaining choices)
-```
-
-### VerifierTool
-```python
-score = VerifierTool().score(agent_posterior, true_posterior)  # → Score
-# score.functional_score (KL divergence), score.information_efficiency
-
-ratio = VerifierTool().score_nbo("branch_2", ig_ranking)  # → float (0.0 to 1.0)
-# 1.0 = chose the optimal node, 0.0 = chose a useless node
-
-accuracy = VerifierTool().score_hypothesis("B", kl_scores)  # → 1.0 or 0.0
-# 1.0 = chose the hypothesis closest to true posterior
-```
-
-### TaskGenTool (hypothesis_selection)
-```python
-spec = TaskSpec(type=TaskType.HYPOTHESIS_SELECTION, target_node="target_outcome", max_budget=5)
-task = TaskGenTool().generate(world, spec, seed=42)  # → Task
-# task.hypotheses → {"A": {"low": 0.7, ...}, "B": {...}, "C": {...}, "D": {...}}
-# task.correct_answer → {"A": 0.0, "B": 1.5, "C": 0.8, "D": 2.0}  (KL from true posterior)
-# task.given_evidence → {"branch_1": "low"}  (evidence agent has)
 ```
 
 ---
 
 ## Test coverage
 
-- **220 tests** across all modules
-- Tests mirror src structure: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
-- Key validations:
-  - 100 worlds validated per template (all pass)
-  - Teacher >90% accuracy on latent_preference, >70% on chain, >60% on fork_collider
-  - Closer nodes more informative than distant ones (causal_chain)
-  - Fork/collider structure verified: fork topology, collider parents, mediator chain
+- **220 tests** en todos los módulos
+- Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
+- Validaciones clave:
+  - 100 mundos validados por template (todos pasan)
+  - Teacher >90% accuracy en latent_preference, >70% en chain, >60% en fork_collider
+  - Nodos más cercanos son más informativos que lejanos (causal_chain)
+  - Estructura fork/collider verificada: topología, padres del collider, cadena de mediadores
+  - 3 task types funcionan en los 3 templates (45 configs E2E probadas)
 
 ---
 
-## Known issues (from E2E testing)
+## Known issues
 
-- Agent submit format: LLM sends flat keys instead of `{"distribution": {...}}`, wastes 1 turn
-- Agent worse than random on 8-node worlds (bad inference with more variables)
-- Orchestrator ignores difficulty goal (always generates "easy")
-- `apply_semantics` always fails first call (empty `node_renames`, then retries)
-- Agent variable selection suboptimal (different order than teacher)
+- Agent submit format: el LLM manda keys planos en vez de `{"distribution": {...}}`, pierde 1 turno
+- Agent peor que random en mundos de 8 nodos (mala inferencia con más variables)
+- Orchestrator ignora la dificultad pedida (siempre genera "easy")
+- `apply_semantics` falla en la primera llamada (manda `node_renames` vacío, reintenta)
+- Agent elige variables en orden subóptimo (distinto al teacher)
 
 ---
 
 ## Dependencies
 
 - Python 3.11, pgmpy (DiscreteBayesianNetwork), networkx, numpy/scipy, pydantic v2
-- openai SDK (Azure AI Foundry, not AzureOpenAI), python-dotenv
+- openai SDK (Azure AI Foundry, NOT AzureOpenAI), python-dotenv
 - Dev: pytest, ruff
-- LLM: configurable via AZURE_MODEL env var
+- LLM: configurable via `AZURE_MODEL` env var
