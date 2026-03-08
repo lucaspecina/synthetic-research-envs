@@ -175,6 +175,98 @@ Esta capa es modular — se puede mejorar independientemente sin tocar la formal
 
 ---
 
+## Templates — qué son y por qué hacen falta
+
+### El problema de crear un mundo "de la nada"
+
+Una red bayesiana no es solo un grafo. Es un grafo + **tablas de probabilidad**
+(CPDs) para cada nodo. Para un nodo con 3 estados y 2 padres de 3 estados cada
+uno, la tabla tiene 3 × 9 = 27 valores que deben sumar 1 por columna, producir
+relaciones interesantes (no todo uniforme), y ser coherentes entre sí.
+
+Si dejamos al LLM inventar un DAG arbitrario, ¿quién llena esas tablas? Generar
+CPDs al azar produce mundos basura donde todo es ruido. Hay que generarlas con
+lógica que entienda la estructura.
+
+### Un template es un generador completo
+
+Un template NO es solo "la forma del grafo". Es un **generador** que sabe hacer
+tres cosas:
+
+1. **Crear la estructura**: qué nodos, qué tipos (latente/observable/target),
+   qué flechas conectan qué
+2. **Generar CPDs válidas**: tablas de probabilidad que producen mundos con
+   señal real (no ruido puro), usando `edge_strength` para controlar cuánto
+   "manda" un padre sobre un hijo
+3. **Garantizar propiedades**: que haya camino del latente al target, que existan
+   d-separaciones no triviales, que la entropía esté en un rango interesante
+
+### Templates actuales y futuros
+
+| Template | Estructura | Tipo de razonamiento | Estado |
+|---|---|---|---|
+| `latent_preference` | Estrella: 1 latente → N observables → 1 target | Diagnóstico (inferir causa desde síntomas) | Implementado |
+| `causal_chain` | Cadena: A → B → C → ... → target | Predicción (seguir la cadena causal) | Futuro |
+| `fork_collider` | Forks y colliders mezclados | Causal puro (confounders, explaining away) | Futuro |
+| `custom` | **Cualquier DAG arbitrario** | Depende de la estructura | Futuro |
+
+### La evolución: de templates fijos a DAGs arbitrarios
+
+Los templates con formas predefinidas son el punto de partida, no el destino.
+Lo que un template realmente hace son dos cosas separables:
+
+1. **Definir la estructura del DAG** (qué nodos, qué flechas)
+2. **Generar CPDs válidas para esa estructura** (las tablas de probabilidad)
+
+La segunda parte — la generación de CPDs — es **genérica**. La fórmula basada
+en `edge_strength` que hoy usa `latent_preference` funciona para cualquier
+DAG, no depende de la forma. Esto abre la puerta a:
+
+**Template `custom`**: acepta una especificación arbitraria de DAG (nodos,
+tipos, flechas) y genera CPDs para ella. Con esto se pueden crear redes
+bayesianas de **decenas de variables** con relaciones complejas — múltiples
+latentes, múltiples targets, cadenas largas, confounders, colliders,
+mediadores, lo que sea.
+
+**Seeds desde papers**: el LLM lee un paper científico, extrae la estructura
+causal ("hay 15 variables, estas son las relaciones"), y pasa eso como
+especificación al template `custom`. El sistema genera CPDs que producen un
+mundo formalmente correcto pero ficticio — las relaciones pueden diferir del
+paper real, que es exactamente el punto.
+
+### Variables discretas y continuas
+
+Hoy todas las variables son categóricas (`low`, `medium`, `high`). Pero el
+sistema debería soportar ambos tipos:
+
+- **Variables discretas** (lo actual): estados categóricos, CPDs como tablas
+  de probabilidad, evaluación con KL divergence discreta
+- **Variables continuas** (futuro): valores numéricos reales, CPDs como
+  distribuciones Gaussianas condicionales (`LinearGaussianCPD` en pgmpy),
+  evaluación con Wasserstein distance o KL continuo
+
+Un mundo podría mezclar ambos tipos: algunas variables categóricas
+(diagnóstico: presente/ausente) y otras continuas (temperatura: 24.3°C).
+Esto haría los problemas de investigación mucho más realistas.
+
+### La visión completa
+
+Cuando todo esto esté implementado, SREG podría generar un problema como:
+
+> "Una red bayesiana de 25 variables (3 latentes, 20 observables, 2 targets)
+> extraída de un paper sobre dinámica de ecosistemas. Variables mixtas:
+> 8 categóricas (tipo de suelo, presencia de especie) y 17 continuas
+> (temperatura, pH, concentración). Relaciones complejas con confounders,
+> mediadores, y efectos indirectos."
+
+Empezamos simple con `latent_preference` de 6 nodos discretos. Pero la
+arquitectura no tiene ningún límite fundamental para escalar.
+
+Lo importante: **el template es lo que permite que exista una verdad matemática
+verificable**. Sin generador de CPDs → sin ground truth → sin evaluación.
+
+---
+
 ## El agente solver — filosofía
 
 El agente que resuelve los problemas es un LLM. Principios clave:
@@ -270,108 +362,91 @@ Sirve para:
 ## Evaluación — qué se mide y cómo
 
 La gran ventaja de tener una red bayesiana formal como verdad oculta es que
-**muchas cosas distintas se pueden evaluar de forma verificable** — sin LLM judges,
-sin humanos, con matemática pura.
+**muchas cosas distintas se pueden evaluar**. Hay dos familias de evaluación,
+fundamentalmente distintas en cómo funcionan.
 
-### Tipos de evaluación posibles
+### Familia 1: Evaluaciones formales (automáticas, exactas)
 
-No todos se implementan en v0, pero es importante entender el espacio completo
-porque define qué tipo de tareas podemos generar:
+Estas evaluaciones se calculan **directamente de la matemática del BN**. No
+necesitan LLM judge ni humano. La respuesta correcta se computa con certeza
+y la comparación es objetiva.
 
-**Inferencia de variables**
-- Estimar P(target | evidencia) — ¿cuál es la distribución de probabilidad?
-- Evaluación: KL divergence entre la respuesta del agente y la posterior exacta
-- Variante simple: ¿cuál es el estado más probable? (accuracy)
+Funcionan con **cualquier template** — la ground truth viene del BN formal,
+no de la forma del grafo. Lo que cambia entre templates es el *tipo de
+razonamiento* que requiere, no el mecanismo de evaluación.
 
-**Mejor próxima acción**
-- ¿Qué variable conviene observar/medir next?
-- Evaluación: information gain logrado vs máximo posible
+| Evaluación | Pregunta | Cómo se evalúa | Estado |
+|---|---|---|---|
+| **Inferir target** | ¿Cuál es P(target \| evidencia)? | KL divergence entre la predicción del agente y la posterior exacta. Variante simple: accuracy del estado más probable. | Implementado |
+| **Mejor próxima acción** | ¿Qué variable conviene medir? | Information gain de la acción elegida vs la óptima (calculada por el teacher). | Implementado (teacher lo calcula) |
+| **Efecto causal** | Si intervenimos en X, ¿qué pasa con Y? | Diferencia entre la estimación y P(Y \| do(X=x)), calculada exactamente desde el DAG (do-calculus). | Futuro |
+| **Descubrimiento de estructura** | ¿Cuál es el DAG real? | Structural Hamming Distance, edge F1. Grafos Markov-equivalentes se aceptan como correctos. | Futuro |
+| **Selección de hipótesis** | De estas explicaciones, ¿cuál es la más plausible? | ¿Eligió la hipótesis con mayor probabilidad posterior? | Futuro |
+| **Predicción** | Dado lo observado, ¿qué valor tendrá Z? | Accuracy, calibración, Brier score contra la distribución real. | Futuro |
+| **Optimización** | ¿Qué acción maximiza/minimiza un outcome? | Regret respecto al óptimo calculado desde el BN. | Futuro |
 
-**Selección de hipótesis**
-- Dado un conjunto de explicaciones posibles, ¿cuál es la más plausible?
-- Evaluación: ¿eligió la hipótesis con mayor probabilidad posterior?
+**Lo clave**: todas estas evaluaciones son posibles porque tenemos el BN
+completo con CPDs exactas. No importa cuántos templates agreguemos — la
+evaluación funciona igual en todos.
 
-**Efecto causal**
-- Si intervenimos en X (forzamos un valor), ¿qué pasa con Y?
-- Evaluación: P(Y | do(X=x)) se calcula exactamente desde el DAG (do-calculus)
+### Familia 2: Evaluaciones semánticas (soft, requieren juez)
 
-**Predicción**
-- Dado lo observado, ¿qué valor va a tener Z?
-- Evaluación: accuracy, calibración, Brier score
+Estas evalúan la **calidad del razonamiento**, no solo la respuesta final.
+Son más difíciles de automatizar y menos precisas, pero capturan aspectos
+que las formales no pueden.
 
-**Descubrimiento de estructura**
-- Redescubrir el DAG completo o partes de él
-- Evaluación: Structural Hamming Distance, edge F1
-- Importante: grafos Markov-equivalentes se aceptan como correctos
+| Evaluación | Pregunta | Cómo se evalúa |
+|---|---|---|
+| **Coherencia del razonamiento** | ¿El argumento tiene sentido? | Rúbrica + LLM-as-judge |
+| **Uso de evidencia** | ¿Actualizó creencias al recibir datos nuevos? | Comparar trayectoria vs teacher |
+| **Consideración de alternativas** | ¿Exploró hipótesis distintas? | Análisis de la cadena de razonamiento |
+| **Eficiencia de budget** | ¿Pidió las observaciones más útiles? | Info acumulada vs budget gastado (esto es computable) |
 
-**Optimización**
-- ¿Qué acción maximiza/minimiza un outcome?
-- Evaluación: regret respecto al óptimo
+Algunas de estas se pueden **aproximar formalmente** comparando la trayectoria
+del agente con la del teacher óptimo. Otras requieren LLM-judge o rúbricas
+humanas.
 
 ### Múltiples evaluaciones por tarea
 
-Un mismo problema de investigación puede tener varias preguntas y
-sub-evaluaciones. Ejemplo:
+Un mismo problema de investigación puede tener varias preguntas, cada una
+con su evaluación formal:
 
 ```
 Problema: Declive de producción de algas
 
 Evaluación 1 (principal): ¿Cuál es la causa más probable?
-  → inferencia de variable, scored por accuracy/KL
+  → inferir target, scored por KL divergence
 
 Evaluación 2: ¿Qué medición adicional sería más informativa?
   → mejor próxima acción, scored por info gain
 
 Evaluación 3: Si eliminamos el compuesto del sedimento, ¿se recupera la producción?
-  → efecto causal, scored por accuracy de la predicción intervencionista
+  → efecto causal, scored por diferencia con P(Y | do(X))
 
 Sub-evaluación: Calidad del proceso
   → ¿Usó el budget eficientemente? ¿Pidió observaciones relevantes?
-  → scored por información acumulada vs budget gastado
+  → scored por info acumulada vs budget gastado
 ```
 
 ### Métricas transversales
 
-Además de la evaluación específica por tarea, hay métricas que aplican siempre:
+Además de la evaluación específica por pregunta, hay métricas que aplican
+a todo problema:
 
 - **Eficiencia**: ¿cuánto budget usó para llegar a su respuesta?
 - **Calibración**: cuando dice "70% seguro", ¿acierta el 70% de las veces?
-- **Mejora incremental**: ¿mejora su respuesta a medida que obtiene más evidencia,
-  o se queda con su primer guess? (El teacher siempre mejora — un buen agente también)
+- **Mejora incremental**: ¿mejora su respuesta con más evidencia, o se queda
+  con su primer guess? (El teacher siempre mejora — un buen agente también)
 - **Comparación vs teacher**: ¿qué tan lejos está del óptimo?
 - **Comparación vs random**: ¿es mejor que elegir al azar?
 
-### Rúbricas y evaluación de proceso
+### Por qué esto es una ventaja
 
-Más allá de "¿acertó la respuesta?", se puede evaluar la calidad del razonamiento:
-
-- ¿Pidió las observaciones más informativas?
-- ¿Actualizó sus creencias coherentemente con la evidencia?
-- ¿Consideró hipótesis alternativas?
-- ¿Identificó correctamente qué variables son relevantes?
-
-Estas evaluaciones de proceso son más difíciles de automatizar, pero se pueden
-aproximar comparando la trayectoria del agente con la del teacher óptimo,
-o definiendo rúbricas programáticas basadas en las acciones tomadas.
-
-### Referencia al estado del arte
-
-El diseño de evaluación debe tomar como referencia (sin limitarse a) los
-frameworks existentes para evaluar agentes en tareas long-horizon:
-
-- Benchmarks de agentes de código (SWE-bench y similares)
-- Evaluación de agentes web (WebArena)
-- Evaluación de tareas long-horizon (METR)
-- Bayesian teaching (Qiu et al., Nature Communications 2026)
-- Rúbricas para evaluación de razonamiento científico
-
-Pero SREG tiene una ventaja sobre muchos de estos: la verdad es matemática,
-no necesita jueces. Esto permite definir métricas nuevas que se adapten
-específicamente al razonamiento científico bajo incertidumbre.
-
-El diseño exacto de las métricas evoluciona con el proyecto. Lo importante
-es que el formalismo bayesiano permite verificar prácticamente cualquier
-pregunta que tenga sentido hacer sobre el mundo oculto.
+SREG tiene una ventaja sobre la mayoría de benchmarks de agentes: **la verdad
+es matemática**. En SWE-bench necesitás tests que pueden no cubrir todos los
+casos. En WebArena necesitás heurísticas para verificar resultados. En SREG,
+la red bayesiana te da la respuesta exacta a cualquier pregunta que tenga
+sentido hacer sobre el mundo oculto — sin jueces, sin ambigüedad.
 
 ---
 
@@ -416,30 +491,32 @@ ficticios pero creíbles, y un agente LLM que intenta resolverlos.
 
 ### v1 — Más templates + más evaluación + datos más ricos
 
-- 3 familias de templates: latent preference, causal chain, fork/collider
+- 3 familias de templates predefinidos: latent preference, causal chain, fork/collider
 - Datos más ricos: múltiples datasets por problema, múltiples formatos
-- Más tipos de evaluación: next_best_observation, hypothesis_selection
+- Más tipos de evaluación formal: next_best_observation, hypothesis_selection
 - Múltiples preguntas/sub-evaluaciones por tarea
 - Acciones más variadas (siguen mapeando a nodos bayesianos)
 - Seeds desde papers o documentos (el LLM extrae estructura)
 - Narrativas más elaboradas con contexto teórico y hints
 
-### v2 — Hacia investigación real
+### v2 — DAGs arbitrarios + variables continuas
 
+- Template `custom`: acepta cualquier especificación de DAG, genera CPDs
+- Redes bayesianas grandes (decenas de variables, relaciones complejas)
+- Variables continuas (Gaussianas) además de discretas, mundos mixtos
+- Seeds desde papers: LLM extrae estructura causal → template `custom`
 - Evaluación causal: efecto de intervenciones (do-calculus)
 - Evaluación de estructura: redescubrir el DAG
 - Documentos generados por LLM con ruido controlado (papers ficticios, notas)
 - Rúbricas de proceso: evaluar calidad del razonamiento, no solo la respuesta
-- Tareas multi-paso con sub-evaluaciones encadenadas
-- Evaluación de transferencia entre templates
-- Currículo de complejidad creciente
 
 ### v3 — Escala
 
+- Tareas multi-paso con sub-evaluaciones encadenadas
 - RL loop con el verificador como señal de reward
 - Herramientas externas para agentes (ejecución de código, búsqueda)
 - Métricas de calibración y mejora incremental
-- Currículo completo
+- Currículo de complejidad creciente
 - Evaluación contra benchmarks científicos reales
 - Framework de rúbricas customizable
 
