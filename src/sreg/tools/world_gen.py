@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from sreg.models.world import World
 from sreg.world.templates.causal_chain import CausalChainTemplate
+from sreg.world.templates.fork_collider import ForkColliderTemplate
 from sreg.world.templates.latent_preference import LatentPreferenceTemplate
 
 
@@ -32,6 +33,7 @@ class WorldGenConfig(BaseModel):
 _TEMPLATES = {
     "latent_preference": LatentPreferenceTemplate(),
     "causal_chain": CausalChainTemplate(),
+    "fork_collider": ForkColliderTemplate(),
 }
 
 

@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — Fork-collider template
+- **`fork_collider` template**: common cause (fork) + collider with explaining away
+  - Structure: hidden_factor → branch_1, branch_2 → collider → [mediators] → target
+  - Tests Berkson's paradox: conditioning on collider activates dependency between branches
+  - Scales with extra branches (3+) and mediators between collider and target
+  - 16 new tests: structure, fork/collider topology, validation, 100 worlds, teacher accuracy
+  - Validated: teacher achieves ≥60% accuracy, all 100 worlds pass validation
+- Registered in WorldGenTool, exported from templates, added to batch_eval.py
+- 196 tests total, all passing
+
 ### 2026-03-07 — Causal chain template + KL fix
 - **`causal_chain` template**: linear chain root → stage_1 → ... → target
   - Tests evidence propagation: closer nodes are more informative than distant ones

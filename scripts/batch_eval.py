@@ -126,7 +126,7 @@ def main():
     parser.add_argument("--budget", type=int, default=4)
     parser.add_argument("--edge-strength", type=float, default=0.7)
     parser.add_argument("--template", type=str, default="latent_preference",
-                        choices=["latent_preference", "causal_chain"])
+                        choices=["latent_preference", "causal_chain", "fork_collider"])
     parser.add_argument("--seed-start", type=int, default=0)
     parser.add_argument("--export-trajectories", type=str, default=None,
                         help="Export teacher trajectories to JSONL (no agent eval)")
