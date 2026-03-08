@@ -79,6 +79,13 @@
 - [ ] Comparative analysis: teacher vs agent across templates/difficulties
 - [ ] Document results
 
+## Known issues (from E2E testing, 2026-03-07)
+- [ ] Agent submit format: LLM sends flat keys instead of `{"distribution": {...}}`, wastes 1 turn on retry every time
+- [ ] Agent worse than random on 8-node worlds: bad inference when more variables are involved (soil case KL 4.21 vs random 0.30)
+- [ ] Orchestrator ignores difficulty in goal: always generates "easy" regardless of "hard difficulty" in prompt
+- [ ] `apply_semantics` always fails first call: LLM sends empty `node_renames`, then retries correctly (wastes 1 API call)
+- [ ] Agent variable selection suboptimal: doesn't pick most informative variables (different order than teacher)
+
 ## Backlog (not v0)
 - [ ] Synthetic document artifacts (papers, reports, notes)
 - [ ] Seeds from real papers (LLM extracts structure)
