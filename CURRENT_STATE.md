@@ -11,7 +11,7 @@ SREG generates fictional research problems backed by Bayesian networks. The full
 pipeline works end-to-end: generate a BN world → validate → add semantic layer →
 present as a research problem → LLM agent solves it → score against ground truth.
 
-**208 tests passing. 3 template families. 2 task types. Agent, teacher, and batch evaluation working.**
+**220 tests passing. 3 template families. 3 task types. Agent, teacher, and batch evaluation working.**
 
 ---
 
@@ -111,8 +111,8 @@ With more nodes: up to 3 branches, remaining become mediators between collider a
 | **World check** | `src/sreg/tools/world_check.py` | Validates: DAG acyclicity, entropy, d-separation, paths to target |
 | **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Exact Bayesian inference via pgmpy VariableElimination; posteriors, info gain, optimal actions |
 | **Episode gen** | `src/sreg/tools/episode_gen.py` | Creates episodes: budget, available nodes, observation costs |
-| **Task gen** | `src/sreg/tools/task_gen.py` | Creates tasks: `infer_target` (posterior) and `next_best_observation` (IG ranking) |
-| **Verifier** | `src/sreg/tools/verifier.py` | KL divergence scoring, IG ratio scoring (NBO), information efficiency, per-step tracking. |
+| **Task gen** | `src/sreg/tools/task_gen.py` | Creates tasks: `infer_target`, `next_best_observation`, `hypothesis_selection` |
+| **Verifier** | `src/sreg/tools/verifier.py` | KL divergence, IG ratio (NBO), hypothesis accuracy, information efficiency, per-step tracking. |
 | **Episode runner** | `src/sreg/env/` | Step-by-step environment interface (observe → submit) |
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | `apply_semantics` (LLM renames nodes), `build_problem` (packages ResearchProblem) |
 | **Data sampler** | `src/sreg/tools/data_sampler.py` | Samples from BN joint distribution, presents as tabular observations |
@@ -185,13 +185,25 @@ score = VerifierTool().score(agent_posterior, true_posterior)  # → Score
 
 ratio = VerifierTool().score_nbo("branch_2", ig_ranking)  # → float (0.0 to 1.0)
 # 1.0 = chose the optimal node, 0.0 = chose a useless node
+
+accuracy = VerifierTool().score_hypothesis("B", kl_scores)  # → 1.0 or 0.0
+# 1.0 = chose the hypothesis closest to true posterior
+```
+
+### TaskGenTool (hypothesis_selection)
+```python
+spec = TaskSpec(type=TaskType.HYPOTHESIS_SELECTION, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)  # → Task
+# task.hypotheses → {"A": {"low": 0.7, ...}, "B": {...}, "C": {...}, "D": {...}}
+# task.correct_answer → {"A": 0.0, "B": 1.5, "C": 0.8, "D": 2.0}  (KL from true posterior)
+# task.given_evidence → {"branch_1": "low"}  (evidence agent has)
 ```
 
 ---
 
 ## Test coverage
 
-- **208 tests** across all modules
+- **220 tests** across all modules
 - Tests mirror src structure: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Key validations:
   - 100 worlds validated per template (all pass)

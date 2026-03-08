@@ -32,7 +32,7 @@
 - [x] Causal chain template (with semantic layer from start)
 - [x] Fork/collider template (with semantic layer from start)
 - [x] `next_best_observation` task type
-- [ ] `hypothesis_selection` task type
+- [x] `hypothesis_selection` task type
 - [ ] Multiple evaluations per problem: same world generates all 3 task types together
 
 ## Backlog

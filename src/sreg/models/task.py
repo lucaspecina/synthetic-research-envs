@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 class TaskType(StrEnum):
     INFER_TARGET = "infer_target"
     NEXT_BEST_OBSERVATION = "next_best_observation"
+    HYPOTHESIS_SELECTION = "hypothesis_selection"
 
 
 class TaskSpec(BaseModel):
@@ -41,7 +42,11 @@ class Task(BaseModel):
     )
     given_evidence: dict[str, str] = Field(
         default_factory=dict,
-        description="Evidence already provided to the agent (for NBO tasks)",
+        description="Evidence already provided to the agent (for NBO/hypothesis tasks)",
+    )
+    hypotheses: dict[str, dict[str, float]] = Field(
+        default_factory=dict,
+        description="Labeled hypotheses for hypothesis_selection: {label: {state: prob}}",
     )
 
 

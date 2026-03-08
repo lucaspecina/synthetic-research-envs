@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 2026-03-07 — hypothesis_selection task type
+- **`hypothesis_selection` task type**: "which of these explanations is most plausible?"
+  - Generates 4 hypotheses: true posterior, prior, uniform, reversed posterior
+  - Labels shuffled randomly so correct answer isn't always "A"
+  - `correct_answer` maps labels to KL from true posterior (lower = better)
+  - `VerifierTool.score_hypothesis()`: binary accuracy (chose the best or didn't)
+  - `Task.hypotheses` field: stores the labeled distributions
+  - Distinguishable in 90%+ of cases across all 3 templates
+  - 12 new tests, 220 total, all passing
+
 ### 2026-03-07 — next_best_observation task type
 - **`next_best_observation` task type**: "which variable should you measure next?"
   - `TaskGenTool` generates NBO tasks: samples state, gives partial evidence, asks what to observe

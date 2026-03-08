@@ -45,8 +45,8 @@ Every research problem has two layers:
 
 ### Current state
 
-Phases 1-8 complete + 3 template families + 2 task types (formal engine + semantic layer + agent solver + eval harness). 208 tests.
-**Next: hypothesis_selection task type, multiple evaluations per problem.** See TODO.md.
+Phases 1-8 complete + 3 template families + 3 task types (formal engine + semantic layer + agent solver + eval harness). 220 tests.
+**Next: multiple evaluations per problem (same world, all 3 task types).** See TODO.md.
 
 ## Environment setup
 

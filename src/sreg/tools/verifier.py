@@ -10,6 +10,21 @@ from sreg.models.score import Score, StepScore
 class VerifierTool:
     """Computes scores for agent performance on an episode."""
 
+    def score_hypothesis(
+        self,
+        agent_choice: str,
+        kl_scores: dict[str, float],
+    ) -> float:
+        """Score a hypothesis_selection answer.
+
+        Returns 1.0 if the agent chose the hypothesis with lowest KL (best match),
+        0.0 otherwise.
+        """
+        if not kl_scores:
+            return 0.0
+        best_label = min(kl_scores, key=kl_scores.get)
+        return 1.0 if agent_choice == best_label else 0.0
+
     def score_nbo(
         self,
         agent_choice: str,
