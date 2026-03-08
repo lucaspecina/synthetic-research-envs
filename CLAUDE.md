@@ -9,10 +9,9 @@ Before doing anything, understand the project by reading these docs in order:
    Every technical decision, every implementation choice, every TODO must align
    with the spirit described here. When in doubt about any decision, go back
    to PROJECT.md — it's the ultimate source of truth for the project's direction.
-2. **`docs/CURRENT_STATE.md`** — What exists today, what's implemented, what's missing.
-3. **`docs/IMPLEMENTATION_PLAN.md`** — Detailed phase-by-phase plan (9 phases).
-4. **`TODO.md`** — Concrete task tracking per phase.
-5. **`CHANGELOG.md`** — History of what's been done.
+2. **`TODO.md`** — Task tracking + known issues. Single source of truth for what's done/pending.
+3. **`CHANGELOG.md`** — History of what's been done.
+4. **`docs/CURRENT_STATE.md`** — What exists today (may lag behind TODO).
 
 ## Project overview
 
@@ -47,10 +46,7 @@ Every research problem has two layers:
 ### Current state
 
 Phases 1-7 complete (formal engine + semantic layer + agent solver). 153 tests passing.
-**Next: Phase 8 (more templates + tasks)** — causal chain, fork/collider,
-new task types. Then Phase 9 (dataset gen + eval harness).
-
-See `docs/CURRENT_STATE.md` for full details.
+**Next: dataset export + batch eval (closes v0).** See TODO.md.
 
 ## Environment setup
 
@@ -94,7 +90,8 @@ src/sreg/
 scripts/
 ├── demo.py                # Terminal demo: world gen + teacher solving
 ├── test_orchestrator.py   # Step-by-step orchestrator run with real LLM
-└── test_agent.py          # Agent vs teacher vs random baseline comparison
+├── test_agent.py          # Agent vs teacher vs random baseline comparison
+└── test_e2e.py            # End-to-end: orchestrator -> agent -> score
 
 notebooks/
 └── 01_explore_system.ipynb  # Interactive exploration
@@ -102,7 +99,6 @@ notebooks/
 tests/               # Mirrors src/ structure
 
 docs/
-├── IMPLEMENTATION_PLAN.md   # Phase-by-phase build plan (9 phases)
 ├── CURRENT_STATE.md         # Detailed current state description
 └── references/              # Original design docs (read-only)
 
@@ -138,11 +134,10 @@ ruff format src/ tests/                   # Format
 ## Maintenance rules
 
 1. **Complete a task** → mark done in `TODO.md`, add entry to `CHANGELOG.md`
-2. **Start a new phase** → update `docs/IMPLEMENTATION_PLAN.md` status
-3. **Add a module** → update project structure above
-4. **Add a dependency** → add to `pyproject.toml` and tech stack above
-5. **Change conventions** → update this file immediately
-6. **Change scope** → update `PROJECT.md` first, then propagate
-7. **Add/change a NodeType** → update `_node_styles()` and `_HTML_NODE_COLORS` in `src/sreg/display.py`
-8. **Add a new display need** → add function to `display.py`, update `scripts/demo.py` and notebook
-9. **Change the vision or architecture** → update `PROJECT.md`, `docs/CURRENT_STATE.md`, this file, and `MEMORY.md`
+2. **Add a module** → update project structure above
+3. **Add a dependency** → add to `pyproject.toml` and tech stack above
+4. **Change conventions** → update this file immediately
+5. **Change scope** → update `PROJECT.md` first, then propagate
+6. **Add/change a NodeType** → update `_node_styles()` and `_HTML_NODE_COLORS` in `src/sreg/display.py`
+7. **Add a new display need** → add function to `display.py`, update `scripts/demo.py` and notebook
+8. **Change the vision or architecture** → update `PROJECT.md`, this file, and `MEMORY.md`
