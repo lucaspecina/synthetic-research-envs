@@ -41,15 +41,15 @@
 
 > Estrategia de investigacion y diseno detallado en **`WORLD_DESIGN.md`**.
 
-### Prototipo DAGSpec (slice minimo — en curso)
-- [ ] `DAGSpec` + `DAGNodeSpec` models: Pydantic contract with validations (acyclic, max parents <=4, required types)
-- [ ] `cpd_gen.py`: extract shared CPD generation from 3 templates (eliminate copy-paste)
-- [ ] `CustomTemplate`: accepts DAGSpec, generates valid CPDs using generic edge_strength logic → World
-- [ ] WorldCheck extended: max parents check + treewidth metric (warning, not failure)
-- [ ] `generate_custom()` method in WorldGenTool (transitional, separate from existing `generate()` — unify later if it works)
-- [ ] All 3 task types work with custom worlds (TaskGenTool + TaskBundle)
-- [ ] Tests: custom worlds with 5-15 nodes, heterogeneous states, multiple latents
-- [ ] E2E validation: 10-15 node worlds, teacher improves over prior + beats random, reasonable rate of non-degenerate tasks, document findings in WORLD_DESIGN.md
+### Prototipo DAGSpec (slice minimo — completo)
+- [x] `DAGSpec` + `DAGNodeSpec` models: Pydantic contract with validations (acyclic, max parents <=4, required types)
+- [x] `cpd_gen.py`: extract shared CPD generation from 3 templates (eliminate copy-paste)
+- [x] `CustomTemplate`: accepts DAGSpec, generates valid CPDs using generic edge_strength logic → World
+- [x] WorldCheck extended: max parents check + treewidth metric (warning, not failure)
+- [x] `generate_custom()` method in WorldGenTool (transitional, separate from existing `generate()` — unify later if it works)
+- [x] All 3 task types work with custom worlds (TaskGenTool + TaskBundle)
+- [x] Tests: custom worlds with 5-15 nodes, heterogeneous states, multiple latents (81 new tests)
+- [x] E2E validation: 12-15 node worlds, teacher improves over prior + beats random, documented findings in WORLD_DESIGN.md
 
 ### Composicion de motifs (siguiente — despues del prototipo)
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec

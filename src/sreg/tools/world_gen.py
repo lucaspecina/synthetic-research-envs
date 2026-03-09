@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
 
+from sreg.models.dag_spec import DAGSpec
 from sreg.models.world import World
 from sreg.world.templates.causal_chain import CausalChainTemplate
+from sreg.world.templates.custom import CustomTemplate
 from sreg.world.templates.fork_collider import ForkColliderTemplate
 from sreg.world.templates.latent_preference import LatentPreferenceTemplate
 
@@ -30,11 +32,25 @@ class WorldGenConfig(BaseModel):
         return self
 
 
+class CustomWorldGenConfig(BaseModel):
+    """Configuration for custom world generation from a DAGSpec.
+
+    Note: this is a transitional API, separate from WorldGenConfig.
+    If it works well, it will be unified under a single generation API later.
+    """
+
+    dag_spec: DAGSpec
+    edge_strength: float = Field(default=0.7, ge=0.1, le=1.0)
+    seed: int = Field(default=42)
+
+
 _TEMPLATES = {
     "latent_preference": LatentPreferenceTemplate(),
     "causal_chain": CausalChainTemplate(),
     "fork_collider": ForkColliderTemplate(),
 }
+
+_CUSTOM_TEMPLATE = CustomTemplate()
 
 
 class WorldGenTool:
@@ -53,5 +69,18 @@ class WorldGenTool:
             edge_strength=config.edge_strength,
         )
 
+    def generate_custom(self, config: CustomWorldGenConfig) -> World:
+        """Generate a world from an arbitrary DAGSpec.
 
-__all__ = ["WorldGenConfig", "WorldGenTool"]
+        This is a transitional method, separate from generate() to avoid
+        breaking existing templates. If successful, both methods will be
+        unified under a single API later.
+        """
+        return _CUSTOM_TEMPLATE.generate(
+            dag_spec=config.dag_spec,
+            edge_strength=config.edge_strength,
+            seed=config.seed,
+        )
+
+
+__all__ = ["CustomWorldGenConfig", "WorldGenConfig", "WorldGenTool"]

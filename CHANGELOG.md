@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — DAGSpec prototype (v2 slice minimo)
+- **`DAGSpec` + `DAGNodeSpec`** (`src/sreg/models/dag_spec.py`): universal contract for arbitrary DAGs
+  - Validations: acyclic, max parents <= 4, required types, no duplicates
+  - Supports heterogeneous state cardinalities (2, 3, 4 states mixed)
+  - Convenience methods: parents_of, children_of, to_networkx, nodes_by_type
+- **`cpd_gen.py`** (`src/sreg/world/cpd_gen.py`): extracted generic CPD generation
+  - Bit-for-bit identical to existing templates (verified by test)
+  - Supports heterogeneous parent/child cardinalities
+- **`CustomTemplate`** (`src/sreg/world/templates/custom.py`): DAGSpec -> World
+  - All 3 task types (infer_target, NBO, hypothesis_selection) work E2E
+- **`generate_custom()`** in WorldGenTool: transitional API for custom worlds
+- **WorldCheck extended**: max parents (hard fail) + treewidth (warning)
+- **E2E results**: teacher always beats prior+random, NBO non-trivial 80-90%, hypotheses distinguishable 75-90%
+- **310 tests** (was 229)
+
 ### 2026-03-08 — Version alignment + WORLD_DESIGN.md refinements
 - **Version scheme simplified**: v0+v1 (done) → v2 (Etapa 2) → v3 (Etapa 3) → Backlog
   - Versions now align 1:1 with WORLD_DESIGN.md stages

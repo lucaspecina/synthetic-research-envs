@@ -1023,20 +1023,61 @@ hypothesis_selection.
 variables (KL 4.21 vs random 0.30 en un caso de 8 nodos). Esto sugiere que
 mundos mas grandes van a ser genuinamente desafiantes para los agentes.
 
-### Hallazgos del prototipo DAGSpec (pendiente)
+### Hallazgos del prototipo DAGSpec (2026-03-09)
 
-> Se completara cuando implementemos y testeemos el prototipo.
-> Preguntas a responder:
->
-> - La formula de CPDs (edge_strength Dirichlet) aguanta con 4 padres?
-> - Variable Elimination es viable con 12-15 nodos? Cuanto tarda?
-> - Que treewidth tienen los DAGs generados?
-> - NBO trivial empeora con mas nodos? Cuanto?
-> - Las hipotesis siguen siendo distinguibles en mundos mas grandes?
-> - Teacher mejora sobre prior y supera a random? Por cuanto? En cuantos pasos?
-> - Que topologias producen mundos "buenos" vs "malos"?
-> - Estados heterogeneos (2 + 3 estados) funcionan sin problemas?
-> - Que proporcion de tasks generadas son no degeneradas? (NBO no trivial, hipotesis distinguibles)
+Prototipo implementado y validado con 7 configuraciones (4-15 nodos) x 3-20 seeds.
+
+**La formula de CPDs aguanta con 4 padres**: si. Mundos con nodos de 4 padres
+(16 combinaciones para 2-state, 81 para 3-state) generan CPDs validas. Con
+edge_strength >= 0.6 las distribuciones siguen siendo peaked en el estado
+dominante.
+
+**Variable Elimination es viable con 12-15 nodos**: si. Tiempos de ~20ms para
+mundos de 15 nodos. La clave es que los treewidths observados son bajos (1-4)
+porque las topologias tipo arbol/sparse tienen pocos co-padres.
+
+**Treewidth de los DAGs generados**: entre 1 (cadenas) y 4 (dense con 4 padres).
+Ninguna configuracion probada supero treewidth 4. Para llegar a treewidth > 6-8
+se necesitarian DAGs mucho mas densos (lo cual esta limitado por max_parents=4).
+
+**NBO trivial en mundos grandes**: MEJORA respecto a v1. Con 12-15 nodos y 9-11
+observables, NBO es no trivial en 80-90% de los casos (vs ~75% en v1 con 6-9 nodos).
+Mas observables = mas opciones con IG > 0. La cadena de 8 nodos con es=0.6 es la
+excepcion: 33% trivial, porque la informacion se pierde a lo largo de la cadena.
+
+**Hipotesis distinguibles en mundos grandes**: razonable pero baja un poco.
+Con 12 nodos y es=0.7: 90% distinguibles. Con 15 nodos y es=0.6-0.8: 75%.
+La causa probable: en mundos mas grandes el target tiene mas padres, lo que
+diluye la diferencia entre posterior y reversed-posterior. Threshold actual
+(KL > 0.05) sigue siendo razonable.
+
+**Teacher siempre mejora sobre prior y supera a random**: si, en 15/15 casos
+probados (3 edge_strengths x 5 seeds). El teacher con budget=3 alcanza KL=0.0
+en la mayoria de casos (3 observaciones optimas bastan para recuperar la
+posterior exacta en estas topologias). Resultado robusto.
+
+**Estados heterogeneos (2 + 3 estados) funcionan**: si, sin problemas.
+La formula de CPDs maneja correctamente padres de 2 estados con hijos de 3
+estados (wrapping via `p_state % num_child_states`). pgmpy valida todo ok.
+
+**Resumen de tasas de tasks no degeneradas**:
+
+| Config | NBO no-trivial | Hipotesis distinguibles |
+|---|---|---|
+| 12n, es=0.7 | 80% | 90% |
+| 12n, es=0.5 | 80% | 80% |
+| 15n, es=0.6 | 90% | 75% |
+| 15n, es=0.8 | 90% | 75% |
+
+Cumple los criterios del plan (~70% NBO, ~80% hipotesis) o esta muy cerca.
+La distinguibilidad de hipotesis es el punto mas debil en mundos grandes --
+investigar si cambiar la estrategia de generacion de distractores (e.g.,
+usar Dirichlet random en vez de reversed-posterior) mejora esto.
+
+**Preguntas abiertas post-prototipo**:
+- Que topologias producen mundos "buenos" vs "malos"? (necesita expressive range analysis)
+- El teacher con budget=3 ya llega a KL=0: necesitamos mundos donde el budget
+  sea mas restrictivo (mas nodos, target mas lejano de observables)
 
 ---
 

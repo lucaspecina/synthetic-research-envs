@@ -48,8 +48,9 @@ Every research problem has two layers:
 
 ### Current state
 
-v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness. 229 tests.
-**Next: v2 (Etapa 2) — DAGSpec + custom template (arbitrary DAGs) + richer data + research cases.** See TODO.md and WORLD_DESIGN.md.
+v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness.
+v2 DAGSpec prototype complete: DAGSpec contract + cpd_gen extraction + CustomTemplate + WorldCheck extensions. 310 tests.
+**Next: v2 remainder — motif composition, DAG generators, richer data, narrative.** See TODO.md and WORLD_DESIGN.md.
 
 ## Environment setup
 
@@ -80,8 +81,8 @@ Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`
 
 ```
 src/sreg/
-├── models/          # Pydantic data contracts (world, episode, task, teacher, score)
-├── world/           # World model, templates, pgmpy utils
+├── models/          # Pydantic data contracts (world, episode, task, teacher, score, dag_spec)
+├── world/           # World model, templates (incl. custom), cpd_gen, pgmpy utils
 ├── solver/          # Teacher solver (exact Bayesian inference)
 ├── tools/           # WorldGen, WorldCheck, EpisodeGen, TaskGen, Verifier
 ├── env/             # EpisodeRunner (step-by-step environment interface)

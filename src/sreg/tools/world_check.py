@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
+
 import networkx as nx
 import numpy as np
 from pgmpy.inference import VariableElimination
 from pydantic import BaseModel, Field
 
+from sreg.models.dag_spec import MAX_PARENTS
 from sreg.models.world import NodeType, World
 from sreg.world.pgmpy_utils import world_to_pgmpy
+
+logger = logging.getLogger(__name__)
 
 
 class WorldCheckResult(BaseModel):
@@ -16,6 +21,7 @@ class WorldCheckResult(BaseModel):
 
     passed: bool
     failures: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
     metrics: dict[str, float] = Field(default_factory=dict)
 
 
@@ -99,9 +105,32 @@ class WorldCheckTool:
             if not has_d_sep:
                 failures.append("No non-trivial d-separation found")
 
+        # 6. Max parents check (hard failure)
+        if is_dag:
+            max_in = max((dag.in_degree(n) for n in dag.nodes()), default=0)
+            metrics["max_parents"] = float(max_in)
+            if max_in > MAX_PARENTS:
+                violators = [n for n in dag.nodes() if dag.in_degree(n) > MAX_PARENTS]
+                failures.append(
+                    f"Nodes exceed max parents ({MAX_PARENTS}): "
+                    f"{', '.join(f'{n}={dag.in_degree(n)}' for n in violators)}"
+                )
+
+        # 7. Treewidth estimate (warning, not failure)
+        warnings: list[str] = []
+        if is_dag:
+            tw = self._estimate_treewidth(dag)
+            metrics["treewidth_upper_bound"] = float(tw)
+            if tw > 8:
+                warnings.append(
+                    f"High treewidth ({tw}) may cause slow inference. "
+                    f"Consider reducing connectivity or adding mediators."
+                )
+
         return WorldCheckResult(
             passed=len(failures) == 0,
             failures=failures,
+            warnings=warnings,
             metrics=metrics,
         )
 
@@ -121,7 +150,6 @@ class WorldCheckTool:
             return False
 
         obs_names = [n.name for n in obs_nodes]
-        all_node_names = [n.name for n in latent_nodes] + obs_names
 
         # Build conditioning sets to try: latents, then each individual observable
         cond_sets = [frozenset(n.name for n in latent_nodes)]
@@ -141,6 +169,52 @@ class WorldCheckTool:
                     except nx.NetworkXError:
                         continue
         return False
+
+    @staticmethod
+    def _estimate_treewidth(dag: nx.DiGraph) -> int:
+        """Estimate treewidth upper bound via min-fill heuristic on the moral graph.
+
+        Treewidth determines the complexity of exact inference (Variable Elimination).
+        This returns an upper bound, not the exact treewidth.
+        """
+        # Moralize: add edges between co-parents, then drop direction
+        moral = dag.to_undirected()
+        for node in dag.nodes():
+            parents = list(dag.predecessors(node))
+            for i, p1 in enumerate(parents):
+                for p2 in parents[i + 1 :]:
+                    moral.add_edge(p1, p2)
+
+        # Min-fill elimination: greedily eliminate the node that adds fewest fill edges
+        g = moral.copy()
+        max_clique_size = 0
+        for _ in range(len(g)):
+            if not g.nodes():
+                break
+            # Pick node with minimum fill edges
+            best_node = min(g.nodes(), key=lambda n: _fill_count(g, n))
+            neighbors = set(g.neighbors(best_node))
+            clique_size = len(neighbors) + 1  # neighbors + the node itself
+            max_clique_size = max(max_clique_size, clique_size)
+            # Add fill edges
+            nbrs = list(neighbors)
+            for i, n1 in enumerate(nbrs):
+                for n2 in nbrs[i + 1 :]:
+                    g.add_edge(n1, n2)
+            g.remove_node(best_node)
+
+        return max_clique_size - 1  # treewidth = max clique size - 1
+
+
+def _fill_count(g: nx.Graph, node: str) -> int:
+    """Count how many fill edges would be added by eliminating this node."""
+    neighbors = list(g.neighbors(node))
+    count = 0
+    for i, n1 in enumerate(neighbors):
+        for n2 in neighbors[i + 1 :]:
+            if not g.has_edge(n1, n2):
+                count += 1
+    return count
 
 
 __all__ = ["WorldCheckResult", "WorldCheckTool"]

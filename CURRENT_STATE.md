@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 229 tests. 3 familias de templates. 3 tipos de tarea. Multi-task bundles. Pipeline completo. v1 completo.**
+**Estado actual: 310 tests. 4 familias de templates (3 curadas + custom). 3 tipos de tarea. Multi-task bundles. Pipeline completo. v1 completo + prototipo DAGSpec (v2).**
 
 ---
 
@@ -358,9 +358,11 @@ python scripts/test_agent.py
 
 | Módulo | Ubicación | Qué hace |
 |--------|----------|----------|
-| **Models** | `src/sreg/models/` | Contratos de datos (Pydantic): World, Episode, Task, Score, ResearchProblem |
-| **Templates** | `src/sreg/world/templates/` | Los 3 generadores de mundos (latent_preference, causal_chain, fork_collider) |
-| **World check** | `src/sreg/tools/world_check.py` | Valida que un mundo sea correcto: DAG acíclico, entropía, d-separaciones |
+| **Models** | `src/sreg/models/` | Contratos de datos (Pydantic): World, Episode, Task, Score, ResearchProblem, DAGSpec |
+| **DAGSpec** | `src/sreg/models/dag_spec.py` | Contrato universal para DAGs arbitrarios (validaciones: acíclico, max parents, tipos) |
+| **CPD gen** | `src/sreg/world/cpd_gen.py` | Generación genérica de CPDs (extraída de templates, soporta estados heterogéneos) |
+| **Templates** | `src/sreg/world/templates/` | 4 generadores: latent_preference, causal_chain, fork_collider + **custom** (DAGSpec) |
+| **World check** | `src/sreg/tools/world_check.py` | Valida mundos: DAG acíclico, entropía, d-separaciones, max parents, treewidth |
 | **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Inferencia bayesiana exacta: posteriors, information gain, acciones óptimas |
 | **Episode gen** | `src/sreg/tools/episode_gen.py` | Crea episodios: budget, nodos disponibles, costos por observación |
 | **Task gen** | `src/sreg/tools/task_gen.py` | Genera los 3 tipos de tarea con su respuesta correcta |
@@ -448,7 +450,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **229 tests** en todos los módulos
+- **310 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
