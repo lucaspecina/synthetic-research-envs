@@ -1539,6 +1539,84 @@ ResearchCase listo para el agente
    libertad total o lo guiamos con templates de caso?
    Inclinacion: templates de caso como guia + libertad para adaptar.
 
+### Plan de implementacion: Slice 1 (decision 2026-03-09)
+
+**Objetivo**: probar que el orchestrator puede diseñar un case plan especifico
+para un mundo, en vez de siempre generar las mismas 3 tasks.
+
+**Alcance**: solo los 3 eval types existentes. No se toca el agent ni el scoring.
+
+**Flujo del slice**:
+```
+1. Orchestrator genera mundo (como hoy)
+2. Orchestrator llama `design_case` con su propuesta de preguntas
+3. Tool valida el CasePlan (eval types validos, preguntas computables)
+4. `generate_tasks_from_plan` genera solo las Tasks que el plan pide
+5. Tasks listas para ser resueltas (agent no cambia)
+```
+
+**Modelo `CasePlan`** (nuevo, `src/sreg/models/case_plan.py`):
+```
+EvalQuestionPlan:
+  question_text: str         # "Cual es la causa mas probable del declive?"
+  eval_type: str             # "infer_target" | "next_best_observation" | "hypothesis_selection"
+  is_primary: bool           # Es la pregunta principal?
+  rationale: str             # Por que esta pregunta para este mundo
+
+CasePlan:
+  title: str                 # Titulo del caso
+  research_context: str      # Contexto breve
+  primary_question: EvalQuestionPlan
+  sub_questions: list[EvalQuestionPlan]   # 0-N
+  shared_budget: int
+  rationale: str             # Por que este set de preguntas para este mundo
+```
+
+**Tool `design_case`** (nueva tool del orchestrator):
+- El LLM llama `design_case` con parametros (como hace con `apply_semantics`)
+- La tool recibe la propuesta del LLM y valida:
+  - eval types son validos (del catalogo)
+  - target existe en el mundo
+  - preguntas no se repiten
+  - al menos 1 pregunta primary
+- Devuelve CasePlan validado o error con razon
+
+**Validacion de computabilidad** (integrada o tool separada):
+- Para cada pregunta del plan, verifica que sea computable y no degenerada
+- `infer_target`: siempre computable (el BN siempre puede calcular posterior)
+- `next_best_observation`: computable si hay observables disponibles;
+  no degenerada si al menos 1 nodo tiene IG > 0
+- `hypothesis_selection`: computable si se puede generar posterior;
+  no degenerada si hipotesis son distinguibles (KL > threshold)
+- Reutiliza logica que ya existe en TaskGenTool
+
+**Generacion desde plan** (`generate_tasks_from_plan` en TaskGenTool):
+- Recibe CasePlan + World + seed
+- Solo genera las Tasks que el plan pide (no siempre las 3)
+- La question_text del plan se pasa a la Task (no el texto generico de hoy)
+- Devuelve lista de Tasks (no TaskBundle)
+
+**Separacion clave**:
+```
+Orchestrator (LLM)     →  PROPONE el case plan (que preguntas, por que)
+design_case tool       →  VALIDA estructura y consistencia
+validate + generate    →  VALIDAN computabilidad y CONSTRUYEN las Tasks
+```
+
+**Lo que NO se toca en este slice**:
+- Agent (sigue haciendo infer_target como hoy)
+- Scoring (sigue siendo por task individual)
+- Eval types (solo los 3 existentes)
+- DataSampler / ProblemBuilder (no cambian)
+
+**Archivos a crear/modificar**:
+- CREAR: `src/sreg/models/case_plan.py` + tests
+- MODIFICAR: `src/sreg/orchestrator/tools.py` (tool def de design_case)
+- MODIFICAR: `src/sreg/orchestrator/orchestrator.py` (dispatch)
+- MODIFICAR: `src/sreg/tools/task_gen.py` (generate_from_plan)
+- MODIFICAR: orchestrator system prompt
+- Tests + E2E validation
+
 ---
 
 ## Enriquecimiento de la presentacion de datos (implementado 2026-03-09)

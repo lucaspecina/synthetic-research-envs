@@ -129,9 +129,57 @@
 >
 > Plan concreto (incremental):
 
-- [ ] **Paso 1**: El orchestrator elige CUALES eval types usar por mundo (no siempre los 3)
-  - Nueva tool `design_case`: el LLM propone preguntas, tools validan que sean computables
-  - ResearchCase model: pregunta principal + sub-preguntas + eval types + weights
+- [ ] **Slice 1 (PROXIMO)**: `world → case plan → tasks seleccionadas` (no tocar agent)
+  > Objetivo: probar que el orchestrator puede diseñar un case plan especifico
+  > para un mundo, en vez de siempre generar las mismas 3 tasks.
+  > Decision (2026-03-09): slice minimo primero, sin cambiar agent ni scoring.
+  >
+  > Implementacion concreta:
+  >
+  > **a) Modelo `CasePlan`** (`src/sreg/models/case_plan.py`):
+  >   - `EvalQuestionPlan`: question_text (str), eval_type (str: "infer_target" |
+  >     "next_best_observation" | "hypothesis_selection"), is_primary (bool),
+  >     rationale (str, por que esta pregunta para este mundo)
+  >   - `CasePlan`: title (str), research_context (str), primary_question
+  >     (EvalQuestionPlan), sub_questions (list[EvalQuestionPlan]),
+  >     shared_budget (int), rationale (str, por que este set de preguntas)
+  >   - Pydantic v2, validaciones basicas (al menos 1 pregunta, eval types validos)
+  >
+  > **b) Tool `design_case`** (nueva tool del orchestrator):
+  >   - El LLM manda su propuesta como parametros del tool call (como apply_semantics)
+  >   - La tool valida: eval types existen, target valido, preguntas no se repiten
+  >   - Devuelve el CasePlan validado
+  >   - El LLM ya tiene la info del mundo (estructura, semantica) de pasos anteriores
+  >
+  > **c) Tool `validate_case_plan`** (o integrado en design_case):
+  >   - Verifica que cada pregunta sea computable desde el BN
+  >   - Verifica que no sean degeneradas (NBO no trivial, hipotesis distinguibles)
+  >   - Reutiliza logica de TaskGenTool para validacion
+  >
+  > **d) Funcion `generate_tasks_from_plan`** (en TaskGenTool o nuevo):
+  >   - Recibe CasePlan + World, genera lista de Tasks
+  >   - Solo genera las tasks que el plan pide (no siempre las 3)
+  >   - Cada Task tiene la question_text del plan (no texto generico)
+  >
+  > **e) NO se toca**:
+  >   - Agent (sigue haciendo infer_target como hoy)
+  >   - Scoring (sigue siendo por task individual)
+  >   - Eval types (solo los 3 existentes)
+  >
+  > **f) Tests**: CasePlan model, design_case tool, validacion, generacion desde plan
+  > **g) E2E**: orchestrator genera mundo → diseña case plan → genera tasks segun plan
+  >
+  > **Separacion clave**: orchestrator PROPONE, tools VALIDAN y CONSTRUYEN.
+  >
+  > Archivos a crear/modificar:
+  >   - CREAR: `src/sreg/models/case_plan.py`
+  >   - CREAR: `tests/models/test_case_plan.py`
+  >   - MODIFICAR: `src/sreg/orchestrator/tools.py` (agregar design_case tool def)
+  >   - MODIFICAR: `src/sreg/orchestrator/orchestrator.py` (dispatch design_case)
+  >   - MODIFICAR: `src/sreg/tools/task_gen.py` (generate_from_plan)
+  >   - MODIFICAR: `tests/tools/test_task_gen.py`
+  >   - MODIFICAR: orchestrator system prompt (instruir al LLM sobre design_case)
+  >
 - [ ] **Paso 2**: El orchestrator escribe las preguntas en lenguaje natural (no text fijo)
 - [ ] **Paso 3**: Budget compartido entre preguntas del mismo caso
 - [ ] **Paso 4**: Agregar `causal_effect` eval type (do-calculus, pgmpy lo soporta)
