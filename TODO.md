@@ -68,6 +68,11 @@
 - [ ] Variable action costs (not all cost 1)
 - [ ] Richer data sampler: multiple formats, metadata
 
+### Semantic mode (pregunta abierta — ver WORLD_DESIGN.md #5)
+- [ ] Decidir: semantic_mode configurable (full / abstract / fictional)
+- [ ] Implementar modo abstracto (sin apply_semantics, variables genéricas)
+- [ ] Experimentar: comparar respuestas del agent en cada modo
+
 ### Narrativa elaborada
 - [ ] Theoretical context: prior studies, hints, misleading context
 - [ ] Richer semantic layer: apply_semantics generates multi-paragraph narrative
