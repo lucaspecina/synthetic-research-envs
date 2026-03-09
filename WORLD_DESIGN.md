@@ -268,41 +268,50 @@ La progresion natural es:
 
 ---
 
-## CaseBundle: el producto final
+## ResearchCase: el producto final (actualizado 2026-03-09)
+
+> **Nota**: este concepto fue reformulado significativamente. Ver la seccion
+> "Diseno de Research Cases" mas abajo para el analisis completo, la
+> comparacion con ResearchGym, y las preguntas abiertas.
 
 El producto de SREG no es solo un mundo ni solo una task. Es un **caso de
-investigacion completo**. Hacerlo explicito como concepto central:
+investigacion completo** donde las preguntas nacen del caso, no de un
+template fijo. El LLM orchestrator diseña el caso completo.
 
-### Que incluye un CaseBundle
+### Que incluye un ResearchCase
 
 ```
-CaseBundle
-  |-- world: World                    # Mundo oculto (BN formal)
-  |-- semantic: SemanticPresentation  # Narrativa, nombres, dominio
-  |-- initial_evidence: Evidence      # Datos que el agente ya tiene
-  |-- available_actions: Actions      # Que puede hacer, con que costos
-  |-- primary_question: Question      # La pregunta principal
-  |-- sub_questions: list[Question]   # Subpreguntas conectadas
-  |-- evaluations: list[Evaluation]   # Multiples evaluaciones sobre el caso
-  |      |-- infer_target
-  |      |-- next_best_observation
-  |      |-- hypothesis_selection
-  |      |-- mechanism_selection (futuro)
-  |      |-- experimental_design (futuro)
-  |      |-- process_quality (futuro)
-  |-- rival_mechanisms: list[MechanismSpec]  # Mecanismos alternativos (futuro)
+ResearchCase
+  |-- world: World                       # Mundo oculto (BN formal)
+  |-- narrative: str                     # Contexto de la investigacion
+  |-- data_assets: list[DataAsset]       # Datos del caso (multi-dataset)
+  |-- available_actions: list[Action]    # Que puede hacer, con que costos
+  |-- shared_budget: int                 # Budget para todo el caso
+  |-- evaluation_objective: str          # Que se quiere evaluar
+  |-- primary_question: EvalQuestion     # La pregunta principal
+  |-- sub_questions: list[EvalQuestion]  # 0-N subpreguntas conectadas
+  |-- rival_mechanisms: list[...]        # Mecanismos alternativos (futuro)
+```
+
+```
+EvalQuestion
+  |-- question_text: str                 # En lenguaje natural, escrita por orchestrator
+  |-- eval_type: EvalType                # Del catalogo (infer_target, NBO, causal, ...)
+  |-- ground_truth: dict                 # Respuesta correcta (computada desde el BN)
+  |-- weight: float                      # Peso en el score compuesto del caso
 ```
 
 ### Relacion con lo que tenemos hoy
 
-Hoy tenemos `TaskBundle` que agrupa 3 tasks del mismo mundo. `CaseBundle` es
-la evolucion natural: un caso de investigacion completo con mundo + semantica +
-datos + acciones + multiples evaluaciones. `TaskBundle` es un subconjunto de
-`CaseBundle`.
+`TaskBundle` agrupa siempre las mismas 3 tasks del mismo mundo.
+`ResearchCase` lo generaliza: las preguntas las elige el orchestrator
+segun el caso, no un template fijo. La transicion es incremental:
+1. Primero: el orchestrator elige CUALES eval types usar (no siempre 3)
+2. Despues: el orchestrator escribe las preguntas en lenguaje natural
+3. Despues: budget compartido, preguntas conectadas
+4. Despues: nuevos eval types (causal, prediccion, etc.)
 
-No necesariamente hay que implementar `CaseBundle` como modelo Pydantic desde
-el dia 1. Pero tener el concepto claro guia todas las decisiones de diseno: el
-producto no es el grafo ni la task, es el caso de investigacion completo.
+`TaskBundle` sigue funcionando como caso degenerado (siempre los mismos 3).
 
 ---
 
@@ -1262,7 +1271,277 @@ viable el custom template** — no hay que reinventar la generacion de CPDs.
 
 ---
 
-## Enriquecimiento del case — proximo foco (decision 2026-03-09)
+## Diseno de Research Cases — del TaskBundle al ResearchCase (analisis 2026-03-09)
+
+> **Este es el analisis mas importante del proyecto hasta ahora.** Cambia la
+> perspectiva de como pensamos las tareas y evaluaciones.
+
+### El problema central: tasks fijas vs cases de investigacion
+
+Hoy, para cada mundo se generan siempre las mismas 3 tasks:
+1. `infer_target` — estima P(target | evidence)
+2. `next_best_observation` — que variable medirias?
+3. `hypothesis_selection` — cual de estas 4 hipotesis es correcta?
+
+Esto no se alinea con PROJECT.md. Los ejemplos de Nelvara, pozos de petroleo,
+y material anticorrosivo muestran **preguntas que nacen del caso de investigacion**,
+no de un template fijo de evaluaciones. Cada caso tiene preguntas diferentes
+porque cada investigacion es diferente.
+
+El producto de SREG no es "un mundo + siempre las mismas 3 evaluaciones". Es
+un **caso de investigacion completo** con preguntas que tienen sentido para
+ese caso en particular.
+
+### Insight fundamental: las preguntas nacen del caso, no del mundo formal
+
+El modelo mental NO es:
+
+```
+world → tasks
+```
+
+El modelo mental correcto es:
+
+```
+real case seed → orchestrator diseña el research case → tools construyen
+                 el mundo formal que lo soporta y lo hace verificable
+```
+
+El flujo concreto:
+
+```
+Caso de investigacion real (paper, escenario, seed)
+  → Orchestrator lee/entiende el seed y extrae:
+    - fenomeno investigado
+    - variables relevantes
+    - hipotesis en juego
+    - evidencia disponible
+    - preguntas de investigacion
+    - subtasks y tipo de validacion
+  → Orchestrator diseña un caso sintetico INSPIRADO en el real:
+    - Define la estructura causal (→ BN formal)
+    - Define la narrativa y los datos (→ capa semantica)
+    - Define las preguntas y sub-preguntas (→ evaluaciones)
+    - Define las acciones y costos (→ interacciones)
+  → Tools construyen el BN, validan, y verifican que cada pregunta
+    tenga respuesta computable desde la red bayesiana
+  → Se arma el ResearchCase
+```
+
+**Consecuencia clave: las tasks, subtasks y evaluaciones estan ligadas al
+research case, no solo al DAG subyacente.** El DAG sigue siendo esencial
+— es la estructura de verdad y validacion que hace todo verificable — pero
+no es la unica fuente de que preguntas hacer. Las preguntas nacen del caso
+de investigacion que las inspiro.
+Un caso sobre arenamiento de pozos naturalmente tiene preguntas sobre mecanismos,
+intervenciones, y datos temporales. Un caso sobre un material anticorrosivo
+tiene preguntas sobre diagnostico, seleccion de ensayos, y modificaciones
+experimentales. Las preguntas no son las mismas porque los casos no son iguales.
+
+### El rol ampliado del orchestrator
+
+Hoy el orchestrator:
+1. Genera la estructura del mundo (DAG)
+2. Le pone nombres y narrativa (semantica)
+
+Deberia:
+1. **Entender el seed** — sea un paper, un escenario, o un tema
+2. **Diseñar el caso de investigacion** — que variables, que relaciones,
+   que contexto, que datos
+3. **Proponer las preguntas** — principal + sub-preguntas, cada una con
+   un tipo de evaluacion del catalogo
+4. **Definir acciones y costos** — que puede hacer el agente, cuanto cuesta
+5. **Los tools validan todo** — que el BN sea correcto, que las preguntas
+   tengan respuesta computable, que las evaluaciones no sean triviales
+
+**Principio clave: el orchestrator propone, los tools validan.** El LLM no
+decide libremente — propone un caso y el sistema verifica que es viable,
+interesante, y formalmente evaluable.
+
+### Comparacion con ResearchGym
+
+ResearchGym es un benchmark de agentes de investigacion que usa repos reales
+(codigo + datos + baselines). Puntos relevantes para nuestro diseno:
+
+| Concepto ResearchGym | Equivalente SREG |
+|---|---|
+| Task = repo con datos y baselines | ResearchCase = mundo + datos + acciones |
+| Subtasks = datasets/settings del paper | Sub-preguntas del caso |
+| Primary subtask = la que mas importa | Pregunta principal del caso |
+| Grader = corre codigo, compara outputs | Grader = compara con verdad del BN |
+| Baseline = mejor metodo del repo | Teacher = upper bound (optimo bayesiano) |
+| Completion rate = cuantas subtasks intento | Cuantas preguntas del caso respondio |
+| Improvement rate = cuantas mejoro | En cuantas supero al prior/random |
+| Inspection agent = detecta cheating | No es prioridad (verdad formal, mundos nuevos), pero no descartado |
+
+**Diferencia clave**: ResearchGym usa repos reales (finitos, contaminables).
+SREG genera casos sinteticos infinitos con verdad formal verificable. La
+ventaja de SREG es que la evaluacion es exacta y los casos son nuevos. La
+desventaja es que todavia no tienen la riqueza de un research case real.
+
+**Lo que tomamos de ResearchGym:**
+- Estructura de task principal + subtasks
+- Grading multi-dimensional (completion + improvement + efficiency)
+- La idea de que el caso es una unidad, no tasks sueltas
+- Metricas separadas: completion rate vs improvement rate
+
+**Lo que NO tomamos (por ahora):**
+- Ejecucion de codigo como parte del caso (futuro posible)
+- Anti-cheating activo (no es prioridad, pero no descartado)
+- Duracion de horas (nuestros casos son mas acotados)
+
+### ResearchCase como generalizacion de TaskBundle
+
+`ResearchCase` no reemplaza `TaskBundle` de golpe — lo generaliza:
+
+```
+TaskBundle (hoy):
+  - infer_target: Task          # siempre
+  - next_best_observation: Task # siempre
+  - hypothesis_selection: Task  # siempre
+
+ResearchCase (vision):
+  - world: World
+  - narrative: str                          # contexto del caso
+  - primary_question: EvalQuestion          # la pregunta principal
+  - sub_questions: list[EvalQuestion]       # 0-N subpreguntas
+  - data_assets: list[DataAsset]            # datos del caso
+  - available_actions: list[Action]         # acciones con costos
+  - shared_budget: int                      # budget para todo el caso
+  - evaluation_objective: str               # que se quiere medir
+
+EvalQuestion:
+  - question_text: str                      # en lenguaje natural
+  - eval_type: EvalType                     # del catalogo
+  - ground_truth: dict                      # respuesta correcta (del BN)
+  - weight: float                           # peso en el score compuesto
+```
+
+**La transicion es incremental:**
+1. Primero: el orchestrator elige CUALES de los 3 tipos de eval usar (no siempre los 3)
+2. Despues: el orchestrator escribe las preguntas en lenguaje natural
+3. Despues: agregar nuevos eval types al catalogo (causal, prediccion, etc.)
+4. Despues: budget compartido, preguntas conectadas
+
+### Catalogo de evaluaciones (extensible)
+
+Evaluaciones formales (respuesta computable desde el BN):
+
+| Eval type | Pregunta | Respuesta del BN | Tenemos? |
+|---|---|---|---|
+| `infer_target` | P(target \| evidence)? | posterior exacta | Si |
+| `next_best_obs` | Que variable medir? | IG ranking | Si |
+| `hypothesis_sel` | Cual hipotesis es mejor? | KL desde posterior | Si |
+| `causal_effect` | Si do(X=x), que pasa con Y? | do-calculus via graph surgery | No (pgmpy lo soporta) |
+| `structure_disc` | Cual es la estructura causal? | DAG real | No |
+| `prediction` | Dado lo observado, que valor tendra Z? | posterior de Z | No (facil de agregar) |
+| `optimization` | Que accion maximiza Y? | argmax sobre do() | No |
+
+Evaluaciones semanticas (requieren juez o rubric):
+
+| Eval type | Pregunta | Como se evalua |
+|---|---|---|
+| `reasoning_quality` | El razonamiento es coherente? | LLM-as-judge + rubric |
+| `evidence_usage` | Actualizo creencias con datos nuevos? | Comparar trayectoria vs teacher |
+| `hypothesis_generation` | Exploro alternativas? | Rubric sobre diversidad |
+| `efficiency` | Uso el budget bien? | IG acumulada vs budget |
+
+**El catalogo no es cerrado.** Cualquier pregunta con respuesta computable
+desde el BN puede ser un eval type formal. Los semanticos son mas abiertos.
+
+### Paper-seeded cases: la idea central
+
+El flujo mas potente de SREG es usar investigaciones reales como seed:
+
+```
+Paper real ("Arenamiento post-frac hit en pozos de la Cuenca X")
+  |
+  v
+Orchestrator lee el paper y extrae:
+  - Variables relevantes (presion, completacion, arena, drawdown...)
+  - Relaciones causales propuestas
+  - Que datos tenian los investigadores
+  - Que preguntas se hicieron
+  - Que experimentos hicieron
+  - Que conclusiones sacaron
+  |
+  v
+Orchestrator diseña un caso SINTETICO inspirado:
+  - Variables similares pero en un contexto ficticio
+  - Relaciones causales que PUEDEN diferir del paper real
+    (esto es clave — testea si el agente se adapta a la evidencia)
+  - Datos generados del BN (no del paper)
+  - Preguntas inspiradas en las del paper pero adaptadas
+  - Acciones inspiradas en los experimentos del paper
+  |
+  v
+Tools construyen y validan:
+  - BN formal con las variables y relaciones propuestas
+  - Cada pregunta tiene respuesta computable
+  - Las evaluaciones no son triviales
+  - El caso es interesante (QualitySuite)
+  |
+  v
+ResearchCase listo para el agente
+```
+
+**Por que esto es poderoso:**
+- Las preguntas son realistas porque nacen de investigaciones reales
+- La verdad puede diferir del paper (el agente no puede memorizar)
+- Los datos son frescos (sampleados del BN, no del paper original)
+- La evaluacion es formal (el BN da la respuesta exacta)
+- El orchestrator no inventa de cero — se inspira en investigaciones reales
+
+### Principios de diseno (consolidados)
+
+1. **El orchestrator propone, los tools validan.** El LLM tiene libertad
+   creativa para diseñar el caso, pero cada pregunta debe pasar validacion
+   formal (respuesta computable, evaluacion no trivial).
+
+2. **ResearchCase generaliza TaskBundle, no lo reemplaza.** La transicion
+   es incremental. TaskBundle sigue funcionando como caso degenerado
+   (caso donde las 3 preguntas son las mismas siempre).
+
+3. **Teacher como upper bound, no como baseline a superar.** El teacher es
+   el optimo bayesiano — es la cota superior. Las metricas comparan al
+   agente contra el teacher (que tan lejos esta del optimo) y contra el
+   prior/random (que tanto mejoro sobre no hacer nada).
+
+4. **El caso depende del mundo Y del objetivo de evaluacion.** No es solo
+   "dado este BN, que preguntas hago". Es "dado este BN Y este objetivo
+   de evaluacion (inferencia? decision? descubrimiento?), que caso armo".
+
+5. **Anti-cheating no es prioridad pero no se descarta.** Los mundos
+   sinteticos y la verdad formal reducen el riesgo. Pero a futuro podrian
+   hacer falta mecanismos (e.g., el agente no debe poder inferir la
+   estructura del BN por patrones en los datos).
+
+### Preguntas abiertas
+
+1. **Granularidad del catalogo de eval types**: hay que definir cuantos
+   eval types iniciales necesitamos vs agregar incrementalmente?
+   Inclinacion: empezar con los 3 existentes + causal_effect.
+
+2. **Validacion de preguntas del orchestrator**: como verificamos que una
+   pregunta propuesta por el LLM tiene respuesta computable desde el BN?
+   Cada eval type necesita un "validator" que chequee precondiciones.
+
+3. **Budget compartido vs independiente**: el agente usa budget para
+   investigar y responder multiples preguntas? O cada pregunta tiene
+   su propio contexto?
+   Inclinacion: budget compartido (mas realista).
+
+4. **Score compuesto**: como se combinan los scores de pregunta principal
+   + subpreguntas? Media ponderada? La principal vale mas?
+   Inclinacion: peso configurable, primary_weight > sub_weight.
+
+5. **Hasta donde llega el orchestrator en el diseno del caso**: le damos
+   libertad total o lo guiamos con templates de caso?
+   Inclinacion: templates de caso como guia + libertad para adaptar.
+
+---
+
+## Enriquecimiento de la presentacion de datos (implementado 2026-03-09)
 
 > El nucleo formal (BN + generacion + teacher + QualitySuite) esta validado.
 > El batch sweep confirmo que con 10-12 nodos y es=0.5-0.7 el sistema produce

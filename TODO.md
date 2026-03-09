@@ -119,16 +119,25 @@
 - [ ] `EpisodeGenTool` genera acciones con costos variados (1, 2, 3) segun config
 - [ ] Despues: acciones semanticas mas ricas (el LLM genera la descripcion por accion)
 
-#### 3. CaseBundle multi-task
-> Hoy: `TaskBundle` genera las 3 tasks por separado, cada una con su propia
-> evaluacion independiente. No hay budget compartido ni preguntas conectadas.
+#### 3. ResearchCase — el orchestrator diseña el caso completo
+> **Reformulacion fundamental (2026-03-09)**: el producto de SREG no es
+> "un mundo + siempre las mismas 3 tasks". Es un **caso de investigacion
+> completo** con preguntas que nacen del caso, no de un template fijo.
+> El orchestrator debe diseñar el caso (preguntas + datos + acciones),
+> no solo el mundo. ResearchCase generaliza TaskBundle incrementalmente.
+> Ver analisis completo en WORLD_DESIGN.md "Diseno de Research Cases".
 >
-> Plan concreto (slice minimo):
+> Plan concreto (incremental):
 
-- [ ] `CaseBundle` model: extiende TaskBundle con pregunta principal + sub-preguntas
-- [ ] Budget compartido: un budget para todo el case, no por task
-- [ ] Evaluacion conectada: score del case = combinacion de scores de sub-preguntas
-- [ ] Despues: preguntas causales (do-calculus), evaluacion de proceso
+- [ ] **Paso 1**: El orchestrator elige CUALES eval types usar por mundo (no siempre los 3)
+  - Nueva tool `design_case`: el LLM propone preguntas, tools validan que sean computables
+  - ResearchCase model: pregunta principal + sub-preguntas + eval types + weights
+- [ ] **Paso 2**: El orchestrator escribe las preguntas en lenguaje natural (no text fijo)
+- [ ] **Paso 3**: Budget compartido entre preguntas del mismo caso
+- [ ] **Paso 4**: Agregar `causal_effect` eval type (do-calculus, pgmpy lo soporta)
+- [ ] **Paso 5**: Paper-seeded cases — el orchestrator lee un paper y diseña un caso sintetico inspirado
+- [ ] Despues: prediction eval type, structure_discovery, optimization
+- [ ] Despues: evaluaciones semanticas con rubrics (reasoning quality, evidence usage)
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec

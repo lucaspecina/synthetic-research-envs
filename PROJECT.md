@@ -160,15 +160,39 @@ A largo plazo, los mundos formales deberían poder representar:
 - múltiples targets,
 - y acciones/intervenciones más realistas.
 
-De igual manera, las tasks tampoco deberían quedarse en una sola pregunta aislada. La visión final es que un mismo research case pueda incluir múltiples preguntas y múltiples evaluaciones conectadas, por ejemplo:
+De igual manera, las tasks tampoco deberían quedarse en preguntas fijas y repetitivas. La visión final es que un mismo research case incluya **múltiples preguntas conectadas que nazcan del caso de investigación**, no de un template fijo. Por ejemplo:
 
-- inferir la causa más probable,
-- decidir qué evidencia conviene pedir después,
-- comparar hipótesis rivales,
-- estimar el efecto de una intervención,
-- y evaluar si el agente investigó de manera eficiente.
+- inferir la causa más probable (pregunta principal),
+- decidir qué evidencia conviene pedir después (sub-pregunta),
+- comparar hipótesis rivales (sub-pregunta),
+- estimar el efecto de una intervención (sub-pregunta causal),
+- y evaluar si el agente investigó de manera eficiente (evaluación de proceso).
 
-En otras palabras: todo el diseño de SREG debe apuntar hacia ese destino final.  
+**Las preguntas nacen del caso, no del mundo formal.** Un caso sobre
+arenamiento de pozos tiene preguntas sobre mecanismos e intervenciones.
+Un caso sobre un material anticorrosivo tiene preguntas sobre diagnóstico
+y diseño experimental. Las preguntas son diferentes porque los casos son
+diferentes. El LLM orchestrator diseña las preguntas como parte del caso,
+inspirándose en la investigación real que sirvió como seed.
+
+**El orchestrator diseña el caso completo**, no solo el mundo. El flujo
+no es `world → tasks`, sino:
+
+```
+real case seed → orchestrator diseña el research case
+              → tools construyen el mundo formal que lo soporta
+```
+
+El orchestrator puede partir de un paper o investigación real y extraer:
+fenómeno, variables, hipótesis, evidencia, preguntas, subtasks, y tipo
+de validación. Con eso diseña un caso sintético nuevo. Y recién ahí los
+tools construyen el BN formal que hace ese caso verificable.
+
+**Las tasks, subtasks y evaluaciones están ligadas al research case,
+no solo al DAG subyacente.** El DAG sigue siendo clave como estructura
+de verdad y validación, pero no es la única fuente de qué preguntas hacer.
+
+En otras palabras: todo el diseño de SREG debe apuntar hacia ese destino final.
 Los templates fijos, la semántica inicial y las evaluaciones actuales son una base controlada para comenzar, pero la arquitectura debe construirse desde el principio pensando en research cases cada vez más ricos, multi-step, multi-task y más cercanos a problemas de investigación del mundo real.
 
 **Importante**: las versiones tempranas simplifican el problema para poder construir un núcleo sólido y verificable. Pero el objetivo final del roadmap es llegar a research cases mucho más complejos, con mundos subyacentes más ricos, múltiples preguntas por caso y tareas más parecidas a investigaciones reales.
@@ -352,36 +376,57 @@ costo Y). Después se puede escalar a acciones más complejas.
 
 ---
 
-## Cómo se genera un mundo — el pipeline
+## Cómo se genera un research case — el pipeline
 
 ### Seed (input)
 
-El sistema recibe una semilla para crear el mundo. Puede ser:
-- Un tema: "epidemiología", "ecología marina", "materiales"
+El sistema recibe una semilla para crear el caso. Puede ser:
+- **Un paper o investigación real** (lo más potente): el orchestrator lee
+  el paper, entiende qué variables había, qué se investigó, qué preguntas
+  se hicieron, y diseña un caso sintético inspirado en él
 - Un escenario narrativo: "hay un problema con la producción de X..."
-- Un paper o documento de referencia (el LLM extrae la estructura)
+- Un tema: "epidemiología", "ecología marina", "materiales"
 - Parámetros técnicos: "6 nodos, dificultad media"
 - Nada (generación libre)
 
-### Generación (LLM + tools)
+**Paper-seeded cases**: cuando el seed es un paper real, el orchestrator
+extrae la estructura causal, las variables, los datos disponibles, y las
+preguntas de investigación. Luego genera un caso sintético inspirado en
+él: las variables son similares pero en un contexto ficticio, las relaciones
+causales PUEDEN diferir del paper real (el agente no puede memorizar la
+respuesta), y los datos son frescos (sampleados del BN, no del paper).
+Las preguntas del caso se inspiran en las preguntas reales del paper.
 
-1. **El LLM orchestrator** recibe el seed y decide la estructura del mundo
-2. **WorldGenTool** construye la red bayesiana (DAG + CPDs) — programático
-3. **WorldCheckTool** valida que el mundo sea interesante y no trivial
-4. Si falla, el LLM ajusta parámetros y reintenta
-5. **El LLM genera la capa semántica**: nombres, narrativa, descripción
-6. **EpisodeGenTool** crea episodios con datos y acciones disponibles
-7. **TaskGenTool** formula las preguntas de investigación
+### Generación (LLM orchestrator + tools)
 
-El LLM **nunca toca los números**. Propone estructura y semántica.
-Las tools construyen y verifican la matemática.
+El orchestrator no solo genera el mundo — **diseña el caso completo**:
+
+1. **El LLM orchestrator entiende el seed** y decide qué tipo de caso crear
+2. **El LLM propone la estructura causal** (variables, relaciones, tipos)
+3. **WorldGenTool** construye la red bayesiana (DAG + CPDs) — programático
+4. **WorldCheckTool** valida que el mundo sea interesante y no trivial
+5. Si falla, el LLM ajusta parámetros y reintenta
+6. **El LLM genera la capa semántica**: nombres, narrativa, descripción
+7. **El LLM diseña el research case**: pregunta principal, sub-preguntas,
+   qué tipo de evaluación para cada una, qué datos presenta, qué acciones
+   ofrece, con qué costos
+8. **Los tools validan cada pregunta**: que tenga respuesta computable desde
+   el BN, que la evaluación no sea trivial
+9. **Se arma el ResearchCase** con todo empaquetado
+
+**Principio clave: el orchestrator propone, los tools validan.** El LLM
+tiene libertad creativa para diseñar el caso, pero cada pregunta debe
+tener una respuesta verificable matemáticamente desde la red bayesiana.
+El LLM nunca toca los números — propone estructura, semántica, y preguntas.
 
 ### Validación
 
 - DAG válido (acíclico)
 - Entropía adecuada (ni trivial ni imposible)
 - D-separaciones no triviales
-- El teacher solver puede resolverlo con >90% accuracy
+- El teacher solver puede resolverlo
+- Cada pregunta del caso tiene respuesta computable desde el BN
+- Las evaluaciones no son triviales (NBO no degenerada, hipótesis distinguibles)
 
 ---
 
@@ -457,27 +502,36 @@ Y al igual que las formales, no son una lista cerrada — se pueden diseñar
 evaluaciones semánticas nuevas según el dominio o el tipo de razonamiento
 que se quiera medir.
 
-### Múltiples evaluaciones por tarea
+### Múltiples evaluaciones por caso (ResearchCase)
 
-Un mismo problema de investigación puede tener varias preguntas, cada una
-con su evaluación formal:
+Un research case completo tiene una pregunta principal y sub-preguntas.
+**Las preguntas las diseña el orchestrator** según el caso, no un template fijo.
+Cada pregunta tiene un tipo de evaluación del catálogo (extensible):
 
 ```
-Problema: Declive de producción de algas
+ResearchCase: Declive de producción de algas en Nelvara
 
-Evaluación 1 (principal): ¿Cuál es la causa más probable?
-  → inferir target, scored por KL divergence
+Pregunta principal: ¿Cuál es la causa más probable del declive?
+  → infer_target, scored por KL divergence, weight=0.5
 
-Evaluación 2: ¿Qué medición adicional sería más informativa?
-  → mejor próxima acción, scored por info gain
+Sub-pregunta 1: ¿Qué medición adicional sería más informativa?
+  → next_best_obs, scored por info gain ratio, weight=0.2
 
-Evaluación 3: Si eliminamos el compuesto del sedimento, ¿se recupera la producción?
-  → efecto causal, scored por diferencia con P(Y | do(X))
+Sub-pregunta 2: Si eliminamos el compuesto del sedimento, ¿se recupera?
+  → causal_effect, scored por diferencia con P(Y | do(X)), weight=0.2
 
-Sub-evaluación: Calidad del proceso
-  → ¿Usó el budget eficientemente? ¿Pidió observaciones relevantes?
-  → scored por info acumulada vs budget gastado
+Sub-evaluación: Calidad del proceso investigativo
+  → efficiency, scored por info acumulada vs budget gastado, weight=0.1
+
+Budget compartido: 5 unidades para todo el caso
+Score compuesto: weighted sum de los scores individuales
 ```
+
+No todos los casos tienen las mismas preguntas. Un caso con estructura de
+collider puede generar preguntas causales. Un caso con cadena larga puede
+enfocarse en predicción y estrategia de medición. **El orchestrator decide
+qué preguntas son interesantes para cada caso**, los tools verifican que
+cada pregunta sea computable y no trivial.
 
 ### Métricas transversales
 
@@ -654,11 +708,15 @@ Corresponde a la **Etapa 1** de WORLD_DESIGN.md: motifs curados.
 ### v2 — Composición controlada + research cases (en curso)
 
 DAGs arbitrarios via `DAGSpec`, composición de motifs, datos más ricos
-(múltiples datasets, datos parciales, observaciones aisladas), narrativas
-elaboradas con contexto teórico, acciones con costos variados. Mundos
-de 10-25 nodos con múltiples latentes.
+(múltiples datasets, datos parciales, narrativas). El cambio más importante:
+**el orchestrator pasa de generar solo el mundo a diseñar el research case
+completo** — elige qué preguntas hacer, qué evaluaciones usar, qué datos
+presentar. `ResearchCase` como generalización de `TaskBundle`. Acciones
+con costos variados. Mundos de 10-25 nodos con múltiples latentes.
+Paper-seeded cases como input más potente.
 
 Corresponde a la **Etapa 2** de WORLD_DESIGN.md: composición controlada.
+Ver también "Diseño de Research Cases" en WORLD_DESIGN.md.
 
 ### v3 — Mechanism-first + evaluación profunda
 
