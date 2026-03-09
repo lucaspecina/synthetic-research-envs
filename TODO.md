@@ -159,9 +159,10 @@
 > scoring en VerifierTool, teacher solver support, tests.
 > Ver tabla completa en WORLD_DESIGN.md "Catalogo de evaluaciones".
 
-- [ ] **B.1**: `causal_effect` — Si do(X=x), qué pasa con Y? (do-calculus, pgmpy lo soporta)
-  > El más accesible. pgmpy tiene `CausalInference` con `do()`. Score: KL entre
-  > P_agent(Y|do(X)) y P_true(Y|do(X)). Teacher: calcula do-calculus exacto.
+- [x] **B.1**: `causal_effect` — Si do(X=x), qué pasa con Y? (do-calculus, pgmpy lo soporta)
+  > Implementado: `ExactBayesSolver.causal_query()`, `TaskGenTool._causal_effect_task()`,
+  > `Task.intervention` field, `TaskType.CAUSAL_EFFECT`. 14 nuevos tests. Score: KL.
+  > E2E validado: do() != observe() en latent_preference/fork_collider (confounders).
 - [ ] **B.2**: `prediction` — Dado lo observado, qué valor tendrá Z? (posterior de Z)
   > Muy parecido a infer_target pero con un nodo distinto al target. Fácil de agregar.
 - [ ] **B.3**: `structure_discovery` — Cuál es la estructura causal? (SHD metric)

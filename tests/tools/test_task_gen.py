@@ -372,15 +372,11 @@ def test_generate_all_returns_bundle(world):
     assert bundle.seed == 42
 
 
-def test_bundle_has_all_3_task_types(world):
+def test_bundle_has_all_task_types(world):
     tool = TaskGenTool()
     bundle = tool.generate_all(world, seed=42)
 
-    assert set(bundle.tasks.keys()) == {
-        TaskType.INFER_TARGET,
-        TaskType.NEXT_BEST_OBSERVATION,
-        TaskType.HYPOTHESIS_SELECTION,
-    }
+    assert set(bundle.tasks.keys()) == set(TaskType)
 
 
 def test_bundle_property_accessors(world):
@@ -447,7 +443,7 @@ def test_bundle_works_across_templates():
         ))
         bundle = tool.generate_all(world, seed=42)
 
-        assert len(bundle.tasks) == 3, f"Missing tasks for {template}"
+        assert len(bundle.tasks) == len(TaskType), f"Missing tasks for {template}"
         for tt in TaskType:
             assert tt in bundle.tasks, f"Missing {tt} for {template}"
 
@@ -460,9 +456,141 @@ def test_bundle_serialization(world):
     restored = TaskBundle.model_validate(data)
 
     assert restored.world_id == bundle.world_id
-    assert len(restored.tasks) == 3
+    assert len(restored.tasks) == len(TaskType)
     for tt in TaskType:
         assert restored.tasks[tt].correct_answer == bundle.tasks[tt].correct_answer
+
+
+# --- causal_effect tests ---
+
+
+def test_causal_effect_task_generates(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    assert task.type == TaskType.CAUSAL_EFFECT
+    assert task.scoring_method == "kl_divergence"
+    assert len(task.intervention) == 1
+
+
+def test_causal_effect_has_intervention(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    # Intervention should be a single node -> state pair
+    assert len(task.intervention) == 1
+    int_node = list(task.intervention.keys())[0]
+    obs_names = {n.name for n in world.nodes if n.type == NodeType.OBSERVABLE}
+    assert int_node in obs_names
+
+
+def test_causal_effect_correct_answer_is_distribution(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    assert isinstance(task.correct_answer, dict)
+    assert abs(sum(task.correct_answer.values()) - 1.0) < 1e-4
+    assert all(p >= 0 for p in task.correct_answer.values())
+
+
+def test_causal_effect_question_mentions_intervention(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    int_node = list(task.intervention.keys())[0]
+    assert int_node in task.question
+    assert "intervene" in task.question.lower() or "do-operation" in task.question.lower()
+
+
+def test_causal_effect_excludes_intervention_node(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    int_node = list(task.intervention.keys())[0]
+    assert int_node not in task.available_evidence
+
+
+def test_causal_effect_deterministic(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+    )
+    t1 = tool.generate(world, spec, seed=99)
+    t2 = tool.generate(world, spec, seed=99)
+
+    assert t1.intervention == t2.intervention
+    assert t1.correct_answer == t2.correct_answer
+
+
+def test_causal_effect_different_seeds_can_differ(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+    )
+    t1 = tool.generate(world, spec, seed=0)
+    t2 = tool.generate(world, spec, seed=1)
+
+    # Different seeds may pick different intervention nodes or states
+    differs = (
+        t1.intervention != t2.intervention
+        or t1.correct_answer != t2.correct_answer
+    )
+    assert differs
+
+
+def test_causal_effect_works_across_templates():
+    gen = WorldGenTool()
+    tool = TaskGenTool()
+
+    for template in ["latent_preference", "causal_chain", "fork_collider"]:
+        nodes = 7 if template == "fork_collider" else 6
+        world = gen.generate(WorldGenConfig(
+            template_family=template, seed=42, num_nodes=nodes, edge_strength=0.7
+        ))
+        spec = TaskSpec(
+            type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+        )
+        task = tool.generate(world, spec, seed=42)
+        assert len(task.intervention) == 1, f"No intervention for {template}"
+        assert abs(sum(task.correct_answer.values()) - 1.0) < 1e-4
+
+
+def test_causal_effect_prefers_nodes_with_effect():
+    """Causal effect tasks should prefer nodes with actual causal effects."""
+    gen = WorldGenTool()
+    tool = TaskGenTool()
+
+    # In causal_chain, all observable nodes have causal effects
+    world = gen.generate(WorldGenConfig(
+        template_family="causal_chain", seed=42, num_nodes=6, edge_strength=0.7
+    ))
+    spec = TaskSpec(
+        type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5
+    )
+
+    # Run 10 times — should always pick a node with actual causal effect
+    for seed in range(10):
+        task = tool.generate(world, spec, seed=seed)
+        int_node = list(task.intervention.keys())[0]
+        # In causal_chain, all stages have causal effect on target
+        assert "stage" in int_node or "root" in int_node, (
+            f"Unexpected intervention node: {int_node}"
+        )
 
 
 # --- generate_from_plan tests ---
@@ -550,7 +678,11 @@ def test_generate_from_plan_all_three_types(world):
     tasks = tool.generate_from_plan(world, plan)
     assert len(tasks) == 3
     types = {t.type for t in tasks}
-    assert types == set(TaskType)
+    assert types == {
+        TaskType.INFER_TARGET,
+        TaskType.NEXT_BEST_OBSERVATION,
+        TaskType.HYPOTHESIS_SELECTION,
+    }
 
 
 def test_generate_from_plan_tasks_have_correct_answers(world):

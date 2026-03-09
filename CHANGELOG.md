@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — B.1: causal_effect eval type (do-calculus)
+- **`TaskType.CAUSAL_EFFECT`** added to eval catalog — first new eval type beyond the original 3
+- **`ExactBayesSolver.causal_query()`**: computes P(target | do(node=state)) using pgmpy's `CausalInference`
+  - Correctly distinguishes interventional from observational: do() != observe() when confounders exist
+  - Works across all template families (latent_preference, causal_chain, fork_collider)
+- **`TaskGenTool._causal_effect_task()`**: generates causal effect tasks
+  - Finds observable nodes with actual causal effect on target (max_diff > 0.02)
+  - Weighted selection toward nodes with stronger effects
+  - Picks random intervention state, computes P(target | do(node=state)) as correct answer
+  - Question text explains the do-operation distinction to the agent
+- **`Task.intervention`** field: stores {node: state} for the do() operation
+- **`design_case` tool** updated: `causal_effect` added to enum in orchestrator prompts
+- **`generate_all()` / `TaskBundle`** updated: now generates all 4 task types
+- **14 new tests** (was 465, now 478+existing fixes):
+  - 10 causal_effect task generation tests (structure, determinism, cross-template, weighted selection)
+  - 4 causal_query solver tests (valid distribution, do!=observe, non-causal node, causal chain)
+- **E2E validated**: 7 configs (3 templates × 6-10 nodes), confirmed:
+  - do() differs from observe() in latent_preference and fork_collider (confounders)
+  - do() equals observe() in causal_chain (no confounders on chain path)
+  - Intervention nodes selected with weighted preference for stronger effects
+
 ### 2026-03-09 — CasePlan: orchestrator designs research cases (Slice 1)
 - **`CasePlan` model** (`src/sreg/models/case_plan.py`):
   - `EvalQuestionPlan`: question_text, eval_type (validated against TaskType), target_node, rationale

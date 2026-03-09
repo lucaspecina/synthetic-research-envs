@@ -208,3 +208,51 @@ def test_teacher_accuracy_above_90_percent():
 
     accuracy = correct / total
     assert accuracy > 0.90, f"Teacher accuracy {accuracy:.1%} ({correct}/{total}) is below 90%"
+
+
+# --- Causal query (do-calculus) ---
+
+
+def test_causal_query_returns_valid_distribution(solver):
+    result = solver.causal_query("target_outcome", do={"indicator_4": "low"})
+    assert abs(sum(result.values()) - 1.0) < 1e-6
+    assert all(p >= 0 for p in result.values())
+
+
+def test_causal_query_differs_from_observational(solver):
+    """do(X) != observe(X) when there are confounders."""
+    # indicator_4 -> target_outcome, and hidden_cause -> both
+    do_dist = solver.causal_query("target_outcome", do={"indicator_4": "low"})
+    obs_dist = solver.posterior("target_outcome", {"indicator_4": "low"})
+
+    # They should differ because hidden_cause confounds the relationship
+    diffs = [abs(do_dist[s] - obs_dist[s]) for s in do_dist]
+    max_diff = max(diffs)
+    assert max_diff > 0.01, "do() and observe() should differ with confounders"
+
+
+def test_causal_query_no_effect_non_causal_node(solver):
+    """do(indicator_1) should NOT affect target (no causal path)."""
+    do_low = solver.causal_query("target_outcome", do={"indicator_1": "low"})
+    do_high = solver.causal_query("target_outcome", do={"indicator_1": "high"})
+    prior = solver.posterior("target_outcome")
+
+    # All three should be (nearly) identical
+    for s in do_low:
+        assert abs(do_low[s] - prior[s]) < 1e-6
+        assert abs(do_high[s] - prior[s]) < 1e-6
+
+
+def test_causal_query_with_causal_chain():
+    """In a causal chain, do(stage_N) should affect target."""
+    gen = WorldGenTool()
+    world = gen.generate(WorldGenConfig(
+        template_family="causal_chain", seed=42, num_nodes=6, edge_strength=0.7
+    ))
+    solver = ExactBayesSolver(world)
+
+    do_low = solver.causal_query("target_outcome", do={"stage_4": "low"})
+    do_high = solver.causal_query("target_outcome", do={"stage_4": "high"})
+
+    max_diff = max(abs(do_low[s] - do_high[s]) for s in do_low)
+    assert max_diff > 0.1, "stage_4 should have strong causal effect on target"

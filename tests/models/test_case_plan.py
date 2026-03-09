@@ -146,7 +146,11 @@ class TestCasePlan:
             shared_budget=8,
         )
         assert len(plan.questions) == 3
-        assert plan.eval_types == set(TaskType)
+        assert plan.eval_types == {
+            TaskType.INFER_TARGET,
+            TaskType.NEXT_BEST_OBSERVATION,
+            TaskType.HYPOTHESIS_SELECTION,
+        }
 
     def test_no_questions_fails(self):
         with pytest.raises(ValidationError, match="at least 1"):

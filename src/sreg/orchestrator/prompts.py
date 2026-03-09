@@ -25,7 +25,7 @@ generic name. (If you used `dag_construct` with semantic names, use identity map
 built, design a set of evaluation questions that are specific to this scenario. \
 Don't just ask generic questions — think about what a researcher would actually want \
 to know given this causal structure and domain. Each question must specify an eval_type \
-(infer_target, next_best_observation, or hypothesis_selection) and a target_node. \
+(infer_target, next_best_observation, hypothesis_selection, or causal_effect) and a target_node. \
 The first question is the primary one. You choose the shared_budget.
 5. **Build the problem** by calling `build_problem`. This is REQUIRED — do NOT stop \
 after design_case. You must call build_problem to sample data and produce the \
@@ -504,6 +504,7 @@ TOOL_DEFINITIONS = [
                                         "infer_target",
                                         "next_best_observation",
                                         "hypothesis_selection",
+                                        "causal_effect",
                                     ],
                                     "description": "Type of evaluation",
                                 },

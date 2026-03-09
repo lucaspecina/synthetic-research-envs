@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import networkx as nx
 import numpy as np
-from pgmpy.inference import VariableElimination
+from pgmpy.inference import CausalInference, VariableElimination
 
 from sreg.models.episode import Action, ActionType
 from sreg.models.teacher import TeacherOutput
@@ -30,6 +30,18 @@ class ExactBayesSolver:
     def posterior(self, target: str, evidence: dict[str, str] | None = None) -> dict[str, float]:
         """Compute P(target | evidence)."""
         result = self._inference.query([target], evidence=evidence or {})
+        values = result.values.flatten().tolist()
+        states = self._node_states[target]
+        return dict(zip(states, values))
+
+    def causal_query(
+        self, target: str, do: dict[str, str], evidence: dict[str, str] | None = None
+    ) -> dict[str, float]:
+        """Compute P(target | do(intervention), evidence) using do-calculus."""
+        ci = CausalInference(self._model)
+        result = ci.query(
+            [target], do=do, evidence=evidence or {}, show_progress=False
+        )
         values = result.values.flatten().tolist()
         states = self._node_states[target]
         return dict(zip(states, values))

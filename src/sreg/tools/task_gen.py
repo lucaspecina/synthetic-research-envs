@@ -53,6 +53,8 @@ class TaskGenTool:
             return self._next_best_observation_task(world, spec, seed)
         if spec.type == TaskType.HYPOTHESIS_SELECTION:
             return self._hypothesis_selection_task(world, spec, seed)
+        if spec.type == TaskType.CAUSAL_EFFECT:
+            return self._causal_effect_task(world, spec, seed)
         raise ValueError(f"Unsupported task type: {spec.type}")
 
     def _infer_target_task(self, world: World, spec: TaskSpec) -> Task:
@@ -230,6 +232,76 @@ class TaskGenTool:
             hypotheses=shuffled_hypotheses,
         )
 
+
+    def _causal_effect_task(
+        self, world: World, spec: TaskSpec, seed: int
+    ) -> Task:
+        solver = ExactBayesSolver(world)
+        target = spec.target_node
+        obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+        rng = np.random.default_rng(seed)
+
+        # Find observable nodes with a causal effect on target
+        # (nodes where do(node=state_a) != do(node=state_b) for target)
+        causal_nodes = []
+        for node in obs_nodes:
+            node_obj = next(n for n in world.nodes if n.name == node)
+            states = node_obj.states
+            dist_first = solver.causal_query(target, do={node: states[0]})
+            dist_last = solver.causal_query(target, do={node: states[-1]})
+            max_diff = max(
+                abs(dist_first[s] - dist_last[s])
+                for s in dist_first
+            )
+            if max_diff > 0.02:
+                causal_nodes.append((node, max_diff))
+
+        if not causal_nodes:
+            # Fallback: use any observable node (effect will be zero — degenerate)
+            causal_nodes = [(obs_nodes[0], 0.0)]
+
+        # Pick an intervention node (weighted toward stronger effects)
+        causal_nodes.sort(key=lambda x: x[1], reverse=True)
+        weights = np.array([c[1] for c in causal_nodes])
+        if weights.sum() > 0:
+            weights = weights / weights.sum()
+        else:
+            weights = np.ones(len(causal_nodes)) / len(causal_nodes)
+        chosen_idx = rng.choice(len(causal_nodes), p=weights)
+        intervention_node = causal_nodes[chosen_idx][0]
+
+        # Pick an intervention value
+        int_node_obj = next(n for n in world.nodes if n.name == intervention_node)
+        int_state = int_node_obj.states[rng.choice(len(int_node_obj.states))]
+
+        # Compute P(target | do(intervention_node = int_state))
+        do_dist = solver.causal_query(target, do={intervention_node: int_state})
+
+        # Available evidence: all obs nodes except the intervention node
+        remaining = [n for n in obs_nodes if n != intervention_node]
+
+        target_node_obj = next(n for n in world.nodes if n.name == target)
+        state_list = ", ".join(target_node_obj.states)
+
+        question = (
+            f"If we intervene and set '{intervention_node}' to '{int_state}', "
+            f"what would be the probability distribution over '{target}' "
+            f"(possible states: {state_list})? "
+            f"This is a causal question: you are asked about the effect of an "
+            f"intervention (do-operation), not just an observation."
+        )
+
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=target,
+            available_evidence=remaining,
+            correct_answer={s: round(p, 6) for s, p in do_dist.items()},
+            scoring_method="kl_divergence",
+            intervention={intervention_node: int_state},
+        )
 
     def generate_from_plan(
         self,

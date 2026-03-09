@@ -11,6 +11,7 @@ class TaskType(StrEnum):
     INFER_TARGET = "infer_target"
     NEXT_BEST_OBSERVATION = "next_best_observation"
     HYPOTHESIS_SELECTION = "hypothesis_selection"
+    CAUSAL_EFFECT = "causal_effect"
 
 
 class TaskSpec(BaseModel):
@@ -47,6 +48,10 @@ class Task(BaseModel):
     hypotheses: dict[str, dict[str, float]] = Field(
         default_factory=dict,
         description="Labeled hypotheses for hypothesis_selection: {label: {state: prob}}",
+    )
+    intervention: dict[str, str] = Field(
+        default_factory=dict,
+        description="Intervention for causal_effect: {node: state} (the do() operation)",
     )
 
 

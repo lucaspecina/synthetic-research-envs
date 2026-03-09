@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 465 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 3 tipos de tarea. CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
+**Estado actual: 478 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 4 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
 
 ---
 
@@ -164,7 +164,7 @@ causal, no solo estadístico.
 
 ## Task types — las preguntas que hacemos
 
-Cada mundo puede generar distintos tipos de preguntas. Hoy hay 3:
+Cada mundo puede generar distintos tipos de preguntas. Hoy hay 4:
 
 ### `infer_target` — "¿Cuál es la respuesta?"
 
@@ -232,15 +232,36 @@ Elegí A, B, C, o D.
 calcular P(X=0.73) — te piden comparar teorías y elegir la que mejor explica
 los datos.
 
-### Diferencias clave entre los 3 task types
+### `causal_effect` — "¿Qué pasa si intervengo?"
 
-| | infer_target | next_best_observation | hypothesis_selection |
-|---|---|---|---|
-| **Qué mide** | Calidad de la estimación | Calidad de la estrategia | Capacidad de comparar |
-| **Input** | Datos + acciones | Evidencia parcial + opciones | Evidencia parcial + 4 hipótesis |
-| **Output** | Distribución de probabilidad | Un nodo (cuál medir) | Una letra (A/B/C/D) |
-| **Scoring** | KL divergence (continuo) | IG ratio (continuo) | Accuracy (binario) |
-| **Agente interactúa?** | Sí, hace observaciones | No, solo elige | No, solo elige |
+**La pregunta:** "Si forzamos la variable X al valor v (intervención, do-calculus),
+¿cuál es la distribución de probabilidad del target?"
+
+**Cómo funciona:**
+1. El sistema encuentra nodos con efecto causal real sobre el target
+2. Elige un nodo y un estado para la intervención (ponderado: efectos más fuertes = más probable)
+3. Calcula P(target | do(nodo=estado)) usando do-calculus exacto
+4. El agente tiene que estimar esa distribución interventional
+
+**Ejemplo:** "Si forzamos `soil_treatment` a `high`, ¿cuál es la distribución
+de probabilidad de `crop_yield`? OJO: esto es una intervención (do), no una
+observación. La diferencia importa."
+
+**Scoring:** KL divergence. 0.0 = perfecto.
+
+**Por qué es interesante:** Testea razonamiento causal, no solo estadístico.
+`P(Y | do(X=x))` != `P(Y | X=x)` cuando hay confounders. El agente tiene que
+entender la diferencia entre ver que algo pasa (observar) y hacer que pase (intervenir).
+
+### Diferencias clave entre los 4 task types
+
+| | infer_target | next_best_observation | hypothesis_selection | causal_effect |
+|---|---|---|---|---|
+| **Qué mide** | Calidad de la estimación | Calidad de la estrategia | Capacidad de comparar | Razonamiento causal |
+| **Input** | Datos + acciones | Evidencia parcial + opciones | Evidencia parcial + 4 hipótesis | Intervención propuesta |
+| **Output** | Distribución de probabilidad | Un nodo (cuál medir) | Una letra (A/B/C/D) | Distribución interventional |
+| **Scoring** | KL divergence (continuo) | IG ratio (continuo) | Accuracy (binario) | KL divergence (continuo) |
+| **Agente interactúa?** | Sí, hace observaciones | No, solo elige | No, solo elige | No, solo estima |
 
 ---
 
@@ -255,7 +276,7 @@ pip install -e ".[dev]"
 
 ### Correr tests
 ```bash
-pytest tests/ -v                          # Todos (465 tests)
+pytest tests/ -v                          # Todos (478 tests)
 pytest tests/tools/test_task_gen.py -v    # Solo task generation
 pytest tests/tools/test_fork_collider.py  # Solo fork_collider template
 ```
@@ -366,7 +387,7 @@ python scripts/test_agent.py
 | **World check** | `src/sreg/tools/world_check.py` | Valida mundos: DAG acíclico, entropía, d-separaciones, max parents, treewidth |
 | **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Inferencia bayesiana exacta: posteriors, information gain, acciones óptimas |
 | **Episode gen** | `src/sreg/tools/episode_gen.py` | Crea episodios: budget, nodos disponibles, costos por observación |
-| **Task gen** | `src/sreg/tools/task_gen.py` | Genera los 3 tipos de tarea con su respuesta correcta + `generate_from_plan` (plan-driven) |
+| **Task gen** | `src/sreg/tools/task_gen.py` | Genera los 4 tipos de tarea con su respuesta correcta + `generate_from_plan` (plan-driven) |
 | **Verifier** | `src/sreg/tools/verifier.py` | Puntúa al agente: KL divergence, IG ratio, hypothesis accuracy |
 | **Episode runner** | `src/sreg/env/` | Interfaz paso a paso: el agente observa → el runner responde |
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
@@ -395,6 +416,7 @@ state = solver.sample_state(seed=42)                      # → dict[str, str]
 post = solver.posterior("target_outcome", evidence)        # → dict[str, float]
 ig = solver.information_gain("target", evidence, node)     # → float
 out = solver.optimal_action("target", evidence, nodes)     # → TeacherOutput
+do_dist = solver.causal_query("target", do={"node": "val"})  # → dict[str, float] (do-calculus)
 # out.recommended_action.node → str, out.information_gain → float
 ```
 
@@ -421,6 +443,12 @@ spec = TaskSpec(type=TaskType.HYPOTHESIS_SELECTION, target_node="target_outcome"
 task = TaskGenTool().generate(world, spec, seed=42)
 # task.hypotheses → {"A": {"low": 0.7, ...}, "B": {...}, "C": {...}, "D": {...}}
 # task.correct_answer → {"A": 0.0, "B": 1.5, "C": 0.8, "D": 2.0}  (KL from true)
+
+# causal_effect
+spec = TaskSpec(type=TaskType.CAUSAL_EFFECT, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)
+# task.intervention → {"indicator_4": "low"}  (the do() operation)
+# task.correct_answer → {"low": 0.6, "medium": 0.3, "high": 0.1}  (P(target | do()))
 ```
 
 ### Scoring
@@ -482,7 +510,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **465 tests** en todos los módulos
+- **478 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
@@ -494,6 +522,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - E2E validation DAG generators: 50 configs (10x5 seeds), teacher>prior 94%, NBO 76%, hyp 80%
   - QualitySuite v2: 48 tests (capas A, B multi-rollout, C + runner + report + cross-template + cross-generator)
   - CasePlan + design_case: 35 tests (model validation, generate_from_plan, orchestrator dispatch)
+  - causal_effect: 14 tests (solver causal_query + task generation + cross-template + weighted selection)
 
 ---
 
