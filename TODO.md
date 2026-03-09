@@ -69,9 +69,41 @@
 - [x] Ajustar Capa C: reemplazar `ig_gap_std` por `entropy_reduction_std`
 - [x] Actualizar tests para nuevas metricas (48 tests)
 - [x] E2E con LLM: verificar que las metricas nuevas dan resultados coherentes
-- [ ] Recorrer batches grandes y comparar generators/templates con metricas v2
+- [x] Recorrer batches grandes y comparar generators/templates con metricas v2
+  > Hallazgos clave: 10-12 nodos + es=0.5-0.7 es el regimen optimo. 6-8 nodos no
+  > sirven para estrategia (budget satura). preferential_attachment eliminable (0% WC).
+  > Documentado en WORLD_DESIGN.md "Batch sweep: regimenes de generacion".
 
-### Composicion de motifs (siguiente — despues del prototipo)
+### Enriquecimiento del case (SIGUIENTE FOCO — decision 2026-03-09)
+> **Diagnostico de alineacion con PROJECT.md**: el nucleo formal (BN, generacion,
+> teacher, QualitySuite) esta solido y alineado. El gap principal ya no esta en el
+> world model sino en la **riqueza del case que ve el agente**. Las 3 tasks actuales
+> son evaluaciones ancla validas, no el espacio final. El budget actual es un proxy
+> simple de costo de adquisicion de evidencia, no la version final.
+>
+> Prioridades en orden:
+
+#### 1. Dataset-rich evidence
+- [ ] Multiple datasets per problem (tabular + observations + partial data)
+- [ ] Missing data / incomplete observations
+- [ ] Metadata per dataset (source, date, instrument, quality)
+- [ ] Narrative observations ("el sector sur no muestra declive...")
+- [ ] Temporal dimension: datasets with time column, before/after events
+- [ ] Richer data sampler: multiple formats, configurable per world
+
+#### 2. Rich actions
+- [ ] Variable action costs (not all cost 1)
+- [ ] Actions that reveal multiple nodes (e.g., "analisis de sedimentos" → 3 variables)
+- [ ] Domain-specific action descriptions (not just "observe X")
+- [ ] Actions as evidence acquisition with semantic meaning
+
+#### 3. CaseBundle multi-task
+- [ ] CaseBundle model: world + semantics + evidence + actions + multiple evaluations
+- [ ] Shared budget across multiple questions in the same case
+- [ ] Connected evaluations: main question + sub-questions + strategy evaluation
+- [ ] Integrated multi-question problems: one budget, multiple evaluation points
+
+### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
 - [x] DAG generators: Erdos-Renyi, spanning tree, preferential attachment, layered (inspired by Reasoning Core)
 - [ ] Expressive range analysis: generate 100+ worlds, measure distributions, detect biases
@@ -82,21 +114,14 @@
 - [ ] Unificar `generate()` y `generate_custom()` en una sola API de WorldGenTool
 - [ ] Seeds desde papers: LLM extrae estructura causal de texto -> `dag_construct`
 
-### Datos mas ricos
-- [ ] Multiple datasets per problem (tabular + observations + partial data)
-- [ ] Missing data / incomplete observations
-- [ ] Variable action costs (not all cost 1)
-- [ ] Richer data sampler: multiple formats, metadata
+### Narrativa elaborada
+- [ ] Theoretical context: prior studies, hints, misleading context
+- [ ] Richer semantic layer: apply_semantics generates multi-paragraph narrative
 
 ### Semantic mode (pregunta abierta — ver WORLD_DESIGN.md #5)
 - [ ] Decidir: semantic_mode configurable (full / abstract / fictional)
 - [ ] Implementar modo abstracto (sin apply_semantics, variables genéricas)
 - [ ] Experimentar: comparar respuestas del agent en cada modo
-
-### Narrativa elaborada
-- [ ] Theoretical context: prior studies, hints, misleading context
-- [ ] Richer semantic layer: apply_semantics generates multi-paragraph narrative
-- [ ] Domain-specific action descriptions (not just "observe X")
 
 ## v3 — Mechanism-first + evaluacion profunda (Etapa 3)
 
@@ -106,11 +131,6 @@
 - [ ] `WorldComposer`: combines mechanisms into a world (resolves conflicts, shared vars)
 - [ ] Rival mechanisms as competing hypotheses (structure selection tasks)
 - [ ] Generator health metrics: acceptance rate, structural diversity, distinguishability
-- [ ] `CaseBundle` concept: world + semantics + evidence + actions + multiple evaluations
-
-### Research cases integrados
-- [ ] Integrated multi-question problems: one budget, multiple evaluation points
-- [ ] Seeds from papers or documents (LLM extracts DAG structure → CustomTemplate)
 
 ### Evaluacion avanzada
 - [ ] Intervention tasks (do-calculus via graph surgery)

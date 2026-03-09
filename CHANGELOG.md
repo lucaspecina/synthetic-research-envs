@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — Batch sweep: systematic generator/template comparison
+- **`scripts/batch_sweep.py`**: 336 worlds across 7 generators/templates x 4 node counts x 4 edge strengths
+- **Key finding: 10-12 nodes is the sweet spot** for research cases with real strategy.
+  6-node worlds are budget-saturated (TbRR=0.00), 8 nodes is a "death valley" (21% bundle).
+  12 nodes: budget_ratio=0.50, TbRR=0.60, bundle=86%.
+- **edge_strength 0.5-0.7 is optimal**. At 0.9, hypothesis distinguishability drops to 43%
+  (prior distractor becomes nearly identical to posterior).
+- **preferential_attachment eliminated**: 0% WorldCheck pass across all 48 configs.
+- **Best generators**: spanning_tree and layered for DAGs, all templates work well at 10+ nodes.
+- **Strategic decision**: this closes the formal core validation. Next focus shifts to
+  enriching the case presentation (dataset-rich evidence, rich actions, CaseBundle).
+- Findings documented in WORLD_DESIGN.md "Batch sweep: regimenes de generacion".
+
 ### 2026-03-09 — QualitySuite metric redesign: multi-rollout + entropy reduction
 - **Critical finding**: `teacher_beats_prior` metric (KL vs one-hot) penalizes correct
   inference when sampled true state is atypical. Documented with concrete example in WORLD_DESIGN.md.

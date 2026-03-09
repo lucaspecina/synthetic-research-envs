@@ -1364,6 +1364,79 @@ usar Dirichlet random en vez de reversed-posterior) mejora esto.
 - El teacher con budget=3 ya llega a KL=0: necesitamos mundos donde el budget
   sea mas restrictivo (mas nodos, target mas lejano de observables)
 
+### Batch sweep: regimenes de generacion (2026-03-09)
+
+Sweep sistematico de 336 mundos (7 generators/templates x 4 node counts x 4 edge
+strengths x 3 seeds), con QualitySuite v2 (3 rollouts por mundo). Objetivo: identificar
+que configuraciones producen mundos con informacion util y estrategia real.
+
+Script: `scripts/batch_sweep.py`
+
+**Hallazgo principal: el numero de nodos determina si hay estrategia real.**
+
+| Nodes | BudR | TbRR | NBO | Hyp | Bundle |
+|-------|------|------|-----|-----|--------|
+| 6 | 1.43 | 0.00 | 0.88 | 0.64 | 63% |
+| 8 | 1.30 | 0.11 | 0.48 | 0.74 | 21% |
+| 10 | 0.71 | 0.40 | 0.53 | 0.68 | 81% |
+| 12 | 0.50 | 0.60 | 0.52 | 0.74 | 86% |
+
+Con 6 nodos, budget=5 y ~4 observables: teacher y random ven todo. TbRR=0.00 — no
+hay decision estrategica posible. Con 12 nodos: budget=5 y ~10 observables: budget
+ratio 0.50, el teacher tiene que elegir y le gana al random 60% del tiempo.
+
+**8 nodos es un "valle de muerte"**: budget ratio todavia alto pero NBO ya bajo.
+Solo 21% useful_bundle. Peor que 6 y que 10.
+
+**Regimen recomendado: 10-12 nodos.** Budget ratio < 0.8, entropy reduction solida,
+useful_bundle 81-86%.
+
+**edge_strength 0.9 mata la distinguibilidad de hipotesis.**
+
+| ES | EntRd | Hyp | Bundle |
+|----|-------|-----|--------|
+| 0.3 | 0.42 | 0.70 | 70% |
+| 0.5 | 0.61 | 0.80 | 72% |
+| 0.7 | 0.81 | 0.87 | 73% |
+| 0.9 | 1.04 | 0.43 | 35% |
+
+A es=0.9, la evidencia confirma el prior tan fuertemente que el distractor "prior"
+queda casi identico a la posterior verdadera (KL < 0.05). Hyp cae de 0.87 a 0.43.
+**Regimen recomendado: es=0.5-0.7.**
+
+**preferential_attachment: 0% WorldCheck en 48 mundos.**
+
+Eliminable como generador activo. Los grafos hub-spoke densos que produce no tienen
+d-separaciones. 100% de mundos fallan WorldCheck independientemente de num_nodes o
+edge_strength.
+
+**Ranking de generators/templates (agregado):**
+
+| Generator/Template | Bundle | EntRd | BudR | TbRR | Nota |
+|--------------------|--------|-------|------|------|------|
+| layered | 71% | 0.73 | 1.45 | 0.15 | Mejor bundle pero budget_ratio alto |
+| latent_preference | 69% | 0.60 | 0.74 | 0.45 | Equilibrado |
+| spanning_tree | 65% | 0.73 | 0.74 | 0.33 | Solido |
+| erdos_renyi | 59% | 0.58 | 1.51 | 0.28 | Budget_ratio problematico |
+| fork_collider | 56% | 0.80 | 0.74 | 0.24 | Alta entropy_reduction |
+| causal_chain | 56% | 0.87 | 0.74 | 0.23 | Mejor entropy_reduction |
+| pref_attachment | 0% | - | - | - | Eliminable |
+
+Nota: budget_ratio alto en erdos_renyi y layered se debe a que generan nodos sin
+path al target (observables "sueltos"). No necesariamente malo — es un artifact del
+budget formula actual que va a cambiar con rich actions.
+
+**Mejores configs concretas (100% useful_bundle):**
+- `causal_chain n=10-12, es=0.7` — EntRd ~1.0, Hyp 0.89-1.00
+- `fork_collider n=12, es=0.7` — EntRd 0.96, Hyp 1.00
+- `spanning_tree n=12, es=0.7` — EntRd 0.94, Hyp 0.89
+
+**Decision (2026-03-09):** estos hallazgos cierran la validacion del core formal.
+El regimen base para research cases es 10-12 nodos, es=0.5-0.7, con spanning_tree
+o layered como generators por defecto. Mundos de 6-8 nodos quedan solo para unit
+testing. El proximo foco se mueve a enriquecer el case (data, acciones, CaseBundle),
+no a seguir calibrando el generador.
+
 ---
 
 ## Investigacion previa relevante
