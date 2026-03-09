@@ -469,3 +469,366 @@ def test_orchestrator_max_iterations():
     orch.run("Generate endlessly")
 
     assert client.chat.completions.create.call_count == 3
+
+
+# --- dag_generate tool ---
+
+
+def test_tool_definitions_include_dag_tools():
+    names = {t["function"]["name"] for t in TOOL_DEFINITIONS}
+    assert "dag_generate" in names
+    assert "dag_construct" in names
+
+
+def test_dispatch_dag_generate_erdos_renyi():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_generate",
+        {"generator": "erdos_renyi", "num_nodes": 8, "edge_strength": 0.7, "seed": 42},
+        result,
+    )
+
+    assert "world_id" in output
+    assert output["generator"] == "erdos_renyi"
+    assert output["num_nodes"] == 8
+    assert result.world is not None
+
+
+def test_dispatch_dag_generate_spanning_tree():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_generate",
+        {
+            "generator": "spanning_tree",
+            "num_nodes": 10,
+            "extra_edge_prob": 0.15,
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    assert output["num_nodes"] == 10
+    assert output["generator"] == "spanning_tree"
+
+
+def test_dispatch_dag_generate_preferential_attachment():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_generate",
+        {
+            "generator": "preferential_attachment",
+            "num_nodes": 10,
+            "num_edges_per_node": 2,
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    assert output["num_nodes"] == 10
+    assert output["generator"] == "preferential_attachment"
+
+
+def test_dispatch_dag_generate_layered():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_generate",
+        {
+            "generator": "layered",
+            "num_layers": 3,
+            "nodes_per_layer": 3,
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    assert output["num_nodes"] == 9
+    assert output["generator"] == "layered"
+
+
+def test_dispatch_dag_generate_unknown_generator():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_generate",
+        {"generator": "nonexistent", "edge_strength": 0.7, "seed": 42},
+        result,
+    )
+
+    assert "error" in output
+    assert "nonexistent" in output["error"]
+
+
+def test_dispatch_dag_generate_with_latents():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_generate",
+        {
+            "generator": "erdos_renyi",
+            "num_nodes": 10,
+            "num_latent": 2,
+            "num_target": 1,
+            "edge_prob": 0.3,
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    assert output["num_nodes"] == 10
+    latent_count = sum(1 for n in output["nodes"] if n["type"] == "latent")
+    assert latent_count == 2
+
+
+# --- dag_construct tool ---
+
+
+def test_dispatch_dag_construct_basic():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_construct",
+        {
+            "nodes": [
+                {"name": "cause", "type": "latent", "states": ["on", "off"]},
+                {"name": "sensor_a", "type": "observable", "states": ["low", "high"]},
+                {"name": "sensor_b", "type": "observable", "states": ["low", "high"]},
+                {"name": "outcome", "type": "target", "states": ["bad", "good"]},
+            ],
+            "edges": [
+                {"from": "cause", "to": "sensor_a"},
+                {"from": "cause", "to": "sensor_b"},
+                {"from": "sensor_a", "to": "outcome"},
+            ],
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    assert "world_id" in output
+    assert output["num_nodes"] == 4
+    assert result.world is not None
+    node_names = [n["name"] for n in output["nodes"]]
+    assert "cause" in node_names
+    assert "outcome" in node_names
+
+
+def test_dispatch_dag_construct_invalid_cycle():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_construct",
+        {
+            "nodes": [
+                {"name": "a", "type": "observable", "states": ["x", "y"]},
+                {"name": "b", "type": "observable", "states": ["x", "y"]},
+                {"name": "c", "type": "target", "states": ["x", "y"]},
+            ],
+            "edges": [
+                {"from": "a", "to": "b"},
+                {"from": "b", "to": "c"},
+                {"from": "c", "to": "a"},
+            ],
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    assert "error" in output
+
+
+def test_dispatch_dag_construct_no_target():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_construct",
+        {
+            "nodes": [
+                {"name": "a", "type": "observable", "states": ["x", "y"]},
+                {"name": "b", "type": "observable", "states": ["x", "y"]},
+            ],
+            "edges": [{"from": "a", "to": "b"}],
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    assert "error" in output
+
+
+def test_dispatch_dag_construct_empty_nodes():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_construct",
+        {"nodes": [], "edges": [], "edge_strength": 0.7, "seed": 42},
+        result,
+    )
+
+    assert "error" in output
+
+
+def test_dispatch_dag_construct_empty_edges():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "dag_construct",
+        {
+            "nodes": [
+                {"name": "a", "type": "observable", "states": ["x", "y"]},
+                {"name": "b", "type": "target", "states": ["x", "y"]},
+            ],
+            "edges": [],
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    assert "error" in output
+
+
+# --- dag tools + downstream pipeline ---
+
+
+def test_dag_generate_then_world_check():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    gen_output = orch._dispatch_tool(
+        "dag_generate",
+        {"generator": "spanning_tree", "num_nodes": 8, "edge_strength": 0.7, "seed": 42},
+        result,
+    )
+
+    check_output = orch._dispatch_tool(
+        "world_check",
+        {"world_id": gen_output["world_id"]},
+        result,
+    )
+
+    assert check_output["passed"] is True
+
+
+def test_dag_construct_then_apply_semantics():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    gen_output = orch._dispatch_tool(
+        "dag_construct",
+        {
+            "nodes": [
+                {"name": "hidden", "type": "latent", "states": ["a", "b"]},
+                {"name": "obs1", "type": "observable", "states": ["low", "high"]},
+                {"name": "obs2", "type": "observable", "states": ["low", "high"]},
+                {"name": "target", "type": "target", "states": ["bad", "good"]},
+            ],
+            "edges": [
+                {"from": "hidden", "to": "obs1"},
+                {"from": "hidden", "to": "obs2"},
+                {"from": "obs1", "to": "target"},
+            ],
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+
+    sem_output = orch._dispatch_tool(
+        "apply_semantics",
+        {
+            "world_id": gen_output["world_id"],
+            "scenario_title": "Test",
+            "scenario_description": "A test.",
+            "domain": "testing",
+            "node_renames": {
+                "hidden": "soil_type",
+                "obs1": "ph_level",
+                "obs2": "moisture",
+                "target": "crop_yield",
+            },
+            "node_descriptions": {},
+        },
+        result,
+    )
+
+    assert "error" not in sem_output
+    assert sem_output["nodes_renamed"] == 4
+    node_names = [n["name"] for n in sem_output["nodes"]]
+    assert "soil_type" in node_names
+
+
+def test_dag_generate_full_pipeline():
+    """dag_generate -> world_check -> apply_semantics -> build_problem."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    # Step 1: Generate
+    gen_out = orch._dispatch_tool(
+        "dag_generate",
+        {
+            "generator": "layered",
+            "num_layers": 3,
+            "nodes_per_layer": 2,
+            "num_latent": 1,
+            "edge_strength": 0.7,
+            "seed": 42,
+        },
+        result,
+    )
+    world_id = gen_out["world_id"]
+
+    # Step 2: Check
+    check_out = orch._dispatch_tool("world_check", {"world_id": world_id}, result)
+    assert check_out["passed"] is True
+
+    # Step 3: Apply semantics (rename v0..v5)
+    renames = {}
+    names = ["hidden_factor", "temp_reading", "pressure", "humidity", "wind_speed", "forecast"]
+    for i, n in enumerate(gen_out["nodes"]):
+        renames[n["name"]] = names[i]
+
+    sem_out = orch._dispatch_tool(
+        "apply_semantics",
+        {
+            "world_id": world_id,
+            "scenario_title": "Weather Prediction",
+            "scenario_description": "A weather forecasting problem.",
+            "domain": "meteorology",
+            "node_renames": renames,
+            "node_descriptions": {},
+        },
+        result,
+    )
+    assert "error" not in sem_out
+
+    # Step 4: Build problem
+    prob_out = orch._dispatch_tool(
+        "build_problem",
+        {"world_id": world_id, "budget": 3, "data_format": "tabular"},
+        result,
+    )
+    assert prob_out["title"] == "Weather Prediction"
+    assert prob_out["budget"] == 3
+    assert result.problem is not None

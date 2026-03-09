@@ -57,8 +57,8 @@
 - [ ] Expressive range analysis: generate 100+ worlds, measure distributions, detect biases
 
 ### Integracion LLM orchestrator + DAGSpec
-- [ ] `dag_generate` tool: LLM elige generador (erdos_renyi, layered, etc.) + parametros -> DAGSpec automatico
-- [ ] `dag_construct` tool: LLM especifica nodos y aristas manualmente -> DAGSpec custom
+- [x] `dag_generate` tool: LLM elige generador (erdos_renyi, layered, etc.) + parametros -> DAGSpec automatico
+- [x] `dag_construct` tool: LLM especifica nodos y aristas manualmente -> DAGSpec custom
 - [ ] Unificar `generate()` y `generate_custom()` en una sola API de WorldGenTool
 - [ ] Seeds desde papers: LLM extrae estructura causal de texto -> `dag_construct`
 

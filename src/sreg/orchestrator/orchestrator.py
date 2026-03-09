@@ -12,6 +12,7 @@ from openai import OpenAI
 
 load_dotenv()
 
+from sreg.models.dag_spec import DAGNodeSpec, DAGSpec
 from sreg.models.research_problem import ResearchProblem
 from sreg.models.task import TaskSpec, TaskType
 from sreg.models.world import NodeType, World
@@ -21,7 +22,13 @@ from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
 from sreg.tools.problem_builder import ProblemBuilder
 from sreg.tools.task_gen import TaskGenTool
 from sreg.tools.world_check import WorldCheckTool
-from sreg.tools.world_gen import WorldGenConfig, WorldGenTool
+from sreg.tools.world_gen import CustomWorldGenConfig, WorldGenConfig, WorldGenTool
+from sreg.world.dag_generators import (
+    generate_erdos_renyi,
+    generate_layered,
+    generate_preferential_attachment,
+    generate_spanning_tree,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +155,10 @@ class Orchestrator:
         try:
             if name == "world_gen":
                 return self._handle_world_gen(args, result)
+            elif name == "dag_generate":
+                return self._handle_dag_generate(args, result)
+            elif name == "dag_construct":
+                return self._handle_dag_construct(args, result)
             elif name == "world_check":
                 return self._handle_world_check(args, result)
             elif name == "episode_gen":
@@ -185,6 +196,114 @@ class Orchestrator:
             "num_edges": len(world.edges),
             "difficulty": world.difficulty.level,
             "nodes": [{"name": n.name, "type": n.type, "states": n.states} for n in world.nodes],
+        }
+
+    def _handle_dag_generate(self, args: dict, result: OrchestratorResult) -> dict:
+        generator = args.get("generator", "erdos_renyi")
+        seed = args.get("seed", 42)
+        edge_strength = args.get("edge_strength", 0.7)
+        num_latent = args.get("num_latent", 1)
+        num_target = args.get("num_target", 1)
+        num_states = args.get("num_states", 3)
+
+        generators = {
+            "erdos_renyi": lambda: generate_erdos_renyi(
+                num_nodes=args.get("num_nodes", 10),
+                num_latent=num_latent,
+                num_target=num_target,
+                num_states=num_states,
+                edge_prob=args.get("edge_prob", 0.3),
+                seed=seed,
+            ),
+            "spanning_tree": lambda: generate_spanning_tree(
+                num_nodes=args.get("num_nodes", 10),
+                num_latent=num_latent,
+                num_target=num_target,
+                num_states=num_states,
+                extra_edge_prob=args.get("extra_edge_prob", 0.1),
+                seed=seed,
+            ),
+            "preferential_attachment": lambda: generate_preferential_attachment(
+                num_nodes=args.get("num_nodes", 10),
+                num_latent=num_latent,
+                num_target=num_target,
+                num_states=num_states,
+                num_edges_per_node=args.get("num_edges_per_node", 2),
+                seed=seed,
+            ),
+            "layered": lambda: generate_layered(
+                num_layers=args.get("num_layers", 4),
+                nodes_per_layer=args.get("nodes_per_layer", 3),
+                num_latent=num_latent,
+                num_target=num_target,
+                num_states=num_states,
+                inter_layer_prob=args.get("inter_layer_prob", 0.5),
+                skip_layer_prob=args.get("skip_layer_prob", 0.1),
+                seed=seed,
+            ),
+        }
+
+        if generator not in generators:
+            valid = list(generators.keys())
+            return {"error": f"Unknown generator: {generator}. Choose from: {valid}"}
+
+        spec = generators[generator]()
+        config = CustomWorldGenConfig(dag_spec=spec, edge_strength=edge_strength, seed=seed)
+        world = self._world_gen.generate_custom(config)
+        self._worlds[world.id] = world
+        result.world = world
+        result.attempts += 1
+
+        return {
+            "world_id": world.id,
+            "generator": generator,
+            "num_nodes": len(world.nodes),
+            "num_edges": len(world.edges),
+            "difficulty": world.difficulty.level,
+            "nodes": [
+                {"name": n.name, "type": n.type, "states": n.states} for n in world.nodes
+            ],
+        }
+
+    def _handle_dag_construct(self, args: dict, result: OrchestratorResult) -> dict:
+        raw_nodes = args.get("nodes", [])
+        raw_edges = args.get("edges", [])
+        edge_strength = args.get("edge_strength", 0.7)
+        seed = args.get("seed", 42)
+
+        if not raw_nodes:
+            return {"error": "nodes list is empty. Provide at least 3 nodes."}
+        if not raw_edges:
+            return {"error": "edges list is empty. Provide at least one directed edge."}
+
+        try:
+            dag_nodes = [
+                DAGNodeSpec(
+                    name=n["name"],
+                    type=NodeType(n["type"]),
+                    states=n["states"],
+                )
+                for n in raw_nodes
+            ]
+            dag_edges = [(e["from"], e["to"]) for e in raw_edges]
+            spec = DAGSpec(nodes=dag_nodes, edges=dag_edges)
+        except (ValueError, KeyError) as e:
+            return {"error": f"Invalid DAG specification: {e}"}
+
+        config = CustomWorldGenConfig(dag_spec=spec, edge_strength=edge_strength, seed=seed)
+        world = self._world_gen.generate_custom(config)
+        self._worlds[world.id] = world
+        result.world = world
+        result.attempts += 1
+
+        return {
+            "world_id": world.id,
+            "num_nodes": len(world.nodes),
+            "num_edges": len(world.edges),
+            "difficulty": world.difficulty.level,
+            "nodes": [
+                {"name": n.name, "type": n.type, "states": n.states} for n in world.nodes
+            ],
         }
 
     def _handle_world_check(self, args: dict, result: OrchestratorResult) -> dict:

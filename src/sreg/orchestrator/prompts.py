@@ -11,16 +11,33 @@ by a formally correct Bayesian network.
 
 ## Workflow — you MUST complete ALL 5 steps
 
-1. **Generate** the formal world by calling `world_gen`.
+1. **Generate** the formal world using ONE of these approaches:
+   - `world_gen` — choose a template (latent_preference) for a standard structure
+   - `dag_generate` — choose an algorithm (erdos_renyi, spanning_tree, \
+preferential_attachment, layered) to generate a random DAG structure
+   - `dag_construct` — specify the exact nodes and edges manually for full control
 2. **Validate** by calling `world_check`. If it fails, adjust and retry (max 3).
 3. **Apply semantics** by calling `apply_semantics`. You MUST provide `node_renames` \
-with a mapping for EVERY node in the world (hidden_cause, indicator_1, indicator_2, \
-..., target_outcome). Each node must be renamed to a realistic scientific variable \
-name that fits the scenario. Do NOT leave any node with its generic name.
+with a mapping for EVERY node in the world. Each node must be renamed to a realistic \
+scientific variable name that fits the scenario. Do NOT leave any node with its \
+generic name. (If you used `dag_construct` with semantic names, use identity mappings.)
 4. **Build the problem** by calling `build_problem`. This is REQUIRED — do NOT stop \
 after apply_semantics. You must call build_problem to sample data and produce the \
 final research problem.
 5. Return a final JSON summary.
+
+## How to choose a generation method
+
+- **`world_gen`**: Simple, proven template. Good default for standard latent variable \
+problems. Use when you want a well-tested structure.
+- **`dag_generate`**: When you want varied topologies. Choose a generator:
+  - `erdos_renyi` — random edges, good for diverse structures
+  - `spanning_tree` — connected/tree-like, guaranteed connectivity
+  - `preferential_attachment` — hub-spoke, a few root causes drive many effects
+  - `layered` — staged/pipeline processes, causes in first layer, effects in last
+- **`dag_construct`**: When you have a specific causal story in mind. You specify \
+the exact nodes, types, states, and edges. Best for domain-specific structures, \
+or when seeding from a research description.
 
 ## How to choose semantic names
 
@@ -53,10 +70,21 @@ prior studies, established theories, or partial findings that may help or mislea
 - Budget should roughly equal the number of observable nodes.
 - Make the scenario scientifically plausible but always fictional.
 
-## Available templates
+## Available templates (for world_gen)
 
 - `latent_preference`: One or more latent variables drive observable indicators. \
 Agent must infer the latent to predict the target.
+
+## Available generators (for dag_generate)
+
+- `erdos_renyi`: Random DAG — each edge included with probability `edge_prob`. \
+Use `num_nodes` and `edge_prob` (default 0.3).
+- `spanning_tree`: Connected tree + optional extra edges. Guarantees every node \
+is reachable. Use `num_nodes` and `extra_edge_prob` (default 0.1).
+- `preferential_attachment`: Hub-spoke structure. Early nodes get more connections. \
+Use `num_nodes` and `num_edges_per_node` (default 2).
+- `layered`: Pipeline/staged structure. Edges go forward between layers. \
+Use `num_layers` and `nodes_per_layer` instead of `num_nodes`.
 
 ## Output
 
@@ -120,6 +148,196 @@ TOOL_DEFINITIONS = [
                     },
                 },
                 "required": ["template_family", "num_nodes", "edge_strength", "seed"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "dag_generate",
+            "description": (
+                "Generate a Bayesian network world using an algorithmic DAG generator. "
+                "Choose a generator method and its parameters. The generator creates a "
+                "random DAG structure, then CPDs are auto-generated. Nodes are named "
+                "v0, v1, v2, ... and must be renamed via apply_semantics."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "generator": {
+                        "type": "string",
+                        "enum": [
+                            "erdos_renyi",
+                            "spanning_tree",
+                            "preferential_attachment",
+                            "layered",
+                        ],
+                        "description": "Which DAG generation algorithm to use",
+                    },
+                    "num_nodes": {
+                        "type": "integer",
+                        "minimum": 3,
+                        "maximum": 20,
+                        "description": (
+                            "Total number of nodes (for erdos_renyi, spanning_tree, "
+                            "preferential_attachment). Ignored for layered."
+                        ),
+                    },
+                    "num_latent": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Number of latent (hidden) nodes (default 1)",
+                    },
+                    "num_target": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Number of target nodes (default 1)",
+                    },
+                    "num_states": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 5,
+                        "description": "Number of discrete states per node (default 3)",
+                    },
+                    "edge_strength": {
+                        "type": "number",
+                        "minimum": 0.1,
+                        "maximum": 1.0,
+                        "description": "How deterministic the causal relationships are",
+                    },
+                    "seed": {
+                        "type": "integer",
+                        "description": "Random seed for reproducibility",
+                    },
+                    "edge_prob": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": "Edge probability (erdos_renyi only, default 0.3)",
+                    },
+                    "extra_edge_prob": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": (
+                            "Extra edge probability beyond tree "
+                            "(spanning_tree only, default 0.1)"
+                        ),
+                    },
+                    "num_edges_per_node": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4,
+                        "description": (
+                            "Edges per new node "
+                            "(preferential_attachment only, default 2)"
+                        ),
+                    },
+                    "num_layers": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "description": "Number of layers (layered only, default 4)",
+                    },
+                    "nodes_per_layer": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Nodes per layer (layered only, default 3)",
+                    },
+                    "inter_layer_prob": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": (
+                            "Edge probability between adjacent layers "
+                            "(layered only, default 0.5)"
+                        ),
+                    },
+                    "skip_layer_prob": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": (
+                            "Edge probability skipping one layer "
+                            "(layered only, default 0.1)"
+                        ),
+                    },
+                },
+                "required": ["generator", "edge_strength", "seed"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "dag_construct",
+            "description": (
+                "Construct a Bayesian network world by specifying the exact DAG "
+                "structure: nodes (name, type, states) and directed edges. Use this "
+                "when you want precise control over the causal structure. The DAG "
+                "must be acyclic, have at least one target and one observable node, "
+                "and each node can have at most 4 parents. Node names should be "
+                "semantic (e.g., 'water_temperature', not 'v0')."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "nodes": {
+                        "type": "array",
+                        "description": "List of nodes in the DAG",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "description": "Variable name (e.g., 'water_temperature')",
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["observable", "latent", "target"],
+                                    "description": "Node type",
+                                },
+                                "states": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": (
+                                        "Discrete states "
+                                        "(e.g., ['low', 'medium', 'high'])"
+                                    ),
+                                },
+                            },
+                            "required": ["name", "type", "states"],
+                        },
+                    },
+                    "edges": {
+                        "type": "array",
+                        "description": "List of directed edges (cause -> effect)",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "from": {
+                                    "type": "string",
+                                    "description": "Source node name (cause)",
+                                },
+                                "to": {
+                                    "type": "string",
+                                    "description": "Target node name (effect)",
+                                },
+                            },
+                            "required": ["from", "to"],
+                        },
+                    },
+                    "edge_strength": {
+                        "type": "number",
+                        "minimum": 0.1,
+                        "maximum": 1.0,
+                        "description": "How deterministic the causal relationships are",
+                    },
+                    "seed": {
+                        "type": "integer",
+                        "description": "Random seed for reproducibility",
+                    },
+                },
+                "required": ["nodes", "edges", "edge_strength", "seed"],
             },
         },
     },

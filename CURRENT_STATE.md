@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 350 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 tipos de tarea. Multi-task bundles. Pipeline completo. v1 completo + prototipo DAGSpec + generadores (v2).**
+**Estado actual: 365 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 2 nuevos tools de orchestrator (dag_generate + dag_construct). 3 tipos de tarea. Multi-task bundles. Pipeline completo. v1 completo + v2 en progreso.**
 
 ---
 
@@ -451,7 +451,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **350 tests** en todos los módulos
+- **365 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

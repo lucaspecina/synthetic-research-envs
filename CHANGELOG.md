@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — LLM orchestrator integration: dag_generate + dag_construct
+- **Two new orchestrator tools** for creating worlds via DAGSpec:
+  - `dag_generate`: LLM chooses a generator algorithm (erdos_renyi, spanning_tree, preferential_attachment, layered) + parameters
+  - `dag_construct`: LLM specifies exact nodes/edges/types manually for precise causal structures
+- Updated SYSTEM_PROMPT with generation method guidance and generator descriptions
+- Both tools produce Worlds compatible with existing pipeline (world_check, apply_semantics, build_problem)
+- Full pipeline E2E test: dag_generate -> world_check -> apply_semantics -> build_problem
+- **15 new tests** (was 350, now 365): dispatch tests, validation errors, downstream pipeline
+
 ### 2026-03-09 — DAG generators (4 methods)
 - **`dag_generators.py`** (`src/sreg/world/dag_generators.py`): 4 automatic DAG generation methods
   - `generate_erdos_renyi()`: random edges with probability p, good for testing
