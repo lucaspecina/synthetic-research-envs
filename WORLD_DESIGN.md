@@ -480,6 +480,174 @@ generacion real (etapa 2). Por ahora lo importante es saber QUE medir.
 
 ---
 
+## Suite de evaluacion y validacion (QualitySuite)
+
+Suite programatica rigurosa para evaluar la calidad del sistema a multiples niveles.
+La premisa central: **separar las capas de evaluacion** para saber DONDE esta un
+problema cuando algo falla. No mezclar calidad del mundo con calidad del orchestrator
+con calidad del agent.
+
+Un mundo esta bueno si cumple tres cosas al mismo tiempo:
+1. Tiene estructura real (no es ruido ni trivialidad)
+2. Produce decisiones interesantes (hay valor en decidir que mirar, que creer)
+3. Se puede convertir en un caso util para un LLM (no solo un DAG bonito)
+
+Dicho mas directamente: **un buen mundo es uno que genera un buen case, no solo un
+buen DAG.**
+
+Senales de que el sistema funciona bien:
+- teacher mejora bastante sobre prior
+- random y heuristicas quedan claramente por debajo
+- el LLM a veces acierta y a veces falla de formas interpretables
+- distintas tasks sobre el mismo caso miden cosas distintas
+- el quality checker descarta una porcion razonable pero no enorme
+- cuando miras ejemplos concretos sentis que "aca hay una mini investigacion"
+
+### Capa A — World Quality (estructura pura, sin teacher)
+
+Evalua si el mundo es formalmente valido y tiene estructura aprovechable.
+100% programatico, rapido de computar.
+
+| Metrica | Definicion | Tipo | Target |
+|---|---|---|---|
+| `worldcheck_pass` | WorldCheckTool.check().passed | bool | >85% en batch |
+| `num_nodes` | Cantidad de nodos | int | info |
+| `num_edges` | Cantidad de aristas | int | info |
+| `density` | edges / max_possible_edges | float | info (0.1-0.5 ideal) |
+| `treewidth` | Estimado via min-fill heuristic | int | <=8 (warning >6) |
+| `graph_depth` | Longest path en el DAG | int | info |
+| `max_fan_in` | Max padres de cualquier nodo | int | <=4 (hard) |
+| `max_fan_out` | Max hijos de cualquier nodo | int | info |
+| `target_reachable_frac` | Fraccion de observables con camino al target en el DAG subyacente | float | >0.3 |
+| `target_entropy` | H(target) sin evidencia (bits) | float | info (0.5-2.0 ideal) |
+
+**target_reachable_frac** es mas util que "es conexo si/no" porque mide cuantos
+observables son realmente relevantes para el target. Un grafo puede ser conexo pero
+tener el target aislado en una esquina donde nadie lo alcanza.
+
+### Capa B — Task Quality (con teacher, sin agent)
+
+Evalua si el mundo produce tareas interesantes y resolubles.
+Requiere correr el teacher (ExactBayesSolver), mas costoso pero determinista.
+
+| Metrica | Definicion | Tipo | Target |
+|---|---|---|---|
+| `prior_posterior_kl` | KL(true_state ‖ posterior_after_teacher) - KL(true_state ‖ prior) | float | < 0 (mejora) |
+| `teacher_beats_prior` | KL del teacher <= KL del prior? | bool | >90% en batch |
+| `teacher_beats_random` | KL del teacher <= KL de random? | bool | >80% en batch |
+| `teacher_random_gap` | KL_random - KL_teacher | float | >0.3 promedio |
+| `teacher_steps_to_stable` | Pasos hasta que IG marginal < epsilon (0.01 bits) | int | info |
+| `best_ig` | IG del mejor primer movimiento del teacher | float | >0.05 |
+| `ig_gap` | IG del mejor nodo - IG del peor nodo | float | >0.01 (hay estrategia) |
+| `nbo_nontrivial` | max(IG de nodos restantes) > 0 en la task NBO? | bool | >70% en batch |
+| `hyp_distinguishable` | min KL entre true posterior y nearest distractor > 0.05 | bool | >80% en batch |
+| `infer_target_nondegen` | posterior con toda la evidencia difiere del prior (KL > 0.01) | bool | >85% en batch |
+| `useful_bundle` | Al menos 2 de 3 tasks en el bundle son no-degeneradas | bool | >70% en batch |
+
+**teacher_steps_to_stable**: formalmente, el paso k donde
+`IG(step_k) < epsilon (0.01 bits)`. Si nunca pasa, se reporta budget como valor.
+Esto mide cuanta evidencia necesita el teacher para "converger" — mundos donde
+converge en 1 paso son triviales, mundos donde nunca converge pueden ser demasiado
+ruidosos.
+
+### Capa C — Generator Diversity (sobre batches de mundos)
+
+Evalua si un generador produce mundos variados o siempre lo mismo.
+Se computa sobre un batch de N mundos (N >= 20) con seeds distintas.
+
+| Metrica | Definicion | Tipo | Target |
+|---|---|---|---|
+| `node_count_std` | Std dev de num_nodes en el batch | float | >0 (si parametrizado, puede ser 0) |
+| `edge_count_std` | Std dev de num_edges en el batch | float | >0 |
+| `density_range` | max(density) - min(density) | float | >0.05 |
+| `depth_range` | max(depth) - min(depth) | int | >0 |
+| `fan_in_distribution` | Histograma de fan-in across all nodes in batch | dict | info |
+| `fan_out_distribution` | Histograma de fan-out across all nodes in batch | dict | info |
+| `target_entropy_std` | Std dev de H(target) en el batch | float | >0.1 |
+| `ig_gap_std` | Std dev del ig_gap en el batch | float | >0 |
+| `acceptance_rate` | % de mundos que pasan WorldCheck | float | >70% |
+| `useful_bundle_rate` | % de mundos con useful_bundle=True | float | >60% |
+
+La idea es detectar si un generador produce "siempre lo mismo". Si edge_count_std=0
+y depth_range=0, el generador no produce variedad incluso con seeds distintas.
+
+### Capa D — Semantic/Case Quality (checklist cerrada, evaluacion futura)
+
+Evalua si el problema presentado al agent es coherente y util. Hoy es manual;
+en el futuro podria ser evaluado por un LLM juez.
+
+**Checklist minima (5 criterios, pass/fail cada uno):**
+
+1. **Nombres coherentes con dominio**: los nombres de variables encajan con el
+   dominio declarado. No "water_temperature" en un problema de astrofisica.
+2. **Narrativa no contradice DAG**: si la narrativa dice "A causa B", la arista
+   A->B debe existir (o al menos no contradecir la estructura).
+3. **Acciones comprensibles**: las acciones disponibles tienen descripciones
+   claras y el agent puede entender que hace cada una.
+4. **Pregunta principal clara**: el research_question es especifico, respondible,
+   y apunta al target.
+5. **Datos consistentes con el caso**: los datos tabulares/observaciones son
+   coherentes con la narrativa y el dominio.
+
+**No implementar automaticamente todavia.** Pero la checklist queda cerrada para
+que cuando evaluemos manualmente o con LLM juez, usemos siempre los mismos
+criterios (no "me gusta / no me gusta").
+
+### Capa E — Agent Probe (ultima prioridad, como sonda exploratoria)
+
+Usa agentes de distinto nivel para verificar que el entorno separa bien
+capacidades. NO es la metrica principal — es una sonda.
+
+**Agentes a comparar:**
+
+| Agente | Estrategia | Que mide |
+|---|---|---|
+| `random` | Observa nodos al azar, submite prior | Piso minimo |
+| `heuristic_degree` | Observa nodo con mas conexiones primero | Estrategia naive |
+| `heuristic_proximity` | Observa nodo mas cercano al target | Estrategia razonable |
+| `teacher` | Observa por IG optimo | Techo maximo |
+| `llm_agent` | AgentSolver con LLM | Capacidad real del LLM |
+
+**Curva ideal esperada:**
+
+```
+random << heuristic_degree < heuristic_proximity < llm_agent < teacher
+```
+
+Si todo queda igual → el entorno no mide nada.
+Si el LLM queda debajo de random → el entorno es demasiado dificil o la interfaz
+esta mal.
+Si el LLM iguala al teacher → el problema es demasiado facil.
+
+**Implementacion**: las heuristicas son funciones simples (no requieren LLM).
+El `llm_agent` requiere credenciales de Azure. El teacher ya existe.
+
+### Implementacion
+
+**Modulo**: `src/sreg/harness/quality.py`
+
+**Funciones principales:**
+- `compute_world_quality(world) -> WorldQualityMetrics` (Capa A)
+- `compute_task_quality(world, target, seed) -> TaskQualityMetrics` (Capa B)
+- `compute_generator_diversity(worlds) -> GeneratorDiversityMetrics` (Capa C)
+- `run_quality_suite(worlds) -> QualitySuiteReport` (A+B+C combinadas)
+- `print_quality_report(report)` (tabla legible en terminal)
+
+**Modelos Pydantic** para cada capa de metricas (serializables a JSON).
+
+**Integracion con /eval skill**: la skill llama a `run_quality_suite()` y
+muestra el reporte.
+
+**Orden de implementacion:**
+1. Capa A (world quality) — mas simple, solo estructura
+2. Capa B (task quality) — requiere teacher, mas logica
+3. Capa C (diversity) — requiere batch, agrega estadisticas
+4. Integrar con /eval skill
+5. Capa D — checklist manual o LLM juez (futuro)
+6. Capa E — heuristicas + LLM agent (futuro, requiere credenciales)
+
+---
+
 ## Principios adoptados de PCG y proyectos relacionados
 
 Despues de investigar en profundidad BoxingGym, DiscoveryWorld, Reasoning Core,
