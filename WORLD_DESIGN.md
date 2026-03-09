@@ -1262,6 +1262,82 @@ viable el custom template** — no hay que reinventar la generacion de CPDs.
 
 ---
 
+## Enriquecimiento del case — proximo foco (decision 2026-03-09)
+
+> El nucleo formal (BN + generacion + teacher + QualitySuite) esta validado.
+> El batch sweep confirmo que con 10-12 nodos y es=0.5-0.7 el sistema produce
+> mundos con informacion util y estrategia real. El gap principal ya no esta
+> en el world model sino en la **riqueza del case que ve el agente**.
+>
+> El foco se mueve de "generar mundos buenos" a "presentar casos ricos".
+
+### Estado actual de la presentacion de datos
+
+`DataSampler` (src/sreg/tools/data_sampler.py) genera datos de dos formas:
+
+1. **Tabular**: N filas, todas las columnas visibles (observable + target), seed
+   incremental. Una sola tabla plana.
+2. **Observations**: 5 observaciones puntuales tipo "variable: value".
+
+`DataAsset` (src/sreg/models/research_problem.py) modela un asset de datos con
+nombre, descripcion, formato y filas. `ResearchProblem.data_assets` ya es una
+lista, asi que el modelo soporta multiples datasets — **pero DataSampler solo
+genera uno.**
+
+`AvailableAction` tiene `node` (str), `description` (str) y `cost` (int >= 1).
+Pero hoy cost=1 siempre y cada accion revela exactamente 1 nodo.
+
+### Gap con PROJECT.md
+
+PROJECT.md ejemplo de Nelvara tiene 3 data assets distintos:
+- Dataset 1: 150 mediciones de 4 estaciones (tabular con subconjunto de columnas)
+- Dataset 2: 12 muestras de sedimento (tabular diferente, menos filas)
+- Observacion aislada: un hecho narrativo
+
+Los dos ejemplos finales (pozos, material anticorrosivo) piden:
+- Historial temporal
+- Datos faltantes
+- Observaciones contradictorias
+- Metadata
+- Acciones con costos variados (1, 2, 3)
+- Acciones que revelan multiples variables
+
+Nada de esto existe hoy.
+
+### Plan de implementacion (3 prioridades)
+
+**Prioridad 1: Dataset-rich evidence.** Extender DataSampler para generar
+multiples DataAssets por mundo. El modelo ya lo soporta (data_assets es lista).
+Lo que falta:
+- Generar 2+ datasets con distintas columnas/filas/seeds
+- Observaciones narrativas extraidas de samples
+- Valores faltantes (omitir celdas aleatoriamente)
+- Que ProblemBuilder use los nuevos assets
+
+**Prioridad 2: Rich actions.** Extender AvailableAction para soportar
+acciones multi-nodo con costos variados. El modelo casi lo soporta (cost ya
+es int >= 1). Lo que falta:
+- Agregar `nodes: list[str]` (hoy solo `node: str`)
+- EpisodeRunner procesa acciones multi-nodo
+- EpisodeGenTool genera acciones con costos 1-3
+
+**Prioridad 3: CaseBundle multi-task.** Un case con budget compartido y
+multiples preguntas conectadas. Es la pieza que cierra la distancia con
+PROJECT.md pero requiere las dos anteriores.
+
+### Que NO cambia
+
+- La capa formal (BN + CPDs + DAGSpec) no se toca
+- El teacher sigue funcionando igual (infiere sobre el BN)
+- QualitySuite sigue midiendo calidad del mundo subyacente
+- Los 3 task types actuales siguen siendo evaluaciones validas
+
+Todo el enriquecimiento esta en la **capa semantica/presentacion**, no en la
+capa formal. Es modular — se puede mejorar la presentacion sin tocar la
+formalizacion.
+
+---
+
 ## Dimension temporal (para despues)
 
 El ejemplo de pozos de petroleo es claramente temporal: hay un "antes del

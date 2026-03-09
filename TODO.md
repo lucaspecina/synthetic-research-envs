@@ -24,18 +24,18 @@
 
 ## Loose ends (v0+v1)
 - [ ] Update demo script and notebook
-- [ ] Run batch eval across varying parameters (nodes, edge_strength, budget)
+- [x] Run batch eval across varying parameters (nodes, edge_strength, budget)
+  > Done via `scripts/batch_sweep.py` (336 worlds). See WORLD_DESIGN.md "Batch sweep".
 
-## Known issues (from E2E testing, 2026-03-07)
+## Known issues (from E2E testing + batch sweep)
 - [ ] Agent submit format: LLM sends flat keys instead of `{"distribution": {...}}`, wastes 1 turn on retry every time
 - [ ] Agent worse than random on 8-node worlds: bad inference when more variables are involved (soil case KL 4.21 vs random 0.30)
 - [ ] Orchestrator ignores difficulty in goal: always generates "easy" regardless of "hard difficulty" in prompt
 - [ ] `apply_semantics` always fails first call: LLM sends empty `node_renames`, then retries correctly (wastes 1 API call)
 - [ ] Agent variable selection suboptimal: doesn't pick most informative variables (different order than teacher)
-- [ ] NBO trivial tasks (25%): when enough evidence is given, all remaining nodes have IG=0 (0% in latent_preference, 28% in causal_chain, 48% in fork_collider). Should filter or regenerate so at least one node has IG > 0
-  - **Fix**: in `_next_best_observation_task`, after sampling evidence, check `max(ig_ranking.values()) > 0`. If not, resample with less evidence (loop until at least one remaining node is informative). Cap retries to avoid infinite loop on degenerate worlds.
-- [ ] Hypothesis near-indistinguishable with low edge_strength: at es=0.3, true posterior vs reversed can have KL as low as 0.0097, making the task nearly impossible to solve correctly
-  - **Fix**: after generating hypotheses, check min KL between true posterior and nearest distractor is above a threshold (e.g., 0.05). If not, either regenerate with different evidence, replace the reversed distractor with a different one (e.g., sample from a Dirichlet), or skip hypothesis_selection for that world/seed combo.
+- [ ] NBO trivial tasks: at 6-8 nodes, NBO is non-trivial 88-48% of the time. At 10-12 nodes improves to 52-53%. Fix in `_next_best_observation_task`: check `max(ig_ranking.values()) > 0`, resample with less evidence if not. Cap retries.
+- [ ] Hypothesis near-indistinguishable: batch sweep confirmed this is worst at es=0.9 (43% distinguishable) and best at es=0.7 (87%). The "prior" distractor becomes identical to posterior when evidence confirms prior strongly. Fix: filter by min KL > 0.05 or replace reversed distractor with Dirichlet sample.
+- [-] preferential_attachment: 0% WorldCheck pass across all configs. Eliminated as active generator. (See batch sweep findings in WORLD_DESIGN.md.)
 
 ## v2 — Composicion controlada + research cases (Etapa 2)
 
@@ -83,25 +83,51 @@
 >
 > Prioridades en orden:
 
-#### 1. Dataset-rich evidence
-- [ ] Multiple datasets per problem (tabular + observations + partial data)
-- [ ] Missing data / incomplete observations
-- [ ] Metadata per dataset (source, date, instrument, quality)
-- [ ] Narrative observations ("el sector sur no muestra declive...")
-- [ ] Temporal dimension: datasets with time column, before/after events
-- [ ] Richer data sampler: multiple formats, configurable per world
+#### 1. Dataset-rich evidence (PROXIMO PASO)
+> Hoy: `DataSampler` genera UNA tabla plana (N filas, todas las columnas visibles)
+> o observaciones aisladas ("variable: value"). `DataAsset` model ya soporta
+> nombre, descripcion, formato y datos — pero solo se usa con un dataset.
+> `ResearchProblem.data_assets` es una lista, asi que el modelo ya soporta
+> multiples datasets. El gap esta en el DataSampler, no en el modelo.
+>
+> Referencia: ver PROJECT.md ejemplo de Nelvara (3 data assets distintos)
+> y los dos ejemplos finales (pozos de petroleo, material anticorrosivo).
+>
+> Plan concreto (slice minimo):
+
+- [ ] Extender `DataSampler` para generar multiples `DataAsset` por mundo:
+  - Dataset principal: tabla con N filas (observable columns, como hoy)
+  - Dataset secundario: subconjunto de columnas, menos filas, distinta seed
+  - Observaciones puntuales: 3-5 hechos narrativos extraidos de samples
+- [ ] Agregar campos a `DataAsset`: `source` (quien lo genero), `num_rows`, `columns`
+- [ ] Datos con valores faltantes: al generar la tabla, omitir aleatoriamente X% de celdas (np.nan o "not_measured")
+- [ ] `ProblemBuilder` usa los nuevos assets: el agente recibe 2+ datasets + observaciones
+- [ ] E2E: verificar que el agente recibe datos ricos y puede usarlos
+- [ ] Despues (no en slice minimo): metadata (fecha, instrumento), temporal column, datos contradictorios entre datasets
 
 #### 2. Rich actions
-- [ ] Variable action costs (not all cost 1)
-- [ ] Actions that reveal multiple nodes (e.g., "analisis de sedimentos" → 3 variables)
-- [ ] Domain-specific action descriptions (not just "observe X")
-- [ ] Actions as evidence acquisition with semantic meaning
+> Hoy: `AvailableAction` tiene node, description y cost. Pero cost=1 siempre
+> y cada accion revela exactamente 1 nodo. La descripcion viene del LLM
+> via apply_semantics pero es generica ("Observe X").
+>
+> Plan concreto (slice minimo):
+
+- [ ] Permitir cost > 1 en `AvailableAction` (el modelo ya lo soporta, falta usarlo)
+- [ ] Permitir acciones que revelan multiples nodos: agregar `nodes: list[str]` a `AvailableAction` (hoy solo `node: str`)
+- [ ] `EpisodeRunner` procesa acciones multi-nodo: una accion revela N valores, cuesta cost
+- [ ] `EpisodeGenTool` genera acciones con costos variados (1, 2, 3) segun config
+- [ ] Despues: acciones semanticas mas ricas (el LLM genera la descripcion por accion)
 
 #### 3. CaseBundle multi-task
-- [ ] CaseBundle model: world + semantics + evidence + actions + multiple evaluations
-- [ ] Shared budget across multiple questions in the same case
-- [ ] Connected evaluations: main question + sub-questions + strategy evaluation
-- [ ] Integrated multi-question problems: one budget, multiple evaluation points
+> Hoy: `TaskBundle` genera las 3 tasks por separado, cada una con su propia
+> evaluacion independiente. No hay budget compartido ni preguntas conectadas.
+>
+> Plan concreto (slice minimo):
+
+- [ ] `CaseBundle` model: extiende TaskBundle con pregunta principal + sub-preguntas
+- [ ] Budget compartido: un budget para todo el case, no por task
+- [ ] Evaluacion conectada: score del case = combinacion de scores de sub-preguntas
+- [ ] Despues: preguntas causales (do-calculus), evaluacion de proceso
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
