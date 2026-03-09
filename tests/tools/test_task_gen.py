@@ -593,6 +593,130 @@ def test_causal_effect_prefers_nodes_with_effect():
         )
 
 
+# --- best_intervention tests ---
+
+
+def test_best_intervention_generates(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    assert isinstance(task, Task)
+    assert task.type == TaskType.BEST_INTERVENTION
+    assert task.world_id == world.id
+    assert task.target_node == "target_outcome"
+    assert task.scoring_method == "intervention_effect_ratio"
+
+
+def test_best_intervention_has_optimal(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    # intervention field holds the optimal (node, state)
+    assert len(task.intervention) == 1
+    opt_node = list(task.intervention.keys())[0]
+    opt_state = list(task.intervention.values())[0]
+    opt_key = f"{opt_node}:{opt_state}"
+
+    # Optimal must be the max in correct_answer
+    assert opt_key in task.correct_answer
+    assert task.correct_answer[opt_key] == max(task.correct_answer.values())
+
+
+def test_best_intervention_correct_answer_is_ranking(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+
+    # correct_answer maps "node:state" -> probability
+    assert len(task.correct_answer) > 0
+    for key, val in task.correct_answer.items():
+        assert ":" in key
+        node_name = key.split(":")[0]
+        assert node_name in obs_nodes
+        assert 0.0 <= val <= 1.0
+
+
+def test_best_intervention_question_mentions_desired_state(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    assert "maximize" in task.question.lower()
+    assert "target_outcome" in task.question
+    assert "intervene" in task.question.lower() or "intervention" in task.question.lower()
+
+
+def test_best_intervention_deterministic(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="target_outcome", max_budget=5)
+    t1 = tool.generate(world, spec, seed=42)
+    t2 = tool.generate(world, spec, seed=42)
+
+    assert t1.correct_answer == t2.correct_answer
+    assert t1.intervention == t2.intervention
+
+
+def test_best_intervention_different_seeds(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="target_outcome", max_budget=5)
+    t1 = tool.generate(world, spec, seed=0)
+    t2 = tool.generate(world, spec, seed=1)
+
+    # Different seeds may pick different desired states -> different rankings
+    # At minimum, the question text should differ (different desired state)
+    assert t1.question != t2.question or t1.correct_answer != t2.correct_answer
+
+
+@pytest.mark.parametrize(
+    "template", ["latent_preference", "causal_chain", "fork_collider"]
+)
+def test_best_intervention_works_across_templates(template):
+    gen = WorldGenTool()
+    w = gen.generate(WorldGenConfig(template_family=template, seed=42, num_nodes=6, edge_strength=0.7))
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="target_outcome", max_budget=5)
+    task = tool.generate(w, spec, seed=42)
+
+    assert task.type == TaskType.BEST_INTERVENTION
+    assert len(task.correct_answer) > 0
+    assert len(task.intervention) == 1
+
+
+# --- best_intervention scoring ---
+
+
+def test_score_best_intervention_perfect():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.8, "A:low": 0.3, "B:high": 0.5}
+    score = verifier.score_best_intervention("A", "high", effects)
+    assert score == 1.0
+
+
+def test_score_best_intervention_suboptimal():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.8, "A:low": 0.3, "B:high": 0.5}
+    score = verifier.score_best_intervention("B", "high", effects)
+    assert abs(score - 0.5 / 0.8) < 1e-6
+
+
+def test_score_best_intervention_invalid():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.8, "A:low": 0.3}
+    score = verifier.score_best_intervention("X", "wrong", effects)
+    assert score == 0.0
+
+
+def test_score_best_intervention_all_zero():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.0, "A:low": 0.0}
+    score = verifier.score_best_intervention("A", "high", effects)
+    assert score == 1.0  # All zero — any choice is fine
+
+
 # --- generate_from_plan tests ---
 
 

@@ -12,6 +12,7 @@ class TaskType(StrEnum):
     NEXT_BEST_OBSERVATION = "next_best_observation"
     HYPOTHESIS_SELECTION = "hypothesis_selection"
     CAUSAL_EFFECT = "causal_effect"
+    BEST_INTERVENTION = "best_intervention"
 
 
 class TaskSpec(BaseModel):

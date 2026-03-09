@@ -55,6 +55,8 @@ class TaskGenTool:
             return self._hypothesis_selection_task(world, spec, seed)
         if spec.type == TaskType.CAUSAL_EFFECT:
             return self._causal_effect_task(world, spec, seed)
+        if spec.type == TaskType.BEST_INTERVENTION:
+            return self._best_intervention_task(world, spec, seed)
         raise ValueError(f"Unsupported task type: {spec.type}")
 
     def _infer_target_task(self, world: World, spec: TaskSpec) -> Task:
@@ -301,6 +303,57 @@ class TaskGenTool:
             correct_answer={s: round(p, 6) for s, p in do_dist.items()},
             scoring_method="kl_divergence",
             intervention={intervention_node: int_state},
+        )
+
+    def _best_intervention_task(
+        self, world: World, spec: TaskSpec, seed: int
+    ) -> Task:
+        solver = ExactBayesSolver(world)
+        target = spec.target_node
+        obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+        target_node_obj = next(n for n in world.nodes if n.name == target)
+        rng = np.random.default_rng(seed)
+
+        # Pick a desired state for the target
+        desired_state = target_node_obj.states[rng.choice(len(target_node_obj.states))]
+
+        # Compute effect of each possible single-variable intervention
+        intervention_effects: dict[str, float] = {}
+        for node_name in obs_nodes:
+            node_obj = next(n for n in world.nodes if n.name == node_name)
+            for state in node_obj.states:
+                do_dist = solver.causal_query(target, do={node_name: state})
+                effect = do_dist.get(desired_state, 0.0)
+                intervention_effects[f"{node_name}:{state}"] = round(effect, 6)
+
+        # Find optimal intervention
+        best_key = max(intervention_effects, key=intervention_effects.get)
+        best_node, best_state = best_key.split(":", 1)
+
+        # Also compute the baseline (prior probability without intervention)
+        prior = solver.posterior(target)
+        baseline = prior.get(desired_state, 0.0)
+
+        question = (
+            f"You want to maximize the probability of '{target}' being "
+            f"'{desired_state}' (current baseline probability: {baseline:.2f}). "
+            f"You can intervene on ONE variable by setting it to a specific value. "
+            f"Which variable would you set, and to what value? "
+            f"Available variables: {obs_nodes}. "
+            f"This is a causal question about interventions (do-operations), "
+            f"not observations."
+        )
+
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=target,
+            available_evidence=obs_nodes,
+            correct_answer=intervention_effects,
+            scoring_method="intervention_effect_ratio",
+            intervention={best_node: best_state},
         )
 
     def generate_from_plan(

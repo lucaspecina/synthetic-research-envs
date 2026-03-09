@@ -1692,7 +1692,7 @@ Ambos ejes se necesitan para que el sistema se parezca a la vision de PROJECT.md
 |---|---|---|---|---|---|
 | 12 | `causal_effect` | Si do(X=x), que pasa con Y? | P(Y \| do(X=x)) via graph surgery | KL divergence | **Implementado** |
 | 13 | `compare_interventions` | Que cambia mas el outcome: do(X=x) o do(Z=z)? | Comparar P(Y\|do(X)) vs P(Y\|do(Z)) | Accuracy (eligio el mas fuerte?) | Proxima ola |
-| 14 | `best_intervention` | Que intervencion maximiza/minimiza Y? | argmax/argmin sobre do() | Regret (distancia al optimo) | Proxima ola |
+| 14 | `best_intervention` | Que intervencion maximiza/minimiza Y? | argmax/argmin sobre do() | Effect ratio (agente/optimo) | **Implementado** |
 | 15 | `average_treatment_effect` | Cuanto cambia Y en promedio al intervenir? | E[Y\|do(X=1)] - E[Y\|do(X=0)] | Error absoluto | Futuro |
 | 16 | `constrained_intervention` | Que accion conviene si solo puedo tocar ciertas variables? | Optimo sobre subconjunto permitido | Regret | Futuro |
 | 17 | `mediation` | Que parte del efecto pasa por una variable intermedia? | NDE + NIE via multiples do() queries | Error en proporcion mediada | Despues |
@@ -1779,20 +1779,19 @@ Ambos ejes se necesitan para que el sistema se parezca a la vision de PROJECT.md
 |---|---|---|---|---|---|
 | A. Diagnosis | 2 | 1 | - | 2 | 5 |
 | B. Strategy | 1 | - | - | 4 | 5 |
-| C. Intervention | 1 | 2 | 1 | 2 | 6 |
+| C. Intervention | 2 | 1 | 1 | 2 | 6 |
 | D. Structure | - | 2 | 2 | 2 | 6 |
 | E. Prediction | - | - | - | 4 | 4 |
 | F. Process | - | - | - | 5 | 5 |
-| **Total** | **4** | **5** | **3** | **19** | **31** |
+| **Total** | **5** | **4** | **3** | **19** | **31** |
 
 #### Mapa de implementacion por olas
 
-**Ola 0 — Ya implementado (4 eval types):**
-- `infer_target`, `next_best_observation`, `hypothesis_selection`, `causal_effect`
+**Ola 0 — Ya implementado (5 eval types):**
+- `infer_target`, `next_best_observation`, `hypothesis_selection`, `causal_effect`, `best_intervention`
 - Cubren escalones 1 y 2 de Pearl. Familias A, B, C.
 
-**Ola 1 — Proxima (5 eval types, pgmpy los soporta HOY):**
-- `best_intervention` — argmax sobre do(). Builds on causal_effect.
+**Ola 1 — Proxima (4 eval types, pgmpy los soporta HOY):**
 - `compare_interventions` — binario: do(X) vs do(Z). Facil.
 - `adjustment_set` — pgmpy: `get_all_backdoor_adjustment_sets()`.
 - `should_condition` — los 4 elemental confounds. d-separation tests.

@@ -178,7 +178,7 @@
   > Implementado: `causal_query()`, `_causal_effect_task()`, `Task.intervention`.
   > 14 tests. E2E validado: do() != observe() con confounders.
 - [ ] **Ola 1** (builds on lo que hay, pgmpy directo):
-  - [ ] `best_intervention` — Qué intervención maximiza Y? (argmax sobre do-queries)
+  - [x] `best_intervention` — Qué intervención maximiza Y? (argmax sobre do-queries)
   - [ ] `compare_interventions` — do(X) vs do(Z), cuál cambia más Y?
   - [ ] `adjustment_set` — Qué variables debo controlar? (backdoor criterion)
   - [ ] `should_condition` — Alguien sugiere controlar por Z. Es correcto? (elemental confounds)

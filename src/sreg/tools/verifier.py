@@ -42,6 +42,24 @@ class VerifierTool:
         agent_ig = ig_ranking.get(agent_choice, 0.0)
         return min(1.0, agent_ig / best_ig)
 
+    def score_best_intervention(
+        self,
+        agent_node: str,
+        agent_state: str,
+        intervention_effects: dict[str, float],
+    ) -> float:
+        """Score a best_intervention answer.
+
+        Returns ratio of agent's intervention effect to optimal effect.
+        1.0 = chose the best intervention, 0.0 = invalid choice.
+        """
+        best_effect = max(intervention_effects.values()) if intervention_effects else 0.0
+        if best_effect <= 0:
+            return 1.0  # All interventions have zero effect — any choice is fine
+        agent_key = f"{agent_node}:{agent_state}"
+        agent_effect = intervention_effects.get(agent_key, 0.0)
+        return min(1.0, agent_effect / best_effect)
+
     def score(
         self,
         agent_posterior: dict[str, float],

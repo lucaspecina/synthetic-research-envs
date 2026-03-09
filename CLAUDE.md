@@ -59,7 +59,7 @@ Every research problem has two layers:
 ### Current state
 
 v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness.
-v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation) + 4 eval types (infer_target, NBO, hypothesis_selection, causal_effect) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives). 478 tests.
+v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation) + 5 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives). 491 tests.
 **Next: v2 remainder — motif composition, expressive range analysis, richer data, narrative.** See TODO.md and WORLD_DESIGN.md.
 
 ## Environment setup

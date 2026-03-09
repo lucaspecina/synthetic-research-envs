@@ -23,6 +23,16 @@
 - **TODO.md updated**: Eje B rewritten with full wave structure
 - Sources: Pearl, McElreath (Statistical Rethinking), CauSciBench, CausalBench, CausalProbe-2024, ResearchGym
 
+### 2026-03-09 — Ola 1: best_intervention eval type
+- **`TaskType.BEST_INTERVENTION`**: "What intervention maximizes P(target=desired_state)?"
+- **`TaskGenTool._best_intervention_task()`**: iterates all (node, state) interventions,
+  computes P(target=desired | do(node=state)) for each, finds optimal
+- **`VerifierTool.score_best_intervention()`**: ratio of agent's effect to optimal (like NBO)
+- **`Task.intervention`** reused to store optimal {node: state}
+- **`correct_answer`** maps "node:state" -> P(target=desired | do(node=state)) (full ranking)
+- **13 new tests** (was 478, now 491): generation, ranking, scoring, cross-template, determinism
+- **E2E validated**: 6 configs, spreads 0.36-0.99, causally correct (closer nodes = stronger effect)
+
 ### 2026-03-09 — B.1: causal_effect eval type (do-calculus)
 - **`TaskType.CAUSAL_EFFECT`** added to eval catalog — first new eval type beyond the original 3
 - **`ExactBayesSolver.causal_query()`**: computes P(target | do(node=state)) using pgmpy's `CausalInference`
