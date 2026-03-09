@@ -155,11 +155,14 @@
 - [ ] **A.5**: Paper-seeded cases — el orchestrator lee un paper y diseña un caso sintetico inspirado
 
 ##### Eje B: Nuevos eval types (catálogo de 31 tipos en 6 familias)
-> Catálogo completo en WORLD_DESIGN.md "Catálogo de evaluaciones científicas".
+> **Research completo en WORLD_DESIGN.md** (3 secciones clave):
+> - "Fundamentos de razonamiento causal" — Pearl (3 escalones), McElreath (4 confounders)
+> - "Catálogo de evaluaciones científicas" — 31 eval types en 6 familias, tablas detalladas
+> - "Mapa de implementación por olas" — qué hacer primero y por qué
+>
 > Cada eval type necesita: TaskType enum, generación en TaskGenTool,
 > scoring en VerifierTool, teacher solver support, tests.
-> Priorización por olas, no por facilidad de pgmpy: la regla es
-> "¿se siente como pregunta científica de un case real?"
+> Regla de priorización: "¿se siente como pregunta científica de un case real?"
 
 - [x] **B.1**: `causal_effect` — Si do(X=x), qué pasa con Y?
   > Implementado: `causal_query()`, `_causal_effect_task()`, `Task.intervention`.

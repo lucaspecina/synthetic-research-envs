@@ -14,6 +14,28 @@
 > Este documento es la brujula de investigacion para una parte especifica del
 > camino: como generar mundos formales mas ricos y realistas.
 
+### Indice de navegacion
+
+Este documento es largo (~2000 lineas). Usa este indice para ir directo
+a la seccion que necesites:
+
+| Seccion | Que contiene |
+|---|---|
+| **El salto que queremos dar** | Donde estamos vs donde queremos llegar |
+| **Principio fundamental** | Mechanism-first, no graph-first |
+| **La progresion en tres etapas** | v0+v1 → v2 → v3 |
+| **Los dos contratos centrales** | MechanismSpec + DAGSpec |
+| **Mecanismos rivales** | Nucleo de la investigacion real |
+| **Fundamentos de razonamiento causal** | Pearl (escalera de causalidad), McElreath (4 elemental confounds), principio de diseno de tasks |
+| **Diseno de Research Cases** | TaskBundle → ResearchCase, rol del orchestrator, CasePlan |
+| **Catalogo de evaluaciones cientificas** | 31 eval types en 6 familias (A-F), mapa de implementacion por olas, soporte pgmpy |
+| **Paper-seeded cases** | Flujo: paper real → caso sintetico |
+| **Enriquecimiento de datos** | Multi-dataset, missing data, narrativas |
+| **Quality gates + QualitySuite** | Que hace que un mundo sea "bueno" + metricas |
+| **Principios de PCG** | Generate-evaluate-refine, MAP-Elites, expressive range |
+| **Hallazgos experimentales** | Resultados de templates, DAGSpec, batch sweep |
+| **Investigacion previa** | BoxingGym, DiscoveryWorld, Reasoning Core, benchmarks |
+
 ---
 
 ## El salto que queremos dar

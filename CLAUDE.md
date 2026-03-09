@@ -12,6 +12,9 @@ Before doing anything, understand the project by reading these docs in order:
 2. **`WORLD_DESIGN.md`** — **Research document** for realistic world generation.
    Conclusions, strategies, open questions, and references for evolving from
    toy worlds to realistic research cases. Dynamic — updated as we learn.
+   Key sections: "Fundamentos de razonamiento causal" (Pearl/McElreath theory),
+   "Catálogo de evaluaciones científicas" (31 eval types in 6 families),
+   "Diseño de Research Cases" (TaskBundle→ResearchCase). Has navigation index.
 3. **`CURRENT_STATE.md`** — Detailed description of what the system does TODAY. APIs, modules, templates, test coverage. **Must stay current.**
 4. **`TODO.md`** — Task tracking + known issues. Single source of truth for what's done/pending.
 5. **`CHANGELOG.md`** — History of what's been done.
