@@ -394,6 +394,28 @@ son complementarios. Un generador produce variedad; un DAGSpec manual produce pr
    - Si el 90% de los mundos generados no pasa quality check, el generador es malo
    - Necesitamos metricas de "tasa de aceptacion" para saber si el generador funciona
 
+5. **Semantica: obligatoria, opcional, o ficticia?**
+   - **Problema**: si usamos vocabulario real ("water_temperature") con mecanismos inventados,
+     una AI entrenada con estos mundos podria aprender asociaciones causales incorrectas
+     sobre el mundo real. Ej: si en nuestro mundo water_temp causa coral_bleaching con
+     mecanismo X, pero en la realidad el mecanismo es Y, el modelo aprende algo errado.
+   - **Opciones**:
+     - A) Semantica completa (hoy): vocabulario real + dominio ficticio. Riesgo de confusion.
+     - B) Modo abstracto: variables "A", "B", "C" sin narrativa. Evalua razonamiento puro.
+        No contamina con conocimiento falso. Pero no evalua integracion de contexto.
+     - C) Semantica ficticia: nombres inventados ("zanthor_level", "flux_7b") con narrativa
+        ficticia. Suena cientifico pero no existe. No confunde, pero pierde naturalidad.
+     - D) Configurable: flag `semantic_mode` que controla el nivel de vestimenta semantica.
+        `abstract` = sin nombres, `fictional` = nombres inventados, `full` = lo de hoy.
+   - **Inclinacion**: D — hacer configurable. Cada modo tiene su uso:
+     - `abstract`: para evaluar razonamiento puro (ej: training sin contaminar)
+     - `fictional`: para evaluacion realista sin riesgo de memorizar ciencia falsa
+     - `full`: para evaluar integracion de conocimiento previo (el agente usa lo que sabe)
+   - **Pregunta derivada**: en modo `abstract`, que pasa con `apply_semantics`? Se saltea?
+     Se usa con nombres genericos? Se necesita narrativa o solo se dan datos crudos?
+   - **Para decidir**: requiere experimentacion — generar problemas en cada modo y evaluar
+     si las respuestas del agente son cualitativamente diferentes
+
 ---
 
 ## Quality gates: que hace que un mundo sea "bueno"
