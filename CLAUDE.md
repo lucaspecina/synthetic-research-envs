@@ -152,6 +152,7 @@ ruff format src/ tests/                   # Format
 5. **CURRENT_STATE.md still accurate** — if you added modules, templates, APIs, changed test count, or modified architecture: update it NOW. This is the detailed technical snapshot of the system.
 6. **CLAUDE.md still accurate** — if you added/removed files, modules, dependencies, or changed conventions: update the relevant section NOW, in this same commit
 7. **No stale references** — if you deleted or renamed a file/module, grep for old references in all docs (CLAUDE.md, TODO.md, CURRENT_STATE.md, CHANGELOG.md)
+8. **Explain to user BEFORE committing** — After ALL other checks pass (tests, lint, E2E, docs), but BEFORE running `git commit`, explain the changes to the user in a friendly, detailed way in simple language. Cover: what was done, how it fits in the big picture, what's now possible that wasn't before, and if relevant, the E2E results with analysis. This is NOT optional — the user needs to understand and approve before the commit happens. Think of it as a mini code review presentation.
 
 ### Trigger-specific updates
 

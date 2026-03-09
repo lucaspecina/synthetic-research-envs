@@ -46,7 +46,7 @@
 - [x] `cpd_gen.py`: extract shared CPD generation from 3 templates (eliminate copy-paste)
 - [x] `CustomTemplate`: accepts DAGSpec, generates valid CPDs using generic edge_strength logic → World
 - [x] WorldCheck extended: max parents check + treewidth metric (warning, not failure)
-- [x] `generate_custom()` method in WorldGenTool (transitional, separate from existing `generate()` — unify later if it works)
+- [x] `generate_custom()` method in WorldGenTool (separate from `generate()` — API to be unified, but both input paths are permanent)
 - [x] All 3 task types work with custom worlds (TaskGenTool + TaskBundle)
 - [x] Tests: custom worlds with 5-15 nodes, heterogeneous states, multiple latents (81 new tests)
 - [x] E2E validation: 12-15 node worlds, teacher improves over prior + beats random, documented findings in WORLD_DESIGN.md
@@ -55,6 +55,12 @@
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
 - [x] DAG generators: Erdos-Renyi, spanning tree, preferential attachment, layered (inspired by Reasoning Core)
 - [ ] Expressive range analysis: generate 100+ worlds, measure distributions, detect biases
+
+### Integracion LLM orchestrator + DAGSpec
+- [ ] `dag_generate` tool: LLM elige generador (erdos_renyi, layered, etc.) + parametros -> DAGSpec automatico
+- [ ] `dag_construct` tool: LLM especifica nodos y aristas manualmente -> DAGSpec custom
+- [ ] Unificar `generate()` y `generate_custom()` en una sola API de WorldGenTool
+- [ ] Seeds desde papers: LLM extrae estructura causal de texto -> `dag_construct`
 
 ### Datos mas ricos
 - [ ] Multiple datasets per problem (tabular + observations + partial data)

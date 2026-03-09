@@ -342,10 +342,24 @@ No solo MechanismSpec alimenta al pipeline. Multiples entradas posibles:
 MechanismSpec(s)    --+
 Motif composer      --+
 Manual DAGSpec      --+--->  DAGSpec  --->  [Pipeline de arriba]
-Random generator    --+
-LLM extractor       --+
+DAG generators      --+
+LLM constructor     --+
 pgmpy get_random()  --+
 ```
+
+**Principio de diseno: el LLM orchestrator tendra DOS caminos permanentes para crear mundos:**
+
+1. **DAG generators con parametros** — el LLM elige un generador (Erdos-Renyi, layered, etc.)
+   y le pasa parametros (num_nodes, edge_prob, etc.). Rapido, produce variedad, bueno para
+   generar mundos en batch o cuando no importa la forma exacta.
+
+2. **Construccion manual de DAGSpec** — el LLM especifica nodos y aristas uno por uno.
+   Permite disenar estructuras especificas (e.g., "quiero un confounding path entre A y B
+   con un mediador C"). Necesario para crear mundos a partir de descripciones textuales,
+   papers, o requerimientos especificos del usuario.
+
+Ambos caminos son de primera clase y permanentes. No es uno transitorio y otro final —
+son complementarios. Un generador produce variedad; un DAGSpec manual produce precision.
 
 ### Preguntas abiertas sobre esta arquitectura
 
@@ -890,9 +904,11 @@ nodos. NO es v2 completa — es el contrato tecnico intermedio que despues
 **Decisiones clave del prototipo:**
 - Templates existentes NO se tocan. CustomTemplate es un camino paralelo.
 - `generate_custom()` es metodo separado, no se cambia `generate()`.
-  **Nota: esta separacion es transitoria** — por seguridad en este slice,
-  para no romper nada. Si funciona, luego se unifica bajo una sola API de
-  generacion. No debe quedar como dos caminos paralelos permanentes.
+  **Nota: la API se unificara** — `generate()` y `generate_custom()` como
+  metodos separados es temporal (por seguridad en este slice). Se unificaran
+  bajo una sola API de generacion. Pero los dos CAMINOS de entrada (DAG
+  generators automaticos + DAGSpec manual/LLM) son permanentes y
+  complementarios — ver seccion "Entradas alternativas al DAGSpec".
 - DAGSpec soporta estados heterogeneos (2 y 3 estados mezclados).
 - El `role` en DAGNodeSpec es string libre (metadata), no afecta generacion.
 - Target se sigue llamando "target_outcome" por compatibilidad.
@@ -931,11 +947,16 @@ nodos. NO es v2 completa — es el contrato tecnico intermedio que despues
 11. Nuevas tasks: structure selection, experimental design
 12. Quality checker robusto con metricas de generador
 
+### Integracion LLM + DAGSpec (v2-v3, prioritario)
+
+13. **LLM orchestrator tools para DAGSpec** — dos tools nuevos:
+    - `dag_generate`: LLM elige generador + parametros -> DAGSpec automatico
+    - `dag_construct`: LLM especifica nodos y aristas manualmente -> DAGSpec custom
+14. Seeds desde papers (LLM extrae estructura causal -> `dag_construct`)
+
 ### Mas adelante
 
-13. CaseBundle como modelo formal
-14. LLM extractor (descripcion textual -> MechanismSpec/DAGSpec)
-15. Seeds desde papers
+15. CaseBundle como modelo formal
 16. Dimension temporal (DBNs o multi-slice)
 17. Variables continuas / mixtas
 
