@@ -69,7 +69,7 @@ El DAG es la formalizacion de eso, no el punto de partida.
 
 ## La progresion en tres etapas
 
-### Etapa 1: Motifs curados (lo que hay hoy)
+### Etapa 1: Motifs curados — v0+v1 (completo)
 
 Templates fijos: latent_preference, causal_chain, fork_collider. Cada uno
 testea un tipo de razonamiento especifico. Sirven para:
@@ -77,9 +77,9 @@ testea un tipo de razonamiento especifico. Sirven para:
 - Aprender que dificultades produce cada patron
 - Tener una linea base controlada
 
-**Estado: completo (v1).**
+**Estado: completo.**
 
-### Etapa 2: Composicion controlada de motifs
+### Etapa 2: Composicion controlada de motifs — v2 (en curso)
 
 No generamos "un template", sino un mundo formado por varios submodulos:
 una cadena, un fork con latente, un collider, un mediador extra, algunos
@@ -96,7 +96,7 @@ Riesgos:
 - La combinatoria es grande
 - Puede ser demasiado "mecanico" (no se parece a como se piensa un problema real)
 
-### Etapa 3: Diseno mechanism-first
+### Etapa 3: Diseno mechanism-first — v3 (futuro)
 
 El generador piensa en terminos de:
 1. **Roles de variables** (no solo tipos node)
@@ -405,13 +405,18 @@ tiene que ser:
 - [ ] Numero total de nodos <= 30 (para inferencia exacta)
 
 ### Solvable
-- [ ] Teacher solver alcanza >60% accuracy
+- [ ] Teacher solver mejora claramente sobre el prior (no usamos % accuracy fijo
+  porque depende del numero de estados y la task)
+- [ ] Teacher supera ampliamente a random baseline (gap significativo)
 - [ ] Existe al menos una secuencia de observaciones que mejora significativamente la posterior
 
 ### Task-specific
 - [ ] NBO: al menos un nodo con IG > 0 (no trivial)
 - [ ] Hypothesis selection: KL entre hipotesis > 0.05 (distinguibles)
 - [ ] Infer target: la posterior con toda la evidencia difiere del prior
+- [ ] Tasa de tasks no degeneradas: el generador debe producir una proporcion
+  razonable (>70%) de tasks utiles. Si >50% salen triviales, el generador
+  tiene un problema aunque los mundos individuales pasen quality check.
 
 Si un mundo no pasa, se regenera con otra seed o se ajustan parametros.
 El quality checker reporta QUE fallo para que el generador pueda corregir.
@@ -847,18 +852,77 @@ confirmamos que SREG ocupa un nicho que ninguno de ellos cubre completamente:
 
 ---
 
-## Pasos concretos (que va a TODO.md cuando decidamos)
+## Plan de implementacion
 
-### Paso inmediato: composicion controlada (etapa 2)
+### Slice minimo: prototipo DAGSpec (en curso)
 
-1. DAGSpec model con validaciones
-2. CustomTemplate que acepta DAGSpec y genera CPDs
-3. WorldCheck extendido para DAGs arbitrarios
-4. Tests con grafos de 10-15 nodos, 2-3 latentes
-5. Motif composer: combinar chain+fork+collider en un DAGSpec
-6. Verificar que TaskGen funciona con mundos compuestos
+Objetivo: validar que el stack actual sobrevive a mundos arbitrarios de 10-15
+nodos. NO es v2 completa — es el contrato tecnico intermedio que despues
+`MechanismSpec -> WorldComposer` enchufara arriba sin romper nada.
 
-### Paso siguiente: mechanism-first (etapa 3)
+**Archivos nuevos:**
+
+| Archivo | Que es |
+|---|---|
+| `src/sreg/models/dag_spec.py` | `DAGSpec` + `DAGNodeSpec` — Pydantic con validaciones (aciclico, max parents <=4, al menos 1 target + 1 observable, nodos referenciados en edges existen, sin duplicados) |
+| `src/sreg/world/cpd_gen.py` | CPD generation extraida — hoy esta copy-pasteada identica en los 3 templates. Extraerla permite reusar y soportar estados heterogeneos por nodo |
+| `src/sreg/world/templates/custom.py` | `CustomTemplate.generate(dag_spec, edge_strength, seed) -> World` — acepta cualquier DAGSpec valido |
+| `tests/tools/test_custom_template.py` | Tests: DAGs de 5 a 15 nodos, E2E con TaskGen, teacher solver |
+
+**Archivos modificados:**
+
+| Archivo | Que cambia |
+|---|---|
+| `src/sreg/models/__init__.py` | Exportar DAGSpec, DAGNodeSpec |
+| `src/sreg/world/templates/__init__.py` | Exportar CustomTemplate |
+| `src/sreg/tools/world_gen.py` | Metodo `generate_custom(CustomWorldGenConfig)` separado |
+| `src/sreg/tools/world_check.py` | Check de max parents + metrica de treewidth (warning, no fallo) |
+
+**Orden:**
+1. DAGSpec model (puro contrato, sin dependencias)
+2. CPD generation utility (extraer de templates, verificar resultados identicos)
+3. CustomTemplate (el core: DAGSpec + edge_strength -> World)
+4. WorldGenTool extension (registrar custom)
+5. WorldCheck extensions (max parents + treewidth)
+6. E2E validation (TaskGen con 10-15 nodos, teacher, quality metrics)
+7. Docs (TODO, CURRENT_STATE, CHANGELOG, CLAUDE)
+
+**Decisiones clave del prototipo:**
+- Templates existentes NO se tocan. CustomTemplate es un camino paralelo.
+- `generate_custom()` es metodo separado, no se cambia `generate()`.
+  **Nota: esta separacion es transitoria** — por seguridad en este slice,
+  para no romper nada. Si funciona, luego se unifica bajo una sola API de
+  generacion. No debe quedar como dos caminos paralelos permanentes.
+- DAGSpec soporta estados heterogeneos (2 y 3 estados mezclados).
+- El `role` en DAGNodeSpec es string libre (metadata), no afecta generacion.
+- Target se sigue llamando "target_outcome" por compatibilidad.
+- Despues los templates existentes podrian convertirse en funciones que
+  generan DAGSpecs (`latent_preference_spec() -> DAGSpec`), pero eso es
+  un refactor posterior.
+
+**Riesgos identificados:**
+
+| Riesgo | Mitigacion |
+|---|---|
+| Variable Elimination lenta en 15 nodos | max_parents=4 acota treewidth. Loguear treewidth. |
+| CPDs ruidosas con 4 padres (81 combinaciones) | Testear con edge_strength >= 0.5 en mundos grandes. |
+| NBO trivial mas frecuente en mundos grandes | Es aprendizaje valioso — documentar en hallazgos. |
+| Estados heterogeneos con wrapping | La formula ya los maneja (`p_state % num_states`). Testear. |
+
+**Criterio de exito:**
+- Mundo custom de 12-15 nodos con 2-3 latentes pasa WorldCheck
+- Los 3 task types se generan exitosamente
+- Teacher solver mejora claramente sobre el prior y supera ampliamente a random
+  (no usamos "teacher >60% accuracy" porque depende mucho de la task y del
+  numero de estados — la mejora relativa es mas robusta como criterio)
+- TaskGen produce una proporcion razonable de tasks no degeneradas:
+  NBO con IG > 0 en al menos ~70% de los casos, hipotesis distinguibles
+  (KL > 0.05) en al menos ~80%. Si la tasa de tasks degeneradas es alta
+  (e.g., >50% triviales), es un hallazgo importante pero el slice no fue
+  tan exitoso como parece.
+- Datos concretos de que se rompe, documentados en la seccion de hallazgos
+
+### Siguiente: mechanism-first — v3 (etapa 3)
 
 7. MechanismSpec model (estructura + semantica + variables compartidas)
 8. Libreria base de mecanismos (5-10 mecanismos reutilizables)
@@ -929,6 +993,50 @@ Opciones para el futuro:
 3. **Simple history**: dar datos de distintos momentos como datasets separados (sin modelar explicitamente la dinamica)
 
 **Decision: esto es v3+. Primero mundos estaticos mas grandes y ricos.**
+
+---
+
+## Hallazgos experimentales
+
+> Esta seccion registra los resultados concretos de las pruebas que hacemos.
+> Cada vez que generamos mundos y observamos comportamiento interesante,
+> problemas, o cosas inesperadas, se documenta aca. Esto es parte de la
+> investigacion — no solo la teoria sino lo que realmente pasa cuando
+> ejecutamos el sistema.
+
+### Hallazgos de templates v1 (2026-03-07)
+
+Estos hallazgos vienen del E2E testing con los 3 templates existentes,
+antes de implementar DAGSpec:
+
+**NBO trivial (25% promedio)**: cuando se da mucha evidencia, todos los nodos
+restantes tienen IG=0 (0% en latent_preference, 28% en causal_chain, 48% en
+fork_collider). Fork_collider es el peor porque su estructura compacta hace
+que pocos nodos basten para inferir el target completamente.
+
+**Hipotesis casi indistinguibles con edge_strength baja**: con es=0.3, la
+posterior verdadera y la reversed pueden tener KL tan bajo como 0.0097. La
+tarea se vuelve loteria. Threshold minimo razonable: es >= 0.5 para
+hypothesis_selection.
+
+**Agent peor que random en 8 nodos**: el agente LLM no escala bien con mas
+variables (KL 4.21 vs random 0.30 en un caso de 8 nodos). Esto sugiere que
+mundos mas grandes van a ser genuinamente desafiantes para los agentes.
+
+### Hallazgos del prototipo DAGSpec (pendiente)
+
+> Se completara cuando implementemos y testeemos el prototipo.
+> Preguntas a responder:
+>
+> - La formula de CPDs (edge_strength Dirichlet) aguanta con 4 padres?
+> - Variable Elimination es viable con 12-15 nodos? Cuanto tarda?
+> - Que treewidth tienen los DAGs generados?
+> - NBO trivial empeora con mas nodos? Cuanto?
+> - Las hipotesis siguen siendo distinguibles en mundos mas grandes?
+> - Teacher mejora sobre prior y supera a random? Por cuanto? En cuantos pasos?
+> - Que topologias producen mundos "buenos" vs "malos"?
+> - Estados heterogeneos (2 + 3 estados) funcionan sin problemas?
+> - Que proporcion de tasks generadas son no degeneradas? (NBO no trivial, hipotesis distinguibles)
 
 ---
 
@@ -1115,18 +1223,18 @@ SemanticTraceVE para teacher traces, JS divergence como alternativa a KL.
 
 | Proyecto | Que es | Que nos aporta | Prioridad |
 |---|---|---|---|
-| **BoxingGym** | Experimental design benchmark (10 envs, PyMC) | Standardized error, EIG post-hoc, scientist-novice | v2-v3 |
-| **DiscoveryWorld** | Interactive science worlds (120 tasks, Pygame) | Triple eval, distractores, variaciones via seeds | v2-v3 |
-| **Reasoning Core** | Procedural BN generation (28 tasks, pgmpy, 10M scale) | DAG generators, Noisy-OR CPDs, do-calculus, difficulty knob | v2 |
+| **BoxingGym** | Experimental design benchmark (10 envs, PyMC) | Standardized error, EIG post-hoc, scientist-novice | v2/v3 |
+| **DiscoveryWorld** | Interactive science worlds (120 tasks, Pygame) | Triple eval, distractores, variaciones via seeds | v2/v3 |
+| **Reasoning Core** | Procedural BN generation (28 tasks, pgmpy, 10M scale) | DAG generators, Noisy-OR CPDs, do-calculus, difficulty knob | v2/v3 |
 | **PCG theory** | Procedural Content Generation principles | MAP-Elites, generate-evaluate-refine, repair loops | v2 |
 | CausalProfiler | Space of Interest + DAG generation | Generacion guiada por propiedades | v2 |
 | CausalBench | Real-world causal datasets (2-109 nodes) | Mundos grandes son dificiles de verdad | referencia |
 | CauSciBench | Full causal pipeline eval | Evaluacion multi-step | referencia |
 | Bayesian Teaching | LLMs learn from teacher | Progresion simple->complejo funciona | referencia |
 | pgmpy get_random | Random BN generation | Generador rapido + quality filter | v2 |
-| TimeGraph | Temporal causal benchmark | Referencia para mundos temporales | v3+ |
-| CausalGraphBench | Graph discovery eval | Futura task: recuperar estructura | v3+ |
-| CauseMe | Temporal causal eval platform | Referencia para mundos temporales | v3+ |
+| TimeGraph | Temporal causal benchmark | Referencia para mundos temporales | backlog |
+| CausalGraphBench | Graph discovery eval | Futura task: recuperar estructura | v3 |
+| CauseMe | Temporal causal eval platform | Referencia para mundos temporales | backlog |
 
 ## Links y repositorios
 

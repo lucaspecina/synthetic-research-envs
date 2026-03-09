@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+### 2026-03-08 — Version alignment + WORLD_DESIGN.md refinements
+- **Version scheme simplified**: v0+v1 (done) → v2 (Etapa 2) → v3 (Etapa 3) → Backlog
+  - Versions now align 1:1 with WORLD_DESIGN.md stages
+  - Dropped v4 (too speculative), moved do-calculus + structure recovery to v3
+  - Updated PROJECT.md, TODO.md, CLAUDE.md with new scheme
+- **WORLD_DESIGN.md refined** with 4 feedback-driven adjustments:
+  - Replaced "teacher >60% accuracy" with improvement-over-prior + gap-over-random
+  - Marked `generate_custom()` as transitional API (unify later)
+  - Added non-degenerate task rate as success criterion (>70% NBO, >80% hypothesis)
+  - Treewidth kept as warning (not hard fail) for learning phase
+
+### 2026-03-08 — WORLD_DESIGN.md research document
+- **`WORLD_DESIGN.md` created**: 1100+ line research document for realistic world generation
+  - Three-stage progression: motifs → composition → mechanism-first
+  - MechanismSpec and DAGSpec as central contracts
+  - CaseBundle concept, quality gates, generator health metrics
+  - PCG principles adopted: MAP-Elites, generate-evaluate-refine, expressive range analysis
+  - Detailed analysis of BoxingGym, DiscoveryWorld, Reasoning Core with concrete takeaways
+  - Positioning table: what SREG does that others don't
+  - Hallazgos experimentales section for documenting test results
+  - Implementation plan for DAGSpec prototype (slice mínimo)
+- All docs updated: CLAUDE.md, PROJECT.md, TODO.md reference WORLD_DESIGN.md
+
 ### 2026-03-07 — Multiple evaluations per problem (v1 complete)
 - **`TaskBundle` model + `generate_all()` method**: one world → all 3 task types
   - `TaskGenTool.generate_all(world, target, budget, seed)` → `TaskBundle`

@@ -637,46 +637,44 @@ Este caso testea:
 
 ## Evolución del proyecto
 
-Cada versión amplía las capacidades del sistema hacia la visión final.
-Las versiones tempranas simplifican para construir un núcleo sólido; las
-posteriores acercan el sistema a research cases realistas como los
-ejemplos de arriba.
+Las versiones se alinean con las tres etapas de evolución de mundos
+descritas en `WORLD_DESIGN.md`. Cada una amplía la complejidad de los
+mundos que el sistema puede generar y la riqueza de las evaluaciones.
 
-### v0 — La base funciona
+### v0+v1 — Motor formal + templates curados (completo)
 
-El motor formal produce mundos con verdad matemática verificable. Hay un
-agente que interactúa, un teacher que resuelve óptimamente, y un
-verificador que puntúa. El sistema genera, resuelve, y evalúa end-to-end.
+El motor formal produce mundos con verdad matemática verificable. Tres
+familias de templates (latent_preference, causal_chain, fork_collider),
+tres tipos de evaluación (inferencia, NBO, hipótesis), multi-task
+bundles, agente LLM, teacher solver, y harness de evaluación. El
+sistema genera, resuelve, y evalúa end-to-end.
 
-### v1 — Más formas de testear razonamiento
+Corresponde a la **Etapa 1** de WORLD_DESIGN.md: motifs curados.
 
-El sistema sabe generar distintos tipos de problemas (templates con
-distintas estructuras causales) y evaluarlos de distintas formas
-(inferencia, selección de información, comparación de hipótesis).
-Múltiples evaluaciones por problema.
+### v2 — Composición controlada + research cases (en curso)
 
-### v2 — Research cases realistas
+DAGs arbitrarios via `DAGSpec`, composición de motifs, datos más ricos
+(múltiples datasets, datos parciales, observaciones aisladas), narrativas
+elaboradas con contexto teórico, acciones con costos variados. Mundos
+de 10-25 nodos con múltiples latentes.
 
-El sistema acepta cualquier estructura causal (DAGs arbitrarios) y
-produce research cases que se parecen a investigaciones reales: mundos
-más grandes, datos ricos (múltiples datasets, datos parciales,
-observaciones aisladas), narrativas elaboradas con contexto teórico,
-acciones con costos variados, y problemas integrados con múltiples
-preguntas conectadas.
+Corresponde a la **Etapa 2** de WORLD_DESIGN.md: composición controlada.
 
-### v3 — Mundos complejos y evaluación profunda
+### v3 — Mechanism-first + evaluación profunda
 
-Variables continuas y mixtas. Evaluación de intervenciones (do-calculus).
-Descubrimiento de estructura. Documentos sintéticos elaborados (papers
-ficticios, reportes). Rúbricas de proceso para evaluar calidad del
-razonamiento, no solo la respuesta final.
+Diseño mechanism-first: `MechanismSpec` como contrato de entrada,
+librería de mecanismos reutilizables, `WorldComposer` que combina
+mecanismos en mundos. Hipótesis rivales como mecanismos competidores.
+Evaluación de intervenciones (do-calculus). Descubrimiento de estructura.
 
-### v4 — Escala
+Corresponde a la **Etapa 3** de WORLD_DESIGN.md: diseño mechanism-first.
 
-Tareas multi-paso con sub-evaluaciones encadenadas. Currículo de
-complejidad creciente. RL loop con el verificador como reward.
-Herramientas externas para agentes. Evaluación contra benchmarks
-científicos reales.
+### Backlog
+
+Variables continuas y mixtas. Documentos sintéticos (papers ficticios,
+reportes). Rúbricas de proceso (evaluar razonamiento, no solo respuesta).
+Currículo de complejidad. RL loop con verificador como reward.
+Herramientas externas para agentes.
 
 ---
 

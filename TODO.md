@@ -4,7 +4,7 @@
 > Statuses: `[ ]` pending | `[~]` in progress | `[x]` done | `[-]` cancelled
 > Vision and scope: see PROJECT.md
 
-## Done (v0 progress)
+## Done — v0+v1 (Etapa 1: motifs curados)
 - [x] Pydantic data contracts (World, Episode, Task, Score, etc.)
 - [x] World generation + validation (latent_preference template, WorldCheckTool)
 - [x] Teacher solver (exact Bayesian inference, optimal actions, >90% accuracy)
@@ -13,11 +13,16 @@
 - [x] Semantic layer (names, narrative, data presentation, ResearchProblem)
 - [x] LLM Agent solver (observe/submit loop, comparison with teacher/random)
 - [x] End-to-end pipeline: orchestrator -> agent -> score (scripts/test_e2e.py)
-
-## Next — Closes v0
 - [x] Teacher trajectory export as JSONL (problem, actions, observations, posteriors)
 - [x] Batch evaluation: generate N problems programmatically, run agent + teacher, collect metrics
 - [x] Summary report: agent vs teacher vs random across difficulty levels
+- [x] Causal chain template (with semantic layer from start)
+- [x] Fork/collider template (with semantic layer from start)
+- [x] `next_best_observation` task type
+- [x] `hypothesis_selection` task type
+- [x] Multiple evaluations per problem: same world generates all 3 task types together
+
+## Loose ends (v0+v1)
 - [ ] Update demo script and notebook
 - [ ] Run batch eval across varying parameters (nodes, edge_strength, budget)
 
@@ -32,27 +37,26 @@
 - [ ] Hypothesis near-indistinguishable with low edge_strength: at es=0.3, true posterior vs reversed can have KL as low as 0.0097, making the task nearly impossible to solve correctly
   - **Fix**: after generating hypotheses, check min KL between true posterior and nearest distractor is above a threshold (e.g., 0.05). If not, either regenerate with different evidence, replace the reversed distractor with a different one (e.g., sample from a Dirichlet), or skip hypothesis_selection for that world/seed combo.
 
-## v1 — More templates + more tasks
-- [x] Causal chain template (with semantic layer from start)
-- [x] Fork/collider template (with semantic layer from start)
-- [x] `next_best_observation` task type
-- [x] `hypothesis_selection` task type
-- [x] Multiple evaluations per problem: same world generates all 3 task types together
-
-## v2 — Custom template + research cases realistas
+## v2 — Composicion controlada + research cases (Etapa 2)
 
 > Estrategia de investigacion y diseno detallado en **`WORLD_DESIGN.md`**.
 
-### Template custom (DAGs arbitrarios) — Etapa 2: composicion controlada
-- [ ] `DAGSpec` model: Pydantic contract to specify an arbitrary DAG (nodes with names/types/states, edges)
-- [ ] `CustomTemplate`: accepts a DAGSpec, generates valid CPDs using generic edge_strength logic
-- [ ] Validation: custom worlds pass WorldCheck (acyclic, entropy, d-separations, teacher solvable)
+### Prototipo DAGSpec (slice minimo — en curso)
+- [ ] `DAGSpec` + `DAGNodeSpec` models: Pydantic contract with validations (acyclic, max parents <=4, required types)
+- [ ] `cpd_gen.py`: extract shared CPD generation from 3 templates (eliminate copy-paste)
+- [ ] `CustomTemplate`: accepts DAGSpec, generates valid CPDs using generic edge_strength logic → World
+- [ ] WorldCheck extended: max parents check + treewidth metric (warning, not failure)
+- [ ] `generate_custom()` method in WorldGenTool (transitional, separate from existing `generate()` — unify later if it works)
 - [ ] All 3 task types work with custom worlds (TaskGenTool + TaskBundle)
-- [ ] Registration in WorldGenTool alongside existing templates
-- [ ] Tests: custom worlds with 10-15+ nodes, multiple latents, complex topologies
-- [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
+- [ ] Tests: custom worlds with 5-15 nodes, heterogeneous states, multiple latents
+- [ ] E2E validation: 10-15 node worlds, teacher improves over prior + beats random, reasonable rate of non-degenerate tasks, document findings in WORLD_DESIGN.md
 
-### Datos más ricos
+### Composicion de motifs (siguiente — despues del prototipo)
+- [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
+- [ ] DAG generators: Erdos-Renyi, spanning tree, preferential attachment, layered (inspired by Reasoning Core)
+- [ ] Expressive range analysis: generate 100+ worlds, measure distributions, detect biases
+
+### Datos mas ricos
 - [ ] Multiple datasets per problem (tabular + observations + partial data)
 - [ ] Missing data / incomplete observations
 - [ ] Variable action costs (not all cost 1)
@@ -63,7 +67,9 @@
 - [ ] Richer semantic layer: apply_semantics generates multi-paragraph narrative
 - [ ] Domain-specific action descriptions (not just "observe X")
 
-### Mechanism-first design — Etapa 3
+## v3 — Mechanism-first + evaluacion profunda (Etapa 3)
+
+### Mechanism-first design
 - [ ] `MechanismSpec` model: subgraph + semantics + shared variables
 - [ ] Mechanism library: 5-10 reusable base mechanisms
 - [ ] `WorldComposer`: combines mechanisms into a world (resolves conflicts, shared vars)
@@ -75,10 +81,12 @@
 - [ ] Integrated multi-question problems: one budget, multiple evaluation points
 - [ ] Seeds from papers or documents (LLM extracts DAG structure → CustomTemplate)
 
-## Backlog (v3+)
+### Evaluacion avanzada
+- [ ] Intervention tasks (do-calculus via graph surgery)
+- [ ] Structure recovery tasks (SHD evaluation)
+
+## Backlog
 - [ ] Continuous variables (Gaussian CPDs, mixed worlds)
-- [ ] Intervention tasks (do-calculus)
-- [ ] Structure recovery tasks
 - [ ] Synthetic document artifacts (papers, reports, notes)
 - [ ] Process rubrics (evaluate reasoning quality, not just answer)
 - [ ] Approximate inference teacher (larger worlds)
