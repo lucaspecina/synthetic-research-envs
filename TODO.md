@@ -154,24 +154,32 @@
 - [ ] **A.4**: Budget compartido entre preguntas del mismo caso
 - [ ] **A.5**: Paper-seeded cases — el orchestrator lee un paper y diseña un caso sintetico inspirado
 
-##### Eje B: Nuevos eval types (catálogo extensible)
-> Cada eval type nuevo necesita: TaskType enum value, generación en TaskGenTool,
+##### Eje B: Nuevos eval types (catálogo de 31 tipos en 6 familias)
+> Catálogo completo en WORLD_DESIGN.md "Catálogo de evaluaciones científicas".
+> Cada eval type necesita: TaskType enum, generación en TaskGenTool,
 > scoring en VerifierTool, teacher solver support, tests.
-> Ver tabla completa en WORLD_DESIGN.md "Catalogo de evaluaciones".
+> Priorización por olas, no por facilidad de pgmpy: la regla es
+> "¿se siente como pregunta científica de un case real?"
 
-- [x] **B.1**: `causal_effect` — Si do(X=x), qué pasa con Y? (do-calculus, pgmpy lo soporta)
-  > Implementado: `ExactBayesSolver.causal_query()`, `TaskGenTool._causal_effect_task()`,
-  > `Task.intervention` field, `TaskType.CAUSAL_EFFECT`. 14 nuevos tests. Score: KL.
-  > E2E validado: do() != observe() en latent_preference/fork_collider (confounders).
-- [ ] **B.2**: `prediction` — Dado lo observado, qué valor tendrá Z? (posterior de Z)
-  > Muy parecido a infer_target pero con un nodo distinto al target. Fácil de agregar.
-- [ ] **B.3**: `structure_discovery` — Cuál es la estructura causal? (SHD metric)
-  > El agente propone un DAG, se compara con el real. Requiere formato de entrada/salida.
-- [ ] **B.4**: `mechanism_selection` — Cuál mecanismo explica mejor? (mecanismos rivales)
-  > Requiere MechanismSpec (v3). Dos BNs rivales, el agente elige cuál generó los datos.
-- [ ] **B.5**: `optimization` — Qué configuración maximiza Y? (argmax sobre do-calculus)
-  > Requiere causal_effect primero. El agente propone intervención, se evalúa E[Y|do()].
-- [ ] Después: evaluaciones semánticas con rubrics (reasoning_quality, evidence_usage, etc.)
+- [x] **B.1**: `causal_effect` — Si do(X=x), qué pasa con Y?
+  > Implementado: `causal_query()`, `_causal_effect_task()`, `Task.intervention`.
+  > 14 tests. E2E validado: do() != observe() con confounders.
+- [ ] **Ola 1** (builds on lo que hay, pgmpy directo):
+  - [ ] `best_intervention` — Qué intervención maximiza Y? (argmax sobre do-queries)
+  - [ ] `compare_interventions` — do(X) vs do(Z), cuál cambia más Y?
+  - [ ] `adjustment_set` — Qué variables debo controlar? (backdoor criterion)
+  - [ ] `should_condition` — Alguien sugiere controlar por Z. Es correcto? (elemental confounds)
+  - [ ] `infer_latent_cause` — Qué causa oculta explica los síntomas? (posterior sobre LATENT)
+- [ ] **Ola 2** (requieren más diseño):
+  - [ ] `simpson_paradox` — Datos que engañan, solo la estructura causal resuelve
+  - [ ] `mediation` — Efecto directo vs indirecto (NDE/NIE via múltiples do-queries)
+  - [ ] `confounder_detection` — Este análisis está confundido? Por qué?
+- [ ] **Ola 3** (infraestructura nueva):
+  - [ ] `mechanism_selection` — Cuál mecanismo generó los datos? (requiere MechanismSpec v3)
+  - [ ] `best_experiment_to_disambiguate` — Qué experimento separa 2 hipótesis rivales?
+  - [ ] `structure_discovery` — Recuperar la estructura causal (SHD, edge F1)
+  - [ ] `prediction` — Posterior de un nodo no-target
+  - [ ] Familia F: evaluaciones de proceso (rubrics, calibración, LLM-as-judge)
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec

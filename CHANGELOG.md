@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — Eval catalog research: 31 task types in 6 scientific families
+- **New section in WORLD_DESIGN.md**: "Fundamentos de razonamiento causal y cientifico"
+  - Pearl's ladder of causation (3 rungs: association, intervention, counterfactual)
+  - McElreath's 4 elemental confounds (fork, pipe, collider, descendant)
+  - Design principle: tasks as scientific questions, not DAG exercises
+  - Three-level distinction: eval type → question template → research subtask
+- **Comprehensive eval catalog** in WORLD_DESIGN.md: 31 eval types in 6 families:
+  - A. Diagnosis/explanation (5 types): infer_target, infer_latent_cause, hypothesis_selection, mechanism_selection, explain_anomaly
+  - B. Evidence gathering (6 types): NBO, best under cost, measurement bundle, disambiguate experiment, sequential design, efficiency
+  - C. Causal intervention (6 types): causal_effect, compare, best, ATE, constrained, mediation
+  - D. Structure/model discovery (6 types): adjustment_set, should_condition, simpson_paradox, confounder_detection, structure/skeleton
+  - E. Prediction (4 types): prediction, temporal forecast, context shift, counterfactual
+  - F. Process quality (5 types): evidence usage, alternative hypotheses, causal coherence, plan quality, calibration
+- **Implementation roadmap**: 4 waves (0: done, 1: next 5, 2: 3 more, 3: infrastructure-heavy)
+- **pgmpy support mapping**: which functions enable which eval types
+- **TODO.md updated**: Eje B rewritten with full wave structure
+- Sources: Pearl, McElreath (Statistical Rethinking), CauSciBench, CausalBench, CausalProbe-2024, ResearchGym
+
 ### 2026-03-09 — B.1: causal_effect eval type (do-calculus)
 - **`TaskType.CAUSAL_EFFECT`** added to eval catalog — first new eval type beyond the original 3
 - **`ExactBayesSolver.causal_query()`**: computes P(target | do(node=state)) using pgmpy's `CausalInference`

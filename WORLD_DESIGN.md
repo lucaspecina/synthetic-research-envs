@@ -1271,6 +1271,166 @@ viable el custom template** — no hay que reinventar la generacion de CPDs.
 
 ---
 
+## Fundamentos de razonamiento causal y cientifico (research 2026-03-09)
+
+> **Investigacion teorica** para fundamentar el catalogo de evaluaciones.
+> Fuentes principales: Judea Pearl (do-calculus, escalera de causalidad),
+> Richard McElreath (Statistical Rethinking, confounders elementales),
+> benchmarks existentes (CausalBench, CauSciBench, CausalProbe-2024).
+> Esta seccion es referencia conceptual — no es un plan de implementacion.
+
+### La escalera de causalidad de Pearl
+
+Pearl define tres niveles cualitativamente distintos de razonamiento causal.
+Cada nivel requiere informacion que el nivel inferior NO puede proveer
+(demostrado formalmente por el Causal Hierarchy Theorem).
+
+```
+Escalon 3: CONTRAFACTUAL (imaginar)
+  P(Y_x' | X=x, Y=y)
+  "Este paciente tomo el medicamento y se curo.
+   Se habria curado SIN tomarlo?"
+  Requiere: SCM completo (ecuaciones estructurales + ruido)
+  ──────────────────────────────────────────────────
+Escalon 2: INTERVENCION (hacer)
+  P(Y | do(X=x))
+  "Si FORZAMOS a todos los pacientes a tomar el medicamento,
+   cual seria la tasa de recuperacion?"
+  Requiere: DAG causal (para graph surgery / do-calculus)
+  ──────────────────────────────────────────────────
+Escalon 1: ASOCIACION (ver)
+  P(Y | X=x)
+  "Los pacientes que tomaron el medicamento tuvieron mejor
+   tasa de recuperacion."
+  Requiere: datos observacionales
+```
+
+**Donde esta SREG hoy:**
+- Escalon 1: `infer_target`, `hypothesis_selection`, `next_best_observation`
+- Escalon 2: `causal_effect` (recien implementado)
+- Escalon 3: no implementado (requiere SCM, no solo DAG+CPDs)
+
+**Por que importa la distincion:**
+- `P(Y | X=x)` != `P(Y | do(X=x))` cuando hay confounders.
+  Observar que alguien toma un medicamento (quizas porque esta mas enfermo)
+  es distinto de forzar a todos a tomarlo (ensayo clinico).
+- `do(X=x)` = mutilar el grafo eliminando todas las flechas que llegan a X,
+  luego calcular P(Y) en el grafo mutilado. Esto "corta" la influencia de
+  los confounders sobre X.
+- Los contrafactuales son retrospectivos y sobre individuos especificos.
+  Requieren un modelo estructural completo, no solo un DAG con CPDs.
+
+**Implicancia para el catalogo de evaluaciones:**
+El catalogo debe cubrir al menos los escalones 1 y 2. El escalon 3 es futuro
+y requiere infraestructura nueva (SCM). Pero dentro de cada escalon hay
+muchas preguntas cientificas distintas — no se trata solo de "calcular
+una probabilidad" sino de razonar sobre la estructura causal.
+
+### Los 4 confounders elementales de McElreath
+
+Statistical Rethinking (cap. 5-6) identifica 4 patrones fundamentales
+que todo investigador debe reconocer. Cada uno produce un tipo diferente
+de error si se trata incorrectamente.
+
+```
+1. FORK (causa comun)           2. PIPE (mediador/cadena)
+
+     Z                              X -> Z -> Y
+    / \
+   X   Y                      Z media el efecto de X sobre Y.
+                               Condicionar en Z BLOQUEA el camino causal.
+X e Y parecen correlacionados  ERROR: "post-treatment bias" si controlas
+pero no hay relacion causal.   por el mediador cuando queres el efecto total.
+Condicionar en Z elimina
+la correlacion espuria.
+ERROR: confounding si no
+controlas por Z.
+
+3. COLLIDER                     4. DESCENDANT
+
+   X -> Z <- Y                    X -> Z <- Y
+                                       |
+X e Y son independientes,              D
+pero condicionar en Z crea
+una correlacion espuria.        Condicionar en D (descendiente de Z)
+ERROR: "Berkson's paradox",     produce una version ATENUADA del
+"explaining away".              efecto del patron original.
+Condicionar abre un camino      ERROR: efecto parcial inesperado.
+que deberia estar cerrado.
+```
+
+**El "Haunted DAG" de McElreath (cap. 6):**
+Cuando hay un confounder NO observado, puede producir collider bias
+a traves de variables observadas. El agente ve correlaciones fantasma
+causadas por una variable que no puede medir directamente. Esta situacion
+aparece naturalmente en nuestros mundos (nodos LATENT = no observables).
+
+**Cada patron mapea a un tipo de pregunta cientifica:**
+
+| Patron | Pregunta cientifica | Eval type potencial |
+|---|---|---|
+| Fork | "Esta correlacion es espuria?" | `should_condition`, `adjustment_set` |
+| Pipe | "Debo controlar por este mediador?" | `should_condition`, `mediation` |
+| Collider | "Observar Z cambia la relacion X-Y?" | `should_condition`, `explaining_away` |
+| Descendant | "Este proxy me da informacion util?" | `conditional_independence` |
+
+**Inspiracion adicional de McElreath:**
+- Cap. 8: Interacciones — el efecto de X sobre Y DEPENDE de Z
+- Cap. 13: Modelos con memoria — autocorrelacion y procesos dinamicos
+- Cap. 14: Instrumentos y disenos causales — variables instrumentales
+- Cap. 15: Missing data y measurement error — datos incompletos y ruidosos
+- Cap. 16: Dinamica poblacional — sistemas que cambian en el tiempo
+
+Varios de estos temas (missing data, instrumentos, interacciones) son
+directamente modelables con BNs y estan en el horizonte de SREG.
+
+### Principio de diseno: tasks como preguntas cientificas
+
+> **El catalogo de eval types deberia parecerse a un catalogo de preguntas
+> cientificas, no a un catalogo de metricas de benchmark.**
+
+Esta es la regla de oro para decidir que eval types agregar. El filtro es:
+
+> **¿Esto se siente como una subtask de un research case real,
+> o como un ejercicio abstracto de DAGs?**
+
+Ejemplos:
+- "¿Son X e Y d-separados dado Z?" → ejercicio de grafos (malo)
+- "Si ya conocemos la composicion del suelo, ¿importa medir la lluvia
+  para predecir el rendimiento?" → pregunta cientifica (bueno)
+
+La diferencia no esta en el eval type, sino en el FRAMING. El mismo
+`conditional_independence` puede ser abstracto o cientifico segun como
+el orchestrator lo formule dentro del research case.
+
+**Distincion de tres niveles (arquitectura conceptual):**
+
+```
+eval type          = familia abstracta (ej. "adjustment_set")
+                     → define QUE se evalua y COMO se puntua
+                     → implementado como TaskType + scoring method
+
+question template  = como se formula la pregunta
+                     → puede ser abstracto o cientifico
+                     → implementado como question_text en EvalQuestionPlan
+
+research subtask   = pregunta concreta dentro del caso
+                     → nace del research case, no del DAG
+                     → implementado como CasePlan + generate_from_plan
+```
+
+**Ya tenemos la arquitectura para esto.** CasePlan + EvalQuestionPlan +
+generate_from_plan ES exactamente este patron de tres niveles. El eval_type
+define la mecanica formal, el question_text da el framing cientifico,
+y el research_context del CasePlan da el caso de investigacion.
+
+**Consecuencia practica:** no necesitamos infraestructura nueva para que
+las tasks se sientan como preguntas cientificas. Necesitamos (a) ampliar
+el catalogo de eval types y (b) que el orchestrator genere buenos
+question_text dentro de CasePlans convincentes.
+
+---
+
 ## Diseno de Research Cases — del TaskBundle al ResearchCase (analisis 2026-03-09)
 
 > **Este es el analisis mas importante del proyecto hasta ahora.** Cambia la
@@ -1428,41 +1588,257 @@ EvalQuestion:
 - A.5: Paper-seeded cases
 
 **Eje B — Ampliar el catalogo de eval types** (que preguntas PUEDE hacer):
-- B.1: causal_effect (do-calculus, pgmpy lo soporta)
-- B.2: prediction (posterior de otro nodo)
-- B.3: structure_discovery (SHD metric)
-- B.4: mechanism_selection (mecanismos rivales, requiere MechanismSpec)
-- B.5: optimization (argmax sobre do-calculus)
+- [x] B.1: `causal_effect` — do-calculus (implementado, 14 tests)
+- B.2 (ola 1): `best_intervention` — argmax sobre do()
+- B.3 (ola 1): `compare_interventions` — do(X) vs do(Z)
+- B.4 (ola 1): `adjustment_set` — backdoor adjustment sets
+- B.5 (ola 1): `should_condition` — los 4 elemental confounds
+- B.6 (ola 1): `infer_latent_cause` — posterior sobre nodo latente
+- B.7 (ola 2): `simpson_paradox`, `mediation`, `confounder_detection`
+- B.8 (ola 3): `mechanism_selection`, `structure_discovery`, `prediction`, etc.
 
-Sin el Eje B, el Eje A es "elegir entre las mismas 3 opciones de siempre".
+Ver catalogo completo de 31 eval types en 6 familias arriba
+("Catalogo de evaluaciones cientificas").
+
+Sin el Eje B, el Eje A es "elegir entre las mismas opciones de siempre".
 Sin el Eje A, el Eje B es "tener muchos tipos pero siempre usarlos todos".
 Ambos ejes se necesitan para que el sistema se parezca a la vision de PROJECT.md.
 
-### Catalogo de evaluaciones (extensible)
+### Catalogo de evaluaciones cientificas (research 2026-03-09)
 
-Evaluaciones formales (respuesta computable desde el BN):
+> **Catalogo completo de evaluaciones posibles sobre un research case.**
+> Organizado en 6 familias de razonamiento cientifico. Cada eval type tiene
+> una pregunta cientifica, un ground truth computable, y una metrica de scoring.
+> El catalogo crece incrementalmente — no se implementan todas a la vez.
+>
+> **Fuentes**: Pearl (do-calculus, escalera de causalidad), McElreath
+> (Statistical Rethinking, elemental confounds), CauSciBench, CausalBench,
+> ResearchGym, PROJECT.md, y analisis conjunto de multiples perspectivas.
+>
+> **Principio de diseno**: ver seccion "Fundamentos de razonamiento causal"
+> arriba. Las tasks deben sentirse como preguntas cientificas de un case,
+> no como ejercicios abstractos de DAGs.
 
-| Eval type | Pregunta | Respuesta del BN | Tenemos? |
-|---|---|---|---|
-| `infer_target` | P(target \| evidence)? | posterior exacta | Si |
-| `next_best_obs` | Que variable medir? | IG ranking | Si |
-| `hypothesis_sel` | Cual hipotesis es mejor? | KL desde posterior | Si |
-| `causal_effect` | Si do(X=x), que pasa con Y? | do-calculus via graph surgery | No (pgmpy lo soporta) |
-| `structure_disc` | Cual es la estructura causal? | DAG real | No |
-| `prediction` | Dado lo observado, que valor tendra Z? | posterior de Z | No (facil de agregar) |
-| `optimization` | Que accion maximiza Y? | argmax sobre do() | No |
+#### Las 6 familias de evaluacion
 
-Evaluaciones semanticas (requieren juez o rubric):
+##### A. Diagnosis / explanation — "¿Que esta pasando?"
 
-| Eval type | Pregunta | Como se evalua |
+| # | Eval type | Pregunta cientifica | Ground truth | Scoring | Status |
+|---|---|---|---|---|---|
+| 1 | `infer_target` | Dada la evidencia, cual es la distribucion del target? | Posterior exacta P(T\|E) | KL divergence | **Implementado** |
+| 2 | `infer_latent_cause` | Que causa oculta explica lo que vemos? | Posterior sobre nodo latente P(L\|E) | KL divergence | Proxima ola |
+| 3 | `hypothesis_selection` | Cual de estas hipotesis explica mejor los datos? | KL de cada hipotesis vs posterior verdadera | Accuracy (eligio la mejor?) | **Implementado** |
+| 4 | `mechanism_selection` | Cual mecanismo genero los datos? | BN verdadero vs rivales (KL o likelihood ratio) | Accuracy o ranking | Requiere MechanismSpec v3 |
+| 5 | `explain_anomaly` | Que mecanismo explica este patron raro? | Posterior condicionado en evidencia anomala | KL o accuracy | Futuro |
+
+**Notas:**
+- `infer_latent_cause` es la inversion de `infer_target`: en vez de predecir
+  el outcome, el agente infiere la variable oculta que lo explica. Es lo que
+  hace un medico ("dados los sintomas, cual es la enfermedad?"). pgmpy lo
+  soporta directamente (posterior sobre nodo LATENT).
+- `mechanism_selection` es la generalizacion mas potente de `hypothesis_selection`.
+  En vez de elegir entre distribuciones, el agente elige entre mecanismos causales
+  completos (diferentes DAGs que generan datos similares). Requiere infraestructura
+  de mecanismos rivales (MechanismSpec v3, ver seccion correspondiente).
+- `explain_anomaly` es especialmente interesante para casos con outliers:
+  "el paciente tiene todos los sintomas de A, pero el tratamiento no funciona".
+
+##### B. Evidence gathering / experimental design — "¿Como investigo mejor?"
+
+| # | Eval type | Pregunta cientifica | Ground truth | Scoring | Status |
+|---|---|---|---|---|---|
+| 6 | `next_best_observation` | Que variable conviene medir ahora? | IG ranking de nodos restantes | IG ratio (elegido/optimo) | **Implementado** |
+| 7 | `best_observation_under_cost` | Igual que NBO, pero con costos distintos por accion | IG/costo ranking | IG-per-cost ratio | Futuro (requiere rich actions) |
+| 8 | `best_measurement_bundle` | Con budget=K, que combo de mediciones es optimo? | IG acumulada de combinaciones | Ratio vs optimo | Futuro |
+| 9 | `best_experiment_to_disambiguate` | Tengo 2 hipotesis rivales. Que medicion las separa mejor? | IG sobre hipotesis (no sobre target) | IG ratio | Requiere mecanismos rivales |
+| 10 | `sequential_design` | Elegir la mejor secuencia de acciones (no solo la primera) | Trayectoria optima del teacher | Entropy reduction ratio | Parcial (teacher trajectory) |
+| 11 | `research_efficiency` | Que tan bien uso el budget para reducir incertidumbre? | Entropy reduction por unidad de budget | Ratio vs teacher | Metrica transversal |
+
+**Notas:**
+- `best_experiment_to_disambiguate` es brillante conceptualmente: no pregunta
+  "que medicion reduce mas la incertidumbre sobre el target" sino "que medicion
+  separa mejor dos explicaciones rivales". Es lo que hace un cientifico real
+  cuando diseña un experimento. Requiere tener dos hipotesis formales (→ mecanismos
+  rivales o dos distribuciones candidatas).
+- `research_efficiency` no es un eval type en si, sino una metrica transversal
+  que puede aplicarse a cualquier tarea con budget. Ya tenemos las piezas
+  (entropy_reduction en QualitySuite).
+
+##### C. Causal intervention — "¿Que pasa si intervengo?"
+
+| # | Eval type | Pregunta cientifica | Ground truth | Scoring | Status |
+|---|---|---|---|---|---|
+| 12 | `causal_effect` | Si do(X=x), que pasa con Y? | P(Y \| do(X=x)) via graph surgery | KL divergence | **Implementado** |
+| 13 | `compare_interventions` | Que cambia mas el outcome: do(X=x) o do(Z=z)? | Comparar P(Y\|do(X)) vs P(Y\|do(Z)) | Accuracy (eligio el mas fuerte?) | Proxima ola |
+| 14 | `best_intervention` | Que intervencion maximiza/minimiza Y? | argmax/argmin sobre do() | Regret (distancia al optimo) | Proxima ola |
+| 15 | `average_treatment_effect` | Cuanto cambia Y en promedio al intervenir? | E[Y\|do(X=1)] - E[Y\|do(X=0)] | Error absoluto | Futuro |
+| 16 | `constrained_intervention` | Que accion conviene si solo puedo tocar ciertas variables? | Optimo sobre subconjunto permitido | Regret | Futuro |
+| 17 | `mediation` | Que parte del efecto pasa por una variable intermedia? | NDE + NIE via multiples do() queries | Error en proporcion mediada | Despues |
+
+**Notas:**
+- `best_intervention` es el paso natural despues de `causal_effect`: en vez de
+  "que pasa si do(X=x)", es "que X y que x maximizan Y". Builds directamente
+  sobre `causal_query()`. pgmpy lo soporta (iterar sobre do() queries).
+- `compare_interventions` es la version binaria mas accesible: "te conviene
+  tratar con el medicamento A o el B?". Muy comun en medicina y economia.
+- `mediation` descompone el efecto total en directo e indirecto:
+  "el medicamento reduce el dolor directamente, o porque reduce la inflamacion
+  que causa el dolor?". Computable con multiples do() queries.
+
+##### D. Structure / model discovery — "¿Cual es la estructura causal?"
+
+| # | Eval type | Pregunta cientifica | Ground truth | Scoring | Status |
+|---|---|---|---|---|---|
+| 18 | `adjustment_set` | Que variables debo controlar para estimar X→Y? | Backdoor adjustment sets validos | Validez del set propuesto | Proxima ola |
+| 19 | `should_condition` | Alguien sugiere controlar por Z. Es correcto? | Rol de Z (confounder/mediador/collider) | Accuracy + justificacion | Proxima ola |
+| 20 | `simpson_paradox` | Los datos dicen A, la causa dice B. Cual es? | Direccion de P(Y\|do(X)) vs correlacion | Accuracy (direccion correcta) | Despues |
+| 21 | `confounder_detection` | Este analisis esta confundido? Por que? | Backdoor paths no bloqueados | Set match (precision/recall) | Despues |
+| 22 | `structure_discovery` | Cual es la estructura causal? | DAG real | SHD, edge F1 | Futuro |
+| 23 | `skeleton_recovery` | Que variables estan conectadas? (sin direccion) | Skeleton del DAG | F1 de edges | Futuro |
+
+**Notas:**
+- `adjustment_set` es LA pregunta central de McElreath. pgmpy la soporta
+  directamente: `get_all_backdoor_adjustment_sets(X, Y)` devuelve todos los
+  sets validos, `is_valid_backdoor_adjustment_set(X, Y, Z)` valida propuestas.
+  Es una pregunta cientifica real ("por que variables ajusto mi regresion?").
+- `should_condition` testea directamente los 4 elemental confounds de McElreath.
+  La misma pregunta ("controlar por Z?") tiene respuestas OPUESTAS segun si Z
+  es un confounder (SI), un mediador (depende), o un collider (NO).
+  pgmpy lo soporta via d-separation tests y analisis de paths.
+- `simpson_paradox` es la joya: el agente recibe datos que PARECEN decir una cosa,
+  pero la estructura causal dice otra. Solo el razonamiento causal (escalon 2)
+  permite resolver la paradoja. Computable: do-calculus da el efecto real,
+  inferencia estandar da la correlacion engañosa.
+- `structure_discovery` y `skeleton_recovery` son las mas ambiciosas.
+  pgmpy tiene estructura learning (PC, HillClimb, GES) pero el formato
+  de entrada/salida requiere diseno cuidadoso.
+
+##### E. Prediction / forecasting — "¿Que va a pasar?"
+
+| # | Eval type | Pregunta cientifica | Ground truth | Scoring | Status |
+|---|---|---|---|---|---|
+| 24 | `prediction` | Dado lo observado, que valor tendra Z? | Posterior de Z (no target) | KL divergence | Facil de agregar |
+| 25 | `temporal_forecast` | Que pasa en el proximo paso de tiempo? | Posterior en BN temporal | KL o error | Futuro (requiere BN temporal) |
+| 26 | `context_shift` | Que pasa si cambian condiciones externas? | Posterior con nuevas evidencias | KL divergence | Futuro |
+| 27 | `counterfactual` | "Si hubiera sido X' en vez de X, que habria pasado con Y?" | SCM counterfactual query | KL divergence | Futuro (requiere SCM) |
+
+**Notas:**
+- `prediction` es el mas facil de agregar: es `infer_target` pero con un nodo
+  distinto al target. La pregunta es "dado lo que sabes, que valor tendra Z?".
+  Toda la infraestructura de scoring (KL divergence) ya existe.
+- `counterfactual` es escalon 3 de Pearl. Requiere SCM con ecuaciones
+  estructurales y variables de ruido, no solo CPDs. pgmpy tiene soporte
+  parcial pero es significativamente mas complejo.
+
+##### F. Process / scientific reasoning quality — "¿Como razona?"
+
+| # | Eval type | Pregunta | Como se evalua | Status |
+|---|---|---|---|---|
+| 28 | `evidence_usage` | Actualizo creencias razonablemente con datos nuevos? | Comparar trayectoria vs teacher | Rubric / metrica |
+| 29 | `alternative_hypotheses` | Exploro otras explicaciones? | Rubric sobre diversidad de hipotesis exploradas | LLM-as-judge |
+| 30 | `causal_coherence` | El argumento es consistente con la estructura? | Rubric sobre coherencia causal | LLM-as-judge |
+| 31 | `research_plan_quality` | Eligio buenas acciones en buen orden? | Comparar con teacher trajectory | Metrica (IG acumulada) |
+| 32 | `calibration` | Cuando dice 70% realmente acierta ~70%? | Calibration curve sobre multiples episodios | Brier score, ECE |
+
+**Notas:**
+- La familia F es fundamentalmente distinta de las otras: son evaluaciones
+  de **proceso**, no de **resultado**. No tienen ground truth puntual del BN.
+- `evidence_usage` y `research_plan_quality` son parcialmente formalizables
+  (comparar con la trayectoria del teacher). Las demas requieren LLM-as-judge.
+- `calibration` requiere multiples episodios del mismo agente para medir.
+- PROJECT.md ya contempla estas evaluaciones como futuras.
+- **No son prioridad de implementacion** porque (a) no encajan en el patron
+  TaskType → correct_answer → VerifierTool, y (b) son ortogonales: se pueden
+  agregar encima de cualquier eval type existente.
+
+#### Resumen: inventario de evaluaciones
+
+| Familia | Implementadas | Proxima ola | Despues | Futuro | Total |
+|---|---|---|---|---|---|
+| A. Diagnosis | 2 | 1 | - | 2 | 5 |
+| B. Strategy | 1 | - | - | 4 | 5 |
+| C. Intervention | 1 | 2 | 1 | 2 | 6 |
+| D. Structure | - | 2 | 2 | 2 | 6 |
+| E. Prediction | - | - | - | 4 | 4 |
+| F. Process | - | - | - | 5 | 5 |
+| **Total** | **4** | **5** | **3** | **19** | **31** |
+
+#### Mapa de implementacion por olas
+
+**Ola 0 — Ya implementado (4 eval types):**
+- `infer_target`, `next_best_observation`, `hypothesis_selection`, `causal_effect`
+- Cubren escalones 1 y 2 de Pearl. Familias A, B, C.
+
+**Ola 1 — Proxima (5 eval types, pgmpy los soporta HOY):**
+- `best_intervention` — argmax sobre do(). Builds on causal_effect.
+- `compare_interventions` — binario: do(X) vs do(Z). Facil.
+- `adjustment_set` — pgmpy: `get_all_backdoor_adjustment_sets()`.
+- `should_condition` — los 4 elemental confounds. d-separation tests.
+- `infer_latent_cause` — posterior sobre nodo LATENT. Igual que infer_target.
+
+**Ola 2 — Despues (3 eval types, requieren mas diseno):**
+- `simpson_paradox` — generar datos que exhiban la paradoja.
+- `mediation` — multiples do() queries para NDE/NIE.
+- `confounder_detection` — identificar backdoor paths no bloqueados.
+
+**Ola 3 — Requieren infraestructura nueva:**
+- `mechanism_selection` — MechanismSpec v3 (BNs rivales)
+- `best_experiment_to_disambiguate` — requiere mecanismos rivales
+- `structure_discovery` — formato de DAG como input/output
+- `prediction`, `counterfactual`, `temporal_forecast` — varios niveles
+- Familia F completa — LLM-as-judge, metricas de proceso
+
+**Criterio de priorizacion (no solo "pgmpy lo soporta"):**
+
+| Criterio | Peso | Razon |
 |---|---|---|
-| `reasoning_quality` | El razonamiento es coherente? | LLM-as-judge + rubric |
-| `evidence_usage` | Actualizo creencias con datos nuevos? | Comparar trayectoria vs teacher |
-| `hypothesis_generation` | Exploro alternativas? | Rubric sobre diversidad |
-| `efficiency` | Uso el budget bien? | IG acumulada vs budget |
+| Se siente como pregunta cientifica real? | Alto | Regla de oro del catalogo |
+| pgmpy puede computar el ground truth? | Alto | Sin ground truth formal no hay eval verificable |
+| Builds on infraestructura existente? | Medio | Implementacion rapida, menos riesgo |
+| Cubre una familia no representada? | Medio | Diversidad del catalogo |
+| Requiere infraestructura nueva significativa? | Negativo | Retrasa, aumenta complejidad |
 
-**El catalogo no es cerrado.** Cualquier pregunta con respuesta computable
-desde el BN puede ser un eval type formal. Los semanticos son mas abiertos.
+#### Soporte en pgmpy
+
+Funciones de pgmpy que soportan evaluaciones del catalogo:
+
+| Funcion pgmpy | Eval types que habilita |
+|---|---|
+| `VariableElimination.query()` | infer_target, prediction, infer_latent_cause, hypothesis_selection |
+| `CausalInference.query(do=...)` | causal_effect, best_intervention, compare_interventions, mediation, ATE |
+| `get_all_backdoor_adjustment_sets()` | adjustment_set |
+| `is_valid_backdoor_adjustment_set()` | adjustment_set, should_condition |
+| `get_all_frontdoor_adjustment_sets()` | adjustment_set (variante) |
+| `nx.is_d_separator()` | should_condition, conditional_independence |
+| `DAG.get_markov_blanket()` | markov_blanket (no priorizado) |
+| `PC / HillClimb / GES` (structure learning) | structure_discovery, skeleton_recovery |
+
+#### Como se conecta con CasePlan y el research case
+
+Un research case realista usa MULTIPLES eval types del catalogo:
+
+```
+CasePlan: "Estudio de arenamiento en pozos de petroleo"
+  |
+  +-- Pregunta principal (eval_type=mechanism_selection):
+  |     "Cual mecanismo explica mejor el arenamiento post-fractura?"
+  |
+  +-- Subtask 1 (eval_type=best_intervention):
+  |     "Que tratamiento minimizaria la produccion de arena?"
+  |
+  +-- Subtask 2 (eval_type=next_best_observation):
+  |     "Que dato pedirias para confirmar tu hipotesis?"
+  |
+  +-- Subtask 3 (eval_type=should_condition):
+  |     "Tu colega ajusto por drawdown. Es correcto?"
+  |
+  +-- Evaluacion transversal (research_plan_quality):
+        "Que tan eficiente fue tu proceso de investigacion?"
+```
+
+**Esto ya es posible con la arquitectura actual.** CasePlan acepta
+una lista de EvalQuestionPlan, cada uno con su eval_type. Solo falta
+implementar los eval types que faltan en TaskGenTool.
 
 ### Paper-seeded cases: la idea central
 
@@ -1533,9 +1909,9 @@ ResearchCase listo para el agente
 
 ### Preguntas abiertas
 
-1. **Granularidad del catalogo de eval types**: hay que definir cuantos
-   eval types iniciales necesitamos vs agregar incrementalmente?
-   Inclinacion: empezar con los 3 existentes + causal_effect.
+1. ~~**Granularidad del catalogo de eval types**~~: RESUELTO. El catalogo tiene
+   31 eval types en 6 familias. Se implementan en 4 olas. Ver seccion
+   "Catalogo de evaluaciones cientificas" arriba.
 
 2. **Validacion de preguntas del orchestrator**: como verificamos que una
    pregunta propuesta por el LLM tiene respuesta computable desde el BN?
