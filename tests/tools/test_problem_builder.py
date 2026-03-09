@@ -77,3 +77,33 @@ def test_research_question_mentions_target():
     problem = builder.build(world)
 
     assert "target_outcome" in problem.research_question
+
+
+def test_build_rich_data():
+    """rich_data=True generates multiple datasets + narratives."""
+    world = _make_world(num_nodes=8)
+    builder = ProblemBuilder()
+    problem = builder.build(world, budget=4, rich_data=True)
+
+    assert isinstance(problem, ResearchProblem)
+    # Should have primary + secondary + narrative = 3 assets
+    assert len(problem.data_assets) == 3
+    formats = [a.format for a in problem.data_assets]
+    assert formats.count("tabular") == 2
+    assert formats.count("narrative") == 1
+    # Metadata populated
+    for asset in problem.data_assets:
+        if asset.format == "tabular":
+            assert asset.source is not None
+            assert asset.columns is not None
+
+
+def test_rich_data_overridden_by_explicit_config():
+    """Explicit data_config takes precedence over rich_data flag."""
+    world = _make_world(num_nodes=8)
+    builder = ProblemBuilder()
+    data_config = DataSamplerConfig(num_rows=10, format="tabular", seed=0)
+    problem = builder.build(world, budget=3, data_config=data_config, rich_data=True)
+
+    # Explicit config wins — single dataset, no multi
+    assert len(problem.data_assets) == 1

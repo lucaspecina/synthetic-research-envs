@@ -15,6 +15,7 @@ class ProblemBuilder:
         world: World,
         budget: int = 5,
         data_config: DataSamplerConfig | None = None,
+        rich_data: bool = False,
     ) -> ResearchProblem:
         """Package a world into a research problem the agent can see.
 
@@ -22,9 +23,23 @@ class ProblemBuilder:
             world: A World with semantic fields populated.
             budget: How many observation actions the agent can take.
             data_config: Configuration for data sampling. Defaults to 50 tabular rows.
+            rich_data: If True, use multi-dataset mode with missing data and
+                narrative observations (overridden by explicit data_config).
         """
         if data_config is None:
-            data_config = DataSamplerConfig(num_rows=50, format="tabular", seed=world.seed)
+            if rich_data:
+                data_config = DataSamplerConfig(
+                    num_rows=50,
+                    format="tabular",
+                    seed=world.seed,
+                    multi_dataset=True,
+                    missing_rate=0.1,
+                    narrative_observations=3,
+                )
+            else:
+                data_config = DataSamplerConfig(
+                    num_rows=50, format="tabular", seed=world.seed,
+                )
 
         # Sample data
         sampler = DataSampler()

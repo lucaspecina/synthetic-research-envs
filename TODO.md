@@ -95,14 +95,15 @@
 >
 > Plan concreto (slice minimo):
 
-- [ ] Extender `DataSampler` para generar multiples `DataAsset` por mundo:
+- [x] Extender `DataSampler` para generar multiples `DataAsset` por mundo:
   - Dataset principal: tabla con N filas (observable columns, como hoy)
   - Dataset secundario: subconjunto de columnas, menos filas, distinta seed
   - Observaciones puntuales: 3-5 hechos narrativos extraidos de samples
-- [ ] Agregar campos a `DataAsset`: `source` (quien lo genero), `num_rows`, `columns`
-- [ ] Datos con valores faltantes: al generar la tabla, omitir aleatoriamente X% de celdas (np.nan o "not_measured")
-- [ ] `ProblemBuilder` usa los nuevos assets: el agente recibe 2+ datasets + observaciones
-- [ ] E2E: verificar que el agente recibe datos ricos y puede usarlos
+- [x] Agregar campos a `DataAsset`: `source` (quien lo genero), `num_rows`, `columns`
+- [x] Datos con valores faltantes: al generar la tabla, omitir aleatoriamente X% de celdas ("not_measured")
+- [x] `ProblemBuilder` usa los nuevos assets: `rich_data=True` flag, agente recibe 2+ datasets + narrativas
+- [x] `prompts.py` soporta formato "narrative" y muestra metadata (source, num_rows)
+- [ ] E2E con LLM agent: verificar que el agente razona sobre datos ricos correctamente
 - [ ] Despues (no en slice minimo): metadata (fecha, instrumento), temporal column, datos contradictorios entre datasets
 
 #### 2. Rich actions

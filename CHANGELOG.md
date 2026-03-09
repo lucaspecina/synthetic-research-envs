@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — Dataset-rich evidence: multi-dataset, missing data, narratives
+- **`DataSampler` rewritten** with multi-dataset mode:
+  - `multi_dataset=True`: generates primary + secondary datasets with DAG proximity-based column splits
+  - `missing_rate`: injects `"not_measured"` values (configurable 0-50%), ensures >=2 real columns per row
+  - `narrative_observations`: generates N natural-language observations from sampled states
+  - Original single-dataset mode preserved (backwards compatible)
+- **`DataAsset` model extended** with optional metadata: `source`, `columns`, `num_rows`
+- **`ProblemBuilder.build(rich_data=True)`**: convenience flag for multi-dataset + missing data + narratives
+- **`prompts.py` updated**: renders narrative format, shows source metadata for all assets
+- **Column splitting algorithm**: sorts visible nodes by shortest undirected distance to target in DAG,
+  closer half → primary, farther half → secondary, 1 overlap column as join key
+- **17 new tests** (was 413, now 430): multi-dataset, column splitting, missing data, narratives, determinism
+- **E2E validated**: 8 configs across 3 templates (6-12 nodes), all produce coherent rich output
+- Bug fix: `_inject_missing` now restores original values instead of placeholder when preserving min columns
+
 ### 2026-03-09 — Batch sweep: systematic generator/template comparison
 - **`scripts/batch_sweep.py`**: 336 worlds across 7 generators/templates x 4 node counts x 4 edge strengths
 - **Key finding: 10-12 nodes is the sweet spot** for research cases with real strategy.

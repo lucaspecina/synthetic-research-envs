@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 412 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 2 nuevos tools de orchestrator (dag_generate + dag_construct). 3 tipos de tarea. Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Pipeline completo. v1 completo + v2 en progreso.**
+**Estado actual: 430 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 2 nuevos tools de orchestrator (dag_generate + dag_construct). 3 tipos de tarea. Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
 
 ---
 
@@ -255,7 +255,7 @@ pip install -e ".[dev]"
 
 ### Correr tests
 ```bash
-pytest tests/ -v                          # Todos (412 tests)
+pytest tests/ -v                          # Todos (430 tests)
 pytest tests/tools/test_task_gen.py -v    # Solo task generation
 pytest tests/tools/test_fork_collider.py  # Solo fork_collider template
 ```
@@ -370,7 +370,7 @@ python scripts/test_agent.py
 | **Verifier** | `src/sreg/tools/verifier.py` | Puntúa al agente: KL divergence, IG ratio, hypothesis accuracy |
 | **Episode runner** | `src/sreg/env/` | Interfaz paso a paso: el agente observa → el runner responde |
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
-| **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la red bayesiana en formato tabular |
+| **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la BN: multi-dataset (primary+secondary), missing data, narrativas |
 | **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica) |
 | **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve observando/enviando |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
@@ -440,7 +440,8 @@ acc = verifier.score_hypothesis("B", kl_scores)  # → 1.0 or 0.0
 
 ### Problem builder + episode
 ```python
-problem = ProblemBuilder().build(world, budget=4)  # → ResearchProblem
+problem = ProblemBuilder().build(world, budget=4)  # → ResearchProblem (single dataset)
+problem = ProblemBuilder().build(world, budget=4, rich_data=True)  # → ResearchProblem (multi-dataset + narratives)
 # problem.target_node, problem.target_states, problem.budget
 # problem.available_actions → list[AvailableAction] (.node, .description, .cost)
 
@@ -452,7 +453,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **412 tests** en todos los módulos
+- **430 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

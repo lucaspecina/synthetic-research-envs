@@ -20,10 +20,13 @@ class DataAsset(BaseModel):
 
     name: str = Field(description="Name of the dataset or observation set")
     description: str = Field(description="What this data contains")
-    format: str = Field(description="'tabular' or 'observations'")
+    format: str = Field(description="'tabular', 'observations', or 'narrative'")
     data: list[dict[str, str | float]] = Field(
         description="Rows of data (tabular) or list of observation dicts"
     )
+    source: str | None = Field(default=None, description="Who/what generated this data")
+    columns: list[str] | None = Field(default=None, description="Column names in this dataset")
+    num_rows: int | None = Field(default=None, description="Number of data rows")
 
 
 class ResearchProblem(BaseModel):

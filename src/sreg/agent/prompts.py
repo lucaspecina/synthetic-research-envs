@@ -11,11 +11,13 @@ def build_agent_system_prompt(problem: ResearchProblem) -> str:
     data_section = ""
     for asset in problem.data_assets:
         data_section += f"\n### {asset.name}\n{asset.description}\n"
+        if asset.source:
+            data_section += f"Source: {asset.source}\n"
         if asset.format == "tabular" and asset.data:
             # Show header + first rows
             headers = list(asset.data[0].keys())
             data_section += f"Columns: {', '.join(headers)}\n"
-            data_section += f"Total rows: {len(asset.data)}\n\n"
+            data_section += f"Total rows: {asset.num_rows or len(asset.data)}\n\n"
             # Show first 10 rows as a table
             max_rows = min(10, len(asset.data))
             data_section += " | ".join(headers) + "\n"
@@ -24,6 +26,10 @@ def build_agent_system_prompt(problem: ResearchProblem) -> str:
                 data_section += " | ".join(str(row.get(h, "")) for h in headers) + "\n"
             if len(asset.data) > max_rows:
                 data_section += f"... ({len(asset.data) - max_rows} more rows)\n"
+        elif asset.format == "narrative" and asset.data:
+            for obs in asset.data[:10]:
+                src = obs.get("source", "unknown")
+                data_section += f"- [{src}] {obs.get('observation', obs)}\n"
         elif asset.format == "observations" and asset.data:
             for obs in asset.data[:10]:
                 data_section += f"- {obs.get('observation', obs)}\n"
