@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.models.world import NodeType, World
 from sreg.solver.exact_bayes import ExactBayesSolver
+
+if TYPE_CHECKING:
+    from sreg.models.case_plan import CasePlan
 
 
 class TaskGenTool:
@@ -224,6 +229,31 @@ class TaskGenTool:
             given_evidence=given_evidence,
             hypotheses=shuffled_hypotheses,
         )
+
+
+    def generate_from_plan(
+        self,
+        world: World,
+        plan: "CasePlan",
+        seed: int = 0,
+    ) -> list[Task]:
+        """Generate tasks driven by a CasePlan instead of fixed task types.
+
+        Only creates the tasks the plan requests, using the plan's question_text
+        instead of generic text. Returns a list of Tasks (not a TaskBundle).
+        """
+        tasks: list[Task] = []
+        for i, q in enumerate(plan.questions):
+            spec = TaskSpec(
+                type=q.eval_type,
+                target_node=q.target_node,
+                max_budget=plan.shared_budget,
+            )
+            task = self.generate(world, spec, seed=seed + i)
+            # Override the generic question with the plan's custom text
+            task = task.model_copy(update={"question": q.question_text})
+            tasks.append(task)
+        return tasks
 
 
 __all__ = ["TaskGenTool"]

@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — CasePlan: orchestrator designs research cases (Slice 1)
+- **`CasePlan` model** (`src/sreg/models/case_plan.py`):
+  - `EvalQuestionPlan`: question_text, eval_type (validated against TaskType), target_node, rationale
+  - `CasePlan`: title, research_context, questions list, shared_budget, rationale
+  - Validation: no duplicate questions (same eval_type + target_node), min lengths, valid types
+  - Properties: primary_question (first), sub_questions (rest), eval_types (unique set)
+- **`design_case` orchestrator tool** (`orchestrator/prompts.py` + `orchestrator.py`):
+  - LLM proposes a case plan as tool call parameters (like apply_semantics)
+  - Tool validates: target nodes exist in world, no duplicates, plan is computable
+  - Generates tasks from plan to verify computability before returning
+  - Stores validated CasePlan in `_case_plans` dict
+- **`generate_from_plan`** (`tools/task_gen.py`):
+  - Takes CasePlan + World, returns list[Task] (not TaskBundle)
+  - Only generates the tasks the plan requests (not always all 3)
+  - Overrides generic question text with plan's custom question_text
+- **System prompt updated** to 6-step workflow (added step 4: design_case)
+- **35 new tests** (was 430, now 465):
+  - 21 CasePlan model tests (validation, serialization, edge cases)
+  - 7 generate_from_plan tests (single/multi questions, custom text, determinism)
+  - 7 design_case orchestrator dispatch tests (basic, multi-question, invalid target, etc.)
+- **E2E validated**: 6 configs across 3 templates (6-10 nodes), full orchestrator dispatch pipeline
+
 ### 2026-03-09 — Dataset-rich evidence: multi-dataset, missing data, narratives
 - **`DataSampler` rewritten** with multi-dataset mode:
   - `multi_dataset=True`: generates primary + secondary datasets with DAG proximity-based column splits

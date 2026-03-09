@@ -12,6 +12,7 @@ from openai import OpenAI
 
 load_dotenv()
 
+from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 from sreg.models.dag_spec import DAGNodeSpec, DAGSpec
 from sreg.models.research_problem import ResearchProblem
 from sreg.models.task import TaskSpec, TaskType
@@ -78,6 +79,7 @@ class Orchestrator:
         self._task_gen = TaskGenTool()
         self._problem_builder = ProblemBuilder()
         self._worlds: dict[str, World] = {}
+        self._case_plans: dict[str, CasePlan] = {}
 
     def run(self, goal: str) -> OrchestratorResult:
         """Run the orchestrator with a high-level goal.
@@ -167,6 +169,8 @@ class Orchestrator:
                 return self._handle_task_gen(args, result)
             elif name == "apply_semantics":
                 return self._handle_apply_semantics(args, result)
+            elif name == "design_case":
+                return self._handle_design_case(args, result)
             elif name == "build_problem":
                 return self._handle_build_problem(args, result)
             else:
@@ -421,6 +425,74 @@ class Orchestrator:
             "domain": world.domain,
             "nodes_renamed": len(node_renames),
             "nodes": [{"name": n.name, "type": n.type} for n in world.nodes],
+            "next_step": "Now call build_problem to sample data and produce the final problem.",
+        }
+
+    def _handle_design_case(self, args: dict, result: OrchestratorResult) -> dict:
+        world_id = args["world_id"]
+        world = self._worlds.get(world_id)
+        if world is None:
+            return {"error": f"World '{world_id}' not found"}
+
+        # Validate target nodes exist in the world
+        world_node_names = {n.name for n in world.nodes}
+        raw_questions = args.get("questions", [])
+        if not raw_questions:
+            return {"error": "questions list is empty. Provide at least one question."}
+
+        for i, rq in enumerate(raw_questions):
+            target = rq.get("target_node", "")
+            if target not in world_node_names:
+                return {
+                    "error": (
+                        f"Question {i}: target_node '{target}' not found in world. "
+                        f"Available nodes: {sorted(world_node_names)}"
+                    )
+                }
+
+        # Build the CasePlan (Pydantic validates structure + duplicates)
+        try:
+            questions = [
+                EvalQuestionPlan(
+                    question_text=rq["question_text"],
+                    eval_type=TaskType(rq["eval_type"]),
+                    target_node=rq["target_node"],
+                    rationale=rq.get("rationale", ""),
+                )
+                for rq in raw_questions
+            ]
+            plan = CasePlan(
+                title=args.get("title", ""),
+                research_context=args.get("research_context", ""),
+                questions=questions,
+                shared_budget=args.get("shared_budget", 5),
+                rationale=args.get("rationale", ""),
+            )
+        except (ValueError, KeyError) as e:
+            return {"error": f"Invalid case plan: {e}"}
+
+        # Generate tasks from the plan to validate they are computable
+        try:
+            tasks = self._task_gen.generate_from_plan(world, plan, seed=world.seed)
+        except Exception as e:
+            return {"error": f"Failed to generate tasks from plan: {e}"}
+
+        # Store the plan and tasks
+        self._case_plans[world_id] = plan
+        result.task = tasks  # list of Task objects
+
+        return {
+            "world_id": world_id,
+            "title": plan.title,
+            "num_questions": len(plan.questions),
+            "primary_question": {
+                "eval_type": plan.primary_question.eval_type,
+                "target_node": plan.primary_question.target_node,
+                "question_text": plan.primary_question.question_text,
+            },
+            "eval_types": sorted(str(t) for t in plan.eval_types),
+            "shared_budget": plan.shared_budget,
+            "tasks_generated": len(tasks),
             "next_step": "Now call build_problem to sample data and produce the final problem.",
         }
 

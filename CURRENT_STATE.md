@@ -1,7 +1,7 @@
 # SREG — Current State
 
 > Qué hace el sistema hoy, cómo funciona cada parte, y cómo ejecutarlo.
-> Actualizado: 2026-03-07
+> Actualizado: 2026-03-09
 
 ---
 
@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 430 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 2 nuevos tools de orchestrator (dag_generate + dag_construct). 3 tipos de tarea. Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
+**Estado actual: 465 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 3 tipos de tarea. CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
 
 ---
 
@@ -255,7 +255,7 @@ pip install -e ".[dev]"
 
 ### Correr tests
 ```bash
-pytest tests/ -v                          # Todos (430 tests)
+pytest tests/ -v                          # Todos (465 tests)
 pytest tests/tools/test_task_gen.py -v    # Solo task generation
 pytest tests/tools/test_fork_collider.py  # Solo fork_collider template
 ```
@@ -358,7 +358,7 @@ python scripts/test_agent.py
 
 | Módulo | Ubicación | Qué hace |
 |--------|----------|----------|
-| **Models** | `src/sreg/models/` | Contratos de datos (Pydantic): World, Episode, Task, Score, ResearchProblem, DAGSpec |
+| **Models** | `src/sreg/models/` | Contratos de datos (Pydantic): World, Episode, Task, Score, ResearchProblem, DAGSpec, CasePlan |
 | **DAGSpec** | `src/sreg/models/dag_spec.py` | Contrato universal para DAGs arbitrarios (validaciones: acíclico, max parents, tipos) |
 | **CPD gen** | `src/sreg/world/cpd_gen.py` | Generación genérica de CPDs (extraída de templates, soporta estados heterogéneos) |
 | **Templates** | `src/sreg/world/templates/` | 4 generadores: latent_preference, causal_chain, fork_collider + **custom** (DAGSpec) |
@@ -366,12 +366,12 @@ python scripts/test_agent.py
 | **World check** | `src/sreg/tools/world_check.py` | Valida mundos: DAG acíclico, entropía, d-separaciones, max parents, treewidth |
 | **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Inferencia bayesiana exacta: posteriors, information gain, acciones óptimas |
 | **Episode gen** | `src/sreg/tools/episode_gen.py` | Crea episodios: budget, nodos disponibles, costos por observación |
-| **Task gen** | `src/sreg/tools/task_gen.py` | Genera los 3 tipos de tarea con su respuesta correcta |
+| **Task gen** | `src/sreg/tools/task_gen.py` | Genera los 3 tipos de tarea con su respuesta correcta + `generate_from_plan` (plan-driven) |
 | **Verifier** | `src/sreg/tools/verifier.py` | Puntúa al agente: KL divergence, IG ratio, hypothesis accuracy |
 | **Episode runner** | `src/sreg/env/` | Interfaz paso a paso: el agente observa → el runner responde |
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
 | **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la BN: multi-dataset (primary+secondary), missing data, narrativas |
-| **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica) |
+| **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica + diseña research cases via design_case) |
 | **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve observando/enviando |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
 | **QualitySuite** | `src/sreg/harness/quality.py` | Suite de evaluación en 3 capas: world quality, task quality, generator diversity |
@@ -438,6 +438,35 @@ ratio = verifier.score_nbo("branch_2", ig_ranking)  # → float (0.0 to 1.0)
 acc = verifier.score_hypothesis("B", kl_scores)  # → 1.0 or 0.0
 ```
 
+### Plan-driven task generation (CasePlan)
+```python
+from sreg.models.case_plan import CasePlan, EvalQuestionPlan
+from sreg.models.task import TaskType
+from sreg.tools.task_gen import TaskGenTool
+
+plan = CasePlan(
+    title="Alien Agriculture Study",
+    research_context="A team analyzing crop growth on a newly colonized planet.",
+    questions=[
+        EvalQuestionPlan(
+            question_text="What is the expected crop yield level?",
+            eval_type=TaskType.INFER_TARGET,
+            target_node="crop_yield",
+        ),
+        EvalQuestionPlan(
+            question_text="What soil measurement would most improve our prediction?",
+            eval_type=TaskType.NEXT_BEST_OBSERVATION,
+            target_node="crop_yield",
+        ),
+    ],
+    shared_budget=5,
+)
+
+tasks = TaskGenTool().generate_from_plan(world, plan, seed=42)
+# tasks[0].question → "What is the expected crop yield level?"
+# tasks[1].question → "What soil measurement would most improve our prediction?"
+```
+
 ### Problem builder + episode
 ```python
 problem = ProblemBuilder().build(world, budget=4)  # → ResearchProblem (single dataset)
@@ -453,7 +482,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **430 tests** en todos los módulos
+- **465 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
@@ -464,6 +493,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - 4 DAG generators: 40 tests (estructura, edge cases, world gen, 15 nodos, cross-generator)
   - E2E validation DAG generators: 50 configs (10x5 seeds), teacher>prior 94%, NBO 76%, hyp 80%
   - QualitySuite v2: 48 tests (capas A, B multi-rollout, C + runner + report + cross-template + cross-generator)
+  - CasePlan + design_case: 35 tests (model validation, generate_from_plan, orchestrator dispatch)
 
 ---
 

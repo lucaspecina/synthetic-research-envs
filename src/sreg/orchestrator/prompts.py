@@ -9,7 +9,7 @@ ecology, medium difficulty"), produce a complete research problem that looks lik
 what a real researcher would receive — with narrative, data, and questions — backed \
 by a formally correct Bayesian network.
 
-## Workflow — you MUST complete ALL 5 steps
+## Workflow — you MUST complete ALL 6 steps
 
 1. **Generate** the formal world using ONE of these approaches:
    - `world_gen` — choose a template (latent_preference) for a standard structure
@@ -21,10 +21,16 @@ preferential_attachment, layered) to generate a random DAG structure
 with a mapping for EVERY node in the world. Each node must be renamed to a realistic \
 scientific variable name that fits the scenario. Do NOT leave any node with its \
 generic name. (If you used `dag_construct` with semantic names, use identity mappings.)
-4. **Build the problem** by calling `build_problem`. This is REQUIRED — do NOT stop \
-after apply_semantics. You must call build_problem to sample data and produce the \
+4. **Design the research case** by calling `design_case`. Based on the world you just \
+built, design a set of evaluation questions that are specific to this scenario. \
+Don't just ask generic questions — think about what a researcher would actually want \
+to know given this causal structure and domain. Each question must specify an eval_type \
+(infer_target, next_best_observation, or hypothesis_selection) and a target_node. \
+The first question is the primary one. You choose the shared_budget.
+5. **Build the problem** by calling `build_problem`. This is REQUIRED — do NOT stop \
+after design_case. You must call build_problem to sample data and produce the \
 final research problem.
-5. Return a final JSON summary.
+6. Return a final JSON summary.
 
 ## How to choose a generation method
 
@@ -440,6 +446,101 @@ TOOL_DEFINITIONS = [
                     "domain",
                     "node_renames",
                     "node_descriptions",
+                ],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "design_case",
+            "description": (
+                "Design a research case for a specific world. Instead of always "
+                "generating the same 3 tasks, you design evaluation questions that "
+                "are specific to this scenario. The tool validates that questions are "
+                "computable from the Bayesian network and non-degenerate. "
+                "Call this AFTER apply_semantics and BEFORE build_problem."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "world_id": {
+                        "type": "string",
+                        "description": "ID of the semantically enriched world",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": (
+                            "Short title for the research case, e.g. "
+                            "'Soil contamination impact on crop yield'"
+                        ),
+                    },
+                    "research_context": {
+                        "type": "string",
+                        "description": (
+                            "Narrative context explaining the research scenario "
+                            "(2-3 sentences minimum)"
+                        ),
+                    },
+                    "questions": {
+                        "type": "array",
+                        "description": (
+                            "Evaluation questions. First question is the primary one. "
+                            "Each must specify question_text, eval_type, and target_node."
+                        ),
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "question_text": {
+                                    "type": "string",
+                                    "description": (
+                                        "Natural language question, e.g. "
+                                        "'What is the most likely soil contamination level?'"
+                                    ),
+                                },
+                                "eval_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "infer_target",
+                                        "next_best_observation",
+                                        "hypothesis_selection",
+                                    ],
+                                    "description": "Type of evaluation",
+                                },
+                                "target_node": {
+                                    "type": "string",
+                                    "description": (
+                                        "Which node this question targets "
+                                        "(must exist in the world)"
+                                    ),
+                                },
+                                "rationale": {
+                                    "type": "string",
+                                    "description": "Why this question matters for this case",
+                                },
+                            },
+                            "required": ["question_text", "eval_type", "target_node"],
+                        },
+                    },
+                    "shared_budget": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": (
+                            "Total observation budget shared across all questions. "
+                            "Should roughly equal the number of observable nodes."
+                        ),
+                    },
+                    "rationale": {
+                        "type": "string",
+                        "description": "Why this set of questions for this world",
+                    },
+                },
+                "required": [
+                    "world_id",
+                    "title",
+                    "research_context",
+                    "questions",
+                    "shared_budget",
                 ],
             },
         },

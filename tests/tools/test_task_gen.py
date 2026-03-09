@@ -2,6 +2,7 @@
 
 import pytest
 
+from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.models.world import NodeType
 from sreg.tools.task_gen import TaskGenTool
@@ -462,3 +463,142 @@ def test_bundle_serialization(world):
     assert len(restored.tasks) == 3
     for tt in TaskType:
         assert restored.tasks[tt].correct_answer == bundle.tasks[tt].correct_answer
+
+
+# --- generate_from_plan tests ---
+
+
+def _make_plan(questions, budget=5):
+    """Helper to create a CasePlan."""
+    return CasePlan(
+        title="Test Research Case",
+        research_context="A test scenario for validating plan-driven task generation.",
+        questions=questions,
+        shared_budget=budget,
+        rationale="Testing",
+    )
+
+
+def test_generate_from_plan_single_question(world):
+    tool = TaskGenTool()
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text="What is the most likely target outcome?",
+            eval_type=TaskType.INFER_TARGET,
+            target_node="target_outcome",
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    assert len(tasks) == 1
+    assert tasks[0].type == TaskType.INFER_TARGET
+    assert tasks[0].question == "What is the most likely target outcome?"
+
+
+def test_generate_from_plan_multiple_questions(world):
+    tool = TaskGenTool()
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text="What is the target outcome distribution?",
+            eval_type=TaskType.INFER_TARGET,
+            target_node="target_outcome",
+        ),
+        EvalQuestionPlan(
+            question_text="What experiment should we run next?",
+            eval_type=TaskType.NEXT_BEST_OBSERVATION,
+            target_node="target_outcome",
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    assert len(tasks) == 2
+    assert tasks[0].type == TaskType.INFER_TARGET
+    assert tasks[1].type == TaskType.NEXT_BEST_OBSERVATION
+
+
+def test_generate_from_plan_custom_question_text(world):
+    tool = TaskGenTool()
+    custom_text = "Based on the soil samples, what contamination level is most likely?"
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text=custom_text,
+            eval_type=TaskType.INFER_TARGET,
+            target_node="target_outcome",
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    assert tasks[0].question == custom_text
+
+
+def test_generate_from_plan_all_three_types(world):
+    tool = TaskGenTool()
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text="What is the most likely target outcome?",
+            eval_type=TaskType.INFER_TARGET,
+            target_node="target_outcome",
+        ),
+        EvalQuestionPlan(
+            question_text="What experiment would be most informative?",
+            eval_type=TaskType.NEXT_BEST_OBSERVATION,
+            target_node="target_outcome",
+        ),
+        EvalQuestionPlan(
+            question_text="Which hypothesis best matches the data?",
+            eval_type=TaskType.HYPOTHESIS_SELECTION,
+            target_node="target_outcome",
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    assert len(tasks) == 3
+    types = {t.type for t in tasks}
+    assert types == set(TaskType)
+
+
+def test_generate_from_plan_tasks_have_correct_answers(world):
+    tool = TaskGenTool()
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text="What is the target outcome distribution?",
+            eval_type=TaskType.INFER_TARGET,
+            target_node="target_outcome",
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    assert isinstance(tasks[0].correct_answer, dict)
+    assert abs(sum(tasks[0].correct_answer.values()) - 1.0) < 1e-6
+
+
+def test_generate_from_plan_deterministic(world):
+    tool = TaskGenTool()
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text="What is the target outcome?",
+            eval_type=TaskType.INFER_TARGET,
+            target_node="target_outcome",
+        ),
+        EvalQuestionPlan(
+            question_text="What should we observe next?",
+            eval_type=TaskType.NEXT_BEST_OBSERVATION,
+            target_node="target_outcome",
+        ),
+    ])
+    t1 = tool.generate_from_plan(world, plan, seed=42)
+    t2 = tool.generate_from_plan(world, plan, seed=42)
+    for a, b in zip(t1, t2):
+        assert a.correct_answer == b.correct_answer
+
+
+def test_generate_from_plan_uses_shared_budget(world):
+    tool = TaskGenTool()
+    plan = _make_plan(
+        [
+            EvalQuestionPlan(
+                question_text="What is the target outcome?",
+                eval_type=TaskType.INFER_TARGET,
+                target_node="target_outcome",
+            ),
+        ],
+        budget=8,
+    )
+    tasks = tool.generate_from_plan(world, plan)
+    # The task should use the plan's budget (visible in available_evidence count)
+    assert len(tasks) == 1

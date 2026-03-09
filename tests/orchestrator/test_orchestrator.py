@@ -18,6 +18,7 @@ def test_tool_definitions_complete():
     assert "world_gen" in names
     assert "world_check" in names
     assert "apply_semantics" in names
+    assert "design_case" in names
     assert "build_problem" in names
 
 
@@ -832,3 +833,231 @@ def test_dag_generate_full_pipeline():
     assert prob_out["title"] == "Weather Prediction"
     assert prob_out["budget"] == 3
     assert result.problem is not None
+
+
+# --- design_case tool ---
+
+
+def _setup_world_with_semantics(orch, result):
+    """Helper: generate a world and apply semantics, return world_id."""
+    orch._dispatch_tool(
+        "world_gen",
+        {"template_family": "latent_preference", "num_nodes": 6, "edge_strength": 0.7, "seed": 42},
+        result,
+    )
+    orch._dispatch_tool(
+        "apply_semantics",
+        {
+            "world_id": result.world.id,
+            "scenario_title": "Crop Yield Research",
+            "scenario_description": "A research scenario about crop yields.",
+            "domain": "agriculture",
+            "node_renames": _full_renames(),
+            "node_descriptions": {},
+        },
+        result,
+    )
+    return result.world.id
+
+
+def test_dispatch_design_case_basic():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Crop Yield Investigation",
+            "research_context": "A team is investigating factors affecting crop yield on planet XR-7.",
+            "questions": [
+                {
+                    "question_text": "What is the most likely crop yield level?",
+                    "eval_type": "infer_target",
+                    "target_node": "crop_yield",
+                    "rationale": "Primary research question",
+                },
+            ],
+            "shared_budget": 4,
+            "rationale": "Focus on inference",
+        },
+        result,
+    )
+
+    assert "error" not in output
+    assert output["title"] == "Crop Yield Investigation"
+    assert output["num_questions"] == 1
+    assert output["tasks_generated"] == 1
+    assert output["shared_budget"] == 4
+
+
+def test_dispatch_design_case_multiple_questions():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Full Crop Analysis",
+            "research_context": "Comprehensive analysis of crop yield factors on planet XR-7.",
+            "questions": [
+                {
+                    "question_text": "What is the most likely crop yield?",
+                    "eval_type": "infer_target",
+                    "target_node": "crop_yield",
+                },
+                {
+                    "question_text": "What measurement would tell us the most?",
+                    "eval_type": "next_best_observation",
+                    "target_node": "crop_yield",
+                },
+                {
+                    "question_text": "Which hypothesis matches the observations?",
+                    "eval_type": "hypothesis_selection",
+                    "target_node": "crop_yield",
+                },
+            ],
+            "shared_budget": 5,
+        },
+        result,
+    )
+
+    assert "error" not in output
+    assert output["num_questions"] == 3
+    assert output["tasks_generated"] == 3
+    assert len(output["eval_types"]) == 3
+
+
+def test_dispatch_design_case_stores_plan():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Stored Plan Test",
+            "research_context": "Testing that the plan is stored for later use.",
+            "questions": [
+                {
+                    "question_text": "What is the crop yield?",
+                    "eval_type": "infer_target",
+                    "target_node": "crop_yield",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert world_id in orch._case_plans
+    plan = orch._case_plans[world_id]
+    assert plan.title == "Stored Plan Test"
+    assert len(plan.questions) == 1
+
+
+def test_dispatch_design_case_invalid_target_node():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Invalid Target Test",
+            "research_context": "Testing with a node that does not exist in the world.",
+            "questions": [
+                {
+                    "question_text": "What is the nonexistent variable?",
+                    "eval_type": "infer_target",
+                    "target_node": "nonexistent_node",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "nonexistent_node" in output["error"]
+
+
+def test_dispatch_design_case_empty_questions():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Empty Questions",
+            "research_context": "No questions provided.",
+            "questions": [],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+
+
+def test_dispatch_design_case_unknown_world():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": "nonexistent",
+            "title": "Ghost World",
+            "research_context": "A world that does not exist.",
+            "questions": [
+                {
+                    "question_text": "What is the outcome?",
+                    "eval_type": "infer_target",
+                    "target_node": "x",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "not found" in output["error"]
+
+
+def test_dispatch_design_case_tasks_have_custom_questions():
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    custom_q = "Based on the soil samples, what crop yield level is most probable?"
+    orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Custom Question Test",
+            "research_context": "Verifying that generated tasks use custom question text.",
+            "questions": [
+                {
+                    "question_text": custom_q,
+                    "eval_type": "infer_target",
+                    "target_node": "crop_yield",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    # result.task is a list of Task objects from generate_from_plan
+    tasks = result.task
+    assert len(tasks) == 1
+    assert tasks[0].question == custom_q
