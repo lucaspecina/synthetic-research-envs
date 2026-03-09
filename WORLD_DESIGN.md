@@ -496,17 +496,39 @@ Dicho mas directamente: **un buen mundo es uno que genera un buen case, no solo 
 buen DAG.**
 
 Senales de que el sistema funciona bien:
-- teacher mejora bastante sobre prior
-- random y heuristicas quedan claramente por debajo
+- teacher reduce entropia consistentemente
+- random y heuristicas quedan claramente por debajo en promedio multi-rollout
 - el LLM a veces acierta y a veces falla de formas interpretables
 - distintas tasks sobre el mismo caso miden cosas distintas
 - el quality checker descarta una porcion razonable pero no enorme
 - cuando miras ejemplos concretos sentis que "aca hay una mini investigacion"
 
+### Hallazgo critico: metricas vs one-hot del true state (2026-03-09)
+
+La metrica original `teacher_beats_prior` comparaba `KL(one-hot(true_state) || posterior)`
+entre prior y teacher. Esto es equivalente a `-log P(true_state)` (negative log
+likelihood del estado sampleado).
+
+**Problema**: esta metrica mezcla dos cosas:
+1. Calidad de la inferencia (¿la posterior es correcta dada la evidencia?)
+2. Suerte del true state sampleado (¿el estado real es probable dada la evidencia?)
+
+Caso concreto encontrado: mundo de 12 nodos, true_state=medium.
+- Prior asigna P(medium)=0.41 → NLL=1.30
+- Teacher observa 5 nodos, evidencia apunta fuertemente a "low"
+- Teacher posterior P(medium)=0.15 → NLL=2.75 — PEOR que prior
+- Pero el teacher REDUJO entropia de 1.49 a 0.79 bits — hizo inferencia correcta
+
+**El teacher no razona peor. La metrica castiga inferencia correcta cuando el
+true state sampleado es atipico dado la evidencia.**
+
+Conclusion: no usar NLL single-sample como metrica principal. Usar multi-rollout
+para promediar, y entropia como metrica estructural independiente del sample.
+
 ### Capa A — World Quality (estructura pura, sin teacher)
 
 Evalua si el mundo es formalmente valido y tiene estructura aprovechable.
-100% programatico, rapido de computar.
+100% programatico, rapido de computar. Sin cambios respecto a v1.
 
 | Metrica | Definicion | Tipo | Target |
 |---|---|---|---|
@@ -525,30 +547,77 @@ Evalua si el mundo es formalmente valido y tiene estructura aprovechable.
 observables son realmente relevantes para el target. Un grafo puede ser conexo pero
 tener el target aislado en una esquina donde nadie lo alcanza.
 
-### Capa B — Task Quality (con teacher, sin agent)
+### Capa B — Task Quality (con teacher, sin agent) — REDISEÑADA v2
 
 Evalua si el mundo produce tareas interesantes y resolubles.
-Requiere correr el teacher (ExactBayesSolver), mas costoso pero determinista.
+Requiere correr el teacher (ExactBayesSolver).
+
+**Cambio clave en v2**: se corre con **K rollouts** (K=5-10 seeds) por mundo.
+Las metricas de belief se promedian sobre rollouts para eliminar ruido de
+episodios atipicos. Esto separa calidad de inferencia de suerte del sample.
+
+#### Metricas de diseno del episodio (no dependen del sample)
 
 | Metrica | Definicion | Tipo | Target |
 |---|---|---|---|
-| `prior_posterior_kl` | KL(true_state ‖ posterior_after_teacher) - KL(true_state ‖ prior) | float | < 0 (mejora) |
-| `teacher_beats_prior` | KL del teacher <= KL del prior? | bool | >90% en batch |
-| `teacher_beats_random` | KL del teacher <= KL de random? | bool | >80% en batch |
-| `teacher_random_gap` | KL_random - KL_teacher | float | >0.3 promedio |
-| `teacher_steps_to_stable` | Pasos hasta que IG marginal < epsilon (0.01 bits) | int | info |
-| `best_ig` | IG del mejor primer movimiento del teacher | float | >0.05 |
-| `ig_gap` | IG del mejor nodo - IG del peor nodo | float | >0.01 (hay estrategia) |
-| `nbo_nontrivial` | max(IG de nodos restantes) > 0 en la task NBO? | bool | >70% en batch |
-| `hyp_distinguishable` | min KL entre true posterior y nearest distractor > 0.05 | bool | >80% en batch |
-| `infer_target_nondegen` | posterior con toda la evidencia difiere del prior (KL > 0.01) | bool | >85% en batch |
-| `useful_bundle` | Al menos 2 de 3 tasks en el bundle son no-degeneradas | bool | >70% en batch |
+| `budget_ratio` | budget / num_observables_con_path_al_target | float | <0.8 |
+| `prior_entropy` | H(target) sin evidencia (bits) | float | info (0.5-2.0 ideal) |
+| `best_first_ig` | IG del mejor primer movimiento del teacher | float | >0.05 |
+| `ig_gap` | max(IG) - min(IG) entre todos los observables | float | >0.01 (hay estrategia) |
 
-**teacher_steps_to_stable**: formalmente, el paso k donde
-`IG(step_k) < epsilon (0.01 bits)`. Si nunca pasa, se reporta budget como valor.
-Esto mide cuanta evidencia necesita el teacher para "converger" — mundos donde
-converge en 1 paso son triviales, mundos donde nunca converge pueden ser demasiado
-ruidosos.
+**budget_ratio** usa observables con path al target (no observables totales), porque
+observables desconectados no cuentan como "opciones reales". Si budget_ratio >= 1.0,
+no hay decision-making — el agent puede ver todo lo relevante.
+
+#### Metricas de belief quality (promediadas sobre K rollouts)
+
+| Metrica | Definicion | Tipo | Target |
+|---|---|---|---|
+| `mean_entropy_reduction` | promedio de H(prior) - H(teacher_posterior) | float | >0.1 |
+| `mean_teacher_nll` | promedio de -log P_teacher(true_state) | float | info |
+| `mean_prior_nll` | promedio de -log P_prior(true_state) | float | info |
+| `mean_nll_improvement` | promedio de prior_nll - teacher_nll | float | info (>0 en promedio) |
+| `mean_random_nll` | promedio de -log P_random(true_state) | float | info |
+| `teacher_beats_random_rate` | fraccion de rollouts donde teacher_nll < random_nll | float | >0.6 |
+
+**mean_entropy_reduction** es la metrica principal de belief quality. No depende
+de si el true state es tipico o atipico — solo mide si la evidencia redujo
+incertidumbre. Siempre positiva para inferencia bayesiana correcta.
+
+**mean_nll_improvement** se reporta pero NO se usa como criterio de useful_bundle
+porque es mas fragil que entropy reduction (sigue dependiendo de la tipicidad del
+sample, aunque el promedio lo suaviza).
+
+#### Metricas de task no-degeneracion (por rollout, luego se agregan)
+
+| Metrica | Definicion | Tipo | Target |
+|---|---|---|---|
+| `nbo_nontrivial_rate` | fraccion de rollouts con max(IG restante) > 0 | float | >0.7 |
+| `hyp_distinguishable_rate` | fraccion de rollouts con min KL distractor > 0.05 | float | >0.8 |
+
+#### Metricas diagnosticas (se reportan, no son criterio)
+
+| Metrica | Definicion | Tipo | Estatus |
+|---|---|---|---|
+| `sampled_nll_teacher` | -log P_teacher(true_state) en un solo rollout | float | diagnostico |
+| `sampled_nll_prior` | -log P_prior(true_state) en un solo rollout | float | diagnostico |
+| `teacher_steps_to_stable` | pasos hasta que IG marginal < 0.01 bits | int | diagnostico |
+
+**Nota sobre las metricas diagnosticas**: `sampled_nll_*` es la vieja metrica
+`teacher_beats_prior` con nombre honesto. Es sensible a episodios atipicos y
+**no debe interpretarse como medida principal de calidad de inferencia**.
+Se mantiene para debugging y para comparar con la version multi-rollout.
+
+#### useful_bundle (redefinido)
+
+Un bundle es "util" si:
+- `mean_entropy_reduction > 0.1` **Y**
+- al menos 2 de 3: `nbo_nontrivial_rate > 0.5`, `hyp_distinguishable_rate > 0.5`,
+  `budget_ratio < 0.8`
+
+Esto es mas estricto que la v1 (que solo pedia 2 de 3 tasks no-degeneradas).
+Ahora exige que haya reduccion de entropia real Y que al menos dos dimensiones
+de calidad esten presentes.
 
 ### Capa C — Generator Diversity (sobre batches de mundos)
 
@@ -564,12 +633,12 @@ Se computa sobre un batch de N mundos (N >= 20) con seeds distintas.
 | `fan_in_distribution` | Histograma de fan-in across all nodes in batch | dict | info |
 | `fan_out_distribution` | Histograma de fan-out across all nodes in batch | dict | info |
 | `target_entropy_std` | Std dev de H(target) en el batch | float | >0.1 |
-| `ig_gap_std` | Std dev del ig_gap en el batch | float | >0 |
+| `entropy_reduction_std` | Std dev de mean_entropy_reduction en el batch | float | >0 |
 | `acceptance_rate` | % de mundos que pasan WorldCheck | float | >70% |
-| `useful_bundle_rate` | % de mundos con useful_bundle=True | float | >60% |
+| `useful_bundle_rate` | % de mundos con useful_bundle=True (v2 def) | float | >60% |
 
-La idea es detectar si un generador produce "siempre lo mismo". Si edge_count_std=0
-y depth_range=0, el generador no produce variedad incluso con seeds distintas.
+Cambio en v2: `ig_gap_std` reemplazado por `entropy_reduction_std` (mas robusto,
+alineado con la metrica principal de belief quality).
 
 ### Capa D — Semantic/Case Quality (checklist cerrada, evaluacion futura)
 
@@ -626,25 +695,30 @@ El `llm_agent` requiere credenciales de Azure. El teacher ya existe.
 
 **Modulo**: `src/sreg/harness/quality.py`
 
-**Funciones principales:**
-- `compute_world_quality(world) -> WorldQualityMetrics` (Capa A)
-- `compute_task_quality(world, target, seed) -> TaskQualityMetrics` (Capa B)
-- `compute_generator_diversity(worlds) -> GeneratorDiversityMetrics` (Capa C)
+**Estado actual**: v1 implementada con metricas originales (A+B+C). Funciona, 44
+tests pasan, pero Capa B usa metricas single-sample que estan mal alineadas
+(ver "Hallazgo critico" arriba).
+
+**v2 pendiente**: rediseñar Capa B con multi-rollout + entropy reduction + nuevas
+metricas. Ver TODO.md para las tareas concretas.
+
+**Funciones principales (v2):**
+- `compute_world_quality(world) -> WorldQualityMetrics` (Capa A, sin cambios)
+- `compute_task_quality(world, seeds) -> TaskQualityMetrics` (Capa B, multi-rollout)
+- `compute_generator_diversity(reports) -> GeneratorDiversityMetrics` (Capa C, ajustada)
 - `run_quality_suite(worlds) -> QualitySuiteReport` (A+B+C combinadas)
 - `print_quality_report(report)` (tabla legible en terminal)
-
-**Modelos Pydantic** para cada capa de metricas (serializables a JSON).
 
 **Integracion con /eval skill**: la skill llama a `run_quality_suite()` y
 muestra el reporte.
 
 **Orden de implementacion:**
-1. Capa A (world quality) — mas simple, solo estructura
-2. Capa B (task quality) — requiere teacher, mas logica
-3. Capa C (diversity) — requiere batch, agrega estadisticas
-4. Integrar con /eval skill
-5. Capa D — checklist manual o LLM juez (futuro)
-6. Capa E — heuristicas + LLM agent (futuro, requiere credenciales)
+1. [x] Capa A (world quality) — implementada, sin cambios
+2. [~] Capa B (task quality) — v1 implementada, v2 multi-rollout pendiente
+3. [~] Capa C (diversity) — v1 implementada, v2 ajuste menor pendiente
+4. [ ] Integrar con /eval skill
+5. [ ] Capa D — checklist manual o LLM juez (futuro)
+6. [ ] Capa E — heuristicas + LLM agent (futuro, requiere credenciales)
 
 ---
 

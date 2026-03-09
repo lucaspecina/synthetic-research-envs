@@ -49,7 +49,7 @@ Every research problem has two layers:
 ### Current state
 
 v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness.
-v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct). 365 tests.
+v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct) + QualitySuite (A+B+C). 409 tests.
 **Next: v2 remainder — motif composition, expressive range analysis, richer data, narrative.** See TODO.md and WORLD_DESIGN.md.
 
 ## Environment setup
@@ -143,6 +143,7 @@ ruff format src/ tests/                   # Format
 2. **Real end-to-end execution + manual analysis** — if the commit adds a feature or changes behavior, this step is **NOT optional**. Unit tests are necessary but NOT sufficient. You MUST:
    - Write a script (inline `python -c` is fine) that exercises the new feature **exactly as a user would run it in production** — not programmatic asserts, but actual execution with printed output you can read.
    - Run it with **at least 5-10 different configurations** (vary template, seed, num_nodes, edge_strength, task type, etc.).
+   - **If LLM credentials are available** (check `.env` for `AZURE_FOUNDRY_BASE_URL` and `AZURE_INFERENCE_CREDENTIAL`), **the E2E MUST include the real LLM pipeline**: orchestrator generates world → quality check → agent solves. Programmatic-only E2E is NOT enough when LLM calls are possible and the change touches world generation, tasks, orchestrator, or agent. Skip LLM E2E only for doc-only, lint-only, or purely internal refactors.
    - **Read the full output carefully, line by line.** Look at the actual values: Do the distributions make sense? Do the edges reflect the template structure? Is the IG ranking consistent with the causal structure? Are the hypotheses distinguishable? Does the evidence match the true state?
    - **Think about whether the results align with PROJECT.md's vision.** Not just "does it crash?" but "does it produce the kind of problems we want?"
    - If you find anything surprising or suspicious (e.g., 25% trivial NBO tasks, near-identical hypotheses with low edge_strength), investigate it, report it, and log it as a known issue if appropriate.

@@ -5,6 +5,37 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — QualitySuite metric redesign: multi-rollout + entropy reduction
+- **Critical finding**: `teacher_beats_prior` metric (KL vs one-hot) penalizes correct
+  inference when sampled true state is atypical. Documented with concrete example in WORLD_DESIGN.md.
+- **Redesigned Layer B metrics** in WORLD_DESIGN.md:
+  - Multi-rollout evaluation (K=5-10 seeds per world, averaged)
+  - `mean_entropy_reduction` as primary belief quality metric (sample-independent)
+  - `budget_ratio` for episode design quality (uses observables with path to target)
+  - Old metrics renamed to `sampled_nll_*` and demoted to diagnostic status
+  - `useful_bundle` tightened: requires entropy_reduction AND 2 of 3 quality dimensions
+- **E2E with real LLM (GPT-5.2)**: 5 tests across all 3 generation paths (dag_generate,
+  dag_construct, classic template). All WorldCheck pass, semantic layer works well.
+  Confirmed metric issues in practice (teacher "loses" to prior on atypical samples).
+- **CLAUDE.md updated**: E2E must include real LLM when credentials available
+- Implementation plan added to TODO.md
+
+### 2026-03-09 — QualitySuite: programmatic evaluation (layers A+B+C)
+- **`src/sreg/harness/quality.py`**: suite for measuring world, task, and generator quality
+  - Layer A (`compute_world_quality`): structural metrics (density, treewidth, depth, fan-in/out, target reachability, entropy)
+  - Layer B (`compute_task_quality`): epistemic metrics (teacher vs prior/random, IG gap, NBO trivial, hyp distinguishable, useful bundle)
+  - Layer C (`compute_generator_diversity`): batch statistics (std devs, distributions, acceptance rate, useful bundle rate)
+  - `run_quality_suite()`: runs A+B+C on a list of worlds, produces `QualitySuiteReport`
+  - `print_quality_report()`: ASCII table with per-world details, summary rates vs targets, diversity stats
+  - All models are Pydantic (serializable to JSON)
+- **44 new tests** (was 365, now 409): per-layer, runner, reporter, cross-template, cross-generator
+- **E2E validation findings**:
+  - Templates (6 nodes): teacher_random_gap=0.0 (budget >= observables, both see everything)
+  - Preferential attachment: 100% WorldCheck failures (dense graphs lack d-separation)
+  - Hypothesis distinguishability low in templates (44%) — known reversed-distractor issue
+  - DAG generators (8 nodes): all targets met except worldcheck (75%, due to pref_attach)
+- Exported from `sreg.harness` package
+
 ### 2026-03-09 — LLM orchestrator integration: dag_generate + dag_construct
 - **Two new orchestrator tools** for creating worlds via DAGSpec:
   - `dag_generate`: LLM chooses a generator algorithm (erdos_renyi, spanning_tree, preferential_attachment, layered) + parameters

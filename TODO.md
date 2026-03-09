@@ -51,6 +51,26 @@
 - [x] Tests: custom worlds with 5-15 nodes, heterogeneous states, multiple latents (81 new tests)
 - [x] E2E validation: 12-15 node worlds, teacher improves over prior + beats random, documented findings in WORLD_DESIGN.md
 
+### QualitySuite v2 — metricas rediseñadas (PRIORIDAD)
+> Hallazgo critico: la metrica original teacher_beats_prior (KL vs one-hot del true state)
+> castiga inferencia correcta cuando el sample es atipico. Ver WORLD_DESIGN.md "Hallazgo critico".
+
+- [x] QualitySuite v1: Capas A+B+C implementadas con metricas originales (44 tests)
+- [x] Documentar hallazgo critico y metricas rediseñadas en WORLD_DESIGN.md
+- [~] Rediseñar Capa B con multi-rollout:
+  - [ ] Cambiar `compute_task_quality()` para aceptar lista de seeds (K=5-10 rollouts)
+  - [ ] Agregar metricas de diseno: `budget_ratio` (budget / observables con path al target)
+  - [ ] Agregar `mean_entropy_reduction` como metrica principal de belief quality
+  - [ ] Agregar `mean_nll_improvement`, `mean_teacher_nll`, `mean_prior_nll`, `mean_random_nll`
+  - [ ] Agregar `teacher_beats_random_rate` (fraccion de rollouts)
+  - [ ] Agregar `nbo_nontrivial_rate` y `hyp_distinguishable_rate` (multi-rollout)
+  - [ ] Renombrar metricas viejas: `teacher_kl` → `sampled_nll_teacher`, etc. (diagnostico)
+  - [ ] Redefinir `useful_bundle`: entropy_reduction > 0.1 AND 2 de 3 (nbo, hyp, budget_ratio)
+- [ ] Ajustar Capa C: reemplazar `ig_gap_std` por `entropy_reduction_std`
+- [ ] Actualizar tests para nuevas metricas
+- [ ] E2E con LLM: verificar que las metricas nuevas dan resultados coherentes
+- [ ] Recorrer batches grandes y comparar generators/templates con metricas v2
+
 ### Composicion de motifs (siguiente — despues del prototipo)
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
 - [x] DAG generators: Erdos-Renyi, spanning tree, preferential attachment, layered (inspired by Reasoning Core)
