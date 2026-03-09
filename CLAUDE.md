@@ -37,6 +37,13 @@ Every research problem has two layers:
 
 ### Key design principles
 
+- **Every task must feel like a real research question, not a DAG exercise.**
+  The litmus test for any new eval type, task, or feature: "Would a scientist
+  recognize this as a question from their work?" If it feels like a graph theory
+  quiz, it's wrong. `adjustment_set` framed as "What variables should you control
+  for in your analysis?" = good. Framed as "Find a valid backdoor set in this
+  DAG" = bad. The eval type is the same; the framing makes it science or not.
+  See WORLD_DESIGN.md "Fundamentos de razonamiento causal" for the full principle.
 - **The BN is always the truth.** Every question has a mathematically verifiable answer.
 - **Semi-real naming**: real scientific vocabulary (`water_temperature`) in fictional
   domains ("planet Kepler-442"). Not `indicator_1`, not `zorbax_flux`.
@@ -142,8 +149,11 @@ ruff format src/ tests/                   # Format
 
 **EVERY commit MUST pass this checklist. No exceptions. Do not commit without verifying each item.**
 
-1. **Tests pass** — run `pytest tests/ -q` and confirm all green
-2. **Real end-to-end execution + manual analysis** — if the commit adds a feature or changes behavior, this step is **NOT optional**. Unit tests are necessary but NOT sufficient. You MUST:
+**Doc-only commits** (changes ONLY to .md files, no code changes): skip steps 1 and 2.
+Only steps 3-8 apply. Do NOT run the full test suite for documentation-only changes.
+
+1. **Tests pass** — run `pytest tests/ -q` and confirm all green. **Skip if doc-only commit.**
+2. **Real end-to-end execution + manual analysis** — if the commit adds a feature or changes behavior, this step is **NOT optional**. **Skip if doc-only commit.** Unit tests are necessary but NOT sufficient. You MUST:
    - Write a script (inline `python -c` is fine) that exercises the new feature **exactly as a user would run it in production** — not programmatic asserts, but actual execution with printed output you can read.
    - Run it with **at least 5-10 different configurations** (vary template, seed, num_nodes, edge_strength, task type, etc.).
    - **If LLM credentials are available** (check `.env` for `AZURE_FOUNDRY_BASE_URL` and `AZURE_INFERENCE_CREDENTIAL`), **the E2E MUST include the real LLM pipeline**: orchestrator generates world → quality check → agent solves. Programmatic-only E2E is NOT enough when LLM calls are possible and the change touches world generation, tasks, orchestrator, or agent. Skip LLM E2E only for doc-only, lint-only, or purely internal refactors.

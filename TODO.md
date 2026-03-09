@@ -74,14 +74,24 @@
   > sirven para estrategia (budget satura). preferential_attachment eliminable (0% WC).
   > Documentado en WORLD_DESIGN.md "Batch sweep: regimenes de generacion".
 
-### Enriquecimiento del case (SIGUIENTE FOCO — decision 2026-03-09)
+### Enriquecimiento del case (SIGUIENTE FOCO — actualizado 2026-03-09)
 > **Diagnostico de alineacion con PROJECT.md**: el nucleo formal (BN, generacion,
 > teacher, QualitySuite) esta solido y alineado. El gap principal ya no esta en el
-> world model sino en la **riqueza del case que ve el agente**. Las 3 tasks actuales
-> son evaluaciones ancla validas, no el espacio final. El budget actual es un proxy
-> simple de costo de adquisicion de evidencia, no la version final.
+> world model sino en la **riqueza del case que ve el agente**.
 >
-> Prioridades en orden:
+> **Principio rector (regla de oro):**
+> > Cada nueva task, eval type, o feature tiene que sentirse como una pregunta
+> > natural de un caso de investigacion, no como una operacion bonita sobre un DAG.
+> > Si no se puede formular naturalmente dentro de un case, no es prioridad.
+>
+> **Orden de prioridades (revisado 2026-03-09):**
+> 1. Ola 1 de eval types (3 tipos: vocabulario suficiente para cases interesantes)
+> 2. Rich actions (que las acciones se sientan como ciencia, no como "revelar nodo")
+> 3. E2E con LLM real usando design_case (el orchestrator diseña el caso)
+> 4. Paper-seeded cases (el salto cualitativo: paper real → caso sintetico)
+>
+> El motor formal ya es suficientemente fuerte. El valor diferencial ahora sale
+> de que los cases se parezcan a mini-investigaciones cientificas reales.
 
 #### 1. Dataset-rich evidence (PROXIMO PASO)
 > Hoy: `DataSampler` genera UNA tabla plana (N filas, todas las columnas visibles)
