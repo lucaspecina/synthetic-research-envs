@@ -53,7 +53,7 @@
 
 ### Composicion de motifs (siguiente — despues del prototipo)
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
-- [ ] DAG generators: Erdos-Renyi, spanning tree, preferential attachment, layered (inspired by Reasoning Core)
+- [x] DAG generators: Erdos-Renyi, spanning tree, preferential attachment, layered (inspired by Reasoning Core)
 - [ ] Expressive range analysis: generate 100+ worlds, measure distributions, detect biases
 
 ### Datos mas ricos

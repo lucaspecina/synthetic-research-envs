@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 310 tests. 4 familias de templates (3 curadas + custom). 3 tipos de tarea. Multi-task bundles. Pipeline completo. v1 completo + prototipo DAGSpec (v2).**
+**Estado actual: 350 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 tipos de tarea. Multi-task bundles. Pipeline completo. v1 completo + prototipo DAGSpec + generadores (v2).**
 
 ---
 
@@ -362,6 +362,7 @@ python scripts/test_agent.py
 | **DAGSpec** | `src/sreg/models/dag_spec.py` | Contrato universal para DAGs arbitrarios (validaciones: acíclico, max parents, tipos) |
 | **CPD gen** | `src/sreg/world/cpd_gen.py` | Generación genérica de CPDs (extraída de templates, soporta estados heterogéneos) |
 | **Templates** | `src/sreg/world/templates/` | 4 generadores: latent_preference, causal_chain, fork_collider + **custom** (DAGSpec) |
+| **DAG generators** | `src/sreg/world/dag_generators.py` | 4 generadores de DAGs: Erdos-Renyi, spanning tree, preferential attachment, layered |
 | **World check** | `src/sreg/tools/world_check.py` | Valida mundos: DAG acíclico, entropía, d-separaciones, max parents, treewidth |
 | **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Inferencia bayesiana exacta: posteriors, information gain, acciones óptimas |
 | **Episode gen** | `src/sreg/tools/episode_gen.py` | Crea episodios: budget, nodos disponibles, costos por observación |
@@ -450,7 +451,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **310 tests** en todos los módulos
+- **350 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
@@ -458,6 +459,8 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - Nodos más cercanos son más informativos que lejanos (causal_chain)
   - Estructura fork/collider verificada: topología, padres del collider, cadena de mediadores
   - 3 task types funcionan en los 3 templates (45 configs E2E probadas)
+  - 4 DAG generators: 40 tests (estructura, edge cases, world gen, 15 nodos, cross-generator)
+  - E2E validation DAG generators: 50 configs (10x5 seeds), teacher>prior 94%, NBO 76%, hyp 80%
 
 ---
 

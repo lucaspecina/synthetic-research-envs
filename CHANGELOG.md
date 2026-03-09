@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-09 — DAG generators (4 methods)
+- **`dag_generators.py`** (`src/sreg/world/dag_generators.py`): 4 automatic DAG generation methods
+  - `generate_erdos_renyi()`: random edges with probability p, good for testing
+  - `generate_spanning_tree()`: connected tree + optional extra edges, guaranteed connectivity
+  - `generate_preferential_attachment()`: hub-like structures, scale-free-ish DAGs
+  - `generate_layered()`: pipeline/stage structures with skip connections
+  - All guarantee acyclicity via topological ordering (edges only go lower → higher index)
+  - Shared helpers: `_assign_node_types()` (latents early, targets late), `_assign_states()`, `_cap_parents()`
+- **E2E validation**: 50 configs (10 generators × 5 seeds), teacher>prior 94%, teacher>random 82%, NBO non-trivial 76%, hypotheses distinguishable 80%
+- **40 new tests** (was 310, now 350): per-generator + cross-generator parametrized tests
+- Exported generators from `sreg.world` package
+
 ### 2026-03-09 — DAGSpec prototype (v2 slice minimo)
 - **`DAGSpec` + `DAGNodeSpec`** (`src/sreg/models/dag_spec.py`): universal contract for arbitrary DAGs
   - Validations: acyclic, max parents <= 4, required types, no duplicates
