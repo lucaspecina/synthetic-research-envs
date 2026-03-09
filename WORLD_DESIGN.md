@@ -1417,11 +1417,26 @@ EvalQuestion:
   - weight: float                           # peso en el score compuesto
 ```
 
-**La transicion es incremental:**
-1. Primero: el orchestrator elige CUALES de los 3 tipos de eval usar (no siempre los 3)
-2. Despues: el orchestrator escribe las preguntas en lenguaje natural
-3. Despues: agregar nuevos eval types al catalogo (causal, prediccion, etc.)
-4. Despues: budget compartido, preguntas conectadas
+**La transicion tiene dos ejes independientes que se necesitan mutuamente:**
+
+**Eje A — Que el orchestrator elija mejor** (que preguntas, cuantas, por que):
+- [x] A.0: CasePlan model + design_case tool (el andamiaje)
+- A.1: Case plan quality validation
+- A.2: E2E con LLM real usando design_case
+- A.3: Tests con combinaciones variadas (1, 2, 3 preguntas, sin infer_target, etc.)
+- A.4: Budget compartido, preguntas conectadas
+- A.5: Paper-seeded cases
+
+**Eje B — Ampliar el catalogo de eval types** (que preguntas PUEDE hacer):
+- B.1: causal_effect (do-calculus, pgmpy lo soporta)
+- B.2: prediction (posterior de otro nodo)
+- B.3: structure_discovery (SHD metric)
+- B.4: mechanism_selection (mecanismos rivales, requiere MechanismSpec)
+- B.5: optimization (argmax sobre do-calculus)
+
+Sin el Eje B, el Eje A es "elegir entre las mismas 3 opciones de siempre".
+Sin el Eje A, el Eje B es "tener muchos tipos pero siempre usarlos todos".
+Ambos ejes se necesitan para que el sistema se parezca a la vision de PROJECT.md.
 
 ### Catalogo de evaluaciones (extensible)
 

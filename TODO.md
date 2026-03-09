@@ -127,18 +127,50 @@
 > no solo el mundo. ResearchCase generaliza TaskBundle incrementalmente.
 > Ver analisis completo en WORLD_DESIGN.md "Diseno de Research Cases".
 >
-> Plan concreto (incremental):
+> **Hay dos ejes de avance independientes:**
+>
+> **Eje A — Que el orchestrator elija mejor** (qué preguntas, cuántas, por qué):
+>   Hoy CasePlan puede tener 1, 2 o 3 preguntas, pero el orchestrator
+>   todavía no "decide" inteligentemente. Falta: case plan quality validation,
+>   E2E con LLM real usando design_case, combinaciones variadas en tests.
+>
+> **Eje B — Ampliar el catálogo de eval types** (qué preguntas PUEDE hacer):
+>   Hoy solo hay 3 tipos de evaluación. Para que el sistema se parezca
+>   a la visión de PROJECT.md, necesita poder preguntar: ¿cuál es el
+>   mecanismo?, ¿qué pasa si intervengo?, ¿cuál es la estructura causal?,
+>   ¿qué configuración optimiza Y?, etc. Cada eval type nuevo requiere
+>   su propia lógica de generación, scoring, y teacher solver.
+>   Ver catálogo completo en WORLD_DESIGN.md "Catalogo de evaluaciones".
+>
+> Sin el Eje B, el Eje A es "elegir entre las mismas 3 opciones de siempre".
+> Sin el Eje A, el Eje B es "tener muchos tipos pero siempre usarlos todos".
+> Ambos ejes se necesitan.
 
-- [x] **Slice 1**: `world → case plan → tasks seleccionadas` (no tocar agent)
-  > Implementado: CasePlan model, design_case tool, generate_from_plan, 35 new tests.
-  > E2E validado: 6 configs (3 templates, 6-10 nodos), orchestrator dispatch completo.
-  >
-- [ ] **Paso 2**: El orchestrator escribe las preguntas en lenguaje natural (no text fijo)
-- [ ] **Paso 3**: Budget compartido entre preguntas del mismo caso
-- [ ] **Paso 4**: Agregar `causal_effect` eval type (do-calculus, pgmpy lo soporta)
-- [ ] **Paso 5**: Paper-seeded cases — el orchestrator lee un paper y diseña un caso sintetico inspirado
-- [ ] Despues: prediction eval type, structure_discovery, optimization
-- [ ] Despues: evaluaciones semanticas con rubrics (reasoning quality, evidence usage)
+##### Eje A: Orchestrator elige mejor
+- [x] **Slice 1**: CasePlan model + design_case tool + generate_from_plan (35 tests)
+- [ ] **A.1**: Case plan quality validation (NBO no trivial, hipotesis distinguibles, preguntas no redundantes)
+- [ ] **A.2**: E2E con LLM real: el orchestrator mira un mundo y decide qué preguntas valen la pena
+- [ ] **A.3**: Tests con combinaciones variadas (1 sola pregunta, 2 sin infer_target, hyp_sel como primary, etc.)
+- [ ] **A.4**: Budget compartido entre preguntas del mismo caso
+- [ ] **A.5**: Paper-seeded cases — el orchestrator lee un paper y diseña un caso sintetico inspirado
+
+##### Eje B: Nuevos eval types (catálogo extensible)
+> Cada eval type nuevo necesita: TaskType enum value, generación en TaskGenTool,
+> scoring en VerifierTool, teacher solver support, tests.
+> Ver tabla completa en WORLD_DESIGN.md "Catalogo de evaluaciones".
+
+- [ ] **B.1**: `causal_effect` — Si do(X=x), qué pasa con Y? (do-calculus, pgmpy lo soporta)
+  > El más accesible. pgmpy tiene `CausalInference` con `do()`. Score: KL entre
+  > P_agent(Y|do(X)) y P_true(Y|do(X)). Teacher: calcula do-calculus exacto.
+- [ ] **B.2**: `prediction` — Dado lo observado, qué valor tendrá Z? (posterior de Z)
+  > Muy parecido a infer_target pero con un nodo distinto al target. Fácil de agregar.
+- [ ] **B.3**: `structure_discovery` — Cuál es la estructura causal? (SHD metric)
+  > El agente propone un DAG, se compara con el real. Requiere formato de entrada/salida.
+- [ ] **B.4**: `mechanism_selection` — Cuál mecanismo explica mejor? (mecanismos rivales)
+  > Requiere MechanismSpec (v3). Dos BNs rivales, el agente elige cuál generó los datos.
+- [ ] **B.5**: `optimization` — Qué configuración maximiza Y? (argmax sobre do-calculus)
+  > Requiere causal_effect primero. El agente propone intervención, se evalúa E[Y|do()].
+- [ ] Después: evaluaciones semánticas con rubrics (reasoning_quality, evidence_usage, etc.)
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
@@ -166,18 +198,12 @@
 - [ ] `MechanismSpec` model: subgraph + semantics + shared variables
 - [ ] Mechanism library: 5-10 reusable base mechanisms
 - [ ] `WorldComposer`: combines mechanisms into a world (resolves conflicts, shared vars)
-- [ ] Rival mechanisms as competing hypotheses (structure selection tasks)
+- [ ] Rival mechanisms as competing hypotheses (→ eval type B.4: mechanism_selection)
 - [ ] Generator health metrics: acceptance rate, structural diversity, distinguishability
-
-### Evaluacion avanzada
-- [ ] Intervention tasks (do-calculus via graph surgery)
-- [ ] Structure recovery tasks (SHD evaluation)
 
 ## Backlog
 - [ ] Continuous variables (Gaussian CPDs, mixed worlds)
 - [ ] Synthetic document artifacts (papers, reports, notes)
-- [ ] Process rubrics (evaluate reasoning quality, not just answer)
 - [ ] Approximate inference teacher (larger worlds)
-- [ ] Complex agent actions (multi-node, conditional)
 - [ ] Curriculum over world complexity
 - [ ] RL training loop with verifier as reward
