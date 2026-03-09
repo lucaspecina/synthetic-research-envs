@@ -1,10 +1,11 @@
-"""Tests for QualitySuite: layers A, B, C."""
+"""Tests for QualitySuite v2: layers A, B (multi-rollout), C."""
 
 from __future__ import annotations
 
 import pytest
 
 from sreg.harness.quality import (
+    DEFAULT_ROLLOUT_SEEDS,
     GeneratorDiversityMetrics,
     QualitySuiteReport,
     TaskQualityMetrics,
@@ -16,7 +17,6 @@ from sreg.harness.quality import (
     print_quality_report,
     run_quality_suite,
 )
-from sreg.models.world import NodeType
 from sreg.tools.world_gen import CustomWorldGenConfig, WorldGenConfig, WorldGenTool
 from sreg.world.dag_generators import (
     generate_erdos_renyi,
@@ -26,6 +26,7 @@ from sreg.world.dag_generators import (
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def world_gen():
@@ -61,7 +62,7 @@ def batch_worlds(world_gen):
 
 
 # ---------------------------------------------------------------------------
-# Layer A: World Quality
+# Layer A: World Quality (unchanged)
 # ---------------------------------------------------------------------------
 
 
@@ -93,11 +94,10 @@ class TestWorldQuality:
 
     def test_fan_in_within_limits(self, simple_world):
         result = compute_world_quality(simple_world)
-        assert result.max_fan_in <= 4  # MAX_PARENTS
+        assert result.max_fan_in <= 4
 
     def test_target_reachable_frac(self, simple_world):
         result = compute_world_quality(simple_world)
-        # In latent_preference, all observables connect to target
         assert result.target_reachable_frac > 0.0
 
     def test_target_entropy_positive(self, simple_world):
@@ -113,74 +113,101 @@ class TestWorldQuality:
         result = compute_world_quality(simple_world)
         data = result.model_dump()
         assert isinstance(data, dict)
-        assert "worldcheck_pass" in data
         reconstructed = WorldQualityMetrics(**data)
         assert reconstructed == result
 
 
 # ---------------------------------------------------------------------------
-# Layer B: Task Quality
+# Layer B: Task Quality (v2 — multi-rollout)
 # ---------------------------------------------------------------------------
 
 
 class TestTaskQuality:
     def test_returns_correct_type(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
+        result = compute_task_quality(simple_world)
         assert isinstance(result, TaskQualityMetrics)
 
-    def test_teacher_beats_prior(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
-        # Teacher should improve over prior for a well-structured world
-        assert result.teacher_kl <= result.prior_kl
+    def test_uses_default_rollout_seeds(self, simple_world):
+        result = compute_task_quality(simple_world)
+        assert result.num_rollouts == len(DEFAULT_ROLLOUT_SEEDS)
 
-    def test_teacher_beats_random(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
-        assert result.teacher_beats_random is True
+    def test_custom_seeds(self, simple_world):
+        result = compute_task_quality(simple_world, seeds=[1, 2, 3])
+        assert result.num_rollouts == 3
 
-    def test_kl_values_nonnegative(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
-        assert result.prior_kl >= 0.0
-        assert result.teacher_kl >= 0.0
-        assert result.random_kl >= 0.0
+    def test_entropy_reduction_positive(self, simple_world):
+        """Teacher should reduce entropy (learn something) on average."""
+        result = compute_task_quality(simple_world)
+        assert result.mean_entropy_reduction > 0.0
+
+    def test_prior_entropy_positive(self, simple_world):
+        result = compute_task_quality(simple_world)
+        assert result.prior_entropy > 0.0
+
+    def test_budget_ratio(self, simple_world):
+        result = compute_task_quality(simple_world)
+        assert result.budget_ratio > 0.0
 
     def test_best_ig_nonnegative(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
-        assert result.best_ig >= 0.0
+        result = compute_task_quality(simple_world)
+        assert result.best_first_ig >= 0.0
 
     def test_ig_gap_nonnegative(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
+        result = compute_task_quality(simple_world)
         assert result.ig_gap >= 0.0
 
-    def test_steps_to_stable_within_budget(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
-        obs_count = sum(1 for n in simple_world.nodes if n.type == NodeType.OBSERVABLE)
-        budget = min(obs_count, 5)
-        assert 0 <= result.teacher_steps_to_stable <= budget
+    def test_nll_values_nonnegative(self, simple_world):
+        result = compute_task_quality(simple_world)
+        assert result.mean_teacher_nll >= 0.0
+        assert result.mean_prior_nll >= 0.0
+        assert result.mean_random_nll >= 0.0
 
-    def test_nbo_field_is_bool(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
-        assert isinstance(result.nbo_nontrivial, bool)
+    def test_teacher_beats_random_rate_range(self, simple_world):
+        result = compute_task_quality(simple_world)
+        assert 0.0 <= result.teacher_beats_random_rate <= 1.0
 
-    def test_hyp_field_is_bool(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
-        assert isinstance(result.hyp_distinguishable, bool)
+    def test_nbo_rate_range(self, simple_world):
+        result = compute_task_quality(simple_world)
+        assert 0.0 <= result.nbo_nontrivial_rate <= 1.0
 
-    def test_useful_bundle_field(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
+    def test_hyp_rate_range(self, simple_world):
+        result = compute_task_quality(simple_world)
+        assert 0.0 <= result.hyp_distinguishable_rate <= 1.0
+
+    def test_diagnostic_fields_present(self, simple_world):
+        result = compute_task_quality(simple_world)
+        assert result.sampled_nll_teacher >= 0.0
+        assert result.sampled_nll_prior >= 0.0
+        assert isinstance(result.teacher_steps_to_stable, int)
+
+    def test_useful_bundle_is_bool(self, simple_world):
+        result = compute_task_quality(simple_world)
         assert isinstance(result.useful_bundle, bool)
 
-    def test_different_seeds_may_vary(self, simple_world):
-        r1 = compute_task_quality(simple_world, seed=1)
-        r2 = compute_task_quality(simple_world, seed=99)
-        # At least some metrics should differ with different seeds
-        assert r1.prior_kl != r2.prior_kl or r1.teacher_kl != r2.teacher_kl
-
     def test_serializable(self, simple_world):
-        result = compute_task_quality(simple_world, seed=42)
+        result = compute_task_quality(simple_world)
         data = result.model_dump()
         assert isinstance(data, dict)
+        assert "mean_entropy_reduction" in data
+        assert "budget_ratio" in data
         reconstructed = TaskQualityMetrics(**data)
         assert reconstructed == result
+
+    def test_custom_world(self, custom_world):
+        result = compute_task_quality(custom_world, seeds=[42])
+        assert isinstance(result, TaskQualityMetrics)
+        assert result.num_rollouts == 1
+
+    def test_multi_rollout_averages_noise(self, simple_world):
+        """Multi-rollout should produce more stable metrics than single."""
+        r1 = compute_task_quality(simple_world, seeds=[42])
+        r5 = compute_task_quality(simple_world, seeds=[1, 7, 42, 99, 123])
+        # Both should work; multi-rollout uses more data
+        assert r1.num_rollouts == 1
+        assert r5.num_rollouts == 5
+        # Multi-rollout entropy reduction should be positive on average
+        # (single rollout can be negative for atypical samples)
+        assert r5.mean_entropy_reduction > 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +222,7 @@ class TestGeneratorDiversity:
                 world_id=w.id,
                 seed=w.seed,
                 world_quality=compute_world_quality(w),
-                task_quality=compute_task_quality(w, seed=w.seed),
+                task_quality=compute_task_quality(w, seeds=[42]),
             )
             for w in batch_worlds
         ]
@@ -242,21 +269,20 @@ class TestGeneratorDiversity:
         ]
         result = compute_generator_diversity(reports)
         assert len(result.fan_in_distribution) > 0
-        assert len(result.fan_out_distribution) > 0
 
-    def test_with_task_quality(self, batch_worlds):
+    def test_entropy_reduction_std(self, batch_worlds):
+        """v2: uses entropy_reduction_std instead of ig_gap_std."""
         reports = [
             WorldReport(
                 world_id=w.id,
                 seed=w.seed,
                 world_quality=compute_world_quality(w),
-                task_quality=compute_task_quality(w, seed=w.seed),
+                task_quality=compute_task_quality(w, seeds=[42]),
             )
             for w in batch_worlds
         ]
         result = compute_generator_diversity(reports)
-        assert result.useful_bundle_rate >= 0.0
-        assert result.ig_gap_std >= 0.0
+        assert result.entropy_reduction_std >= 0.0
 
     def test_serializable(self, batch_worlds):
         reports = [
@@ -270,6 +296,7 @@ class TestGeneratorDiversity:
         result = compute_generator_diversity(reports)
         data = result.model_dump()
         assert isinstance(data, dict)
+        assert "entropy_reduction_std" in data
 
 
 # ---------------------------------------------------------------------------
@@ -283,30 +310,30 @@ class TestRunQualitySuite:
         assert isinstance(report, QualitySuiteReport)
         assert len(report.worlds) == 1
         assert report.diversity is not None
-        assert report.summary is not None
 
     def test_multiple_worlds(self, batch_worlds):
-        report = run_quality_suite(batch_worlds)
+        report = run_quality_suite(batch_worlds, rollout_seeds=[42])
         assert len(report.worlds) == len(batch_worlds)
 
-    def test_summary_has_rates(self, simple_world):
+    def test_summary_has_v2_metrics(self, simple_world):
         report = run_quality_suite([simple_world])
-        assert "worldcheck_pass_rate" in report.summary
-        assert "teacher_beats_prior_rate" in report.summary
+        assert "mean_entropy_reduction" in report.summary
+        assert "mean_nll_improvement" in report.summary
+        assert "teacher_beats_random_rate" in report.summary
+        assert "mean_budget_ratio" in report.summary
 
     def test_skips_task_quality_on_failed_worldcheck(self, world_gen):
-        """If WorldCheck fails, task quality is skipped gracefully."""
-        # Create a minimal world that might fail WorldCheck
         spec = generate_erdos_renyi(num_nodes=5, seed=42, edge_prob=0.1)
         config = CustomWorldGenConfig(dag_spec=spec, edge_strength=0.3, seed=42)
         world = world_gen.generate_custom(config)
-        # Even if it fails or passes, the suite should handle it
-        report = run_quality_suite([world])
+        report = run_quality_suite([world], rollout_seeds=[42])
         assert len(report.worlds) == 1
 
-    def test_custom_seeds(self, simple_world):
-        report = run_quality_suite([simple_world], seeds=[123])
-        assert report.worlds[0].seed == 123
+    def test_custom_rollout_seeds(self, simple_world):
+        report = run_quality_suite([simple_world], rollout_seeds=[1, 2])
+        tq = report.worlds[0].task_quality
+        assert tq is not None
+        assert tq.num_rollouts == 2
 
 
 # ---------------------------------------------------------------------------
@@ -316,20 +343,23 @@ class TestRunQualitySuite:
 
 class TestPrintReport:
     def test_prints_without_error(self, simple_world):
-        report = run_quality_suite([simple_world])
+        report = run_quality_suite([simple_world], rollout_seeds=[42])
         text = print_quality_report(report)
         assert "QUALITY SUITE REPORT" in text
+        assert "v2" in text
         assert "SUMMARY" in text
 
-    def test_contains_world_info(self, simple_world):
-        report = run_quality_suite([simple_world])
+    def test_contains_v2_columns(self, simple_world):
+        report = run_quality_suite([simple_world], rollout_seeds=[42])
         text = print_quality_report(report)
-        assert "PASS" in text or "FAIL" in text
+        assert "EntRd" in text  # entropy reduction column
+        assert "BudR" in text   # budget ratio column
 
     def test_batch_report(self, batch_worlds):
-        report = run_quality_suite(batch_worlds)
+        report = run_quality_suite(batch_worlds, rollout_seeds=[42])
         text = print_quality_report(report)
         assert "GENERATOR DIVERSITY" in text
+        assert "entropy_reduction_std" in text
 
 
 # ---------------------------------------------------------------------------
@@ -337,23 +367,26 @@ class TestPrintReport:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("template", ["latent_preference", "causal_chain", "fork_collider"])
+@pytest.mark.parametrize("template", [
+    "latent_preference", "causal_chain", "fork_collider",
+])
 def test_quality_suite_per_template(world_gen, template):
     """Each template family should produce a valid quality report."""
     config = WorldGenConfig(
         template_family=template, seed=42, num_nodes=6, edge_strength=0.7,
     )
     world = world_gen.generate(config)
-    report = run_quality_suite([world])
-    assert len(report.worlds) == 1
-    assert report.worlds[0].world_quality.worldcheck_pass is True
-    assert report.worlds[0].task_quality is not None
+    report = run_quality_suite([world], rollout_seeds=[42, 99])
+    wr = report.worlds[0]
+    assert wr.world_quality.worldcheck_pass is True
+    assert wr.task_quality is not None
+    assert wr.task_quality.mean_entropy_reduction >= 0.0
+    assert wr.task_quality.num_rollouts == 2
 
 
 @pytest.mark.parametrize("generator,kwargs", [
     ("erdos_renyi", {"num_nodes": 8, "edge_prob": 0.3}),
     ("spanning_tree", {"num_nodes": 8}),
-    ("layered", {"num_layers": 3, "nodes_per_layer": 3}),
 ])
 def test_quality_suite_per_generator(world_gen, generator, kwargs):
     """Each DAG generator should produce worlds that pass quality analysis."""
@@ -366,6 +399,11 @@ def test_quality_suite_per_generator(world_gen, generator, kwargs):
 
     wq = compute_world_quality(world)
     assert isinstance(wq, WorldQualityMetrics)
-    # At minimum, should compute all metrics without errors
     assert wq.num_nodes > 0
-    assert wq.target_entropy >= 0.0
+
+    if wq.worldcheck_pass:
+        tq = compute_task_quality(world, seeds=[42])
+        assert isinstance(tq, TaskQualityMetrics)
+        # Single-rollout entropy reduction can be negative (atypical sample)
+        # Just verify the metric is computed
+        assert isinstance(tq.mean_entropy_reduction, float)

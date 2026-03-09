@@ -57,18 +57,18 @@
 
 - [x] QualitySuite v1: Capas A+B+C implementadas con metricas originales (44 tests)
 - [x] Documentar hallazgo critico y metricas rediseñadas en WORLD_DESIGN.md
-- [~] Rediseñar Capa B con multi-rollout:
-  - [ ] Cambiar `compute_task_quality()` para aceptar lista de seeds (K=5-10 rollouts)
-  - [ ] Agregar metricas de diseno: `budget_ratio` (budget / observables con path al target)
-  - [ ] Agregar `mean_entropy_reduction` como metrica principal de belief quality
-  - [ ] Agregar `mean_nll_improvement`, `mean_teacher_nll`, `mean_prior_nll`, `mean_random_nll`
-  - [ ] Agregar `teacher_beats_random_rate` (fraccion de rollouts)
-  - [ ] Agregar `nbo_nontrivial_rate` y `hyp_distinguishable_rate` (multi-rollout)
-  - [ ] Renombrar metricas viejas: `teacher_kl` → `sampled_nll_teacher`, etc. (diagnostico)
-  - [ ] Redefinir `useful_bundle`: entropy_reduction > 0.1 AND 2 de 3 (nbo, hyp, budget_ratio)
-- [ ] Ajustar Capa C: reemplazar `ig_gap_std` por `entropy_reduction_std`
-- [ ] Actualizar tests para nuevas metricas
-- [ ] E2E con LLM: verificar que las metricas nuevas dan resultados coherentes
+- [x] Rediseñar Capa B con multi-rollout:
+  - [x] Cambiar `compute_task_quality()` para aceptar lista de seeds (K=5-10 rollouts)
+  - [x] Agregar metricas de diseno: `budget_ratio` (budget / observables con path al target)
+  - [x] Agregar `mean_entropy_reduction` como metrica principal de belief quality
+  - [x] Agregar `mean_nll_improvement`, `mean_teacher_nll`, `mean_prior_nll`, `mean_random_nll`
+  - [x] Agregar `teacher_beats_random_rate` (fraccion de rollouts)
+  - [x] Agregar `nbo_nontrivial_rate` y `hyp_distinguishable_rate` (multi-rollout)
+  - [x] Renombrar metricas viejas: `teacher_kl` → `sampled_nll_teacher`, etc. (diagnostico)
+  - [x] Redefinir `useful_bundle`: entropy_reduction > 0.1 AND 2 de 3 (nbo, hyp, budget_ratio)
+- [x] Ajustar Capa C: reemplazar `ig_gap_std` por `entropy_reduction_std`
+- [x] Actualizar tests para nuevas metricas (48 tests)
+- [x] E2E con LLM: verificar que las metricas nuevas dan resultados coherentes
 - [ ] Recorrer batches grandes y comparar generators/templates con metricas v2
 
 ### Composicion de motifs (siguiente — despues del prototipo)

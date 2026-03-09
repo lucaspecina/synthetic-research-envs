@@ -1,15 +1,23 @@
-"""QualitySuite: programmatic evaluation of world, task, and generator quality.
+"""QualitySuite v2: programmatic evaluation of world, task, and generator quality.
 
 Three layers:
   A. WorldQuality  - structural validity (no teacher needed)
-  B. TaskQuality   - epistemic quality (requires teacher)
+  B. TaskQuality   - epistemic quality (multi-rollout, requires teacher)
   C. GeneratorDiversity - batch statistics over many worlds
+
+v2 changes from v1:
+  - Layer B uses multi-rollout (K seeds) instead of single-sample
+  - Primary belief metric: entropy reduction (sample-independent)
+  - Old KL-vs-one-hot metrics renamed to sampled_nll_* (diagnostic only)
+  - budget_ratio added for episode design quality
+  - useful_bundle tightened (requires entropy reduction + 2 of 3 dimensions)
 
 See WORLD_DESIGN.md "Suite de evaluacion y validacion" for full specification.
 """
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from typing import Any
 
@@ -23,6 +31,10 @@ from sreg.solver.exact_bayes import ExactBayesSolver
 from sreg.tools.task_gen import TaskGenTool
 from sreg.tools.verifier import VerifierTool
 from sreg.tools.world_check import WorldCheckTool
+
+# Default seeds for multi-rollout evaluation
+DEFAULT_ROLLOUT_SEEDS = [1, 7, 42, 99, 123]
+
 
 # ---------------------------------------------------------------------------
 # Pydantic metric models
@@ -45,20 +57,49 @@ class WorldQualityMetrics(BaseModel):
 
 
 class TaskQualityMetrics(BaseModel):
-    """Layer B: epistemic quality of tasks derived from a world."""
+    """Layer B: epistemic quality of tasks derived from a world (multi-rollout)."""
 
-    prior_kl: float = Field(description="KL(true_state || prior)")
-    teacher_kl: float = Field(description="KL(true_state || teacher posterior)")
-    random_kl: float = Field(description="KL(true_state || random posterior)")
-    teacher_beats_prior: bool
-    teacher_beats_random: bool
-    teacher_random_gap: float
-    teacher_steps_to_stable: int
-    best_ig: float
-    ig_gap: float
-    nbo_nontrivial: bool
-    hyp_distinguishable: bool
-    infer_target_nondegen: bool
+    # Episode design (sample-independent)
+    budget_ratio: float = Field(description="budget / observables with path to target")
+    prior_entropy: float = Field(description="H(target) without evidence, in bits")
+    best_first_ig: float = Field(description="IG of teacher's best first action")
+    ig_gap: float = Field(description="max(IG) - min(IG) across observables")
+
+    # Belief quality (averaged over K rollouts)
+    num_rollouts: int = Field(description="Number of rollouts used for averaging")
+    mean_entropy_reduction: float = Field(
+        description="Mean H(prior) - H(teacher_posterior) over rollouts"
+    )
+    mean_teacher_nll: float = Field(description="Mean -log P_teacher(true_state)")
+    mean_prior_nll: float = Field(description="Mean -log P_prior(true_state)")
+    mean_nll_improvement: float = Field(
+        description="Mean (prior_nll - teacher_nll), >0 means teacher improves"
+    )
+    mean_random_nll: float = Field(description="Mean -log P_random(true_state)")
+    teacher_beats_random_rate: float = Field(
+        description="Fraction of rollouts where teacher_nll < random_nll"
+    )
+
+    # Task non-degeneration (aggregated over K rollouts)
+    nbo_nontrivial_rate: float = Field(
+        description="Fraction of rollouts with max(remaining IG) > 0"
+    )
+    hyp_distinguishable_rate: float = Field(
+        description="Fraction of rollouts with min distractor KL > 0.05"
+    )
+
+    # Diagnostic (single rollout, for debugging — NOT criteria)
+    sampled_nll_teacher: float = Field(
+        description="Diagnostic: -log P_teacher(true) for first rollout"
+    )
+    sampled_nll_prior: float = Field(
+        description="Diagnostic: -log P_prior(true) for first rollout"
+    )
+    teacher_steps_to_stable: int = Field(
+        description="Diagnostic: steps until IG < 0.01 in first rollout"
+    )
+
+    # Composite
     useful_bundle: bool
 
 
@@ -73,7 +114,7 @@ class GeneratorDiversityMetrics(BaseModel):
     fan_in_distribution: dict[int, int]
     fan_out_distribution: dict[int, int]
     target_entropy_std: float
-    ig_gap_std: float
+    entropy_reduction_std: float
     acceptance_rate: float
     useful_bundle_rate: float
 
@@ -97,7 +138,25 @@ class QualitySuiteReport(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Layer A: World Quality
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _entropy(dist: dict[str, float]) -> float:
+    """Shannon entropy in bits."""
+    return -sum(p * math.log2(p) for p in dist.values() if p > 0)
+
+
+def _nll(dist: dict[str, float], true_state: str) -> float:
+    """Negative log likelihood: -log2 P(true_state)."""
+    p = dist.get(true_state, 0.0)
+    if p <= 0:
+        return 20.0  # cap at ~1e-6 probability
+    return -math.log2(p)
+
+
+# ---------------------------------------------------------------------------
+# Layer A: World Quality (unchanged from v1)
 # ---------------------------------------------------------------------------
 
 _checker = WorldCheckTool()
@@ -132,7 +191,7 @@ def compute_world_quality(world: World) -> WorldQualityMetrics:
     max_fan_in = max((dag.in_degree(n) for n in dag.nodes()), default=0)
     max_fan_out = max((dag.out_degree(n) for n in dag.nodes()), default=0)
 
-    # Target reachable fraction: what fraction of observables can reach target
+    # Target reachable fraction
     target_nodes = [n for n in world.nodes if n.type == NodeType.TARGET]
     obs_nodes = [n for n in world.nodes if n.type == NodeType.OBSERVABLE]
 
@@ -166,123 +225,175 @@ def compute_world_quality(world: World) -> WorldQualityMetrics:
 
 
 # ---------------------------------------------------------------------------
-# Layer B: Task Quality
+# Layer B: Task Quality (v2 — multi-rollout)
 # ---------------------------------------------------------------------------
 
 _task_gen = TaskGenTool()
 _verifier = VerifierTool()
 
 
-def compute_task_quality(world: World, seed: int = 42) -> TaskQualityMetrics:
-    """Compute Layer B metrics for a single world + seed."""
+def compute_task_quality(
+    world: World,
+    seeds: list[int] | None = None,
+) -> TaskQualityMetrics:
+    """Compute Layer B metrics for a world using multi-rollout evaluation.
+
+    Args:
+        world: The world to evaluate.
+        seeds: Seeds for rollouts. Defaults to DEFAULT_ROLLOUT_SEEDS (5 seeds).
+    """
+    if seeds is None:
+        seeds = list(DEFAULT_ROLLOUT_SEEDS)
+
     solver = ExactBayesSolver(world)
     target_node = next(n for n in world.nodes if n.type == NodeType.TARGET)
     target = target_node.name
     obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
     budget = min(len(obs_nodes), 5)
 
-    # Sample true state
-    true_state = solver.sample_state(seed=seed)
-    true_target_state = true_state[target]
-
-    # Build one-hot for true state
-    true_dist = {s: 0.0 for s in target_node.states}
-    true_dist[true_target_state] = 1.0
+    # --- Episode design metrics (sample-independent) ---
 
     # Prior
     prior = solver.posterior(target)
-    prior_kl = _verifier.kl_divergence(true_dist, prior)
+    prior_entropy = _entropy(prior)
 
-    # Teacher trajectory
-    true_state_t, trajectory = solver.generate_trajectory(
-        target=target, available=obs_nodes, budget=budget, seed=seed,
-    )
+    # Budget ratio: budget / observables with path to target
+    dag = nx.DiGraph()
+    for node in world.nodes:
+        dag.add_node(node.name)
+    for edge in world.edges:
+        dag.add_edge(edge.from_node, edge.to_node)
+    undirected = dag.to_undirected()
+    relevant_obs = [
+        n for n in obs_nodes
+        if nx.has_path(undirected, n, target)
+    ]
+    budget_ratio = budget / len(relevant_obs) if relevant_obs else float("inf")
 
-    # Teacher final posterior
-    if trajectory:
-        teacher_posterior = trajectory[-1].posterior
-    else:
-        teacher_posterior = prior
-    teacher_kl = _verifier.kl_divergence(true_dist, teacher_posterior)
-
-    # Teacher steps to stable (IG < 0.01)
-    steps_to_stable = budget  # default: never stable
-    for i, step in enumerate(trajectory):
-        if step.information_gain < 0.01:
-            steps_to_stable = i
-            break
-
-    # Best IG (first step)
-    best_ig = trajectory[0].information_gain if trajectory else 0.0
-
-    # IG gap: compute IG for all observables from prior
+    # IG for all observables from prior (no evidence)
     igs = []
     for node in obs_nodes:
         ig = solver.information_gain(target, {}, node)
         igs.append(ig)
-    ig_gap = max(igs) - min(igs) if igs else 0.0
+    best_first_ig = max(igs) if igs else 0.0
+    ig_gap = (max(igs) - min(igs)) if igs else 0.0
 
-    # Random baseline: observe in random order, take final posterior
-    rng = np.random.default_rng(seed + 1000)
-    shuffled_obs = list(obs_nodes)
-    rng.shuffle(shuffled_obs)
-    random_evidence: dict[str, str] = {}
-    for node_name in shuffled_obs[:budget]:
-        random_evidence[node_name] = true_state[node_name]
-    random_posterior = solver.posterior(target, random_evidence)
-    random_kl = _verifier.kl_divergence(true_dist, random_posterior)
+    # --- Multi-rollout metrics ---
+    entropy_reductions: list[float] = []
+    teacher_nlls: list[float] = []
+    prior_nlls: list[float] = []
+    random_nlls: list[float] = []
+    teacher_beats_random_count = 0
+    nbo_nontrivial_count = 0
+    hyp_distinguishable_count = 0
 
-    teacher_beats_prior = teacher_kl <= prior_kl
-    teacher_beats_random = teacher_kl <= random_kl
-    teacher_random_gap = random_kl - teacher_kl
+    # Diagnostic from first rollout
+    first_sampled_nll_teacher = 0.0
+    first_sampled_nll_prior = 0.0
+    first_steps_to_stable = budget
 
-    # Generate task bundle to check NBO and hypothesis quality
-    bundle = _task_gen.generate_all(
-        world, target_node=target, max_budget=budget, seed=seed,
-    )
+    for i, seed in enumerate(seeds):
+        true_state = solver.sample_state(seed=seed)
+        true_target_state = true_state[target]
 
-    # NBO non-trivial: at least one remaining node has IG > 0
-    nbo_task = bundle.tasks[TaskType.NEXT_BEST_OBSERVATION]
-    nbo_nontrivial = max(nbo_task.correct_answer.values()) > 0.0
+        # Teacher trajectory
+        _, trajectory = solver.generate_trajectory(
+            target=target, available=obs_nodes, budget=budget, seed=seed,
+        )
 
-    # Hypothesis distinguishable: min KL between true and nearest distractor > 0.05
-    hyp_task = bundle.tasks[TaskType.HYPOTHESIS_SELECTION]
-    kl_scores = list(hyp_task.correct_answer.values())
-    # The correct hypothesis has KL=0; distractors have KL>0
-    distractor_kls = [kl for kl in kl_scores if kl > 1e-9]
-    hyp_distinguishable = min(distractor_kls) > 0.05 if distractor_kls else False
+        # Teacher posterior
+        teacher_posterior = trajectory[-1].posterior if trajectory else prior
+        teacher_entropy = _entropy(teacher_posterior)
 
-    # Infer target non-degenerate: teacher posterior differs from prior
-    infer_nondegen_kl = _verifier.kl_divergence(teacher_posterior, prior)
-    infer_target_nondegen = infer_nondegen_kl > 0.01
+        # Entropy reduction
+        entropy_reductions.append(prior_entropy - teacher_entropy)
 
-    # Useful bundle: at least 2 of 3 tasks are non-degenerate
-    nondegen_count = sum([
-        infer_target_nondegen,
-        nbo_nontrivial,
-        hyp_distinguishable,
+        # NLL metrics
+        t_nll = _nll(teacher_posterior, true_target_state)
+        p_nll = _nll(prior, true_target_state)
+        teacher_nlls.append(t_nll)
+        prior_nlls.append(p_nll)
+
+        # Random baseline
+        rng = np.random.default_rng(seed + 1000)
+        shuffled_obs = list(obs_nodes)
+        rng.shuffle(shuffled_obs)
+        random_evidence = {n: true_state[n] for n in shuffled_obs[:budget]}
+        random_posterior = solver.posterior(target, random_evidence)
+        r_nll = _nll(random_posterior, true_target_state)
+        random_nlls.append(r_nll)
+
+        if t_nll < r_nll:
+            teacher_beats_random_count += 1
+
+        # NBO non-trivial
+        bundle = _task_gen.generate_all(
+            world, target_node=target, max_budget=budget, seed=seed,
+        )
+        nbo_task = bundle.tasks[TaskType.NEXT_BEST_OBSERVATION]
+        if max(nbo_task.correct_answer.values()) > 0.0:
+            nbo_nontrivial_count += 1
+
+        # Hypothesis distinguishable
+        hyp_task = bundle.tasks[TaskType.HYPOTHESIS_SELECTION]
+        kl_scores = list(hyp_task.correct_answer.values())
+        distractor_kls = [kl for kl in kl_scores if kl > 1e-9]
+        if distractor_kls and min(distractor_kls) > 0.05:
+            hyp_distinguishable_count += 1
+
+        # First rollout diagnostics
+        if i == 0:
+            first_sampled_nll_teacher = t_nll
+            first_sampled_nll_prior = p_nll
+            first_steps_to_stable = budget
+            for step_idx, step in enumerate(trajectory):
+                if step.information_gain < 0.01:
+                    first_steps_to_stable = step_idx
+                    break
+
+    k = len(seeds)
+    mean_entropy_reduction = float(np.mean(entropy_reductions))
+    mean_teacher_nll = float(np.mean(teacher_nlls))
+    mean_prior_nll = float(np.mean(prior_nlls))
+    mean_nll_improvement = float(np.mean(
+        [p - t for p, t in zip(prior_nlls, teacher_nlls)]
+    ))
+    mean_random_nll = float(np.mean(random_nlls))
+    teacher_beats_random_rate = teacher_beats_random_count / k
+    nbo_nontrivial_rate = nbo_nontrivial_count / k
+    hyp_distinguishable_rate = hyp_distinguishable_count / k
+
+    # useful_bundle v2: entropy_reduction > 0.1 AND 2 of 3 dimensions
+    dimensions_met = sum([
+        nbo_nontrivial_rate > 0.5,
+        hyp_distinguishable_rate > 0.5,
+        budget_ratio < 0.8,
     ])
-    useful_bundle = nondegen_count >= 2
+    useful_bundle = mean_entropy_reduction > 0.1 and dimensions_met >= 2
 
     return TaskQualityMetrics(
-        prior_kl=round(prior_kl, 6),
-        teacher_kl=round(teacher_kl, 6),
-        random_kl=round(random_kl, 6),
-        teacher_beats_prior=teacher_beats_prior,
-        teacher_beats_random=teacher_beats_random,
-        teacher_random_gap=round(teacher_random_gap, 6),
-        teacher_steps_to_stable=steps_to_stable,
-        best_ig=round(best_ig, 6),
+        budget_ratio=round(budget_ratio, 4),
+        prior_entropy=round(prior_entropy, 4),
+        best_first_ig=round(best_first_ig, 6),
         ig_gap=round(ig_gap, 6),
-        nbo_nontrivial=nbo_nontrivial,
-        hyp_distinguishable=hyp_distinguishable,
-        infer_target_nondegen=infer_target_nondegen,
+        num_rollouts=k,
+        mean_entropy_reduction=round(mean_entropy_reduction, 4),
+        mean_teacher_nll=round(mean_teacher_nll, 4),
+        mean_prior_nll=round(mean_prior_nll, 4),
+        mean_nll_improvement=round(mean_nll_improvement, 4),
+        mean_random_nll=round(mean_random_nll, 4),
+        teacher_beats_random_rate=round(teacher_beats_random_rate, 4),
+        nbo_nontrivial_rate=round(nbo_nontrivial_rate, 4),
+        hyp_distinguishable_rate=round(hyp_distinguishable_rate, 4),
+        sampled_nll_teacher=round(first_sampled_nll_teacher, 4),
+        sampled_nll_prior=round(first_sampled_nll_prior, 4),
+        teacher_steps_to_stable=first_steps_to_stable,
         useful_bundle=useful_bundle,
     )
 
 
 # ---------------------------------------------------------------------------
-# Layer C: Generator Diversity
+# Layer C: Generator Diversity (v2 — entropy_reduction_std)
 # ---------------------------------------------------------------------------
 
 
@@ -300,7 +411,7 @@ def compute_generator_diversity(
             fan_in_distribution={},
             fan_out_distribution={},
             target_entropy_std=0.0,
-            ig_gap_std=0.0,
+            entropy_reduction_std=0.0,
             acceptance_rate=0.0,
             useful_bundle_rate=0.0,
         )
@@ -321,13 +432,13 @@ def compute_generator_diversity(
     fan_in_dist = dict(Counter(fan_ins))
     fan_out_dist = dict(Counter(fan_outs))
 
-    # IG gap std (from Layer B, where available)
-    ig_gaps = [
-        r.task_quality.ig_gap
+    # Entropy reduction std (from Layer B, where available)
+    entropy_reductions = [
+        r.task_quality.mean_entropy_reduction
         for r in world_reports
         if r.task_quality is not None
     ]
-    ig_gap_std = float(np.std(ig_gaps)) if ig_gaps else 0.0
+    ent_red_std = float(np.std(entropy_reductions)) if entropy_reductions else 0.0
 
     # Useful bundle rate
     useful_count = sum(
@@ -336,7 +447,9 @@ def compute_generator_diversity(
         if r.task_quality is not None and r.task_quality.useful_bundle
     )
     total_with_tasks = sum(1 for r in world_reports if r.task_quality is not None)
-    useful_bundle_rate = useful_count / total_with_tasks if total_with_tasks > 0 else 0.0
+    useful_bundle_rate = (
+        useful_count / total_with_tasks if total_with_tasks > 0 else 0.0
+    )
 
     return GeneratorDiversityMetrics(
         count=len(world_reports),
@@ -347,7 +460,7 @@ def compute_generator_diversity(
         fan_in_distribution=fan_in_dist,
         fan_out_distribution=fan_out_dist,
         target_entropy_std=round(float(np.std(entropies)), 4),
-        ig_gap_std=round(ig_gap_std, 4),
+        entropy_reduction_std=round(ent_red_std, 4),
         acceptance_rate=round(sum(passed) / len(passed), 4),
         useful_bundle_rate=round(useful_bundle_rate, 4),
     )
@@ -360,27 +473,24 @@ def compute_generator_diversity(
 
 def run_quality_suite(
     worlds: list[World],
-    seeds: list[int] | None = None,
+    rollout_seeds: list[int] | None = None,
 ) -> QualitySuiteReport:
     """Run the full A+B+C quality suite on a list of worlds.
 
     Args:
         worlds: List of World objects to evaluate.
-        seeds: Optional seeds for task quality (one per world).
-               Defaults to each world's own seed.
+        rollout_seeds: Seeds for multi-rollout task quality evaluation.
+                       Defaults to DEFAULT_ROLLOUT_SEEDS.
     """
-    if seeds is None:
-        seeds = [w.seed for w in worlds]
-
     reports: list[WorldReport] = []
-    for world, seed in zip(worlds, seeds):
+    for world in worlds:
         wq = compute_world_quality(world)
 
         tq = None
         error = None
         if wq.worldcheck_pass:
             try:
-                tq = compute_task_quality(world, seed=seed)
+                tq = compute_task_quality(world, seeds=rollout_seeds)
             except Exception as e:
                 error = str(e)
         else:
@@ -388,7 +498,7 @@ def run_quality_suite(
 
         reports.append(WorldReport(
             world_id=world.id,
-            seed=seed,
+            seed=world.seed,
             world_quality=wq,
             task_quality=tq,
             error=error,
@@ -407,24 +517,34 @@ def run_quality_suite(
     }
 
     if with_tasks:
-        summary["teacher_beats_prior_rate"] = round(
-            sum(1 for r in with_tasks if r.task_quality.teacher_beats_prior)
-            / len(with_tasks),
+        summary["mean_entropy_reduction"] = round(
+            float(np.mean([
+                r.task_quality.mean_entropy_reduction for r in with_tasks
+            ])),
+            4,
+        )
+        summary["mean_nll_improvement"] = round(
+            float(np.mean([
+                r.task_quality.mean_nll_improvement for r in with_tasks
+            ])),
             4,
         )
         summary["teacher_beats_random_rate"] = round(
-            sum(1 for r in with_tasks if r.task_quality.teacher_beats_random)
-            / len(with_tasks),
+            float(np.mean([
+                r.task_quality.teacher_beats_random_rate for r in with_tasks
+            ])),
             4,
         )
         summary["nbo_nontrivial_rate"] = round(
-            sum(1 for r in with_tasks if r.task_quality.nbo_nontrivial)
-            / len(with_tasks),
+            float(np.mean([
+                r.task_quality.nbo_nontrivial_rate for r in with_tasks
+            ])),
             4,
         )
         summary["hyp_distinguishable_rate"] = round(
-            sum(1 for r in with_tasks if r.task_quality.hyp_distinguishable)
-            / len(with_tasks),
+            float(np.mean([
+                r.task_quality.hyp_distinguishable_rate for r in with_tasks
+            ])),
             4,
         )
         summary["useful_bundle_rate"] = round(
@@ -432,8 +552,10 @@ def run_quality_suite(
             / len(with_tasks),
             4,
         )
-        summary["mean_teacher_random_gap"] = round(
-            float(np.mean([r.task_quality.teacher_random_gap for r in with_tasks])),
+        summary["mean_budget_ratio"] = round(
+            float(np.mean([
+                r.task_quality.budget_ratio for r in with_tasks
+            ])),
             4,
         )
 
@@ -450,12 +572,12 @@ def run_quality_suite(
 
 _TARGETS = {
     "worldcheck_pass_rate": (0.85, ">="),
-    "teacher_beats_prior_rate": (0.90, ">="),
-    "teacher_beats_random_rate": (0.80, ">="),
+    "mean_entropy_reduction": (0.10, ">="),
+    "teacher_beats_random_rate": (0.60, ">="),
     "nbo_nontrivial_rate": (0.70, ">="),
     "hyp_distinguishable_rate": (0.80, ">="),
-    "useful_bundle_rate": (0.70, ">="),
-    "mean_teacher_random_gap": (0.30, ">="),
+    "useful_bundle_rate": (0.60, ">="),
+    "mean_budget_ratio": (0.80, "<="),
 }
 
 
@@ -465,46 +587,53 @@ def print_quality_report(report: QualitySuiteReport) -> str:
     Returns the formatted string (also prints it).
     """
     lines: list[str] = []
-    lines.append("=" * 90)
-    lines.append("QUALITY SUITE REPORT")
-    lines.append("=" * 90)
+    lines.append("=" * 100)
+    lines.append("QUALITY SUITE REPORT (v2 — multi-rollout)")
+    lines.append("=" * 100)
 
     # Per-world table
-    header = "{:<20} {:>4} {:>5} {:>5} {:>5} {:>6} {:>6} {:>5} {:>4} {:>4}".format(
-        "World", "Seed", "Check", "T>P", "T>R", "Gap", "BstIG", "NBO", "Hyp", "Bndl",
+    header = (
+        "{:<18} {:>4} {:>5} {:>5} {:>6} {:>6} {:>6} {:>5} {:>5} {:>5} {:>4}"
+    ).format(
+        "World", "Seed", "Check", "BudR", "EntRd", "NLLim", "TbRR",
+        "NBO", "Hyp", "Bndl", "K",
     )
     lines.append("")
     lines.append(header)
-    lines.append("-" * 90)
+    lines.append("-" * 100)
 
     for r in report.worlds:
         wq = r.world_quality
         check = "PASS" if wq.worldcheck_pass else "FAIL"
         if r.task_quality:
             tq = r.task_quality
-            row = "{:<20} {:>4} {:>5} {:>5} {:>5} {:>6.3f} {:>6.4f} {:>5} {:>4} {:>4}".format(
-                r.world_id[:20],
+            row = (
+                "{:<18} {:>4} {:>5} {:>5.2f} {:>6.3f} {:>6.3f} {:>6.2f}"
+                " {:>5.2f} {:>5.2f} {:>5} {:>4}"
+            ).format(
+                r.world_id[:18],
                 r.seed,
                 check,
-                "Y" if tq.teacher_beats_prior else "N",
-                "Y" if tq.teacher_beats_random else "N",
-                tq.teacher_random_gap,
-                tq.best_ig,
-                "Y" if tq.nbo_nontrivial else "N",
-                "Y" if tq.hyp_distinguishable else "N",
+                tq.budget_ratio,
+                tq.mean_entropy_reduction,
+                tq.mean_nll_improvement,
+                tq.teacher_beats_random_rate,
+                tq.nbo_nontrivial_rate,
+                tq.hyp_distinguishable_rate,
                 "Y" if tq.useful_bundle else "N",
+                tq.num_rollouts,
             )
         else:
-            row = "{:<20} {:>4} {:>5}  -- skipped ({})".format(
-                r.world_id[:20], r.seed, check, r.error or "unknown",
+            row = "{:<18} {:>4} {:>5}  -- skipped ({})".format(
+                r.world_id[:18], r.seed, check, r.error or "unknown",
             )
         lines.append(row)
 
     # Summary
     lines.append("")
-    lines.append("=" * 90)
+    lines.append("=" * 100)
     lines.append("SUMMARY")
-    lines.append("-" * 90)
+    lines.append("-" * 100)
 
     for key, value in report.summary.items():
         target_info = ""
@@ -523,17 +652,25 @@ def print_quality_report(report: QualitySuiteReport) -> str:
         d = report.diversity
         lines.append("")
         lines.append("GENERATOR DIVERSITY (n={})".format(d.count))
-        lines.append("-" * 90)
+        lines.append("-" * 100)
         lines.append("  {:<30} {:>8.4f}".format("node_count_std", d.node_count_std))
         lines.append("  {:<30} {:>8.4f}".format("edge_count_std", d.edge_count_std))
         lines.append("  {:<30} {:>8.4f}".format("density_range", d.density_range))
         lines.append("  {:<30} {:>8}".format("depth_range", d.depth_range))
-        lines.append("  {:<30} {:>8.4f}".format("target_entropy_std", d.target_entropy_std))
-        lines.append("  {:<30} {:>8.4f}".format("ig_gap_std", d.ig_gap_std))
-        lines.append("  {:<30} {}".format("fan_in_distribution", d.fan_in_distribution))
-        lines.append("  {:<30} {}".format("fan_out_distribution", d.fan_out_distribution))
+        lines.append(
+            "  {:<30} {:>8.4f}".format("target_entropy_std", d.target_entropy_std)
+        )
+        lines.append(
+            "  {:<30} {:>8.4f}".format("entropy_reduction_std", d.entropy_reduction_std)
+        )
+        lines.append(
+            "  {:<30} {}".format("fan_in_distribution", d.fan_in_distribution)
+        )
+        lines.append(
+            "  {:<30} {}".format("fan_out_distribution", d.fan_out_distribution)
+        )
 
-    lines.append("=" * 90)
+    lines.append("=" * 100)
 
     text = "\n".join(lines)
     print(text)

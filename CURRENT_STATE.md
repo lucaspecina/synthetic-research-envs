@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 409 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 2 nuevos tools de orchestrator (dag_generate + dag_construct). 3 tipos de tarea. Multi-task bundles. QualitySuite (capas A+B+C). Pipeline completo. v1 completo + v2 en progreso.**
+**Estado actual: 412 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 2 nuevos tools de orchestrator (dag_generate + dag_construct). 3 tipos de tarea. Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Pipeline completo. v1 completo + v2 en progreso.**
 
 ---
 
@@ -255,7 +255,7 @@ pip install -e ".[dev]"
 
 ### Correr tests
 ```bash
-pytest tests/ -v                          # Todos (409 tests)
+pytest tests/ -v                          # Todos (412 tests)
 pytest tests/tools/test_task_gen.py -v    # Solo task generation
 pytest tests/tools/test_fork_collider.py  # Solo fork_collider template
 ```
@@ -452,7 +452,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **409 tests** en todos los módulos
+- **412 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
@@ -462,7 +462,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - 3 task types funcionan en los 3 templates (45 configs E2E probadas)
   - 4 DAG generators: 40 tests (estructura, edge cases, world gen, 15 nodos, cross-generator)
   - E2E validation DAG generators: 50 configs (10x5 seeds), teacher>prior 94%, NBO 76%, hyp 80%
-  - QualitySuite: 44 tests (capas A, B, C + runner + report + cross-template + cross-generator)
+  - QualitySuite v2: 48 tests (capas A, B multi-rollout, C + runner + report + cross-template + cross-generator)
 
 ---
 
