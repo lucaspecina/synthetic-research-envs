@@ -34,18 +34,26 @@ ruff check src/ tests/
 The main workflow is: the LLM orchestrator generates a complete research case (causal structure + narrative + questions + data) that you can inspect and analyze.
 
 ```bash
-# Generate a case with the LLM orchestrator (requires Azure AI credentials in .env)
+# Edit research_seed.md with your research context, then run:
+python scripts/test_orchestrator.py --export output/case.json
+
+# Or provide a goal directly (ignores seed file):
 python scripts/test_orchestrator.py \
     --goal "research problem about tropical disease outbreak, 8 nodes" \
     --seed 42 \
     --export output/case_disease.json
 
-# Default case (marine ecology)
+# Use a different seed file:
+python scripts/test_orchestrator.py --seed-file my_case.md
+
+# Default case (marine ecology, when no seed file exists):
 python scripts/test_orchestrator.py
 
 # With verbose LLM logs
 python scripts/test_orchestrator.py --goal "..." --verbose
 ```
+
+**Goal priority**: `--goal` flag > `research_seed.md` (if file exists) > built-in default
 
 ### What the output shows
 

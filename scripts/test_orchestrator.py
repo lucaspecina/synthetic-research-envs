@@ -75,6 +75,22 @@ def _wrap(text: str, width: int = 76, indent: int = 6) -> str:
 # ------------------------------------------------------------------------------------
 
 
+def _read_seed_file(path: str, required: bool = False) -> str | None:
+    """Read a research seed markdown file, stripping comment lines (> ...)."""
+    if not os.path.isfile(path):
+        if required:
+            print(_c(RED, f"  ERROR: seed file not found: {path}"))
+            sys.exit(1)
+        return None
+    with open(path, encoding="utf-8") as f:
+        content = f.read().strip()
+    if not content:
+        return None
+    # Strip blockquote lines (instructions/comments)
+    lines = [ln for ln in content.splitlines() if not ln.strip().startswith(">")]
+    return "\n".join(lines).strip() or None
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Run the SREG orchestrator and inspect the generated case"
@@ -83,6 +99,10 @@ def main():
     parser.add_argument(
         "--seed", type=int, default=None,
         help="Seed hint for the LLM (appended to goal)"
+    )
+    parser.add_argument(
+        "--seed-file", type=str, default=None,
+        help="Path to research seed markdown file (default: research_seed.md if it exists)"
     )
     parser.add_argument(
         "--model", type=str, default=None,
@@ -107,17 +127,48 @@ def main():
     from sreg.orchestrator.orchestrator import Orchestrator
 
     model = args.model or os.environ.get("AZURE_MODEL", "gpt-4o")
-    goal = args.goal or (
-        "Generate a research problem about marine ecology in a fictional archipelago, "
-        "medium difficulty, 8 nodes. Use dag_construct for the causal structure. "
-        "Design a research case with at least 3 different evaluation types."
-    )
+
+    # Build goal: explicit --goal wins, otherwise read seed file
+    seed_file = args.seed_file or "research_seed.md"
+    seed_content = None
+    if args.goal:
+        goal = args.goal
+    else:
+        seed_content = _read_seed_file(seed_file, required=bool(args.seed_file))
+        if seed_content:
+            goal = (
+                "Generate a synthetic research case based on the following context. "
+                "Use dag_construct for the causal structure. "
+                "Design a research case with multiple evaluation types.\n\n"
+                f"--- RESEARCH SEED ---\n{seed_content}\n--- END SEED ---"
+            )
+        else:
+            goal = (
+                "Generate a research problem about marine ecology in a fictional "
+                "archipelago, medium difficulty, 8 nodes. Use dag_construct for the "
+                "causal structure. Design a research case with at least 3 different "
+                "evaluation types."
+            )
     if args.seed is not None:
         goal += f" Use seed {args.seed} for reproducibility."
 
     _header("SREG ORCHESTRATOR")
     _kv("Modelo", _c(B + YLW, model))
-    _kv("Goal", _safe(goal))
+    # Show source of goal
+    if args.goal:
+        _kv("Goal source", "command line (--goal)")
+    elif seed_content:
+        _kv("Goal source", _c(B + GRN, f"seed file: {seed_file}"))
+    else:
+        _kv("Goal source", "default (no seed file found)")
+    # Show goal (truncated if from seed file — full content is long)
+    goal_display = goal
+    if "--- RESEARCH SEED ---" in goal:
+        goal_display = goal.split("--- RESEARCH SEED ---")[0].strip()
+        _kv("Goal", _safe(goal_display))
+        _kv("Seed content", f"{len(seed_content)} chars from {seed_file}")
+    else:
+        _kv("Goal", _safe(goal_display))
     if args.seed is not None:
         _kv("Seed hint", str(args.seed))
 

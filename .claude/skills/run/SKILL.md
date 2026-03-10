@@ -26,18 +26,23 @@ Parse $ARGUMENTS for optional parameters:
 Build and execute the command:
 
 ```bash
-# Default (marine ecology)
+# From research_seed.md (reads automatically if file exists)
 python scripts/test_orchestrator.py
 
-# With a specific goal
+# With a specific goal (ignores seed file)
 python scripts/test_orchestrator.py --goal "research problem about [topic], 8 nodes, medium difficulty. Use dag_construct. Design a research case with at least 3 different evaluation types."
 
+# From a different seed file
+python scripts/test_orchestrator.py --seed-file my_case.md
+
 # With seed for reproducibility
-python scripts/test_orchestrator.py --goal "..." --seed 42
+python scripts/test_orchestrator.py --seed 42
 
 # With export
-python scripts/test_orchestrator.py --goal "..." --seed 42 --export output/case_name.json
+python scripts/test_orchestrator.py --seed 42 --export output/case_name.json
 ```
+
+**Goal priority**: `--goal` > `research_seed.md` (if exists) > default (marine ecology)
 
 If $ARGUMENTS is just a topic (e.g., `/run epidemiology`), build a goal like:
 ```
