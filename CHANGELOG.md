@@ -5,6 +5,14 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Activate rich actions and CasePlan question in build_problem
+- **Orchestrator `build_problem`** now passes `rich_actions=True` and the CasePlan
+  (if available) to `ProblemBuilder.build()`. This means the agent sees varied-cost
+  actions and the LLM-designed research question instead of the generic template.
+- **`ProblemBuilder.build()`** accepts `case_plan: CasePlan | None`. When provided,
+  `_build_question()` uses the primary question's `question_text` from the plan.
+- 3 new tests (581 total): case_plan question used, fallback to generic, combo with rich_actions.
+
 ### 2026-03-10 — Case inspection tooling: --seed, --export, /run skill
 - **`test_orchestrator.py` enhanced**: `--seed N` (reproducibility hint), `--export path.json`
   (full case export), `--verbose` (raw HTTP logs). Step-by-step process display with compact

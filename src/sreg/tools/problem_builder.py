@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import networkx as nx
 
 from sreg.models.research_problem import AvailableAction, ResearchActionType, ResearchProblem
 from sreg.models.world import NodeType, World
 from sreg.tools.data_sampler import DataSampler, DataSamplerConfig
+
+if TYPE_CHECKING:
+    from sreg.models.case_plan import CasePlan
 
 
 class ProblemBuilder:
@@ -19,6 +24,7 @@ class ProblemBuilder:
         data_config: DataSamplerConfig | None = None,
         rich_data: bool = False,
         rich_actions: bool = False,
+        case_plan: CasePlan | None = None,
     ) -> ResearchProblem:
         """Package a world into a research problem the agent can see.
 
@@ -30,6 +36,8 @@ class ProblemBuilder:
                 narrative observations (overridden by explicit data_config).
             rich_actions: If True, generate actions with varied costs, types,
                 and multi-node groupings based on DAG structure.
+            case_plan: If provided, use the primary question's text as the
+                visible research question instead of the generic template.
         """
         if data_config is None:
             if rich_data:
@@ -60,7 +68,7 @@ class ProblemBuilder:
         target = next(n for n in world.nodes if n.type == NodeType.TARGET)
 
         # Build the research question
-        question = self._build_question(world, target)
+        question = self._build_question(world, target, case_plan)
 
         return ResearchProblem(
             world_id=world.id,
@@ -167,9 +175,27 @@ class ProblemBuilder:
 
         return actions
 
-    def _build_question(self, world: World, target_node) -> str:
-        """Build the research question from the world's semantic content."""
+    def _build_question(
+        self, world: World, target_node, case_plan: CasePlan | None = None,
+    ) -> str:
+        """Build the research question.
+
+        If a CasePlan is provided, uses the primary question's text
+        (what the LLM designed for this specific case). Otherwise falls
+        back to a generic template.
+        """
         states_str = ", ".join(target_node.states)
+
+        # Use the plan's primary question if available
+        if case_plan and case_plan.questions:
+            primary = case_plan.questions[0]
+            return (
+                f"{primary.question_text}\n\n"
+                f"Target variable: '{target_node.name}' "
+                f"(possible states: {states_str}). "
+                f"You may request additional measurements within your budget."
+            )
+
         if world.scenario_title:
             return (
                 f"Based on the available data and your analysis, estimate the "

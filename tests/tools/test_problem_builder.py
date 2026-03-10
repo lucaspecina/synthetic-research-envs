@@ -2,7 +2,9 @@
 
 import pytest
 
+from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 from sreg.models.research_problem import AvailableAction, ResearchActionType, ResearchProblem
+from sreg.models.task import TaskType
 from sreg.models.world import NodeType
 from sreg.tools.data_sampler import DataSamplerConfig
 from sreg.tools.problem_builder import ProblemBuilder
@@ -253,3 +255,74 @@ def test_legacy_actions_unchanged_by_default():
     for action in problem.available_actions:
         assert action.cost == 1
         assert len(action.nodes) == 1
+
+
+# --- CasePlan integration ---
+
+
+def _make_plan(target_node: str = "target_outcome") -> CasePlan:
+    """Create a simple CasePlan for testing."""
+    return CasePlan(
+        title="Interference Study",
+        research_context="Investigating why some wells experience sanding after nearby operations.",
+        questions=[
+            EvalQuestionPlan(
+                question_text=(
+                    "What factors explain why hydraulic fracturing interference "
+                    "leads to sanding in some parent wells but not others?"
+                ),
+                eval_type=TaskType.INFER_TARGET,
+                target_node=target_node,
+                rationale="Primary causal attribution question.",
+            ),
+            EvalQuestionPlan(
+                question_text=(
+                    "If pad spacing were increased, how would sanding risk change?"
+                ),
+                eval_type=TaskType.CAUSAL_EFFECT,
+                target_node=target_node,
+                rationale="Interventional question.",
+            ),
+        ],
+        shared_budget=6,
+    )
+
+
+def test_case_plan_question_used():
+    """When case_plan is provided, primary question text appears in research_question."""
+    world = _make_world()
+    plan = _make_plan()
+    builder = ProblemBuilder()
+    problem = builder.build(world, budget=6, case_plan=plan)
+
+    # Should contain the plan's primary question text
+    assert "hydraulic fracturing interference" in problem.research_question
+    # Should still mention the target variable
+    assert "target_outcome" in problem.research_question
+
+
+def test_case_plan_none_uses_generic():
+    """Without case_plan, research_question uses generic template."""
+    world = _make_world()
+    world = world.model_copy(update={"scenario_title": "Test Scenario"})
+    builder = ProblemBuilder()
+    problem = builder.build(world, budget=5, case_plan=None)
+
+    assert "estimate the probability distribution" in problem.research_question.lower()
+
+
+def test_case_plan_with_rich_actions():
+    """case_plan and rich_actions can be used together."""
+    world = _make_world(num_nodes=10)
+    plan = _make_plan()
+    builder = ProblemBuilder()
+    problem = builder.build(
+        world, budget=6, rich_actions=True, case_plan=plan,
+    )
+
+    # Plan question used
+    assert "hydraulic fracturing" in problem.research_question
+    # Rich actions active
+    assert len(problem.available_actions) > 0
+    for a in problem.available_actions:
+        assert a.action_type in ResearchActionType

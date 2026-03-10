@@ -512,7 +512,16 @@ class Orchestrator:
             seed=world.seed,
         )
 
-        problem = self._problem_builder.build(world, budget=budget, data_config=data_config)
+        # Use CasePlan if available (for richer question + actions)
+        case_plan = self._case_plans.get(world_id)
+
+        problem = self._problem_builder.build(
+            world,
+            budget=budget,
+            data_config=data_config,
+            rich_actions=True,
+            case_plan=case_plan,
+        )
         result.problem = problem
 
         return {
