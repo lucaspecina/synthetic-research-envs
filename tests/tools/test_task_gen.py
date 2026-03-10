@@ -918,6 +918,164 @@ def test_score_adjustment_set_not_identifiable():
     assert verifier.score_adjustment_set([], valid_sets) == 0.0
 
 
+# --- compare_interventions tests ---
+
+
+def test_compare_interventions_generates(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    assert isinstance(task, Task)
+    assert task.type == TaskType.COMPARE_INTERVENTIONS
+    assert task.world_id == world.id
+    assert task.target_node == "target_outcome"
+    assert task.scoring_method == "compare_interventions"
+
+
+def test_compare_interventions_has_two_options(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    # correct_answer has exactly 2 entries (the two interventions being compared)
+    assert len(task.correct_answer) == 2
+    for key, val in task.correct_answer.items():
+        assert ":" in key
+        assert 0.0 <= val <= 1.0
+
+
+def test_compare_interventions_question_mentions_ab(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    assert "Intervention A" in task.question
+    assert "Intervention B" in task.question
+    assert "target_outcome" in task.question
+
+
+def test_compare_interventions_intervention_field_is_better(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    # intervention field holds the better intervention
+    assert len(task.intervention) == 1
+    better_node = list(task.intervention.keys())[0]
+    better_state = list(task.intervention.values())[0]
+    better_key = f"{better_node}:{better_state}"
+
+    # The better intervention should have the highest effect in correct_answer
+    assert better_key in task.correct_answer
+    assert task.correct_answer[better_key] == max(task.correct_answer.values())
+
+
+def test_compare_interventions_deterministic(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5
+    )
+    t1 = tool.generate(world, spec, seed=42)
+    t2 = tool.generate(world, spec, seed=42)
+
+    assert t1.correct_answer == t2.correct_answer
+    assert t1.intervention == t2.intervention
+    assert t1.question == t2.question
+
+
+def test_compare_interventions_different_seeds(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5
+    )
+    t1 = tool.generate(world, spec, seed=0)
+    t2 = tool.generate(world, spec, seed=1)
+
+    # Different seeds may pick different desired states or presentation order
+    assert t1.question != t2.question or t1.correct_answer != t2.correct_answer
+
+
+def test_compare_interventions_different_nodes(world):
+    """The two compared interventions should come from different nodes."""
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    keys = list(task.correct_answer.keys())
+    node_a = keys[0].split(":")[0]
+    node_b = keys[1].split(":")[0]
+    # Should be different nodes (unless world has only 1 observable)
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    if len(obs_nodes) > 1:
+        assert node_a != node_b
+
+
+@pytest.mark.parametrize(
+    "template", ["latent_preference", "causal_chain", "fork_collider"]
+)
+def test_compare_interventions_works_across_templates(template):
+    gen = WorldGenTool()
+    w = gen.generate(
+        WorldGenConfig(template_family=template, seed=42, num_nodes=6, edge_strength=0.7)
+    )
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(w, spec, seed=42)
+
+    assert task.type == TaskType.COMPARE_INTERVENTIONS
+    assert len(task.correct_answer) == 2
+    assert len(task.intervention) == 1
+
+
+# --- compare_interventions scoring ---
+
+
+def test_score_compare_interventions_correct():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.8, "B:low": 0.3}
+    assert verifier.score_compare_interventions("A", effects) == 1.0
+
+
+def test_score_compare_interventions_wrong():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.8, "B:low": 0.3}
+    assert verifier.score_compare_interventions("B", effects) == 0.0
+
+
+def test_score_compare_interventions_b_better():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.3, "B:low": 0.8}
+    assert verifier.score_compare_interventions("B", effects) == 1.0
+    assert verifier.score_compare_interventions("A", effects) == 0.0
+
+
+def test_score_compare_interventions_equal():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.5, "B:low": 0.5}
+    # Equal effects — either answer is fine
+    assert verifier.score_compare_interventions("A", effects) == 1.0
+    assert verifier.score_compare_interventions("B", effects) == 1.0
+
+
+def test_score_compare_interventions_invalid():
+    verifier = VerifierTool()
+    effects = {"A:high": 0.8, "B:low": 0.3}
+    assert verifier.score_compare_interventions("C", effects) == 0.0
+
+
 # --- generate_from_plan tests ---
 
 

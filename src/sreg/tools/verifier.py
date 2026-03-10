@@ -73,6 +73,29 @@ class VerifierTool:
         key = ",".join(sorted(agent_set)) if agent_set else "_empty_"
         return 1.0 if key in valid_sets else 0.0
 
+    def score_compare_interventions(
+        self,
+        agent_choice: str,
+        effects: dict[str, float],
+    ) -> float:
+        """Score a compare_interventions answer.
+
+        Agent answers 'A' or 'B'. Returns 1.0 if agent picked the intervention
+        with higher effect, 0.0 otherwise. If effects are equal, either is correct.
+        """
+        keys = list(effects.keys())
+        if len(keys) != 2:
+            return 0.0
+        key_a, key_b = keys
+        eff_a, eff_b = effects[key_a], effects[key_b]
+
+        # If effects are essentially equal, any answer is correct
+        if abs(eff_a - eff_b) < 1e-9:
+            return 1.0 if agent_choice in ("A", "B") else 0.0
+
+        correct = "A" if eff_a > eff_b else "B"
+        return 1.0 if agent_choice == correct else 0.0
+
     def score(
         self,
         agent_posterior: dict[str, float],

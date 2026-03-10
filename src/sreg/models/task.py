@@ -14,6 +14,7 @@ class TaskType(StrEnum):
     CAUSAL_EFFECT = "causal_effect"
     BEST_INTERVENTION = "best_intervention"
     ADJUSTMENT_SET = "adjustment_set"
+    COMPARE_INTERVENTIONS = "compare_interventions"
 
 
 class TaskSpec(BaseModel):

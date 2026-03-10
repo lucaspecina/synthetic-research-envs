@@ -62,6 +62,8 @@ class TaskGenTool:
             return self._best_intervention_task(world, spec, seed)
         if spec.type == TaskType.ADJUSTMENT_SET:
             return self._adjustment_set_task(world, spec, seed)
+        if spec.type == TaskType.COMPARE_INTERVENTIONS:
+            return self._compare_interventions_task(world, spec, seed)
         raise ValueError(f"Unsupported task type: {spec.type}")
 
     def _infer_target_task(self, world: World, spec: TaskSpec) -> Task:
@@ -359,6 +361,104 @@ class TaskGenTool:
             correct_answer=intervention_effects,
             scoring_method="intervention_effect_ratio",
             intervention={best_node: best_state},
+        )
+
+    def _compare_interventions_task(
+        self, world: World, spec: TaskSpec, seed: int
+    ) -> Task:
+        solver = ExactBayesSolver(world)
+        target = spec.target_node
+        obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+        target_node_obj = next(n for n in world.nodes if n.name == target)
+        rng = np.random.default_rng(seed)
+
+        # Pick a desired state for the target
+        desired_state = target_node_obj.states[rng.choice(len(target_node_obj.states))]
+
+        # Compute effect of each possible intervention (same as best_intervention)
+        intervention_effects: dict[str, float] = {}
+        for node_name in obs_nodes:
+            node_obj = next(n for n in world.nodes if n.name == node_name)
+            for state in node_obj.states:
+                do_dist = solver.causal_query(target, do={node_name: state})
+                effect = do_dist.get(desired_state, 0.0)
+                intervention_effects[f"{node_name}:{state}"] = round(effect, 6)
+
+        # Pick two interventions from DIFFERENT nodes with distinct effects
+        by_node: dict[str, list[tuple[str, float]]] = {}
+        for key, eff in intervention_effects.items():
+            node_name = key.split(":")[0]
+            by_node.setdefault(node_name, []).append((key, eff))
+
+        # For each node, pick its best intervention (state with highest effect)
+        node_bests: list[tuple[str, float]] = []
+        for node_name, entries in by_node.items():
+            best_entry = max(entries, key=lambda e: e[1])
+            node_bests.append(best_entry)
+
+        # Sort by effect and pick two with the largest gap
+        node_bests.sort(key=lambda e: e[1], reverse=True)
+
+        if len(node_bests) < 2:
+            # Fallback: pick any two interventions
+            all_sorted = sorted(intervention_effects.items(), key=lambda e: e[1], reverse=True)
+            pick_a = all_sorted[0]
+            pick_b = all_sorted[-1]
+        else:
+            # Pick top and bottom among node-bests for clear contrast
+            pick_a = node_bests[0]
+            pick_b = node_bests[-1]
+            # If effects are identical, try to find a pair with a gap
+            if abs(pick_a[1] - pick_b[1]) < 1e-9 and len(node_bests) > 2:
+                for candidate in reversed(node_bests[1:]):
+                    if abs(pick_a[1] - candidate[1]) > 1e-9:
+                        pick_b = candidate
+                        break
+
+        key_a, effect_a = pick_a
+        key_b, effect_b = pick_b
+        node_a, state_a = key_a.split(":", 1)
+        node_b, state_b = key_b.split(":", 1)
+
+        # Randomize presentation order so "A" isn't always the better one
+        if rng.random() < 0.5:
+            key_a, effect_a, node_a, state_a, key_b, effect_b, node_b, state_b = (
+                key_b, effect_b, node_b, state_b, key_a, effect_a, node_a, state_a,
+            )
+
+        # Correct answer: which intervention has higher P(target=desired | do(...))
+        correct_answer = {
+            key_a: round(effect_a, 6),
+            key_b: round(effect_b, 6),
+        }
+
+        # The better intervention goes in the intervention field
+        if effect_a >= effect_b:
+            better_node, better_state = node_a, state_a
+        else:
+            better_node, better_state = node_b, state_b
+
+        question = (
+            f"Your team is debating between two possible interventions to "
+            f"maximize '{target}' being '{desired_state}'. "
+            f"Intervention A: set '{node_a}' to '{state_a}'. "
+            f"Intervention B: set '{node_b}' to '{state_b}'. "
+            f"Which intervention would have a larger causal effect on "
+            f"the probability of '{target}' being '{desired_state}'? "
+            f"This is about do-operations (interventions), not observations. "
+            f"Answer 'A' or 'B'."
+        )
+
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=target,
+            available_evidence=obs_nodes,
+            correct_answer=correct_answer,
+            scoring_method="compare_interventions",
+            intervention={better_node: better_state},
         )
 
     def _adjustment_set_task(

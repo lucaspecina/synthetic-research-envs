@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Ola 1: compare_interventions eval type
+- **`TaskType.COMPARE_INTERVENTIONS`**: "Your team debates between two interventions.
+  Which one has a larger causal effect on the outcome?"
+- **`TaskGenTool._compare_interventions_task()`**: picks two interventions from different
+  nodes with distinct effects, randomizes presentation order (A/B), computes P(Y|do())
+  for each via `causal_query()`
+- **`VerifierTool.score_compare_interventions()`**: binary — did the agent pick the better one?
+  Equal effects = either answer is correct
+- 15 new tests. 526 total. E2E validated across all 3 templates (gaps 0.21-0.51).
+
 ### 2026-03-10 — Research: diseño de acciones de investigación
 - **New section in WORLD_DESIGN.md**: "Diseño de acciones de investigación"
   - Principle: thinking is free, acting in the world costs budget

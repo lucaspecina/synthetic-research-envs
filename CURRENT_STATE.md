@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 511 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 6 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
+**Estado actual: 526 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 7 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
 
 ---
 
@@ -309,14 +309,40 @@ adjustment set, 0.0 si no.
 (Statistical Rethinking). Testea si el agente entiende la estructura causal
 lo suficiente para saber qué controlar y qué NO controlar.
 
-### Diferencias clave entre los 6 task types
+### `compare_interventions` — "¿Cuál de estas dos intervenciones es mejor?"
 
-| | infer_target | NBO | hypothesis_sel | causal_effect | best_intervention | adjustment_set |
-|---|---|---|---|---|---|---|
-| **Qué mide** | Estimación | Estrategia | Comparación | Razonamiento causal | Decisión óptima | Comprensión causal |
-| **Output** | Distribución | Un nodo | Una letra (A-D) | Distribución interventional | Nodo + estado | Set de variables |
-| **Scoring** | KL (continuo) | IG ratio (continuo) | Accuracy (binario) | KL (continuo) | Effect ratio (continuo) | Match (binario) |
-| **Interactúa?** | Sí | No | No | No | No | No |
+**La pregunta:** "Tu equipo debate entre dos intervenciones posibles para
+maximizar un outcome. Intervención A: fijar X en x. Intervención B: fijar
+Z en z. ¿Cuál tiene mayor efecto causal?"
+
+**Cómo funciona:**
+1. Se elige un estado deseado para el target (aleatorio por seed)
+2. Se computan los efectos causales de todas las intervenciones posibles
+   via `causal_query(target, do={node: state})`
+3. Se eligen dos intervenciones de nodos DIFERENTES con efectos distintos
+   (la mejor y la peor entre los mejores de cada nodo)
+4. Se aleatoriza el orden de presentación (A/B) para evitar sesgo posicional
+
+**Ejemplo:** "Intervención A: fijar `stage_4` en `medium`. Intervención B:
+fijar `stage_1` en `high`. ¿Cuál cambia más la probabilidad de
+`target_outcome` = `high`?" → A tiene efecto 0.87, B tiene 0.59 → Respuesta: A.
+
+**Scoring:** Binario. 1.0 si eligió la intervención con mayor efecto, 0.0 si no.
+Si ambas tienen el mismo efecto, cualquier respuesta es correcta.
+
+**Por qué es interesante:** Es la pregunta de decisión clínica o de política.
+No es "¿cuál es la mejor?" (best_intervention, muchas opciones) sino "dados
+estos dos tratamientos concretos, ¿cuál preferís?". Requiere razonamiento
+causal comparativo, no búsqueda exhaustiva.
+
+### Diferencias clave entre los 7 task types
+
+| | infer_target | NBO | hypothesis_sel | causal_effect | best_intervention | adjustment_set | compare_interventions |
+|---|---|---|---|---|---|---|---|
+| **Qué mide** | Estimación | Estrategia | Comparación | Razonamiento causal | Decisión óptima | Comprensión causal | Comparación causal |
+| **Output** | Distribución | Un nodo | Una letra (A-D) | Distribución interventional | Nodo + estado | Set de variables | A o B |
+| **Scoring** | KL (continuo) | IG ratio (continuo) | Accuracy (binario) | KL (continuo) | Effect ratio (continuo) | Match (binario) | Match (binario) |
+| **Interactúa?** | Sí | No | No | No | No | No | No |
 
 ---
 
@@ -517,6 +543,12 @@ task = TaskGenTool().generate(world, spec, seed=42)
 # task.intervention → {"treatment_X": "treatment"}  (treatment variable)
 # task.correct_answer → {"confounder_Z": 1.0}  (valid minimal adjustment sets)
 # Or: {"_empty_": 1.0} (no confounding) or {"_not_identifiable_": 1.0} (latent confounder)
+
+# compare_interventions
+spec = TaskSpec(type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)
+# task.intervention → {"mediator_1": "high"}  (the better intervention)
+# task.correct_answer → {"branch_1:medium": 0.46, "mediator_1:high": 0.78}  (effects of both)
 ```
 
 ### Scoring
@@ -535,6 +567,9 @@ acc = verifier.score_hypothesis("B", kl_scores)  # → 1.0 or 0.0
 
 # adjustment_set: match against valid sets
 match = verifier.score_adjustment_set(["confounder_Z"], valid_sets)  # → 1.0 or 0.0
+
+# compare_interventions: binary comparison
+score = verifier.score_compare_interventions("A", effects)  # → 1.0 or 0.0
 ```
 
 ### Plan-driven task generation (CasePlan)
@@ -581,7 +616,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **511 tests** en todos los módulos
+- **526 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
@@ -596,6 +631,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - causal_effect: 14 tests (solver causal_query + task generation + cross-template + weighted selection)
   - best_intervention: 13 tests (generation, ranking, scoring, cross-template, determinism)
   - adjustment_set: 20 tests (generation, confounding detection, identifiability, scoring, cross-template)
+  - compare_interventions: 15 tests (generation, two-option format, scoring, cross-template, node diversity)
 
 ---
 
