@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Research: diseño de acciones de investigación
+- **New section in WORLD_DESIGN.md**: "Diseño de acciones de investigación"
+  - Principle: thinking is free, acting in the world costs budget
+  - Four research paradigms: dataset-first, experimental, field, hybrid
+  - Distinction: acquisition actions (cost budget) vs analysis (free)
+  - Catalog of action types: observe, intervene, request_dataset, consult
+  - Parallel with eval types: fixed formal types + orchestrator-designed instances
+  - Three worked examples: agriculture, epidemiology, geology
+  - Validation chain: orchestrator proposes, tools validate
+  - Teacher impact: IG per unit of cost (greedy optimization)
+  - Open questions: consult formalization, adaptive actions, noisy measurements
+- **TODO.md updated**: Rich actions section rewritten with new design
+- Navigation index updated
+
 ### 2026-03-10 — Ola 1: adjustment_set eval type
 - **`TaskType.ADJUSTMENT_SET`**: "What variables should you control for to estimate
   the causal effect of X on Y?"

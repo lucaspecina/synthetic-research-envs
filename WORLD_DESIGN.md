@@ -30,6 +30,7 @@ a la seccion que necesites:
 | **Diseno de Research Cases** | TaskBundle → ResearchCase, rol del orchestrator, CasePlan |
 | **Catalogo de evaluaciones cientificas** | 31 eval types en 6 familias (A-F), mapa de implementacion por olas, soporte pgmpy |
 | **Paper-seeded cases** | Flujo: paper real → caso sintetico |
+| **Diseno de acciones de investigacion** | Tipos de accion (observar, intervenir, consultar), catalogo, validacion, impacto en teacher, ejemplos |
 | **Enriquecimiento de datos** | Multi-dataset, missing data, narrativas |
 | **Quality gates + QualitySuite** | Que hace que un mundo sea "bueno" + metricas |
 | **Principios de PCG** | Generate-evaluate-refine, MAP-Elites, expressive range |
@@ -2028,6 +2029,321 @@ validate + generate    →  VALIDAN computabilidad y CONSTRUYEN las Tasks
 - MODIFICAR: `src/sreg/tools/task_gen.py` (generate_from_plan)
 - MODIFICAR: orchestrator system prompt
 - Tests + E2E validation
+
+---
+
+## Diseno de acciones de investigacion (research 2026-03-10)
+
+> **Problema**: el modelo actual de acciones (budget = N, cada accion revela
+> 1 nodo, cuesta 1) es mecanica de juego, no ciencia real. Ningun investigador
+> "descubre" variables de a una con costo uniforme.
+>
+> **Principio rector**: pensar es gratis, actuar en el mundo cuesta.
+> El agente puede analizar datos todo lo que quiera — lo que cuesta es
+> adquirir evidencia nueva (experimentos, mediciones, datos adicionales).
+
+### Como funciona la investigacion real
+
+No todas las investigaciones funcionan igual. El tipo de acciones disponibles
+depende del dominio:
+
+**Paradigma 1: Dataset-first** (data science, epidemiologia, ciencias sociales)
+- El investigador ya tiene los datos. Un dataset grande.
+- El desafio es: que analisis correr, que hipotesis testear, que conclusiones sacar.
+- "Acciones" de adquisicion: raras o inexistentes. Todo el valor esta en el analisis.
+- Budget de adquisicion: bajo o cero.
+
+**Paradigma 2: Experimental** (lab, clinical trials, ingenieria)
+- El investigador tiene datos observacionales iniciales.
+- Puede diseñar y correr experimentos (intervenciones controladas).
+- Cada experimento cuesta plata, tiempo, muestras.
+- Budget de adquisicion: limitado y real. "Tenes presupuesto para 3 ensayos."
+
+**Paradigma 3: Field research** (ecologia, geologia, astronomia)
+- El investigador va a medir cosas. Cada campaña cuesta.
+- A veces una medicion trae muchas variables (una muestra de suelo da pH,
+  humedad, minerales). A veces necesita equipo especializado.
+- Budget de adquisicion: medio, por campaña mas que por variable.
+
+**Paradigma 4: Hibrido** (lo mas comun en la realidad)
+- Empieza con datos existentes (papers previos, datasets publicos).
+- Analiza lo que hay (gratis).
+- Diseña experimentos nuevos para lo que falta (caro).
+- Diferentes acciones tienen diferentes costos.
+
+### Distincion fundamental: adquisicion vs analisis
+
+| Tipo | Que hace | Costo | Ejemplo |
+|---|---|---|---|
+| **Analisis** | Razona sobre datos existentes | Gratis | Correr regresion, buscar correlaciones |
+| **Adquisicion** | Obtiene evidencia nueva del mundo | Cuesta budget | Medir variable, correr experimento |
+
+**El analisis es trabajo del agente.** Es exactamente lo que evaluamos: su
+capacidad de razonar con la informacion disponible. No tiene sentido cobrarlo.
+
+**La adquisicion cambia el estado del mundo** (revela informacion nueva).
+Eso si cuesta — como en la realidad.
+
+### Catalogo de tipos de accion (propuesta)
+
+Cada accion que el agente pueda tomar debe **mapear a una operacion formal
+sobre el BN**. Si no podemos computar el resultado desde el BN, la accion
+no puede existir. Esa es la regla de oro.
+
+#### Acciones de observacion (revelar evidencia)
+
+| Accion | Mapeo formal | Costo tipico | Ejemplo cientifico |
+|---|---|---|---|
+| Medir variable | Samplear valor de un nodo dado evidencia actual | Bajo (1) | "Medir pH del suelo en parcela 3" |
+| Campaña de medicion | Samplear multiples nodos a la vez | Medio (2-3) | "Hacer analisis completo de muestra de agua" |
+| Pedir dataset adicional | Generar N filas de subconjunto de variables | Medio (2-3) | "Solicitar registros hospitalarios de otra region" |
+| Medir variable costosa | Samplear nodo que requiere equipo especial | Alto (3-5) | "Analisis de espectrometria de masas" |
+
+Mapeo BN: `observe(node) → samplear valor segun P(node | evidencia_actual)`
+
+#### Acciones de intervencion (do-operations)
+
+| Accion | Mapeo formal | Costo tipico | Ejemplo cientifico |
+|---|---|---|---|
+| Experimento simple | do(variable=valor), observar target | Alto (3-5) | "Aplicar fertilizante X, medir crecimiento" |
+| Ensayo controlado | do(variable=valor), samplear N observaciones | Muy alto (5-8) | "Clinical trial: droga Z, 50 pacientes" |
+| Experimento multi-variable | do(var1=v1, var2=v2), observar resultado | Muy alto (5-10) | "Probar combinacion de tratamientos" |
+
+Mapeo BN: `intervene(node=value) → P(target | do(node=value))` via CausalInference
+
+#### Acciones de consulta (informacion teorica)
+
+| Accion | Mapeo formal | Costo tipico | Ejemplo cientifico |
+|---|---|---|---|
+| Consultar literatura | Revelar informacion parcial sobre estructura | Bajo (1) | "Que dice la literatura sobre X→Y?" |
+| Consultar experto | Revelar probabilidad condicional parcial | Medio (2) | "Un experto opina que X probablemente causa Y" |
+
+Mapeo BN: estas acciones son mas complejas de formalizar. Podrian revelar
+informacion parcial sobre la estructura del DAG (ej: "existe una arista X→Y")
+o sobre las CPDs (ej: "P(Y=high|X=high) > 0.7"). Requieren diseño cuidadoso
+para que la informacion revelada sea correcta sin dar demasiado.
+
+**Nota**: las acciones de consulta son las mas dificiles de formalizar y
+deberian implementarse despues de las de observacion e intervencion.
+
+### Acciones fijas vs acciones diseñadas por el orchestrator
+
+Asi como las **preguntas** de evaluacion siguen tipos formales (eval types)
+pero el orchestrator elige cuales usar y como formularlas para cada caso,
+las **acciones** deberian seguir el mismo patron:
+
+```
+TIPOS DE ACCION (fijos, como eval types):
+  observe_single     → revelar 1 nodo
+  observe_multi      → revelar N nodos (campaña)
+  intervene          → do-operation
+  request_dataset    → generar dataset adicional
+
+ACCIONES CONCRETAS (diseñadas por orchestrator, como questions):
+  "Medir pH del suelo en zona norte"        → observe_single(pH)       costo: 1
+  "Correr analisis de laboratorio completo"  → observe_multi(pH, min, org) costo: 3
+  "Aplicar fertilizante X en parcela este"  → intervene(fertilizer=X)  costo: 4
+  "Pedir datos meteorologicos de 2024"      → request_dataset(weather) costo: 2
+```
+
+**El paralelismo con eval types es exacto:**
+
+| | Preguntas | Acciones |
+|---|---|---|
+| **Tipos formales** | eval types (infer_target, adjustment_set, ...) | action types (observe, intervene, ...) |
+| **Instancias concretas** | EvalQuestionPlan (texto + tipo + target) | ActionPlan (texto + tipo + nodos + costo) |
+| **Quien diseña** | Orchestrator | Orchestrator |
+| **Quien valida** | Tools (mapea al BN?) | Tools (nodos existen? costos validos?) |
+| **Quien resuelve** | Teacher (respuesta golden) | BN (resultado de la accion) |
+
+### Ejemplos de research cases con acciones ricas
+
+#### Caso 1: Agricultura (hibrido)
+
+```
+Datos iniciales (gratis):
+  - Dataset de 200 parcelas: suelo, clima, riego, rendimiento
+  - 3 años de datos meteorologicos
+
+Acciones disponibles:
+  "Medir nutrientes del suelo en parcela nueva"    observe(nutrientes)    costo: 1
+  "Instalar sensor de humedad continuo"            observe(humedad)       costo: 2
+  "Aplicar riego por goteo en parcela test"         intervene(riego=goteo) costo: 3
+  "Cambiar fertilizante a organico en sector B"     intervene(fert=org)    costo: 4
+  "Pedir datos de parcelas vecinas"                 request_dataset(...)   costo: 2
+
+Budget total: 8 unidades
+
+Preguntas:
+  1. "Que factor tiene mayor impacto causal en el rendimiento?" (best_intervention)
+  2. "Si cambias el tipo de riego, cambia el rendimiento?" (causal_effect)
+  3. "Que variables deberias controlar en tu analisis?" (adjustment_set)
+```
+
+#### Caso 2: Epidemiologia (data-first)
+
+```
+Datos iniciales (gratis):
+  - Registros de 5000 pacientes: edad, sexo, tratamiento, comorbilidades, outcome
+  - Estudio observacional publicado
+
+Acciones disponibles:
+  "Pedir registros de otro hospital"                request_dataset(...)   costo: 2
+  "Correr ensayo clinico piloto (30 pacientes)"     intervene(droga=Z)     costo: 6
+  "Consultar meta-analisis sobre droga Z"           consult(droga→outcome) costo: 1
+
+Budget total: 6 unidades
+
+Preguntas:
+  1. "La droga Z reduce la mortalidad?" (causal_effect)
+  2. "Que variables confunden la relacion droga-mortalidad?" (adjustment_set)
+  3. "Vale la pena correr un ensayo clinico o los datos observacionales bastan?" (NBO adaptado)
+```
+
+#### Caso 3: Geologia (field research)
+
+```
+Datos iniciales (gratis):
+  - 50 mediciones de superficie: temperatura, presion, composicion
+  - Mapa geologico del area
+
+Acciones disponibles:
+  "Tomar muestra en punto X"                       observe(composicion, temp, presion) costo: 2
+  "Perforacion exploratoria (revela capas profundas)" observe(capa_profunda)            costo: 5
+  "Analisis isotopico de muestra existente"          observe(edad_isotopica)            costo: 3
+
+Budget total: 10 unidades
+
+Preguntas:
+  1. "Cual es la causa del patron anomalo en la zona sur?" (infer_latent_cause)
+  2. "Que medicion seria mas informativa a continuacion?" (NBO)
+```
+
+### Principios de diseno de acciones
+
+1. **Co-diseño obligatorio: preguntas + acciones + evidencia van juntas.**
+   No diseñar preguntas por un lado y acciones por otro. Si el case incluye
+   `causal_effect`, deberia existir alguna accion de intervencion. Si incluye
+   `best_intervention`, deberia haber mas de una intervencion plausible. Si
+   incluye `adjustment_set`, deberia haber evidencia suficiente para que
+   el agente pueda razonar sobre confounders. Coherencia interna del case.
+
+2. **4 a 8 acciones por caso, no 25.** Pocas acciones con roles claros.
+   Un mix tipico: 2-3 observaciones baratas, 1-2 experimentos caros,
+   1 accion de datos adicionales. Si el agente tiene demasiadas opciones
+   el case se vuelve inmanejable y la evaluacion pierde foco.
+
+3. **Cada accion debe devolver algo concreto y computable.** Nunca algo
+   vago como "investigar mas" o "explorar el sistema". Cada accion tiene
+   output bien definido: un valor, un dataset, un resultado experimental.
+   Si no mapea a una operacion sobre el BN, no existe.
+
+4. **Cada accion debe responder a una necesidad del case:**
+   - Que incertidumbre reduce?
+   - Que hipotesis ayuda a distinguir?
+   - Que mecanismo pone a prueba?
+   Si una accion no ayuda a ninguna pregunta del case, sobra.
+
+5. **Pensar es gratis, actuar cuesta.** El agente puede analizar datos,
+   buscar correlaciones, formular hipotesis, todo sin costo. Lo que cuesta
+   budget es adquirir evidencia nueva del mundo.
+
+**Regla de oro (consolidada):**
+> El research case define que preguntas valen la pena y que acciones son
+> plausibles. El mundo formal define que respuestas y evidencias son
+> realmente validas.
+
+### Cadena de validacion: como asegurar consistencia
+
+El riesgo principal es que el orchestrator diseñe acciones incoherentes.
+La validacion sigue el patron ya establecido (orchestrator propone, tools validan):
+
+```
+Orchestrator propone acciones
+  |
+  v
+Tool valida:
+  [x] Cada accion referencia nodos que existen en el BN
+  [x] Los estados de intervencion son validos para esos nodos
+  [x] Los costos son > 0
+  [x] Al menos una accion es de tipo "observe" (el agente debe poder medir algo)
+  [x] El budget total permite al menos 2 acciones (investigacion no trivial)
+  [x] No hay acciones sobre nodos LATENT (el agente no sabe que existen)
+  [x] Las descripciones son coherentes con la narrativa del caso
+
+  [!] WARN si todas las acciones son observe (no hay opcion de experimentar)
+  [!] WARN si el budget es tan alto que puede hacer todo (no hay decision)
+  [x] FAIL si una intervencion apunta a un nodo TARGET (no podes intervenir el outcome)
+
+Validacion de coherencia con el case (no solo formal):
+  [x] Cada accion ayuda a responder al menos una pregunta del case
+  [x] No hay acciones redundantes (dos acciones que revelan lo mismo)
+  [x] Ninguna accion "regala" la respuesta a una pregunta
+      (ej: si la pregunta es infer_target y una accion observa el target directamente)
+  [x] Si el case tiene causal_effect/best_intervention, hay al menos 1 accion interventional
+  [x] Si el case tiene adjustment_set, hay suficientes observables para confounders
+  [x] Las acciones son plausibles dentro de la narrativa del case
+```
+
+### Impacto en el teacher solver
+
+El teacher hoy calcula: "que variable tiene mas information gain? Observo esa."
+
+Con acciones ricas, el calculo cambia a: **"que accion tiene mas information
+gain POR UNIDAD DE COSTO?"**
+
+```
+Medir humedad:     IG = 0.4 bits, costo 1 → ratio = 0.40 bits/unidad
+Experimento riego: IG = 0.8 bits, costo 3 → ratio = 0.27 bits/unidad
+Analisis de lab:   IG = 0.5 bits, costo 2 → ratio = 0.25 bits/unidad
+```
+
+Las intervenciones (do-operations) dan mas informacion porque **rompen
+confounders** — ves el efecto causal directo, no la correlacion. Pero
+cuestan mas. Esa tension es exactamente la que hace interesante la
+decision del agente: ¿mido barato o experimento caro?
+
+El teacher puede optimizar esto con un algoritmo greedy (IG/costo por paso)
+o con una estrategia mas sofisticada (lookahead). Para v1, greedy es
+suficiente y ya es la cota superior.
+
+### Preguntas abiertas sobre acciones
+
+1. **Acciones de consulta**: como formalizamos "consultar literatura"?
+   Una opcion: revelar una arista del DAG ("X causa Y") o un rango de
+   una CPD ("P(Y|X=high) esta entre 0.6 y 0.9"). Requiere diseño cuidadoso.
+
+2. **Acciones adaptativas**: el resultado de una accion puede habilitar
+   nuevas acciones? Ej: "si medis X y sale alto, ahora podes hacer el
+   experimento Y". Esto añade complejidad pero es muy realista.
+
+3. **Acciones parcialmente informativas**: una medicion podria tener ruido
+   (no revela el valor exacto sino un rango). Mapeo: en vez de revelar
+   el estado exacto, revelar una distribucion P(estado | medicion).
+
+4. **Score de estrategia**: como evaluamos si el agente tomo buenas
+   decisiones de accion (no solo si respondio bien las preguntas)?
+   El teacher da la estrategia optima — pero comparar secuencias de
+   acciones es mas complejo que comparar respuestas.
+
+5. **Acciones que no revelan nada**: un experimento podria fallar o dar
+   resultado inconcluso. Mapeo: la accion cuesta budget pero revela
+   un "null result" (la distribucion no cambia mucho). Esto es realista
+   pero frustrante — dosificar con cuidado.
+
+### Plan de implementacion: acciones ricas
+
+**No implementar todavia.** Este diseño requiere mas investigacion y los
+eval types de Ola 1 son la prioridad inmediata. Pero el diseño debe estar
+documentado para cuando lleguemos.
+
+**Orden propuesto:**
+1. Terminar Ola 1 de eval types (vocabulario de preguntas suficiente)
+2. Implementar acciones con costo variable (lo minimo: `cost > 1`)
+3. Implementar acciones multi-nodo (`nodes: list[str]`)
+4. Implementar acciones de intervencion (`do-operation` como accion)
+5. Orchestrator diseña acciones como parte del ResearchCase
+6. Acciones de consulta (ultimo — mas difícil de formalizar)
 
 ---
 

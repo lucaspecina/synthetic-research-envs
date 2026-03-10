@@ -116,18 +116,29 @@
 - [ ] E2E con LLM agent: verificar que el agente razona sobre datos ricos correctamente
 - [ ] Despues (no en slice minimo): metadata (fecha, instrumento), temporal column, datos contradictorios entre datasets
 
-#### 2. Rich actions
-> Hoy: `AvailableAction` tiene node, description y cost. Pero cost=1 siempre
-> y cada accion revela exactamente 1 nodo. La descripcion viene del LLM
-> via apply_semantics pero es generica ("Observe X").
+#### 2. Rich actions (rediseñado 2026-03-10)
+> **Principio rector**: pensar es gratis, actuar en el mundo cuesta.
+> El agente analiza datos libremente; lo que cuesta budget es adquirir
+> evidencia nueva (medir, experimentar, pedir datos adicionales).
 >
-> Plan concreto (slice minimo):
+> **Diseño completo documentado en WORLD_DESIGN.md** "Diseno de acciones
+> de investigacion" — incluye catalogo de tipos de accion, ejemplos por
+> dominio (agricultura, epidemiologia, geologia), cadena de validacion,
+> impacto en teacher solver, y preguntas abiertas.
+>
+> **Patron**: igual que eval types para preguntas. Tipos formales fijos
+> (observe, intervene, request_dataset) + instancias concretas diseñadas
+> por el orchestrator para cada research case.
+>
+> Plan concreto (incremental):
 
 - [ ] Permitir cost > 1 en `AvailableAction` (el modelo ya lo soporta, falta usarlo)
 - [ ] Permitir acciones que revelan multiples nodos: agregar `nodes: list[str]` a `AvailableAction` (hoy solo `node: str`)
 - [ ] `EpisodeRunner` procesa acciones multi-nodo: una accion revela N valores, cuesta cost
 - [ ] `EpisodeGenTool` genera acciones con costos variados (1, 2, 3) segun config
-- [ ] Despues: acciones semanticas mas ricas (el LLM genera la descripcion por accion)
+- [ ] Acciones de intervencion: do-operations como acciones del agente (costo alto, info alta)
+- [ ] Orchestrator diseña acciones como parte del ResearchCase (ActionPlan)
+- [ ] Despues: acciones de consulta (revelar info parcial sobre estructura/CPDs)
 
 #### 3. ResearchCase — el orchestrator diseña el caso completo
 > **Reformulacion fundamental (2026-03-09)**: el producto de SREG no es
