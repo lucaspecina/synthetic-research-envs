@@ -103,7 +103,8 @@ src/sreg/
 
 scripts/
 ├── demo.py                # Terminal demo: world gen + teacher solving
-├── test_orchestrator.py   # Step-by-step orchestrator run with real LLM
+├── test_orchestrator.py   # Step-by-step orchestrator run with real LLM (--seed, --export, --seed-file)
+├── view_case.py           # Inspect exported JSON cases section by section
 ├── test_agent.py          # Agent vs teacher vs random baseline comparison
 ├── test_e2e.py            # End-to-end: orchestrator -> agent -> score
 └── batch_eval.py          # Batch eval + teacher trajectory JSONL export
@@ -113,6 +114,7 @@ notebooks/
 
 tests/               # Mirrors src/ structure
 
+research_seed.md             # Optional: research context for orchestrator (read automatically)
 WORLD_DESIGN.md              # Research doc: toy worlds → realistic worlds (strategy, references, open questions)
 
 docs/

@@ -63,7 +63,30 @@ python scripts/test_orchestrator.py --goal "..." --verbose
 4. **Tasks**: generated tasks with mathematically correct answers
 5. **Research problem**: what an agent would see (narrative, data, actions)
 
-### Exported JSON structure
+### Exported files
+
+When using `--export output/case.json`, two files are created:
+- `output/case.json` -- structured data (world, tasks, plan, problem)
+- `output/case.log` -- terminal output as plain text (same as what you see on screen)
+
+### Inspect exported cases
+
+```bash
+# View all sections
+python scripts/view_case.py output/case.json
+
+# View a specific section
+python scripts/view_case.py output/case.json -s world
+python scripts/view_case.py output/case.json -s tasks
+python scripts/view_case.py output/case.json -s problem
+
+# List available sections
+python scripts/view_case.py output/case.json --sections
+```
+
+Sections: `metadata`, `process`, `world`, `case_plan`, `tasks`, `problem`
+
+### JSON structure
 
 ```
 {

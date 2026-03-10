@@ -10,11 +10,44 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import logging
 import os
+import re
 import sys
 from datetime import datetime
+
+# -- tee: capture terminal output to file --
+
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+
+class TeeWriter:
+    """Write to both terminal and a string buffer (strips ANSI for the buffer)."""
+
+    def __init__(self, original: io.TextIOBase):
+        self._original = original
+        self._buffer = io.StringIO()
+
+    def write(self, text: str) -> int:
+        self._original.write(text)
+        self._buffer.write(_ANSI_RE.sub("", text))
+        return len(text)
+
+    def flush(self):
+        self._original.flush()
+
+    def get_log(self) -> str:
+        return self._buffer.getvalue()
+
+    @property
+    def encoding(self):
+        return getattr(self._original, "encoding", "utf-8")
+
+    def isatty(self):
+        return self._original.isatty()
+
 
 # -- display helpers (inline, no import from sreg.display to keep script standalone) --
 
@@ -114,6 +147,12 @@ def main():
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Show raw HTTP logs")
     args = parser.parse_args()
+
+    # Capture terminal output to .log file when exporting
+    tee = None
+    if args.export:
+        tee = TeeWriter(sys.stdout)
+        sys.stdout = tee
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG, format="%(name)s | %(message)s")
@@ -332,8 +371,19 @@ def main():
             json.dump(export_data, f, indent=2, ensure_ascii=False, default=str)
         print()
         _header("EXPORTADO")
-        _kv("Archivo", _c(B + GRN, export_path))
+        _kv("Archivo JSON", _c(B + GRN, export_path))
         _kv("Tamano", f"{os.path.getsize(export_path):,} bytes")
+
+        # Save terminal log alongside JSON
+        log_path = os.path.splitext(export_path)[0] + ".log"
+        if tee:
+            # Flush remaining output before capturing
+            print()  # final newline captured by tee
+            sys.stdout = tee._original  # restore stdout before writing log
+            log_content = tee.get_log()
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(log_content)
+            print(f"    {_c(DIM, 'Log:')} {log_path} ({len(log_content):,} chars)")
 
     print()
 
