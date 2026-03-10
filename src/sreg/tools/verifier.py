@@ -60,6 +60,19 @@ class VerifierTool:
         agent_effect = intervention_effects.get(agent_key, 0.0)
         return min(1.0, agent_effect / best_effect)
 
+    def score_adjustment_set(
+        self,
+        agent_set: list[str],
+        valid_sets: dict[str, float],
+    ) -> float:
+        """Score an adjustment_set answer.
+
+        Returns 1.0 if the agent's proposed set matches any valid minimal
+        backdoor adjustment set, 0.0 otherwise.
+        """
+        key = ",".join(sorted(agent_set)) if agent_set else "_empty_"
+        return 1.0 if key in valid_sets else 0.0
+
     def score(
         self,
         agent_posterior: dict[str, float],

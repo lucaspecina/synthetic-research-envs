@@ -717,6 +717,207 @@ def test_score_best_intervention_all_zero():
     assert score == 1.0  # All zero — any choice is fine
 
 
+# --- adjustment_set tests ---
+
+
+def test_adjustment_set_generates(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    assert isinstance(task, Task)
+    assert task.type == TaskType.ADJUSTMENT_SET
+    assert task.world_id == world.id
+    assert task.scoring_method == "adjustment_set_match"
+
+
+def test_adjustment_set_has_treatment_node(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    # intervention field stores the treatment node
+    assert len(task.intervention) == 1
+    treatment_node = list(task.intervention.keys())[0]
+    assert task.intervention[treatment_node] == "treatment"
+    obs_names = {n.name for n in world.nodes if n.type == NodeType.OBSERVABLE}
+    assert treatment_node in obs_names
+
+
+def test_adjustment_set_correct_answer_format(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    # correct_answer maps comma-separated variable sets to 1.0
+    assert len(task.correct_answer) >= 1
+    for key, val in task.correct_answer.items():
+        assert val == 1.0
+        # Keys are either "_empty_" or comma-separated variable names
+        assert key == "_empty_" or all(len(v) > 0 for v in key.split(","))
+
+
+def test_adjustment_set_available_excludes_treatment_and_target(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    treatment_node = list(task.intervention.keys())[0]
+    assert treatment_node not in task.available_evidence
+    assert "target_outcome" not in task.available_evidence
+
+
+def test_adjustment_set_question_mentions_treatment(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(world, spec, seed=42)
+
+    treatment_node = list(task.intervention.keys())[0]
+    assert treatment_node in task.question
+    assert "causal effect" in task.question.lower()
+
+
+def test_adjustment_set_deterministic(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    t1 = tool.generate(world, spec, seed=42)
+    t2 = tool.generate(world, spec, seed=42)
+
+    assert t1.correct_answer == t2.correct_answer
+    assert t1.intervention == t2.intervention
+
+
+def test_adjustment_set_different_seeds(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    t1 = tool.generate(world, spec, seed=0)
+    t2 = tool.generate(world, spec, seed=1)
+
+    # Both should be valid tasks (may or may not differ depending on available pairs)
+    assert t1.type == TaskType.ADJUSTMENT_SET
+    assert t2.type == TaskType.ADJUSTMENT_SET
+
+
+def test_adjustment_set_fork_collider_has_confounding():
+    """Fork-collider template should produce confounded pairs with real adjustment sets."""
+    gen = WorldGenTool()
+    w = gen.generate(WorldGenConfig(
+        template_family="fork_collider", seed=42, num_nodes=7, edge_strength=0.7
+    ))
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(w, spec, seed=42)
+
+    # Fork-collider should have non-empty adjustment sets (confounding via hidden_factor)
+    has_nonempty_set = any(k != "_empty_" for k in task.correct_answer)
+    assert has_nonempty_set, "Fork-collider should have confounded pairs"
+
+
+def test_adjustment_set_chain_no_confounding():
+    """Causal chain should have no confounding (empty set valid)."""
+    gen = WorldGenTool()
+    w = gen.generate(WorldGenConfig(
+        template_family="causal_chain", seed=42, num_nodes=6, edge_strength=0.7
+    ))
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(w, spec, seed=42)
+
+    # In a pure chain, no confounding exists — empty set is the answer
+    assert "_empty_" in task.correct_answer
+
+
+def test_adjustment_set_latent_preference_not_identifiable():
+    """Latent preference: confounders are latent, effect not identifiable."""
+    gen = WorldGenTool()
+    w = gen.generate(WorldGenConfig(
+        template_family="latent_preference", seed=42, num_nodes=6, edge_strength=0.7
+    ))
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(w, spec, seed=42)
+
+    # Latent preference: hidden_cause is the only valid confounder, but it's latent
+    assert "_not_identifiable_" in task.correct_answer
+    assert "not identifiable" in task.question.lower() or "identif" in task.question.lower()
+
+
+@pytest.mark.parametrize(
+    "template", ["latent_preference", "causal_chain", "fork_collider"]
+)
+def test_adjustment_set_works_across_templates(template):
+    gen = WorldGenTool()
+    nodes = 7 if template == "fork_collider" else 6
+    w = gen.generate(WorldGenConfig(
+        template_family=template, seed=42, num_nodes=nodes, edge_strength=0.7
+    ))
+    tool = TaskGenTool()
+    spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="target_outcome", max_budget=5)
+    task = tool.generate(w, spec, seed=42)
+
+    assert task.type == TaskType.ADJUSTMENT_SET
+    assert len(task.correct_answer) >= 1
+    assert len(task.intervention) == 1
+
+
+# --- adjustment_set scoring ---
+
+
+def test_score_adjustment_set_correct():
+    verifier = VerifierTool()
+    valid_sets = {"branch_2,branch_3": 1.0}
+    score = verifier.score_adjustment_set(["branch_2", "branch_3"], valid_sets)
+    assert score == 1.0
+
+
+def test_score_adjustment_set_correct_order_independent():
+    verifier = VerifierTool()
+    valid_sets = {"branch_2,branch_3": 1.0}
+    # Agent gives variables in different order — should still match
+    score = verifier.score_adjustment_set(["branch_3", "branch_2"], valid_sets)
+    assert score == 1.0
+
+
+def test_score_adjustment_set_wrong():
+    verifier = VerifierTool()
+    valid_sets = {"branch_2,branch_3": 1.0}
+    score = verifier.score_adjustment_set(["collider"], valid_sets)
+    assert score == 0.0
+
+
+def test_score_adjustment_set_empty_correct():
+    verifier = VerifierTool()
+    valid_sets = {"_empty_": 1.0}
+    score = verifier.score_adjustment_set([], valid_sets)
+    assert score == 1.0
+
+
+def test_score_adjustment_set_empty_wrong():
+    verifier = VerifierTool()
+    valid_sets = {"branch_2,branch_3": 1.0}
+    score = verifier.score_adjustment_set([], valid_sets)
+    assert score == 0.0
+
+
+def test_score_adjustment_set_multiple_valid():
+    verifier = VerifierTool()
+    valid_sets = {"branch_2,branch_3": 1.0, "hidden_factor": 1.0}
+    assert verifier.score_adjustment_set(["branch_2", "branch_3"], valid_sets) == 1.0
+    assert verifier.score_adjustment_set(["hidden_factor"], valid_sets) == 1.0
+    assert verifier.score_adjustment_set(["branch_2"], valid_sets) == 0.0
+
+
+def test_score_adjustment_set_not_identifiable():
+    verifier = VerifierTool()
+    valid_sets = {"_not_identifiable_": 1.0}
+    # Agent correctly identifies the effect as not identifiable
+    assert verifier.score_adjustment_set(["_not_identifiable_"], valid_sets) == 1.0
+    # Agent incorrectly proposes a set
+    assert verifier.score_adjustment_set(["some_var"], valid_sets) == 0.0
+    # Agent incorrectly says empty set
+    assert verifier.score_adjustment_set([], valid_sets) == 0.0
+
+
 # --- generate_from_plan tests ---
 
 

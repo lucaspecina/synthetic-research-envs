@@ -180,7 +180,7 @@
 - [ ] **Ola 1** (builds on lo que hay, pgmpy directo):
   - [x] `best_intervention` — Qué intervención maximiza Y? (argmax sobre do-queries)
   - [ ] `compare_interventions` — do(X) vs do(Z), cuál cambia más Y?
-  - [ ] `adjustment_set` — Qué variables debo controlar? (backdoor criterion)
+  - [x] `adjustment_set` — Qué variables debo controlar? (backdoor criterion)
   - [ ] `should_condition` — Alguien sugiere controlar por Z. Es correcto? (elemental confounds)
   - [ ] `infer_latent_cause` — Qué causa oculta explica los síntomas? (posterior sobre LATENT)
 - [ ] **Ola 2** (requieren más diseño):

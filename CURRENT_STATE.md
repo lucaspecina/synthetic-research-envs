@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 491 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 5 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
+**Estado actual: 511 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 6 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
 
 ---
 
@@ -276,15 +276,47 @@ P=0.9, tu score es 0.67. Score=1.0 = elegiste la mejor intervención.
 No es "¿qué pasa si intervengo?" (causal_effect) sino "¿qué intervención
 me conviene?". Es lo que hace un médico al elegir tratamiento.
 
-### Diferencias clave entre los 5 task types
+### `adjustment_set` — "¿Qué variables debo controlar?"
 
-| | infer_target | next_best_observation | hypothesis_selection | causal_effect | best_intervention |
-|---|---|---|---|---|---|
-| **Qué mide** | Calidad de la estimación | Calidad de la estrategia | Capacidad de comparar | Razonamiento causal | Decisión óptima |
-| **Input** | Datos + acciones | Evidencia parcial + opciones | Evidencia parcial + 4 hipótesis | Intervención propuesta | Variables intervenibles |
-| **Output** | Distribución de probabilidad | Un nodo (cuál medir) | Una letra (A/B/C/D) | Distribución interventional | Nodo + estado (la intervención) |
-| **Scoring** | KL divergence (continuo) | IG ratio (continuo) | Accuracy (binario) | KL divergence (continuo) | Effect ratio (continuo) |
-| **Agente interactúa?** | Sí, hace observaciones | No, solo elige | No, solo elige | No, solo estima | No, solo elige |
+**La pregunta:** "Querés estimar el efecto causal de X sobre Y usando datos
+observacionales. ¿Qué variables deberías controlar (incluir como covariables)
+en tu análisis?"
+
+**Cómo funciona:**
+1. Se busca un par (treatment, target) donde exista confounding
+2. Se computan todos los adjustment sets válidos via `get_all_backdoor_adjustment_sets`
+3. Se filtran a sets que solo usen variables observables
+4. El agente tiene que proponer el minimal set correcto
+
+**Tres escenarios posibles:**
+- **Confounded + identifiable**: Hay confounders observables → el agente debe encontrar
+  el minimal adjustment set (ej: fork_collider, custom worlds)
+- **No confounding**: No hay backdoor paths → la respuesta correcta es el conjunto vacío
+  (ej: causal_chain)
+- **Not identifiable**: El confounder es latente → no se puede identificar via backdoor
+  criterion. El agente debe reconocer que el efecto no es identificable
+  (ej: latent_preference con hidden_cause)
+
+**Ejemplo:** "Querés estimar el efecto causal de `treatment_X` sobre `outcome_Y`.
+Variables disponibles: `confounder_Z`, `mediator_M`, `collider_C`.
+¿Qué variables deberías controlar?" → Respuesta: `{confounder_Z}`.
+Controlar por el collider sería INCORRECTO (abre un nuevo path).
+
+**Scoring:** Binario. 1.0 si el set propuesto es un valid minimal backdoor
+adjustment set, 0.0 si no.
+
+**Por qué es interesante:** Es LA pregunta central de McElreath
+(Statistical Rethinking). Testea si el agente entiende la estructura causal
+lo suficiente para saber qué controlar y qué NO controlar.
+
+### Diferencias clave entre los 6 task types
+
+| | infer_target | NBO | hypothesis_sel | causal_effect | best_intervention | adjustment_set |
+|---|---|---|---|---|---|---|
+| **Qué mide** | Estimación | Estrategia | Comparación | Razonamiento causal | Decisión óptima | Comprensión causal |
+| **Output** | Distribución | Un nodo | Una letra (A-D) | Distribución interventional | Nodo + estado | Set de variables |
+| **Scoring** | KL (continuo) | IG ratio (continuo) | Accuracy (binario) | KL (continuo) | Effect ratio (continuo) | Match (binario) |
+| **Interactúa?** | Sí | No | No | No | No | No |
 
 ---
 
@@ -299,7 +331,7 @@ pip install -e ".[dev]"
 
 ### Correr tests
 ```bash
-pytest tests/ -v                          # Todos (491 tests)
+pytest tests/ -v                          # Todos (511 tests)
 pytest tests/tools/test_task_gen.py -v    # Solo task generation
 pytest tests/tools/test_fork_collider.py  # Solo fork_collider template
 ```
@@ -410,7 +442,7 @@ python scripts/test_agent.py
 | **World check** | `src/sreg/tools/world_check.py` | Valida mundos: DAG acíclico, entropía, d-separaciones, max parents, treewidth |
 | **Teacher solver** | `src/sreg/solver/exact_bayes.py` | Inferencia bayesiana exacta: posteriors, information gain, acciones óptimas |
 | **Episode gen** | `src/sreg/tools/episode_gen.py` | Crea episodios: budget, nodos disponibles, costos por observación |
-| **Task gen** | `src/sreg/tools/task_gen.py` | Genera los 5 tipos de tarea con su respuesta correcta + `generate_from_plan` (plan-driven) |
+| **Task gen** | `src/sreg/tools/task_gen.py` | Genera los 6 tipos de tarea con su respuesta correcta + `generate_from_plan` (plan-driven) |
 | **Verifier** | `src/sreg/tools/verifier.py` | Puntúa al agente: KL divergence, IG ratio, hypothesis accuracy |
 | **Episode runner** | `src/sreg/env/` | Interfaz paso a paso: el agente observa → el runner responde |
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
@@ -478,6 +510,13 @@ spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="target_outcome", m
 task = TaskGenTool().generate(world, spec, seed=42)
 # task.intervention → {"stage_4": "high"}  (optimal intervention)
 # task.correct_answer → {"stage_4:high": 0.95, "stage_4:low": 0.05, ...}  (all effects)
+
+# adjustment_set
+spec = TaskSpec(type=TaskType.ADJUSTMENT_SET, target_node="outcome_Y", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)
+# task.intervention → {"treatment_X": "treatment"}  (treatment variable)
+# task.correct_answer → {"confounder_Z": 1.0}  (valid minimal adjustment sets)
+# Or: {"_empty_": 1.0} (no confounding) or {"_not_identifiable_": 1.0} (latent confounder)
 ```
 
 ### Scoring
@@ -493,6 +532,9 @@ ratio = verifier.score_nbo("branch_2", ig_ranking)  # → float (0.0 to 1.0)
 
 # hypothesis_selection: accuracy
 acc = verifier.score_hypothesis("B", kl_scores)  # → 1.0 or 0.0
+
+# adjustment_set: match against valid sets
+match = verifier.score_adjustment_set(["confounder_Z"], valid_sets)  # → 1.0 or 0.0
 ```
 
 ### Plan-driven task generation (CasePlan)
@@ -539,7 +581,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **491 tests** en todos los módulos
+- **511 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
@@ -553,6 +595,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - CasePlan + design_case: 35 tests (model validation, generate_from_plan, orchestrator dispatch)
   - causal_effect: 14 tests (solver causal_query + task generation + cross-template + weighted selection)
   - best_intervention: 13 tests (generation, ranking, scoring, cross-template, determinism)
+  - adjustment_set: 20 tests (generation, confounding detection, identifiability, scoring, cross-template)
 
 ---
 

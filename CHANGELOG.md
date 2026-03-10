@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Ola 1: adjustment_set eval type
+- **`TaskType.ADJUSTMENT_SET`**: "What variables should you control for to estimate
+  the causal effect of X on Y?"
+- **`TaskGenTool._adjustment_set_task()`**: uses pgmpy `get_all_backdoor_adjustment_sets()`
+  to find valid minimal sets, filters to observable-only variables
+- **Three task scenarios**: confounded+identifiable (find the set), no confounding (empty set),
+  not identifiable (hidden confounder — agent must recognize unidentifiability)
+- **`VerifierTool.score_adjustment_set()`**: binary match against valid minimal sets
+- 20 new tests. 511 total. E2E validated across all 3 templates + custom DAGSpec.
+- Handles pgmpy ValueError when no valid adjustment set exists
+
 ### 2026-03-09 — Eval catalog research: 31 task types in 6 scientific families
 - **New section in WORLD_DESIGN.md**: "Fundamentos de razonamiento causal y cientifico"
   - Pearl's ladder of causation (3 rungs: association, intervention, counterfactual)

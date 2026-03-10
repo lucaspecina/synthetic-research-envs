@@ -6,9 +6,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from pgmpy.inference import CausalInference
+
 from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.models.world import NodeType, World
 from sreg.solver.exact_bayes import ExactBayesSolver
+from sreg.world.pgmpy_utils import world_to_pgmpy
 
 if TYPE_CHECKING:
     from sreg.models.case_plan import CasePlan
@@ -57,6 +60,8 @@ class TaskGenTool:
             return self._causal_effect_task(world, spec, seed)
         if spec.type == TaskType.BEST_INTERVENTION:
             return self._best_intervention_task(world, spec, seed)
+        if spec.type == TaskType.ADJUSTMENT_SET:
+            return self._adjustment_set_task(world, spec, seed)
         raise ValueError(f"Unsupported task type: {spec.type}")
 
     def _infer_target_task(self, world: World, spec: TaskSpec) -> Task:
@@ -354,6 +359,119 @@ class TaskGenTool:
             correct_answer=intervention_effects,
             scoring_method="intervention_effect_ratio",
             intervention={best_node: best_state},
+        )
+
+    def _adjustment_set_task(
+        self, world: World, spec: TaskSpec, seed: int
+    ) -> Task:
+        model = world_to_pgmpy(world)
+        ci = CausalInference(model)
+        target = spec.target_node
+        obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+        obs_set = set(obs_nodes)
+        rng = np.random.default_rng(seed)
+
+        # Find treatment nodes and classify by identifiability
+        # Priority 3: confounded + identifiable with observables (best — real science)
+        # Priority 1: no confounding, empty set valid (trivial but correct)
+        # Priority 0: confounded but NOT identifiable with observables (also valuable!)
+        candidates = []
+        for x in obs_nodes:
+            if x == target:
+                continue
+            try:
+                adj_sets = ci.get_all_backdoor_adjustment_sets(x, target)
+            except ValueError:
+                # pgmpy raises ValueError when no valid adjustment set exists at all
+                # (e.g., X is a descendant of Y with no causal path X -> Y)
+                candidates.append((x, [["_not_identifiable_"]], 0))
+                continue
+            obs_only_sets = [
+                sorted(s) for s in adj_sets if all(v in obs_set for v in s)
+            ]
+            # No backdoor paths at all → empty set is trivially valid
+            empty_valid = len(adj_sets) == 0 or frozenset() in adj_sets
+            has_confounding = not empty_valid
+
+            if has_confounding and obs_only_sets:
+                # Confounded AND identifiable with observables
+                candidates.append((x, obs_only_sets, 3))
+            elif has_confounding and not obs_only_sets:
+                # Confounded but NOT identifiable — hidden confounder required
+                candidates.append((x, [["_not_identifiable_"]], 0))
+            elif not has_confounding:
+                # No confounding — empty set is correct
+                candidates.append((x, [[]], 1))
+
+        if not candidates:
+            x = obs_nodes[0] if obs_nodes[0] != target else obs_nodes[1]
+            candidates = [(x, [[]], 1)]
+
+        # Prefer identifiable confounded pairs (priority 3), then unconfounded (1),
+        # then not-identifiable (0)
+        candidates.sort(key=lambda c: c[2], reverse=True)
+        best_priority = candidates[0][2]
+        top_candidates = [c for c in candidates if c[2] == best_priority]
+
+        chosen = top_candidates[rng.choice(len(top_candidates))]
+        treatment_node = chosen[0]
+        valid_sets = chosen[1]
+
+        # Build correct_answer: each valid minimal set as comma-joined key -> 1.0
+        correct_answer: dict[str, float] = {}
+        for s in valid_sets:
+            if s == ["_not_identifiable_"]:
+                correct_answer["_not_identifiable_"] = 1.0
+            elif s:
+                correct_answer[",".join(s)] = 1.0
+            else:
+                correct_answer["_empty_"] = 1.0
+
+        # Available variables for the adjustment set (exclude treatment and target)
+        available = [n for n in obs_nodes if n != treatment_node and n != target]
+
+        is_identifiable_confounded = best_priority == 3
+        is_not_identifiable = "_not_identifiable_" in correct_answer
+        if is_identifiable_confounded:
+            question = (
+                f"You want to estimate the causal effect of '{treatment_node}' on "
+                f"'{target}' using observational data. There may be confounding "
+                f"variables that create spurious associations. Which variables "
+                f"should you control for (include as covariates) in your analysis? "
+                f"Available variables: {available}. "
+                f"Provide the minimal set of variables needed to block all "
+                f"backdoor paths."
+            )
+        elif is_not_identifiable:
+            question = (
+                f"You want to estimate the causal effect of '{treatment_node}' on "
+                f"'{target}' using observational data. "
+                f"Available variables: {available}. "
+                f"Determine whether this causal effect can be identified from "
+                f"observational data by controlling for available variables. "
+                f"If the required confounders are not measurable, the effect is "
+                f"not identifiable via the backdoor criterion."
+            )
+        else:
+            question = (
+                f"You want to estimate the causal effect of '{treatment_node}' on "
+                f"'{target}' using observational data. "
+                f"Which variables should you control for (include as covariates) "
+                f"in your analysis? "
+                f"Available variables: {available}. "
+                f"If no confounding exists, controlling for no variables is correct."
+            )
+
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=target,
+            available_evidence=available,
+            correct_answer=correct_answer,
+            scoring_method="adjustment_set_match",
+            intervention={treatment_node: "treatment"},
         )
 
     def generate_from_plan(
