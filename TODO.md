@@ -37,6 +37,41 @@
 - [ ] Hypothesis near-indistinguishable: batch sweep confirmed this is worst at es=0.9 (43% distinguishable) and best at es=0.7 (87%). The "prior" distractor becomes identical to posterior when evidence confirms prior strongly. Fix: filter by min KL > 0.05 or replace reversed distractor with Dirichlet sample.
 - [-] preferential_attachment: 0% WorldCheck pass across all configs. Eliminated as active generator. (See batch sweep findings in WORLD_DESIGN.md.)
 
+### BUG CRITICO: generate_from_plan sobreescribe question pero no answer (2026-03-10)
+> Descubierto en E2E caso arenamiento. Afecta potencialmente TODOS los eval types
+> donde la pregunta menciona nodos especificos.
+>
+> **Root cause**: `generate_from_plan()` (task_gen.py:740) reemplaza `task.question`
+> con el `question_text` del CasePlan, pero la `correct_answer` se calculo con
+> nodos elegidos por el algoritmo — que pueden ser DISTINTOS a los que menciona
+> el CasePlan. Resultado: pregunta y respuesta no hablan de lo mismo.
+>
+> **Ejemplo concreto**: compare_interventions pregunta por `child_fluid_intensity`
+> vs `max_fracture_pressure`, pero la respuesta es sobre `historical_interference_risk`
+> vs `child_fluid_intensity`.
+>
+> **Eval types afectados**: compare_interventions, causal_effect, best_intervention,
+> should_condition — cualquiera donde la pregunta nombra nodos/intervenciones especificos.
+>
+> **Fix necesario**: `generate_from_plan` no puede simplemente sobreescribir el texto.
+> Debe GUIAR la generacion para que pregunta y respuesta nazcan juntas. Opciones:
+> - EvalQuestionPlan incluye campos opcionales (intervention_node, compare_nodes, etc.)
+> - El task generator extrae los nodos del question_text (fragil)
+> - Se genera la pregunta Y la respuesta a partir del plan, no por separado
+
+- [ ] **P0**: Fix generate_from_plan mismatch (pregunta vs respuesta desalineadas)
+
+### Problemas de diseno del case (hallazgos E2E 2026-03-10)
+> Analisis detallado de caso_arenamiento con segunda opinion de AI externa.
+> Estos NO son bugs — son limitaciones de diseno que necesitan evolucion.
+
+- [ ] **Budget wording**: dice "N observaciones" pero el sistema ya tiene costos variados. Deberia decir "presupuesto de investigacion: N unidades" o similar. No "observaciones".
+- [ ] **Acciones siguen siendo "Measure X"**: la narrativa mejoro pero las acciones siguen siendo 1 nodo = 1 accion. Necesitan ser acciones de investigacion reales (Slice B de Rich Actions).
+- [ ] **Primary question vs caso narrativo**: el caso habla de causalidad pero la primary question es infer_target (prediccion). Falta que el orchestrator alinee la primary question con el objetivo real de la investigacion.
+- [ ] **Titulo duplicado**: scenario_title vs case_plan.title son distintos y compiten. Unificar.
+- [ ] **Estructura investigativa del case**: hoy el case es (titulo, historia, tareas). Deberia ser (objetivo, hipotesis rivales, incertidumbres criticas, evidencia disponible/faltante, decisiones operativas). Esto es el gran salto cualitativo pendiente.
+- [ ] **Validacion de consistencia**: falta check automatico de que la pregunta visible menciona los mismos nodos/intervenciones que la task formal. Deberia ser parte de QualitySuite o de generate_from_plan.
+
 ## v2 — Composicion controlada + research cases (Etapa 2)
 
 > Estrategia de investigacion y diseno detallado en **`WORLD_DESIGN.md`**.

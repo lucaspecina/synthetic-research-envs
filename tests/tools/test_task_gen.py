@@ -1451,6 +1451,55 @@ def test_generate_from_plan_custom_question_text(world):
     assert tasks[0].question == custom_text
 
 
+def test_generate_from_plan_safe_override_types(world):
+    """Safe types (infer_target, NBO, hyp_sel, latent) use plan's question text."""
+    tool = TaskGenTool()
+    for eval_type in [
+        TaskType.INFER_TARGET,
+        TaskType.NEXT_BEST_OBSERVATION,
+        TaskType.HYPOTHESIS_SELECTION,
+    ]:
+        custom = f"Custom question for {eval_type}"
+        plan = _make_plan([
+            EvalQuestionPlan(
+                question_text=custom,
+                eval_type=eval_type,
+                target_node="target_outcome",
+            ),
+        ])
+        tasks = tool.generate_from_plan(world, plan)
+        assert tasks[0].question == custom, (
+            f"{eval_type}: expected custom text, got auto-generated"
+        )
+
+
+def test_generate_from_plan_unsafe_types_keep_auto_question(world):
+    """Unsafe types (causal_effect, compare_interventions, etc.) keep the
+    auto-generated question to stay consistent with correct_answer."""
+    tool = TaskGenTool()
+    for eval_type in [
+        TaskType.CAUSAL_EFFECT,
+        TaskType.BEST_INTERVENTION,
+        TaskType.COMPARE_INTERVENTIONS,
+        TaskType.SHOULD_CONDITION,
+        TaskType.ADJUSTMENT_SET,
+    ]:
+        custom = f"Custom question for {eval_type}"
+        plan = _make_plan([
+            EvalQuestionPlan(
+                question_text=custom,
+                eval_type=eval_type,
+                target_node="target_outcome",
+            ),
+        ])
+        tasks = tool.generate_from_plan(world, plan)
+        # Should NOT use the custom text (would cause mismatch)
+        assert tasks[0].question != custom, (
+            f"{eval_type}: should keep auto-generated question, "
+            f"not override with plan text"
+        )
+
+
 def test_generate_from_plan_all_three_types(world):
     tool = TaskGenTool()
     plan = _make_plan([

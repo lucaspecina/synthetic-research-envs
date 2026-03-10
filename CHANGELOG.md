@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Fix question/answer mismatch bug + budget wording
+- **BUG FIX (P0)**: `generate_from_plan` was overriding question text for ALL eval
+  types, causing mismatches where the question mentioned different nodes/interventions
+  than the correct_answer. Now only safe types (infer_target, NBO, hypothesis_selection,
+  infer_latent_cause) get the plan's custom text. Intervention-dependent types
+  (causal_effect, best_intervention, compare_interventions, adjustment_set,
+  should_condition) keep their auto-generated question that matches the answer.
+- **Budget wording**: changed from "N observaciones" to "N unidades de investigacion"
+  in display.py (terminal + HTML). Reflects that actions have varied costs now.
+- 2 new tests (583 total): safe vs unsafe question override in generate_from_plan.
+- Documented 6 design issues from E2E case analysis in TODO.md.
+
 ### 2026-03-10 — Activate rich actions and CasePlan question in build_problem
 - **Orchestrator `build_problem`** now passes `rich_actions=True` and the CasePlan
   (if available) to `ProblemBuilder.build()`. This means the agent sees varied-cost

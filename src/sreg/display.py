@@ -369,7 +369,7 @@ def show_research_problem(problem: ResearchProblem) -> None:
     lines = [
         f"Titulo:    {_c(_C.BOLD + _C.CYAN, problem.title)}",
         f"Dominio:   {problem.domain}",
-        f"Budget:    {_c(_C.BOLD, str(problem.budget))} observaciones",
+        f"Budget:    {_c(_C.BOLD, str(problem.budget))} unidades de investigacion",
         f"Target:    {_c(_C.YELLOW, problem.target_node)} ({', '.join(problem.target_states)})",
         "",
     ]
@@ -715,7 +715,7 @@ def _show_comparison_html(
 
 def _show_research_problem_html(problem: ResearchProblem) -> None:
     body = f"<b>Dominio:</b> {problem.domain}<br>"
-    body += f"<b>Budget:</b> {problem.budget} observaciones<br>"
+    body += f"<b>Budget:</b> {problem.budget} unidades de investigacion<br>"
     states_str = ", ".join(problem.target_states)
     body += f"<b>Target:</b> <code>{problem.target_node}</code> ({states_str})<br><br>"
     body += (

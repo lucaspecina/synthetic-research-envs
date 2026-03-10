@@ -714,7 +714,8 @@ TOOL_DEFINITIONS = [
                         "type": "integer",
                         "minimum": 1,
                         "description": (
-                            "Number of observation actions the agent can take. "
+                            "Research budget (in investigation units). Each action "
+                            "costs 1 or more units depending on complexity. "
                             "Use the same value as shared_budget from design_case. "
                             "Should be 60-80% of observable nodes."
                         ),

@@ -691,7 +691,7 @@ solver.generate_trajectory(target, available, budget, costs=node_costs)
 
 ## Test coverage
 
-- **581 tests** en todos los modulos
+- **583 tests** en todos los modulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` -> `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

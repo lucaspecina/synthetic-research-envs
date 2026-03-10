@@ -717,6 +717,16 @@ class TaskGenTool:
             intervention={treatment_node: "treatment"},
         )
 
+    # Eval types where the auto-generated question text is safe to override
+    # because the correct_answer does not reference specific node names or
+    # interventions that the custom question_text might not mention.
+    _SAFE_QUESTION_OVERRIDE_TYPES = frozenset({
+        TaskType.INFER_TARGET,
+        TaskType.NEXT_BEST_OBSERVATION,
+        TaskType.HYPOTHESIS_SELECTION,
+        TaskType.INFER_LATENT_CAUSE,
+    })
+
     def generate_from_plan(
         self,
         world: World,
@@ -725,8 +735,13 @@ class TaskGenTool:
     ) -> list[Task]:
         """Generate tasks driven by a CasePlan instead of fixed task types.
 
-        Only creates the tasks the plan requests, using the plan's question_text
-        instead of generic text. Returns a list of Tasks (not a TaskBundle).
+        Only creates the tasks the plan requests. For eval types where the
+        correct_answer doesn't reference specific nodes/interventions
+        (infer_target, NBO, hypothesis_selection, infer_latent_cause), the
+        plan's question_text replaces the generic text. For other types
+        (causal_effect, best_intervention, compare_interventions, adjustment_set,
+        should_condition), the auto-generated question is kept because it
+        describes the exact nodes/interventions used in the correct_answer.
         """
         tasks: list[Task] = []
         for i, q in enumerate(plan.questions):
@@ -736,8 +751,10 @@ class TaskGenTool:
                 max_budget=plan.shared_budget,
             )
             task = self.generate(world, spec, seed=seed + i)
-            # Override the generic question with the plan's custom text
-            task = task.model_copy(update={"question": q.question_text})
+            # Only override question text for types where the answer doesn't
+            # reference specific nodes mentioned in the question
+            if q.eval_type in self._SAFE_QUESTION_OVERRIDE_TYPES:
+                task = task.model_copy(update={"question": q.question_text})
             tasks.append(task)
         return tasks
 
