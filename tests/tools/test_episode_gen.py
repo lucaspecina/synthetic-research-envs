@@ -90,3 +90,65 @@ def test_no_initial_evidence_without_true_state(world):
     tool = EpisodeGenTool()
     ep = tool.generate(world, EpisodeGenConfig(budget=5, initial_evidence_count=2, seed=0))
     assert len(ep.initial_evidence) == 0
+
+
+# --- Rich actions: EpisodeGenTool with available_actions ---
+
+
+def test_generate_with_available_actions(world):
+    """Passing available_actions creates action_defs on the episode."""
+    from sreg.models.research_problem import AvailableAction, ResearchActionType
+
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    actions = [
+        AvailableAction(
+            action_type=ResearchActionType.OBSERVE,
+            nodes=[obs_nodes[0]],
+            description=f"Measure {obs_nodes[0]}",
+            cost=2,
+        ),
+        AvailableAction(
+            action_type=ResearchActionType.OBSERVE,
+            nodes=obs_nodes[1:3],
+            description="Field survey",
+            cost=3,
+        ),
+    ]
+
+    tool = EpisodeGenTool()
+    ep = tool.generate(world, EpisodeGenConfig(budget=8, seed=0), available_actions=actions)
+
+    assert len(ep.action_defs) == 2
+    # First is single-node
+    assert ep.action_defs[0].nodes == [obs_nodes[0]]
+    assert ep.action_defs[0].cost == 2
+    # Second is multi-node
+    assert set(ep.action_defs[1].nodes) == set(obs_nodes[1:3])
+    assert ep.action_defs[1].cost == 3
+
+
+def test_generate_with_available_actions_populates_node_costs(world):
+    """available_actions also populate node_costs for backward compat."""
+    from sreg.models.research_problem import AvailableAction
+
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    actions = [
+        AvailableAction(node=obs_nodes[0], description="A", cost=2),
+        AvailableAction(node=obs_nodes[1], description="B", cost=1),
+    ]
+
+    tool = EpisodeGenTool()
+    ep = tool.generate(world, EpisodeGenConfig(budget=5, seed=0), available_actions=actions)
+
+    assert ep.node_costs[obs_nodes[0]] == 2
+    assert ep.node_costs[obs_nodes[1]] == 1
+
+
+def test_generate_without_available_actions_legacy(world):
+    """Without available_actions, action_defs is empty (legacy mode)."""
+    tool = EpisodeGenTool()
+    ep = tool.generate(world, EpisodeGenConfig(budget=5, seed=0))
+
+    assert len(ep.action_defs) == 0
+    # Legacy node_costs should still be populated
+    assert len(ep.node_costs) > 0

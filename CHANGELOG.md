@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Rich Actions Slice A: typed, multi-node, varied-cost actions
+- **`ResearchActionType` enum** in `research_problem.py`: `observe`, `intervene`,
+  `request_dataset`, `consult` (reserved). Named `ResearchActionType` to avoid
+  collision with existing `ActionType` in episode.py (agent interaction types).
+- **`AvailableAction` expanded**: `action_type`, `nodes: list[str]`, backward-compat
+  `node: str` (auto-synced via model_validator). Supports multi-node actions.
+- **`ActionDef` model** in episode.py: formal action definition (id, action_type,
+  nodes, cost). `Episode.action_defs` for rich mode, empty = legacy mode.
+- **`StepResult.extra_observations`**: additional observations from compound actions.
+- **`EpisodeRunner` multi-node**: compound observe via `action_id` reveals N nodes
+  in one step. Validates no double-use, budget checks, node overlap.
+- **`ProblemBuilder.rich_actions`**: `rich_actions=True` flag generates varied costs
+  (target-adjacent cost 2) and compound actions from sibling groups (nodes sharing
+  a parent in the DAG). Max 1 compound action per problem.
+- **`EpisodeGenTool` rich mode**: accepts `available_actions` parameter, generates
+  matching `ActionDef`s and backward-compat `node_costs`.
+- **Teacher IG/cost optimization**: `optimal_action()` and `generate_trajectory()`
+  accept `costs: dict[str, int]` parameter. Optimizes IG/cost ratio instead of
+  pure IG. Budget-aware: skips nodes that don't fit remaining budget.
+- 26 new tests (578 total). E2E: 3 templates x 3 seeds, all pass. Compound action
+  reveals 3 nodes at once. Teacher handles varied costs correctly.
+
 ### 2026-03-10 — Ola 1: infer_latent_cause eval type (Ola 1 COMPLETE)
 - **`TaskType.INFER_LATENT_CAUSE`**: "Based on observed symptoms, what is the probability
   distribution over the hidden cause?"

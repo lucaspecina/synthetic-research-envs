@@ -256,3 +256,72 @@ def test_causal_query_with_causal_chain():
 
     max_diff = max(abs(do_low[s] - do_high[s]) for s in do_low)
     assert max_diff > 0.1, "stage_4 should have strong causal effect on target"
+
+
+# --- IG/cost optimization ---
+
+
+def test_optimal_action_with_uniform_costs(solver, world):
+    """With uniform costs, IG/cost should pick same node as pure IG."""
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    evidence: dict[str, str] = {}
+
+    # Without costs
+    result_no_cost = solver.optimal_action("target_outcome", evidence, obs_nodes)
+    # With uniform costs
+    costs = {n: 1 for n in obs_nodes}
+    result_with_cost = solver.optimal_action("target_outcome", evidence, obs_nodes, costs=costs)
+
+    assert result_no_cost.recommended_action.node == result_with_cost.recommended_action.node
+
+
+def test_optimal_action_ig_per_cost():
+    """When a node has high IG but very high cost, a cheaper node may win."""
+    gen = WorldGenTool()
+    world = gen.generate(WorldGenConfig(seed=42, num_nodes=10, edge_strength=0.7))
+    solver = ExactBayesSolver(world)
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+
+    # Get pure IG ranking
+    ig_ranking = {}
+    for node in obs_nodes:
+        ig_ranking[node] = solver.information_gain("target_outcome", {}, node)
+
+    best_ig_node = max(ig_ranking, key=ig_ranking.get)
+    best_ig = ig_ranking[best_ig_node]
+
+    # Make the best IG node very expensive (cost 100)
+    costs = {n: 1 for n in obs_nodes}
+    costs[best_ig_node] = 100
+
+    result = solver.optimal_action("target_outcome", {}, obs_nodes, costs=costs)
+
+    # If the best IG node has IG much less than 100x the second-best,
+    # the solver should pick a different (cheaper) node
+    if best_ig > 0:
+        assert result.recommended_action.node != best_ig_node or len(obs_nodes) == 1
+
+
+def test_generate_trajectory_with_costs(solver, world):
+    """Trajectory generation respects costs and budget."""
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    costs = {n: 2 for n in obs_nodes}
+
+    true_state, trajectory = solver.generate_trajectory(
+        "target_outcome", obs_nodes, budget=5, seed=42, costs=costs,
+    )
+
+    # With cost=2 and budget=5, at most 2 observations fit (2*2=4, 3*2=6>5)
+    observation_steps = [t for t in trajectory if t.recommended_action is not None]
+    assert len(observation_steps) <= 2
+
+
+def test_generate_trajectory_without_costs_backward_compat(solver, world):
+    """Trajectory without costs works as before."""
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+
+    true_state, trajectory = solver.generate_trajectory(
+        "target_outcome", obs_nodes, budget=5, seed=42,
+    )
+    assert len(trajectory) > 0
+    assert trajectory[-1].recommended_action is None  # final step

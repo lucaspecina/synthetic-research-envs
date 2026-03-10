@@ -13,6 +13,22 @@ class ActionType(StrEnum):
     QUERY_DISTRIBUTION = "query_distribution"
 
 
+class ActionDef(BaseModel):
+    """Formal definition of an available action in the episode.
+
+    Maps an action ID to its type, the nodes it reveals, and its cost.
+    Used by EpisodeRunner to process multi-node and typed actions.
+    """
+
+    id: str = Field(description="Unique action identifier, e.g. 'observe_water_temp'")
+    action_type: str = Field(
+        default="observe",
+        description="Type: 'observe', 'intervene', 'request_dataset'",
+    )
+    nodes: list[str] = Field(min_length=1, description="Nodes revealed by this action")
+    cost: int = Field(ge=1, description="Budget cost of this action")
+
+
 class Action(BaseModel):
     """An action taken by an agent during an episode."""
 
@@ -20,6 +36,10 @@ class Action(BaseModel):
     node: str | None = Field(
         default=None,
         description="Target node for observe/query_distribution actions",
+    )
+    action_id: str | None = Field(
+        default=None,
+        description="Action definition ID for compound/typed actions",
     )
     answer: dict[str, float] | None = Field(
         default=None,
@@ -35,8 +55,10 @@ class Action(BaseModel):
     @model_validator(mode="after")
     def validate_action_fields(self) -> Action:
         if self.type in (ActionType.OBSERVE, ActionType.QUERY_DISTRIBUTION):
-            if self.node is None:
-                raise ValueError(f"Action '{self.type}' requires a 'node'")
+            if self.node is None and self.action_id is None:
+                raise ValueError(
+                    f"Action '{self.type}' requires a 'node' or 'action_id'"
+                )
         if self.type == ActionType.SUBMIT:
             if self.answer is None:
                 raise ValueError("Submit action requires an 'answer'")
@@ -66,6 +88,10 @@ class StepResult(BaseModel):
         default=None,
         description="Observation returned (None for submit/query actions)",
     )
+    extra_observations: list[Observation] = Field(
+        default_factory=list,
+        description="Additional observations from multi-node actions",
+    )
     distribution: dict[str, float] | None = Field(
         default=None,
         description="Distribution returned for query_distribution actions",
@@ -90,7 +116,11 @@ class Episode(BaseModel):
     node_costs: dict[str, int] = Field(
         description="Cost to observe each available node",
     )
+    action_defs: list[ActionDef] = Field(
+        default_factory=list,
+        description="Rich action definitions. Empty = legacy mode (use available_nodes/node_costs)",
+    )
     steps: list[StepResult] = Field(default_factory=list)
 
 
-__all__ = ["Action", "ActionType", "Episode", "Observation", "StepResult"]
+__all__ = ["Action", "ActionDef", "ActionType", "Episode", "Observation", "StepResult"]

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sreg.models.research_problem import AvailableAction, ResearchProblem
+import networkx as nx
+
+from sreg.models.research_problem import AvailableAction, ResearchActionType, ResearchProblem
 from sreg.models.world import NodeType, World
 from sreg.tools.data_sampler import DataSampler, DataSamplerConfig
 
@@ -16,6 +18,7 @@ class ProblemBuilder:
         budget: int = 5,
         data_config: DataSamplerConfig | None = None,
         rich_data: bool = False,
+        rich_actions: bool = False,
     ) -> ResearchProblem:
         """Package a world into a research problem the agent can see.
 
@@ -25,6 +28,8 @@ class ProblemBuilder:
             data_config: Configuration for data sampling. Defaults to 50 tabular rows.
             rich_data: If True, use multi-dataset mode with missing data and
                 narrative observations (overridden by explicit data_config).
+            rich_actions: If True, generate actions with varied costs, types,
+                and multi-node groupings based on DAG structure.
         """
         if data_config is None:
             if rich_data:
@@ -46,7 +51,10 @@ class ProblemBuilder:
         data_assets = sampler.sample(world, data_config)
 
         # Build available actions from observable nodes
-        actions = self._build_actions(world)
+        if rich_actions:
+            actions = self._build_rich_actions(world)
+        else:
+            actions = self._build_actions(world)
 
         # Find target
         target = next(n for n in world.nodes if n.type == NodeType.TARGET)
@@ -69,7 +77,7 @@ class ProblemBuilder:
         )
 
     def _build_actions(self, world: World) -> list[AvailableAction]:
-        """Create semantic action descriptions from observable nodes."""
+        """Create semantic action descriptions from observable nodes (legacy mode)."""
         actions: list[AvailableAction] = []
         for node in world.nodes:
             if node.type != NodeType.OBSERVABLE:
@@ -82,6 +90,81 @@ class ProblemBuilder:
                     cost=1,
                 )
             )
+        return actions
+
+    def _build_rich_actions(self, world: World) -> list[AvailableAction]:
+        """Create rich actions with varied costs, types, and multi-node groupings.
+
+        Strategy:
+        - Nodes adjacent to target get cost 2 (specialized measurement)
+        - Other individual nodes get cost 1 (basic measurement)
+        - Sibling nodes (same parent) are grouped into a compound action
+          with cost = number of nodes (no discount — the value is convenience)
+        - At most 1 compound action to keep things manageable
+        """
+        # Build DAG for structure analysis
+        dag = nx.DiGraph()
+        for node in world.nodes:
+            dag.add_node(node.name)
+        for edge in world.edges:
+            dag.add_edge(edge.from_node, edge.to_node)
+
+        target_name = next(n.name for n in world.nodes if n.type == NodeType.TARGET)
+        target_parents = set(dag.predecessors(target_name))
+        obs_nodes = [n for n in world.nodes if n.type == NodeType.OBSERVABLE]
+        obs_names = {n.name for n in obs_nodes}
+
+        # Find sibling groups (observable nodes sharing a parent)
+        parent_to_children: dict[str, list[str]] = {}
+        for node_name in obs_names:
+            for parent in dag.predecessors(node_name):
+                children = [
+                    c for c in dag.successors(parent)
+                    if c in obs_names and c != target_name
+                ]
+                if len(children) >= 2:
+                    key = parent
+                    if key not in parent_to_children:
+                        parent_to_children[key] = children
+
+        # Pick the best sibling group for a compound action (largest group, max 3 nodes)
+        compound_nodes: set[str] = set()
+        if parent_to_children:
+            best_parent = max(parent_to_children, key=lambda p: len(parent_to_children[p]))
+            siblings = parent_to_children[best_parent][:3]
+            if len(siblings) >= 2:
+                compound_nodes = set(siblings)
+
+        actions: list[AvailableAction] = []
+
+        # Individual actions for non-compound nodes
+        for node in obs_nodes:
+            if node.name in compound_nodes:
+                continue
+            label = node.name.replace("_", " ")
+            cost = 2 if node.name in target_parents else 1
+            actions.append(
+                AvailableAction(
+                    action_type=ResearchActionType.OBSERVE,
+                    node=node.name,
+                    description=f"Measure {label}",
+                    cost=cost,
+                )
+            )
+
+        # Compound action for sibling group
+        if compound_nodes:
+            compound_list = sorted(compound_nodes)
+            labels = [n.replace("_", " ") for n in compound_list]
+            actions.append(
+                AvailableAction(
+                    action_type=ResearchActionType.OBSERVE,
+                    nodes=compound_list,
+                    description=f"Field survey: measure {', '.join(labels)}",
+                    cost=len(compound_list),
+                )
+            )
+
         return actions
 
     def _build_question(self, world: World, target_node) -> str:

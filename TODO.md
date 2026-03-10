@@ -147,18 +147,19 @@
 >
 > **Plan en 2 slices:**
 
-##### Slice A: modelo de acciones ricas (PROXIMO)
+##### Slice A: modelo de acciones ricas (COMPLETO)
 > Cambiar el modelo y la infraestructura para soportar acciones con
 > tipo, costo variable y multi-nodo. NO requiere orchestrator — se
 > puede usar programáticamente o con CasePlan.
 
-- [ ] `ActionType` enum: `observe`, `intervene`, `request_dataset` (y `consult` reservado)
-- [ ] `AvailableAction` ampliado: `action_type: ActionType`, `nodes: list[str]`, `cost: int` (> 1 posible). Campo `node: str` se mantiene como alias retrocompatible (= nodes[0] si len==1)
-- [ ] `EpisodeRunner` procesa acciones multi-nodo: una acción revela N valores, cuesta cost. Para `intervene`: aplica do-operation y devuelve resultado interventional
-- [ ] `ProblemBuilder` genera acciones con costos variados y tipos mixtos
-- [ ] `EpisodeGenTool` actualizado: acepta config de acciones ricas o genera un mix por defecto
-- [ ] Teacher solver: optimiza IG/costo (greedy), no solo IG
-- [ ] Tests: acciones con cost > 1, multi-nodo, mix de tipos
+- [x] `ResearchActionType` enum: `observe`, `intervene`, `request_dataset` (y `consult` reservado). Nombrado `ResearchActionType` para evitar colision con `ActionType` de episode.py
+- [x] `AvailableAction` ampliado: `action_type: ResearchActionType`, `nodes: list[str]`, `cost: int` (> 1 posible). Campo `node: str` se mantiene como alias retrocompatible (= nodes[0] si len==1)
+- [x] `ActionDef` model en episode.py: definicion formal de acciones (id, action_type, nodes, cost). `Episode.action_defs` para modo rico, backward-compat con `available_nodes`/`node_costs`
+- [x] `EpisodeRunner` procesa acciones multi-nodo via `action_id`: una accion revela N valores, cuesta cost. `StepResult.extra_observations` para las observaciones adicionales
+- [x] `ProblemBuilder` genera acciones ricas (`rich_actions=True`): costos variados (target-adjacent cost 2), compound actions por sibling groups (nodos con mismo padre)
+- [x] `EpisodeGenTool` actualizado: acepta `available_actions` para generar `ActionDef`s correspondientes
+- [x] Teacher solver: `optimal_action()` y `generate_trajectory()` aceptan `costs` para optimizar IG/costo (greedy)
+- [x] 26 tests nuevos (578 total): acciones con cost > 1, multi-nodo, compound observe, IG/cost, cross-template
 
 ##### Slice B: intervenciones como acciones + orchestrator (DESPUES)
 > El agente puede INTERVENIR (do-operation) como acción del episodio.

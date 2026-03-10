@@ -76,9 +76,21 @@ class ExactBayesSolver:
         return max(0.0, current_h - expected_h)
 
     def optimal_action(
-        self, target: str, evidence: dict[str, str], available: list[str]
+        self,
+        target: str,
+        evidence: dict[str, str],
+        available: list[str],
+        costs: dict[str, int] | None = None,
     ) -> TeacherOutput:
-        """Select the observation that maximizes information gain on the target."""
+        """Select the observation that maximizes information gain (per unit cost).
+
+        Args:
+            target: Target node to reduce uncertainty about.
+            evidence: Current evidence (node -> state).
+            available: Candidate nodes to observe.
+            costs: Cost per node. When provided, optimizes IG/cost instead of IG.
+                   Default (None) treats all nodes as cost 1.
+        """
         current_post = self.posterior(target, evidence)
         current_h = self.entropy(current_post)
 
@@ -90,14 +102,18 @@ class ExactBayesSolver:
                 entropy=current_h,
             )
 
-        best_gain = -1.0
+        best_score = -1.0
         best_node = None
+        best_gain = 0.0
 
         for node in available:
             gain = self.information_gain(target, evidence, node)
-            if gain > best_gain:
-                best_gain = gain
+            cost = costs.get(node, 1) if costs else 1
+            score = gain / cost
+            if score > best_score:
+                best_score = score
                 best_node = node
+                best_gain = gain
 
         return TeacherOutput(
             posterior=current_post,
@@ -144,8 +160,17 @@ class ExactBayesSolver:
         available: list[str],
         budget: int,
         seed: int | None = None,
+        costs: dict[str, int] | None = None,
     ) -> tuple[dict[str, str], list[TeacherOutput]]:
         """Generate an optimal trajectory for a sampled world state.
+
+        Args:
+            target: Target node.
+            available: Candidate nodes.
+            budget: Total budget.
+            seed: RNG seed.
+            costs: Cost per node. When provided, optimizes IG/cost and
+                   deducts actual cost from budget each step.
 
         Returns:
             (true_state, trajectory) where true_state is the full sampled
@@ -156,18 +181,29 @@ class ExactBayesSolver:
         evidence: dict[str, str] = {}
         remaining = list(available)
         trajectory: list[TeacherOutput] = []
+        budget_left = budget
 
         for _ in range(budget):
             if not remaining:
                 break
 
-            output = self.optimal_action(target, evidence, remaining)
+            # Filter nodes that fit in remaining budget
+            affordable = [
+                n for n in remaining
+                if (costs.get(n, 1) if costs else 1) <= budget_left
+            ]
+            if not affordable:
+                break
+
+            output = self.optimal_action(target, evidence, affordable, costs=costs)
             trajectory.append(output)
 
             if output.recommended_action is None:
                 break
 
             node = output.recommended_action.node
+            cost = costs.get(node, 1) if costs else 1
+            budget_left -= cost
             evidence[node] = true_state[node]
             remaining.remove(node)
 

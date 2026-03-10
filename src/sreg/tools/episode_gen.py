@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from sreg.models.episode import Episode, Observation
+from sreg.models.episode import ActionDef, Episode, Observation
+from sreg.models.research_problem import AvailableAction
 from sreg.models.world import NodeType, World
 
 
@@ -27,6 +28,7 @@ class EpisodeGenTool:
         world: World,
         config: EpisodeGenConfig,
         true_state: dict[str, str] | None = None,
+        available_actions: list[AvailableAction] | None = None,
     ) -> Episode:
         """Generate an episode from a world.
 
@@ -35,11 +37,12 @@ class EpisodeGenTool:
             config: Episode configuration.
             true_state: If provided, used to generate initial evidence observations.
                         Otherwise initial_evidence is empty.
+            available_actions: If provided, generates rich ActionDefs from these
+                               semantic actions. Otherwise uses legacy mode
+                               (flat available_nodes + uniform node_costs).
         """
         obs_nodes = [n for n in world.nodes if n.type == NodeType.OBSERVABLE]
         available = [n.name for n in obs_nodes]
-
-        node_costs = {name: config.node_cost for name in available}
 
         initial_evidence: list[Observation] = []
         if true_state and config.initial_evidence_count > 0:
@@ -60,6 +63,38 @@ class EpisodeGenTool:
                 )
                 available.remove(node_name)
 
+        # Build action definitions from available_actions (rich mode)
+        action_defs: list[ActionDef] = []
+        node_costs: dict[str, int] = {}
+
+        if available_actions:
+            evidence_nodes = {obs.node for obs in initial_evidence}
+            for aa in available_actions:
+                # Skip actions whose nodes are all in initial evidence
+                action_nodes = [n for n in aa.nodes if n not in evidence_nodes]
+                if not action_nodes:
+                    continue
+
+                action_id = (
+                    f"act_{action_nodes[0]}"
+                    if len(action_nodes) == 1
+                    else f"act_{'_'.join(action_nodes[:2])}"
+                )
+                action_defs.append(
+                    ActionDef(
+                        id=action_id,
+                        action_type=str(aa.action_type),
+                        nodes=action_nodes,
+                        cost=aa.cost,
+                    )
+                )
+                # Also populate node_costs for backward compat
+                for n in action_nodes:
+                    if n not in node_costs:
+                        node_costs[n] = aa.cost
+        else:
+            node_costs = {name: config.node_cost for name in available}
+
         return Episode(
             id=f"ep-{world.id}-{config.seed:04d}",
             world_id=world.id,
@@ -67,6 +102,7 @@ class EpisodeGenTool:
             initial_evidence=initial_evidence,
             available_nodes=available,
             node_costs=node_costs,
+            action_defs=action_defs,
             steps=[],
         )
 

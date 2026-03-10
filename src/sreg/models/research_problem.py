@@ -2,17 +2,56 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from enum import StrEnum
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class ResearchActionType(StrEnum):
+    """Type of research action available to the agent."""
+
+    OBSERVE = "observe"
+    INTERVENE = "intervene"
+    REQUEST_DATASET = "request_dataset"
+    CONSULT = "consult"  # reserved for future use
 
 
 class AvailableAction(BaseModel):
-    """An action the agent can take, with semantic description and cost."""
+    """An action the agent can take, with semantic description and cost.
 
-    node: str = Field(description="Internal node name for the observe action")
+    Supports both single-node (legacy) and multi-node actions.
+    Use ``nodes`` for multi-node; ``node`` is kept as backward-compatible alias.
+    """
+
+    action_type: ResearchActionType = Field(
+        default=ResearchActionType.OBSERVE,
+        description="Type of research action",
+    )
+    nodes: list[str] = Field(
+        default_factory=list,
+        description="Node names revealed or affected by this action",
+    )
     description: str = Field(
         description="Semantic description, e.g. 'Request sediment analysis'"
     )
     cost: int = Field(ge=1)
+
+    # Backward-compat: single-node alias (= nodes[0] when len==1)
+    node: str | None = Field(
+        default=None,
+        description="Single node name (use 'nodes' for multi-node actions)",
+    )
+
+    @model_validator(mode="after")
+    def sync_node_and_nodes(self) -> AvailableAction:
+        """Keep node and nodes in sync for backward compatibility."""
+        if self.node and not self.nodes:
+            self.nodes = [self.node]
+        elif self.nodes and not self.node:
+            self.node = self.nodes[0]
+        elif not self.node and not self.nodes:
+            raise ValueError("Either 'node' or 'nodes' must be provided")
+        return self
 
 
 class DataAsset(BaseModel):
@@ -57,4 +96,4 @@ class ResearchProblem(BaseModel):
     )
 
 
-__all__ = ["AvailableAction", "DataAsset", "ResearchProblem"]
+__all__ = ["AvailableAction", "DataAsset", "ResearchActionType", "ResearchProblem"]

@@ -667,26 +667,37 @@ tasks = TaskGenTool().generate_from_plan(world, plan, seed=42)
 
 ### Problem builder + episode
 ```python
-problem = ProblemBuilder().build(world, budget=4)  # → ResearchProblem (single dataset)
-problem = ProblemBuilder().build(world, budget=4, rich_data=True)  # → ResearchProblem (multi-dataset + narratives)
-# problem.target_node, problem.target_states, problem.budget
-# problem.available_actions → list[AvailableAction] (.node, .description, .cost)
+problem = ProblemBuilder().build(world, budget=4)  # legacy: all cost=1
+problem = ProblemBuilder().build(world, budget=4, rich_data=True)  # multi-dataset
+problem = ProblemBuilder().build(world, budget=8, rich_actions=True)  # varied costs + compound actions
+# problem.available_actions -> list[AvailableAction]
+#   .action_type (ResearchActionType: observe/intervene/request_dataset/consult)
+#   .nodes (list[str]), .node (str, backward-compat = nodes[0])
+#   .description (str), .cost (int, >= 1)
 
-episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Episode
-# episode.budget, episode.available_nodes, episode.node_costs
+episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # legacy
+episode = EpisodeGenTool().generate(  # rich: ActionDefs from AvailableActions
+    world, EpisodeGenConfig(budget=8), available_actions=problem.available_actions
+)
+# episode.action_defs -> list[ActionDef] (id, action_type, nodes, cost)
+# episode.available_nodes, episode.node_costs (backward-compat)
+
+# Teacher with IG/cost optimization:
+solver.optimal_action(target, evidence, available, costs=node_costs)
+solver.generate_trajectory(target, available, budget, costs=node_costs)
 ```
 
 ---
 
 ## Test coverage
 
-- **552 tests** en todos los módulos
-- Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
+- **578 tests** en todos los modulos
+- Tests espejean la estructura de src: `src/sreg/tools/X.py` -> `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
   - Teacher >90% accuracy en latent_preference, >70% en chain, >60% en fork_collider
-  - Nodos más cercanos son más informativos que lejanos (causal_chain)
-  - Estructura fork/collider verificada: topología, padres del collider, cadena de mediadores
+  - Nodos mas cercanos son mas informativos que lejanos (causal_chain)
+  - Estructura fork/collider verificada: topologia, padres del collider, cadena de mediadores
   - 3 task types funcionan en los 3 templates (45 configs E2E probadas)
   - 4 DAG generators: 40 tests (estructura, edge cases, world gen, 15 nodos, cross-generator)
   - E2E validation DAG generators: 50 configs (10x5 seeds), teacher>prior 94%, NBO 76%, hyp 80%
@@ -698,6 +709,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - compare_interventions: 15 tests (generation, two-option format, scoring, cross-template, node diversity)
   - should_condition: 14 tests (generation, binary answer, mediator detection, confounder detection, scoring)
   - infer_latent_cause: 12 tests (generation, latent targeting, posterior validity, evidence, scoring via KL)
+  - Rich actions: 26 tests (model backward-compat, compound observe, multi-node, IG/cost, cross-template)
 
 ---
 

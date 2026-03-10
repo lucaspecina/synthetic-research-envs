@@ -3,7 +3,7 @@
 import pytest
 
 from sreg.env.episode import EpisodeRunner
-from sreg.models.episode import Action, ActionType
+from sreg.models.episode import Action, ActionDef, ActionType, Episode
 from sreg.models.world import NodeType
 from sreg.solver.exact_bayes import ExactBayesSolver
 from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
@@ -206,3 +206,152 @@ def test_teacher_accuracy_via_runner():
 
     accuracy = correct / total
     assert accuracy > 0.90, f"Teacher accuracy {accuracy:.1%} ({correct}/{total}) below 90%"
+
+
+# --- Rich actions: multi-node and compound actions ---
+
+
+def _make_rich_episode(world, true_state):
+    """Create an episode with rich action definitions."""
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    # Create a compound action from first 2 observable nodes
+    compound_nodes = obs_nodes[:2]
+    individual_nodes = obs_nodes[2:]
+
+    action_defs = [
+        ActionDef(
+            id="field_survey",
+            action_type="observe",
+            nodes=compound_nodes,
+            cost=2,
+        ),
+    ]
+    # Individual actions
+    for n in individual_nodes:
+        action_defs.append(
+            ActionDef(id=f"measure_{n}", action_type="observe", nodes=[n], cost=1)
+        )
+
+    node_costs = {}
+    for n in compound_nodes:
+        node_costs[n] = 2
+    for n in individual_nodes:
+        node_costs[n] = 1
+
+    return Episode(
+        id="ep-rich-test",
+        world_id=world.id,
+        budget=5,
+        initial_evidence=[],
+        available_nodes=obs_nodes,
+        node_costs=node_costs,
+        action_defs=action_defs,
+        steps=[],
+    )
+
+
+def test_compound_observe_reveals_multiple_nodes(world, true_state):
+    episode = _make_rich_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+    compound_nodes = episode.action_defs[0].nodes
+
+    result = runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
+
+    # First node in observation, rest in extra_observations
+    assert result.observation is not None
+    assert result.observation.node == compound_nodes[0]
+    assert len(result.extra_observations) == len(compound_nodes) - 1
+    assert result.extra_observations[0].node == compound_nodes[1]
+
+
+def test_compound_observe_deducts_correct_cost(world, true_state):
+    episode = _make_rich_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
+    assert runner.budget_remaining == 3  # 5 - 2 = 3
+
+
+def test_compound_observe_adds_all_nodes_to_evidence(world, true_state):
+    episode = _make_rich_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+    compound_nodes = episode.action_defs[0].nodes
+
+    runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
+
+    for n in compound_nodes:
+        assert n in runner.evidence
+        assert runner.evidence[n] == true_state[n]
+
+
+def test_compound_action_cannot_be_used_twice(world, true_state):
+    episode = _make_rich_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
+    with pytest.raises(ValueError, match="already been used"):
+        runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
+
+
+def test_compound_action_budget_check(world, true_state):
+    """Compound action that costs more than remaining budget should fail."""
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    episode = Episode(
+        id="ep-budget-test",
+        world_id=world.id,
+        budget=1,  # only 1 budget unit
+        initial_evidence=[],
+        available_nodes=obs_nodes,
+        node_costs={n: 1 for n in obs_nodes},
+        action_defs=[
+            ActionDef(
+                id="expensive_survey",
+                action_type="observe",
+                nodes=obs_nodes[:2],
+                cost=3,
+            )
+        ],
+        steps=[],
+    )
+    runner = EpisodeRunner(world, episode, true_state)
+
+    with pytest.raises(ValueError, match="Insufficient budget"):
+        runner.step(Action(type=ActionType.OBSERVE, action_id="expensive_survey"))
+
+
+def test_mix_compound_and_individual(world, true_state):
+    """Can use compound actions alongside individual single-node observe."""
+    episode = _make_rich_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+    individual_nodes = [ad for ad in episode.action_defs if len(ad.nodes) == 1]
+
+    # Use compound action first
+    runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
+    assert runner.budget_remaining == 3
+
+    # Then use individual action by node name (legacy mode)
+    if individual_nodes:
+        node = individual_nodes[0].nodes[0]
+        runner.step(Action(type=ActionType.OBSERVE, node=node))
+        assert runner.budget_remaining == 2
+
+
+def test_legacy_mode_still_works_with_empty_action_defs(runner, episode):
+    """When action_defs is empty, legacy single-node observe still works."""
+    assert len(episode.action_defs) == 0
+    node = episode.available_nodes[0]
+    result = runner.step(Action(type=ActionType.OBSERVE, node=node))
+    assert result.observation.node == node
+    assert result.remaining_budget == 4
+
+
+def test_compound_observe_node_already_observed(world, true_state):
+    """Compound action fails if any of its nodes was already observed."""
+    episode = _make_rich_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+    # Observe one of the compound nodes individually first
+    compound_node = episode.action_defs[0].nodes[0]
+    runner.step(Action(type=ActionType.OBSERVE, node=compound_node))
+
+    with pytest.raises(ValueError, match="already been observed"):
+        runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
