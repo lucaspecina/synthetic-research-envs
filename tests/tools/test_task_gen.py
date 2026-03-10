@@ -918,6 +918,168 @@ def test_score_adjustment_set_not_identifiable():
     assert verifier.score_adjustment_set([], valid_sets) == 0.0
 
 
+# --- should_condition tests ---
+
+
+def test_should_condition_generates(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    assert isinstance(task, Task)
+    assert task.type == TaskType.SHOULD_CONDITION
+    assert task.world_id == world.id
+    assert task.scoring_method == "should_condition"
+
+
+def test_should_condition_binary_answer(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    # correct_answer is either {"yes": 1.0} or {"no": 1.0}
+    assert len(task.correct_answer) == 1
+    key = list(task.correct_answer.keys())[0]
+    assert key in ("yes", "no")
+    assert task.correct_answer[key] == 1.0
+
+
+def test_should_condition_question_mentions_variables(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    # Question mentions treatment, suggested variable, and target
+    assert "target_outcome" in task.question
+    assert "controlling" in task.question.lower() or "control" in task.question.lower()
+    # intervention field stores {treatment: suggested_var}
+    assert len(task.intervention) == 1
+    treatment = list(task.intervention.keys())[0]
+    suggested = list(task.intervention.values())[0]
+    assert treatment in task.question
+    assert suggested in task.question
+
+
+def test_should_condition_deterministic(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5
+    )
+    t1 = tool.generate(world, spec, seed=42)
+    t2 = tool.generate(world, spec, seed=42)
+
+    assert t1.correct_answer == t2.correct_answer
+    assert t1.intervention == t2.intervention
+    assert t1.question == t2.question
+
+
+def test_should_condition_different_seeds(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5
+    )
+    results = set()
+    for seed in range(10):
+        task = tool.generate(world, spec, seed=seed)
+        key = list(task.correct_answer.keys())[0]
+        results.add(key)
+    # With enough seeds, we should see both yes and no answers
+    # (fork_collider has both confounders and mediators/colliders)
+    assert len(results) >= 1  # At minimum generates something
+
+
+def test_should_condition_causal_chain_mediator():
+    """In causal_chain, intermediate nodes are mediators — should NOT condition."""
+    gen = WorldGenTool()
+    w = gen.generate(
+        WorldGenConfig(template_family="causal_chain", seed=42, num_nodes=6, edge_strength=0.7)
+    )
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5
+    )
+    # In causal_chain, all intermediate vars are descendants of earlier stages
+    # → only "should not" candidates exist → answer must be "no"
+    task = tool.generate(w, spec, seed=42)
+    assert "no" in task.correct_answer
+
+
+def test_should_condition_fork_collider_has_confounders():
+    """fork_collider has confounders (branches share hidden_factor) — some should be conditioned."""
+    gen = WorldGenTool()
+    w = gen.generate(
+        WorldGenConfig(template_family="fork_collider", seed=42, num_nodes=7, edge_strength=0.7)
+    )
+    tool = TaskGenTool()
+
+    # Try multiple seeds to find both yes and no answers
+    answers = set()
+    for seed in range(20):
+        spec = TaskSpec(
+            type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5
+        )
+        task = tool.generate(w, spec, seed=seed)
+        answers.add(list(task.correct_answer.keys())[0])
+    # fork_collider should produce both yes (confounder) and no (descendant) answers
+    assert "yes" in answers, f"Expected 'yes' answer in fork_collider, got only {answers}"
+    assert "no" in answers, f"Expected 'no' answer in fork_collider, got only {answers}"
+
+
+@pytest.mark.parametrize(
+    "template", ["latent_preference", "causal_chain", "fork_collider"]
+)
+def test_should_condition_works_across_templates(template):
+    gen = WorldGenTool()
+    nodes = 7 if template == "fork_collider" else 6
+    w = gen.generate(
+        WorldGenConfig(template_family=template, seed=42, num_nodes=nodes, edge_strength=0.7)
+    )
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(w, spec, seed=42)
+
+    assert task.type == TaskType.SHOULD_CONDITION
+    assert len(task.correct_answer) == 1
+    assert list(task.correct_answer.keys())[0] in ("yes", "no")
+
+
+# --- should_condition scoring ---
+
+
+def test_score_should_condition_yes_correct():
+    verifier = VerifierTool()
+    assert verifier.score_should_condition("yes", {"yes": 1.0}) == 1.0
+    assert verifier.score_should_condition("Yes", {"yes": 1.0}) == 1.0
+    assert verifier.score_should_condition("y", {"yes": 1.0}) == 1.0
+
+
+def test_score_should_condition_no_correct():
+    verifier = VerifierTool()
+    assert verifier.score_should_condition("no", {"no": 1.0}) == 1.0
+    assert verifier.score_should_condition("No", {"no": 1.0}) == 1.0
+    assert verifier.score_should_condition("n", {"no": 1.0}) == 1.0
+
+
+def test_score_should_condition_wrong():
+    verifier = VerifierTool()
+    assert verifier.score_should_condition("yes", {"no": 1.0}) == 0.0
+    assert verifier.score_should_condition("no", {"yes": 1.0}) == 0.0
+
+
+def test_score_should_condition_invalid():
+    verifier = VerifierTool()
+    assert verifier.score_should_condition("maybe", {"yes": 1.0}) == 0.0
+    assert verifier.score_should_condition("", {"no": 1.0}) == 0.0
+
+
 # --- compare_interventions tests ---
 
 

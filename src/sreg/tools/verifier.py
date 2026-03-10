@@ -73,6 +73,22 @@ class VerifierTool:
         key = ",".join(sorted(agent_set)) if agent_set else "_empty_"
         return 1.0 if key in valid_sets else 0.0
 
+    def score_should_condition(
+        self,
+        agent_answer: str,
+        correct: dict[str, float],
+    ) -> float:
+        """Score a should_condition answer.
+
+        Agent answers 'yes' or 'no'. Returns 1.0 if correct, 0.0 otherwise.
+        """
+        normalized = agent_answer.strip().lower()
+        if normalized in ("yes", "y") and "yes" in correct:
+            return 1.0
+        if normalized in ("no", "n") and "no" in correct:
+            return 1.0
+        return 0.0
+
     def score_compare_interventions(
         self,
         agent_choice: str,

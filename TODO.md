@@ -192,7 +192,7 @@
   - [x] `best_intervention` — Qué intervención maximiza Y? (argmax sobre do-queries)
   - [x] `compare_interventions` — do(X) vs do(Z), cuál cambia más Y?
   - [x] `adjustment_set` — Qué variables debo controlar? (backdoor criterion)
-  - [ ] `should_condition` — Alguien sugiere controlar por Z. Es correcto? (elemental confounds)
+  - [x] `should_condition` — Alguien sugiere controlar por Z. Es correcto? (elemental confounds)
   - [ ] `infer_latent_cause` — Qué causa oculta explica los síntomas? (posterior sobre LATENT)
 - [ ] **Ola 2** (requieren más diseño):
   - [ ] `simpson_paradox` — Datos que engañan, solo la estructura causal resuelve

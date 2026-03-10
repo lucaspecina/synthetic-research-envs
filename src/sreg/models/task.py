@@ -15,6 +15,7 @@ class TaskType(StrEnum):
     BEST_INTERVENTION = "best_intervention"
     ADJUSTMENT_SET = "adjustment_set"
     COMPARE_INTERVENTIONS = "compare_interventions"
+    SHOULD_CONDITION = "should_condition"
 
 
 class TaskSpec(BaseModel):

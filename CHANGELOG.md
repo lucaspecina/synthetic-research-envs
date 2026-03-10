@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Ola 1: should_condition eval type
+- **`TaskType.SHOULD_CONDITION`**: "A colleague suggests controlling for Z when
+  analyzing X's effect on Y. Is this correct?"
+- **`TaskGenTool._should_condition_task()`**: uses backdoor adjustment sets + DAG
+  descendants to classify variables as confounders (should condition) vs
+  mediators/collider-descendants (should not condition). Randomizes question type.
+- **`VerifierTool.score_should_condition()`**: binary yes/no match
+- 14 new tests. 540 total. E2E validated: causal_chain always "no" (mediators),
+  fork_collider mixes "yes" (confounders) and "no" (descendants).
+
 ### 2026-03-10 — Ola 1: compare_interventions eval type
 - **`TaskType.COMPARE_INTERVENTIONS`**: "Your team debates between two interventions.
   Which one has a larger causal effect on the outcome?"

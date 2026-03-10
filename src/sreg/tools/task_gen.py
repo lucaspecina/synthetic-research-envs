@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import networkx as nx
 import numpy as np
 
 from pgmpy.inference import CausalInference
@@ -64,6 +65,8 @@ class TaskGenTool:
             return self._adjustment_set_task(world, spec, seed)
         if spec.type == TaskType.COMPARE_INTERVENTIONS:
             return self._compare_interventions_task(world, spec, seed)
+        if spec.type == TaskType.SHOULD_CONDITION:
+            return self._should_condition_task(world, spec, seed)
         raise ValueError(f"Unsupported task type: {spec.type}")
 
     def _infer_target_task(self, world: World, spec: TaskSpec) -> Task:
@@ -459,6 +462,87 @@ class TaskGenTool:
             correct_answer=correct_answer,
             scoring_method="compare_interventions",
             intervention={better_node: better_state},
+        )
+
+    def _should_condition_task(
+        self, world: World, spec: TaskSpec, seed: int
+    ) -> Task:
+        model = world_to_pgmpy(world)
+        ci = CausalInference(model)
+        target = spec.target_node
+        obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+        rng = np.random.default_rng(seed)
+
+        # Classify (treatment, suggested_var) pairs as "should" or "should not" condition
+        candidates_yes: list[tuple[str, str]] = []  # (treatment, suggested_var)
+        candidates_no: list[tuple[str, str]] = []
+
+        for x in obs_nodes:
+            if x == target:
+                continue
+            try:
+                adj_sets = ci.get_all_backdoor_adjustment_sets(x, target)
+            except ValueError:
+                continue
+
+            all_in_sets: set[str] = set()
+            for s in adj_sets:
+                all_in_sets.update(s)
+
+            desc_of_x = nx.descendants(model, x)
+
+            for z in obs_nodes:
+                if z == x or z == target:
+                    continue
+                if z in all_in_sets:
+                    candidates_yes.append((x, z))
+                elif z in desc_of_x:
+                    candidates_no.append((x, z))
+
+        # Randomize which type of question to ask
+        rng.shuffle(candidates_yes)
+        rng.shuffle(candidates_no)
+
+        if candidates_no and candidates_yes:
+            # Both available — randomly pick type
+            ask_no = bool(rng.random() < 0.5)
+        elif candidates_no:
+            ask_no = True
+        elif candidates_yes:
+            ask_no = False
+        else:
+            # No clear candidates — fallback: pick any pair, treat as "no"
+            treatment = obs_nodes[0] if obs_nodes[0] != target else obs_nodes[1]
+            others = [z for z in obs_nodes if z != treatment and z != target]
+            suggested = others[0] if others else treatment
+            ask_no = True
+            candidates_no = [(treatment, suggested)]
+
+        if ask_no:
+            treatment, suggested = candidates_no[0]
+            correct_answer = {"no": 1.0}
+        else:
+            treatment, suggested = candidates_yes[0]
+            correct_answer = {"yes": 1.0}
+
+        question = (
+            f"You are analyzing the causal effect of '{treatment}' on '{target}' "
+            f"using observational data. A colleague suggests controlling for "
+            f"'{suggested}' in your analysis. "
+            f"Is this a good idea? Should you include '{suggested}' as a "
+            f"control variable? Answer 'yes' or 'no', and explain your reasoning."
+        )
+
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=target,
+            available_evidence=obs_nodes,
+            correct_answer=correct_answer,
+            scoring_method="should_condition",
+            intervention={treatment: suggested},
         )
 
     def _adjustment_set_task(

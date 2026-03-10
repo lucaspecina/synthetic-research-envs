@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 526 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 7 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
+**Estado actual: 540 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 8 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
 
 ---
 
@@ -309,6 +309,31 @@ adjustment set, 0.0 si no.
 (Statistical Rethinking). Testea si el agente entiende la estructura causal
 lo suficiente para saber qué controlar y qué NO controlar.
 
+### `should_condition` — "¿Debería controlar por esta variable?"
+
+**La pregunta:** "Estás analizando el efecto causal de X sobre Y con datos
+observacionales. Un colega sugiere controlar por Z. ¿Es buena idea?"
+
+**Cómo funciona:**
+1. Para cada par (treatment, target), se computan los adjustment sets válidos
+   via `get_all_backdoor_adjustment_sets`
+2. Se clasifican las variables sugeridas:
+   - **Should condition**: Z aparece en un adjustment set válido (es un confounder)
+   - **Should NOT condition**: Z es descendiente del treatment en el DAG
+     (mediator o descendiente de collider — condicionarlo introduce sesgo)
+3. Se aleatoriza si la pregunta será "yes" o "no" (cuando hay ambos tipos)
+
+**Tres patrones causales que testea:**
+- **Confounder (fork)**: X ← Z → Y — SI, controlar por Z bloquea el backdoor path
+- **Mediator (pipe)**: X → Z → Y — NO, controlar bloquea el efecto causal
+- **Collider descendant**: X → C ← Y, Z descendiente de C — NO, abre path espurio
+
+**Scoring:** Binario. 1.0 si la respuesta (yes/no) coincide, 0.0 si no.
+
+**Por qué es interesante:** Es la pregunta más práctica de McElreath.
+En cualquier análisis observacional, alguien sugiere "controlá por esto".
+Saber cuándo SÍ y cuándo NO es la esencia del razonamiento causal.
+
 ### `compare_interventions` — "¿Cuál de estas dos intervenciones es mejor?"
 
 **La pregunta:** "Tu equipo debate entre dos intervenciones posibles para
@@ -335,14 +360,14 @@ No es "¿cuál es la mejor?" (best_intervention, muchas opciones) sino "dados
 estos dos tratamientos concretos, ¿cuál preferís?". Requiere razonamiento
 causal comparativo, no búsqueda exhaustiva.
 
-### Diferencias clave entre los 7 task types
+### Diferencias clave entre los 8 task types
 
-| | infer_target | NBO | hypothesis_sel | causal_effect | best_intervention | adjustment_set | compare_interventions |
-|---|---|---|---|---|---|---|---|
-| **Qué mide** | Estimación | Estrategia | Comparación | Razonamiento causal | Decisión óptima | Comprensión causal | Comparación causal |
-| **Output** | Distribución | Un nodo | Una letra (A-D) | Distribución interventional | Nodo + estado | Set de variables | A o B |
-| **Scoring** | KL (continuo) | IG ratio (continuo) | Accuracy (binario) | KL (continuo) | Effect ratio (continuo) | Match (binario) | Match (binario) |
-| **Interactúa?** | Sí | No | No | No | No | No | No |
+| | infer_target | NBO | hypothesis_sel | causal_effect | best_intervention | adjustment_set | compare_interventions | should_condition |
+|---|---|---|---|---|---|---|---|---|
+| **Qué mide** | Estimación | Estrategia | Comparación | Razonamiento causal | Decisión óptima | Comprensión causal | Comparación causal | Confound awareness |
+| **Output** | Distribución | Un nodo | Una letra (A-D) | Distribución interventional | Nodo + estado | Set de variables | A o B | yes/no |
+| **Scoring** | KL (continuo) | IG ratio (continuo) | Accuracy (binario) | KL (continuo) | Effect ratio (continuo) | Match (binario) | Match (binario) | Match (binario) |
+| **Interactúa?** | Sí | No | No | No | No | No | No | No |
 
 ---
 
@@ -549,6 +574,12 @@ spec = TaskSpec(type=TaskType.COMPARE_INTERVENTIONS, target_node="target_outcome
 task = TaskGenTool().generate(world, spec, seed=42)
 # task.intervention → {"mediator_1": "high"}  (the better intervention)
 # task.correct_answer → {"branch_1:medium": 0.46, "mediator_1:high": 0.78}  (effects of both)
+
+# should_condition
+spec = TaskSpec(type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)
+# task.intervention → {"branch_1": "branch_2"}  ({treatment: suggested_control_var})
+# task.correct_answer → {"yes": 1.0} or {"no": 1.0}
 ```
 
 ### Scoring
@@ -570,6 +601,9 @@ match = verifier.score_adjustment_set(["confounder_Z"], valid_sets)  # → 1.0 o
 
 # compare_interventions: binary comparison
 score = verifier.score_compare_interventions("A", effects)  # → 1.0 or 0.0
+
+# should_condition: yes/no match
+score = verifier.score_should_condition("yes", {"yes": 1.0})  # → 1.0 or 0.0
 ```
 
 ### Plan-driven task generation (CasePlan)
@@ -616,7 +650,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **526 tests** en todos los módulos
+- **540 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
@@ -632,6 +666,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - best_intervention: 13 tests (generation, ranking, scoring, cross-template, determinism)
   - adjustment_set: 20 tests (generation, confounding detection, identifiability, scoring, cross-template)
   - compare_interventions: 15 tests (generation, two-option format, scoring, cross-template, node diversity)
+  - should_condition: 14 tests (generation, binary answer, mediator detection, confounder detection, scoring)
 
 ---
 
