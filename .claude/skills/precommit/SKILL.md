@@ -46,6 +46,16 @@ Every change — code or docs — follows this workflow.
 - Commit with descriptive message
 - Push (ask user first if unsure)
 
+### Step 4: What's next?
+**MANDATORY. Right after commit+push.**
+
+- Review `TODO.md` and identify what's next in the roadmap.
+- Present 1-3 concrete next steps to the user, in friendly Spanish.
+  Not a dump of the whole TODO — a curated suggestion of what makes sense NOW.
+- Explain briefly WHY each option matters (how it fits in the big picture).
+- Ask: "¿Qué te parece? ¿Seguimos con algo?" (or similar).
+- Let the user choose, or suggest a different direction.
+
 ## Why this order matters
 
 - **Tests first**: catch bugs before presenting broken code

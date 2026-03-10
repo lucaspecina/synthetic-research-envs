@@ -201,6 +201,10 @@ with the system. If it falls behind, we're designing the product blind.
 3. Update docs + Commit   (only AFTER user says yes)
    TODO.md, CHANGELOG.md, CURRENT_STATE.md, CLAUDE.md
    Then commit + push
+
+4. What's next?           (right after commit+push)
+   Review TODO, suggest 1-3 concrete next steps
+   Ask: "¿Qué te parece? ¿Seguimos con algo?"
 ```
 
 **Why this order:** tests first (catch bugs), present before docs (if user
