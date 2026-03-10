@@ -778,15 +778,62 @@ Este caso testea:
 
 ---
 
-## Qué NO es SREG
+## Aseguramiento de calidad — dos niveles
+
+SREG tiene dos niveles de aseguramiento de calidad bien diferenciados.
+Es fundamental entender la diferencia y mantener ambos actualizados.
+
+### Nivel 1: Tests + Validacion (pre-commit)
+
+**Pregunta que responde: "¿El codigo funciona? ¿Rompi algo?"**
+
+- **Unit tests** (`pytest tests/`): funciones aisladas con inputs fabricados.
+  Rapidos, sin LLM, deterministas. Corren en cada commit.
+- **Validacion E2E** (smoke test): 1-2 casos con LLM real para verificar que
+  el pipeline completo (orchestrator → mundo → agente → score) no se rompio.
+  Rapido, no necesita ser exhaustivo — solo confirmar que el producto sigue
+  funcionando de punta a punta.
+
+**Esto NO mide si el producto es bueno.** Solo mide que no esta roto.
+
+### Nivel 2: Benchmark y diagnostico (periodico)
+
+**Pregunta que responde: "¿Que tan bueno es el producto? ¿Donde falla?"**
+
+Este es el **control de calidad del producto**, no del codigo. Corre el
+sistema REAL de punta a punta (siempre con LLM, porque asi funciona el
+producto) y mide la calidad de lo que produce. No con inputs fabricados
+ni mundos de juguete — con el pipeline real completo.
+
+**SIEMPRE usa LLM** porque el producto usa LLM. Correrlo sin orchestrator
+o con templates programaticos seria como evaluar una fabrica mirando solo
+los planos en vez de los productos que salen de la linea.
+
+Produce dos salidas del mismo run:
+
+1. **Metricas agregadas**: completion rate, submit rate, KL distribution,
+   teacher > random rate, per-eval-type breakdown, etc. Numeros comparables
+   entre runs para trackear si el producto mejora o empeora.
+
+2. **Analisis de failure modes**: que patrones de fallo aparecen y por que.
+   Casos triviales, narrativa confusa, preguntas imposibles, leakage, etc.
+   Esto guia que trabajar next.
+
+**Principio: el benchmark trabaja con el sistema real, en su mejor version
+implementada.** No cosas anteriores, no mundos de juguete, no atajos. Si
+el sistema hoy usa orchestrator + CasePlan + semantica, el benchmark los usa.
+
+---
+
+## Que NO es SREG
 
 - **No es solo el agente que resuelve.** El agente es parte del sistema, pero
-  SREG es el gimnasio completo: generador + evaluador + agente diagnóstico.
-- **No es un benchmark estático.** Es un generador que produce infinitos problemas.
+  SREG es el gimnasio completo: generador + evaluador + agente diagnostico.
+- **No es un benchmark estatico.** Es un generador que produce infinitos problemas.
 - **No entrena LLMs.** Genera los mundos, tareas, y datos. Si alguien quiere
   usar eso para entrenar, tiene todo listo.
-- **No prescribe cómo debe razonar el agente.** Solo le da el problema y las
-  acciones disponibles. El agente decide cómo proceder.
+- **No prescribe como debe razonar el agente.** Solo le da el problema y las
+  acciones disponibles. El agente decide como proceder.
 
 ---
 

@@ -526,7 +526,7 @@ python scripts/test_agent.py
 | **Agent trajectory** | `src/sreg/harness/agent_trajectory.py` | Extrae trayectorias estructuradas del agente (post-hoc desde messages). Export JSONL. |
 | **Trajectory comparison** | `src/sreg/harness/comparison.py` | Comparacion lado a lado agent vs teacher. Verdict: EXCELLENT/GOOD/FAIR/POOR/NO_SUBMIT. |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
-| **QualitySuite** | `src/sreg/harness/quality.py` | Suite de evaluación en 3 capas: world quality, task quality, generator diversity |
+| **QualitySuite** | `src/sreg/harness/quality.py` | Metricas estructurales del motor formal (capas A+B+C). **Desactualizado: solo cubre 3/9 eval types, no usa LLM. Pendiente: evolucion a benchmark del producto real (ver TODO.md "Benchmark y diagnostico").** |
 | **Trajectory export** | `src/sreg/harness/trajectory.py` | Exporta trayectorias del teacher como JSONL |
 | **Display** | `src/sreg/display.py` | Pretty printing para terminal y notebooks |
 
@@ -691,9 +691,27 @@ solver.generate_trajectory(target, available, budget, costs=node_costs)
 
 ---
 
+## Quality assurance strategy
+
+SREG tiene dos niveles de aseguramiento de calidad (ver PROJECT.md para detalles):
+
+1. **Tests + Validacion (pre-commit)**: unit tests (`pytest tests/`) + E2E smoke con LLM.
+   "¿El codigo funciona?" Pass/fail, cada commit.
+
+2. **Benchmark y diagnostico (periodico)**: el sistema REAL corriendo E2E con LLM.
+   "¿El producto es bueno? ¿Donde falla?" Metricas agregadas + failure modes.
+   **SIEMPRE con LLM, siempre con la mejor version implementada, nunca con mundos toy.**
+
+**Estado actual del benchmark**: NO implementado. `quality.py` (QualitySuite v2) solo
+cubre metricas estructurales del motor formal (3/9 eval types, sin LLM, sin orchestrator).
+Los scripts manuales (`test_e2e.py`, `test_agent.py`) hacen pedazos del benchmark pero
+sin estructura ni persistencia. Ver TODO.md "Benchmark y diagnostico" para el plan.
+
+---
+
 ## Test coverage
 
-- **583 tests** en todos los modulos
+- **601 tests** en todos los modulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` -> `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

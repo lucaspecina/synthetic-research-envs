@@ -1,10 +1,15 @@
 ---
 name: explain
-description: Explain recent changes to the user in friendly, detailed, simple language. Use before every commit to ensure the user understands what changed and why.
+description: "Step 2 of the commit workflow: explain changes to the user in friendly Spanish and ask for commit approval. Use BEFORE every commit."
 ---
 
-Explain the current changes to the user in a friendly, detailed way. This is MANDATORY
-before every commit.
+Explain the current changes to the user. This is **Step 2 of the commit workflow**
+(see `/precommit` for the full workflow).
+
+**The commit workflow is:**
+1. Tests + validation (if not doc-only)
+2. **→ YOU ARE HERE: Present to user + ask approval ←**
+3. Update docs + commit + push (only after user says yes)
 
 ## What to cover
 
@@ -27,9 +32,9 @@ before every commit.
 
 ## Style guidelines
 
-- Write in Spanish (the user's language)
-- Use simple, friendly language — explain like talking to a smart colleague, not writing a paper
-- Use analogies when helpful ("es como si un profesor solo pudiera hacer 3 tipos de examen")
+- Write in **Spanish** (the user's language)
+- Use simple, friendly language — explain like talking to a smart colleague
+- Use analogies when helpful
 - Show concrete before/after comparisons
 - Keep it conversational but informative
 - Use markdown formatting: headers, tables, code blocks, bullet points
@@ -38,10 +43,11 @@ before every commit.
 
 1. Run `git diff --cached` or `git diff` to see what changed
 2. Read the modified files to understand the changes
-3. Check CHANGELOG.md for the entry you wrote
+3. Check CHANGELOG.md for the entry you wrote (if already written)
 4. If there was E2E validation, summarize the results
 
-## Output format
+## End with
 
-A single, well-structured message to the user. End with "Puedo commitear?" to ask
-for approval (unless the commit was already made, in which case explain what was committed).
+Ask for approval: **"¿Actualizo docs y hago commit + push?"** (or similar).
+Do NOT commit or update docs until the user explicitly says yes.
+If the user requests changes, make them, re-validate, and re-present.

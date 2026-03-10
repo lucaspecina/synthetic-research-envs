@@ -86,9 +86,15 @@
 - [x] Tests: custom worlds with 5-15 nodes, heterogeneous states, multiple latents (81 new tests)
 - [x] E2E validation: 12-15 node worlds, teacher improves over prior + beats random, documented findings in WORLD_DESIGN.md
 
-### QualitySuite v2 — metricas rediseñadas (PRIORIDAD)
+### QualitySuite v2 — metricas rediseñadas (COMPLETO - pero desactualizado)
 > Hallazgo critico: la metrica original teacher_beats_prior (KL vs one-hot del true state)
 > castiga inferencia correcta cuando el sample es atipico. Ver WORLD_DESIGN.md "Hallazgo critico".
+>
+> **IMPORTANTE (2026-03-10):** QualitySuite v2 quedo desactualizado. Solo evalua los
+> 3 tipos originales (infer_target, NBO, hypothesis_selection) con mundos programaticos
+> (templates, sin LLM). No cubre los 6 eval types nuevos, no usa orchestrator, no evalua
+> CasePlan, semantica ni agente. Es un integration test del motor formal, NO control de
+> calidad del producto. Ver seccion "Benchmark y diagnostico" abajo para la evolucion.
 
 - [x] QualitySuite v1: Capas A+B+C implementadas con metricas originales (44 tests)
 - [x] Documentar hallazgo critico y metricas rediseñadas en WORLD_DESIGN.md
@@ -108,6 +114,36 @@
   > Hallazgos clave: 10-12 nodos + es=0.5-0.7 es el regimen optimo. 6-8 nodos no
   > sirven para estrategia (budget satura). preferential_attachment eliminable (0% WC).
   > Documentado en WORLD_DESIGN.md "Batch sweep: regimenes de generacion".
+
+### Benchmark y diagnostico — control de calidad del producto (NUEVO)
+> **Definicion clave**: el benchmark NO es lo mismo que los unit tests.
+> - Unit tests = "¿el codigo funciona?" (piezas aisladas, inputs fabricados, sin LLM)
+> - Benchmark = "¿el producto es bueno?" (sistema real, con LLM, pipeline completo)
+>
+> El benchmark SIEMPRE usa el sistema real en su mejor version implementada.
+> No mundos de juguete, no atajos. Si el sistema usa orchestrator + CasePlan +
+> semantica + rich data, el benchmark los usa.
+>
+> Produce dos salidas del mismo run:
+> 1. **Metricas agregadas**: completion rate, submit rate, KL, per-eval-type breakdown
+> 2. **Analisis de failure modes**: que patrones de fallo aparecen y por que
+>
+> Ver PROJECT.md "Aseguramiento de calidad" y CLAUDE.md "Quality assurance" para
+> la vision completa. Ver skill `/eval` para como correrlo.
+>
+> Los scripts sueltos (test_e2e.py, test_agent.py, batch_eval.py, diagnostic_batch.py)
+> se consolidan en el benchmark. Solo se mantienen como utilidades: demo.py, view_trajectory.py.
+
+- [ ] **BM.1**: Implementar script de benchmark (sistema real E2E con LLM)
+  - [ ] Orchestrator genera N casos con goals variados
+  - [ ] Agent solver intenta resolver cada caso
+  - [ ] Trayectorias extraidas y comparadas con teacher
+  - [ ] Metricas agregadas + failure modes
+  - [ ] Resultados guardados en `experiments/` con timestamp
+- [ ] **BM.2**: Crear `experiments/` directory con index.md
+- [ ] **BM.3**: Actualizar `quality.py` Layer B para cubrir 9 eval types (no solo 3)
+- [ ] **BM.4**: Primer benchmark run real (20-30 casos, varied goals)
+- [ ] **BM.5**: Consolidar scripts sueltos (deprecar diagnostic_batch.py, absorber test_e2e.py)
 
 ### Enriquecimiento del case (SIGUIENTE FOCO — actualizado 2026-03-09)
 > **Diagnostico de alineacion con PROJECT.md**: el nucleo formal (BN, generacion,

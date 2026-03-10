@@ -1,58 +1,80 @@
 ---
 name: eval
-description: Evaluate world quality across multiple configurations and seeds. Use to measure if generated worlds produce good research problems.
+description: Run the SREG benchmark — product quality control using the REAL system with LLM. NOT unit tests. Measures how good the product is and identifies failure modes.
 disable-model-invocation: true
 ---
 
-Evaluate world quality by generating multiple worlds and measuring key metrics.
+Run the SREG benchmark: product quality control on the REAL system.
+
+**CRITICAL DISTINCTION:**
+- Unit tests (`pytest tests/`) = "does the code work?" (isolated, fabricated inputs, no LLM)
+- Benchmark (`/eval`) = "is the product good?" (real system, real LLM, real pipeline)
+
+**The benchmark ALWAYS uses the real system in its best current implementation.**
+No toy worlds, no template shortcuts. If the system uses orchestrator + CasePlan +
+rich data + semantics, the benchmark uses ALL of that.
 
 ## What to measure
 
-For each world generated, compute:
-- **WorldCheck**: pass/fail (DAG validity, entropy, d-separation, max parents, treewidth)
-- **Teacher > prior**: does the teacher's posterior improve over the prior? (KL comparison)
-- **Teacher > random**: does the teacher beat random observation strategy?
-- **NBO non-trivial**: does the next-best-observation task have at least one node with IG > 0?
-- **Hypotheses distinguishable**: is min KL between true posterior and nearest distractor > 0.05?
+Run the full pipeline: orchestrator generates cases → agent solves → compare with teacher.
+
+**Aggregate metrics (per run):**
+- Orchestrator completion rate (did it produce a complete case?)
+- WorldCheck pass rate
+- Agent submit rate
+- KL distribution: mean, median, min, max
+- Teacher > random rate
+- Per-eval-type breakdown (if CasePlan has multiple types)
+- Budget efficiency
+
+**Failure mode analysis (same run):**
+- Cases where agent didn't submit → why?
+- Cases where agent was worse than random → what went wrong?
+- Narrative confusion (agent misunderstood the question)
+- Trivial cases (solved without observations)
+- Impossible cases (couldn't solve even with full budget)
+- Format errors (submit format wrong, tool call errors)
+- Leakage/shortcuts (inferred answer without investigating)
 
 ## How to run
 
-1. Parse arguments: $ARGUMENTS may specify generators, node counts, seeds, or a specific config.
-   Defaults: all 4 generators, seeds [1, 7, 42, 99, 123], edge_strength=0.7.
+1. Parse arguments: $ARGUMENTS may specify number of cases, goals, depth level.
+   Defaults: 10 cases, varied goals, full depth.
 
-2. Generate worlds using `WorldGenTool().generate_custom()` with each config x seed combo.
+2. For each case:
+   a. Run `Orchestrator().run(goal)` with a varied goal and seed
+   b. Verify the case is complete (world + problem + CasePlan + tasks)
+   c. Compute structural metrics (WorldCheck, entropy, budget ratio)
+   d. Run `AgentSolver().solve(world, problem)`
+   e. Extract agent trajectory (`extract_agent_trajectory()`)
+   f. Generate teacher trajectory (`generate_teacher_trajectory()`)
+   g. Compare (`compare_trajectories()`)
+   h. Record metrics and failure modes
 
-3. For each world:
-   - Run WorldCheckTool
-   - Create ExactBayesSolver, sample state, compute teacher vs prior vs random KL
-   - Generate TaskBundle, check NBO and hypothesis quality
+3. Print aggregate metrics table.
 
-4. Print results as a table:
-   ```
-   Config                 Seed Nodes Edges Check Teacher>Prior Teacher>Rand NBO Hyp
-   erdos_renyi              42    10    12  PASS     Y             Y         Y   Y
-   ...
-   ```
+4. Print failure mode analysis: counts, proportions, examples.
 
-5. Print summary with pass rates and compare against quality targets:
-   - Teacher > prior: target >90%
-   - Teacher > random: target >80%
-   - NBO non-trivial: target >70%
-   - Hypotheses distinguishable: target >80%
+5. Save results to `experiments/` with timestamp.
 
-6. **Analyze**: Flag any surprising patterns (e.g., one generator consistently worse,
-   large worlds failing more). Report findings that should go in WORLD_DESIGN.md.
+6. Compare with previous benchmark run if available.
+
+## Goals to vary
+
+Use diverse goals to test different aspects of the system:
+- Different domains: marine ecology, epidemiology, materials science, agriculture
+- Different sizes: 6, 8, 10, 12 nodes
+- Different difficulties: "easy", "medium", "hard"
+- Different eval type emphasis: "focus on causal questions", "diagnostic problem"
 
 ## Key imports
 
 ```python
-from sreg.world.dag_generators import (
-    generate_erdos_renyi, generate_spanning_tree,
-    generate_preferential_attachment, generate_layered,
-)
-from sreg.tools.world_gen import CustomWorldGenConfig, WorldGenTool
+from sreg.orchestrator.orchestrator import Orchestrator
+from sreg.agent.agent import AgentSolver
+from sreg.harness.agent_trajectory import extract_agent_trajectory
+from sreg.harness.trajectory import generate_teacher_trajectory
+from sreg.harness.comparison import compare_trajectories
 from sreg.tools.world_check import WorldCheckTool
-from sreg.tools.task_gen import TaskGenTool
 from sreg.solver.exact_bayes import ExactBayesSolver
-from sreg.models.world import NodeType
 ```

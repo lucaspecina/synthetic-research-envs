@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Quality assurance strategy: tests vs benchmark
+- **Documented the two-level QA strategy** across PROJECT.md, CLAUDE.md, TODO.md,
+  CURRENT_STATE.md, and skills (`/eval`, `/precommit`):
+  - Level 1: Tests + Validation (pre-commit) — unit tests + E2E smoke. "Did I break something?"
+  - Level 2: Benchmark & Diagnostic (periodic) — real system E2E with LLM. "Is the product good?"
+- **Key principle**: the benchmark ALWAYS uses the real system (LLM, orchestrator,
+  CasePlan, semantics). No toy worlds, no fabricated inputs.
+- **Identified QualitySuite v2 gap**: only covers 3/9 eval types with programmatic worlds.
+  Needs evolution to full benchmark with real pipeline.
+- **Planned benchmark tasks** (BM.1-BM.5 in TODO.md): implement real E2E benchmark script,
+  create experiments/ directory, update quality.py for all eval types, consolidate scripts.
+- **Updated `/eval` skill**: now reflects benchmark philosophy (real system, two outputs:
+  aggregate metrics + failure mode analysis).
+- **Updated `/precommit` skill**: clearer separation between validation (Level 1) and
+  benchmark impact check.
+
 ### 2026-03-10 — Agent trajectory inspection (S.1)
 - **New module `src/sreg/harness/agent_trajectory.py`**: `AgentTrajectoryStep` and
   `AgentTrajectory` Pydantic models. `extract_agent_trajectory()` post-processes

@@ -1,42 +1,69 @@
 ---
 name: precommit
-description: Run the full pre-commit checklist before committing. Use BEFORE every git commit to verify tests, lint, docs, and get user approval.
+description: "THE commit workflow. Run this before EVERY commit: tests, validation, present to user, get approval, update docs, commit. This is the ONLY way to commit."
 disable-model-invocation: true
 ---
 
-Run the mandatory pre-commit checklist. Do NOT commit until all steps pass and the user approves.
+# The SREG commit workflow
 
-## Steps (in order)
+**This is the ONLY way to commit changes.** No exceptions.
+Every change — code or docs — follows this workflow.
 
-1. **Tests**: Run `pytest tests/ -q`. ALL must pass. If any fail, stop and fix.
+## The workflow (in order)
 
-2. **Lint**: Run `ruff check` on modified files only (check with `git diff --name-only`).
-   Fix any new errors introduced by this commit. Pre-existing errors (like E402 in orchestrator) are OK.
+### Step 1: Tests + Validation
+**Skip if doc-only or trivial changes (typos, comments).**
 
-3. **E2E validation** (if the commit adds features or changes behavior):
-   - Write an inline script (`python -c`) that exercises the new feature as a user would.
-   - Run with at least 5 different configurations (vary seeds, params, etc.).
-   - Read the output carefully. Do the values make sense?
-   - Report any anomalies.
-   - Skip this step for doc-only or trivial changes.
+- Run `pytest tests/ -q`. ALL must pass.
+- Run `ruff check` on modified files.
+- If the change adds features or modifies behavior:
+  - Write an inline script (`python -c`) that exercises the change with real execution.
+  - Run with at least 5 different configurations.
+  - If LLM credentials are available AND the change touches orchestrator/agent/env/tools:
+    run 1-2 real LLM pipeline cases as smoke test.
+  - Read the output carefully. Do the values make sense?
 
-4. **Docs check** — verify each is up to date:
-   - `TODO.md`: completed tasks marked `[x]`? New tasks added?
-   - `CHANGELOG.md`: entry added for new functionality?
-   - `CURRENT_STATE.md`: test count, modules table, capabilities still accurate?
-   - `CLAUDE.md`: project structure, test count, current state still accurate?
-   - No stale references to deleted/renamed files.
+### Step 2: Present to user
+**MANDATORY. ALWAYS. Even for doc-only changes.**
 
-5. **Explain to user** (MANDATORY): Before committing, use `/explain` to present the
-   changes to the user. Wait for their approval.
+- Explain the changes in Spanish, friendly and detailed.
+- Cover: what was done, how it fits, what's now possible.
+- If there was E2E validation, show the key results.
+- Be honest about limitations and next steps.
+- **Ask explicitly**: "¿Actualizo docs y hago commit + push?" (or similar).
+- **WAIT for the user's approval.** Do NOT proceed without it.
+- If the user requests changes → make them → re-run tests → re-present.
 
-6. **Report**: Show a summary table:
-   ```
-   Tests:     PASS (N tests)
-   Lint:      PASS (no new errors)
-   E2E:       PASS / SKIP (reason)
-   Docs:      PASS (list which were updated)
-   Approval:  PENDING
-   ```
+### Step 3: Update docs + Commit + Push
+**Only AFTER user says yes.**
 
-Do NOT run `git commit` until the user explicitly approves.
+- Update docs:
+  - `TODO.md`: mark completed tasks `[x]`, add new tasks
+  - `CHANGELOG.md`: add entry for new functionality
+  - `CURRENT_STATE.md`: update test count, modules, capabilities
+  - `CLAUDE.md`: update project structure, conventions
+  - No stale references to deleted/renamed files
+- Commit with descriptive message
+- Push (ask user first if unsure)
+
+## Why this order matters
+
+- **Tests first**: catch bugs before presenting broken code
+- **Present before docs**: if the user requests changes, you'd have to re-update all docs
+- **Docs after approval**: they get written once, correctly, right before commit
+
+## Benchmark impact check
+
+If the commit adds a new eval type, action type, or changes orchestrator/agent/env:
+note that the benchmark (`/eval`) should be re-run to verify product quality.
+This is a NOTE, not a blocker — log it and move on.
+
+## Report format
+
+```
+Tests:      PASS (N tests) / SKIP (doc-only)
+Lint:       PASS / SKIP
+E2E:        PASS / SKIP (reason)
+Benchmark:  NOTE: should re-run /eval / N/A
+Approval:   PENDING
+```

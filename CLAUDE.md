@@ -142,40 +142,69 @@ ruff check src/ tests/                    # Lint
 ruff format src/ tests/                   # Format
 ```
 
+## Quality assurance — two levels (CRITICAL)
+
+SREG has two distinct levels of quality assurance. **Both must stay current.**
+See PROJECT.md "Aseguramiento de calidad" for the full rationale.
+
+### Level 1: Tests + Validation (pre-commit)
+
+- **Unit tests** (`pytest tests/`): isolated functions, fabricated inputs, no LLM.
+  Run on every commit.
+- **E2E validation** (smoke test): 1-2 cases with real LLM to verify the full
+  pipeline still works. Run when code changes touch orchestrator, agent, env, or tools.
+- **Purpose: "Did I break something?"** — pass/fail, not quality measurement.
+
+### Level 2: Benchmark & Diagnostic (periodic)
+
+- **Product quality control.** Runs the REAL system end-to-end (always with LLM)
+  and measures the quality of what it produces.
+- **ALWAYS uses LLM** — the product uses LLM, so the benchmark must too.
+  No toy worlds, no template shortcuts, no fabricated inputs.
+- **ALWAYS uses the best current implementation** — if the system now uses
+  orchestrator + CasePlan + rich data, the benchmark uses all of that.
+- **Two outputs from the same run:**
+  1. Aggregate metrics (completion rate, submit rate, KL, per-eval-type breakdown)
+  2. Failure mode analysis (what patterns appear and why)
+- **Results saved** in `experiments/` for comparison across runs.
+- **Purpose: "How good is the product? Where does it fail?"**
+
+### Keeping it current (NON-NEGOTIABLE)
+
+When you add a new feature (eval type, action type, data format, orchestrator tool):
+1. The **unit tests** validate the piece works in isolation
+2. The **benchmark** must be able to exercise it with the real system
+3. If the benchmark can't exercise it, that's a gap — log it and fix it
+
+The benchmark is NOT a one-time thing. It's a living tool that evolves
+with the system. If it falls behind, we're designing the product blind.
+
 ## Git conventions
 
 - Branch naming: `feature/<name>`, `fix/<name>`, `refactor/<name>`
 - Commit messages: imperative mood, concise
 - Push works from the assistant. Always ask user before pushing.
 
-## Pre-commit checklist — MANDATORY
+## Commit workflow — MANDATORY
 
-**EVERY commit MUST pass this checklist. No exceptions. Do not commit without verifying each item.**
+**The ONLY way to commit changes. No exceptions. See `/precommit` skill for full details.**
 
-**Doc-only commits** (changes ONLY to .md files, no code changes): skip steps 1 and 2.
-Only steps 3-8 apply. Do NOT run the full test suite for documentation-only changes.
+```
+1. Tests + Validation     (skip if doc-only or trivial)
+   pytest + ruff + E2E with real execution
 
-1. **Tests pass** — run `pytest tests/ -q` and confirm all green. **Skip if doc-only commit.**
-2. **Real end-to-end execution + manual analysis** — if the commit adds a feature or changes behavior, this step is **NOT optional**. **Skip if doc-only commit.** Unit tests are necessary but NOT sufficient. You MUST:
-   - Write a script (inline `python -c` is fine) that exercises the new feature **exactly as a user would run it in production** — not programmatic asserts, but actual execution with printed output you can read.
-   - Run it with **at least 5-10 different configurations** (vary template, seed, num_nodes, edge_strength, task type, etc.).
-   - **If LLM credentials are available** (check `.env` for `AZURE_FOUNDRY_BASE_URL` and `AZURE_INFERENCE_CREDENTIAL`), **the E2E MUST include the real LLM pipeline**: orchestrator generates world → quality check → agent solves. Programmatic-only E2E is NOT enough when LLM calls are possible and the change touches world generation, tasks, orchestrator, or agent. Skip LLM E2E only for doc-only, lint-only, or purely internal refactors.
-   - **Read the full output carefully, line by line.** Look at the actual values: Do the distributions make sense? Do the edges reflect the template structure? Is the IG ranking consistent with the causal structure? Are the hypotheses distinguishable? Does the evidence match the true state?
-   - **Think about whether the results align with PROJECT.md's vision.** Not just "does it crash?" but "does it produce the kind of problems we want?"
-   - If you find anything surprising or suspicious (e.g., 25% trivial NBO tasks, near-identical hypotheses with low edge_strength), investigate it, report it, and log it as a known issue if appropriate.
-   - This is the equivalent of a researcher looking at their data before publishing — you don't just check the p-value, you look at the actual numbers.
-3. **Presentar al usuario y pedir aprobacion** — After tests + E2E pass, but BEFORE updating docs or committing:
-   - Explain the CODE changes in a friendly, detailed way in simple language (Spanish). Cover: what was done, how it fits in the big picture, what's now possible.
-   - **Ask explicitly**: "Actualizo docs y hago commit + push?" (or similar).
-   - **Wait for the user's approval.** Do NOT update docs, commit, or push until the user says yes.
-   - If the user requests changes, make them, re-run tests, and re-present.
-4. **Update docs (AFTER user approval, BEFORE commit):**
-   - **TODO.md reflects reality** — mark `[x]`, add new tasks, update status.
-   - **CHANGELOG.md updated** — if the commit adds/changes functionality, add an entry.
-   - **CURRENT_STATE.md still accurate** — update test count, modules, architecture.
-   - **CLAUDE.md still accurate** — update project structure, conventions.
-   - **No stale references** — grep for old names if files were deleted/renamed.
-5. **Commit + push** — only after docs are updated and user approved.
+2. Present to user        (ALWAYS, even for doc-only)
+   Explain in Spanish, friendly + detailed
+   Ask: "¿Actualizo docs y hago commit + push?"
+   WAIT for approval. Do NOT proceed without it.
+
+3. Update docs + Commit   (only AFTER user says yes)
+   TODO.md, CHANGELOG.md, CURRENT_STATE.md, CLAUDE.md
+   Then commit + push
+```
+
+**Why this order:** tests first (catch bugs), present before docs (if user
+requests changes you'd re-update everything), docs last (written once correctly).
 
 ### Trigger-specific updates
 
@@ -194,3 +223,5 @@ These are common changes that REQUIRE updating specific docs:
 | New research findings on world generation | `WORLD_DESIGN.md`: update relevant section |
 | Added/changed a NodeType | `display.py`: `_node_styles()` and `_HTML_NODE_COLORS` |
 | New display function | `display.py`, update `scripts/demo.py` and notebook |
+| New eval type or task type | `quality.py`: add non-trivial check. Benchmark: verify it's exercised by the real system. |
+| Changed orchestrator/agent/env | Benchmark: re-run to verify product quality hasn't degraded. |
