@@ -1,15 +1,14 @@
 # Research Seed
 
-> Write your research case context here. The orchestrator will read this file
-> and use it as the basis for generating a synthetic research case.
+> Write your research case context here. The orchestrator will read
+> `research_seed.md` and use it as the basis for generating a synthetic
+> research case. Copy this file to `research_seed.md` and edit it.
 >
-> You can describe: a phenomenon, a domain, variables of interest, hypotheses,
-> the kind of questions you want, constraints, difficulty, or even paste an
-> abstract from a real paper as inspiration.
+> Lines starting with > are stripped (treated as comments).
 >
 > Usage:
->   python scripts/test_orchestrator.py                  # reads this file automatically
->   python scripts/test_orchestrator.py --goal "..."     # ignores this file (explicit goal wins)
+>   python scripts/test_orchestrator.py                    # reads research_seed.md
+>   python scripts/test_orchestrator.py --goal "..."       # ignores seed file
 >   python scripts/test_orchestrator.py --seed-file other.md  # reads a different file
 
 ## Context

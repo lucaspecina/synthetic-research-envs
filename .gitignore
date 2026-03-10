@@ -195,6 +195,9 @@ cython_debug/
 # SREG output
 output/
 
+# Research seed (local only, may contain proprietary data)
+research_seed.md
+
 # Ruff stuff:
 .ruff_cache/
 
