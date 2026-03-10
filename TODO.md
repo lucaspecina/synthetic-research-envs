@@ -161,13 +161,30 @@
 - [x] Teacher solver: `optimal_action()` y `generate_trajectory()` aceptan `costs` para optimizar IG/costo (greedy)
 - [x] 26 tests nuevos (578 total): acciones con cost > 1, multi-nodo, compound observe, IG/cost, cross-template
 
-##### Slice B: intervenciones como acciones + orchestrator (DESPUES)
-> El agente puede INTERVENIR (do-operation) como acción del episodio.
-> El orchestrator diseña acciones como parte del ResearchCase.
+##### Deuda de diseno de Slice A (NO resolver ahora, tener en cuenta en Slice B)
+> Feedback post-Slice A: la infraestructura esta lista, pero las heuristicas
+> actuales del ProblemBuilder son provisorias y NO deben cristalizarse:
+> - **Sibling grouping**: agrupar nodos con mismo padre es una heuristica razonable
+>   para el primer slice, pero NO deberia ser la logica general. Las acciones
+>   compuestas futuras deben nacer del research case (ej: "analisis de laboratorio"
+>   agrupa variables por logica del dominio, no por estructura del DAG).
+> - **Costo por cercania al target**: sirve como primer paso, pero el costo real
+>   deberia depender del tipo de accion y la narrativa del case (un analisis
+>   espectrometrico cuesta 3 porque es caro, no porque esta cerca del target).
+> - **Direccion general**: las acciones deben sentirse cada vez mas naturales
+>   dentro del case, no solo mas flexibles tecnicamente. Slice B debe apuntar a que
+>   el orchestrator diseñe acciones con sentido narrativo, no solo formal.
 
-- [ ] Acciones de intervención: do-operations como acciones del agente (costo alto, info alta)
+##### Slice B: intervenciones como acciones + orchestrator (DESPUES)
+> El agente puede INTERVENIR (do-operation) como accion del episodio.
+> El orchestrator diseña acciones como parte del ResearchCase.
+> Las acciones deben sentirse naturales dentro del case, no solo
+> tecnicamente flexibles.
+
+- [ ] Acciones de intervencion: do-operations como acciones del agente (costo alto, info alta)
 - [ ] `ActionPlan` model: el orchestrator propone acciones tipadas como parte del CasePlan
-- [ ] Validación de coherencia: cada acción ayuda a al menos 1 pregunta, no regala respuestas
+- [ ] Costos y agrupaciones diseñados por el orchestrator segun el research case (reemplaza heuristicas de Slice A)
+- [ ] Validacion de coherencia: cada accion ayuda a al menos 1 pregunta, no regala respuestas
 - [ ] Despues: acciones de consulta (revelar info parcial sobre estructura/CPDs)
 
 #### 3. ResearchCase — el orchestrator diseña el caso completo

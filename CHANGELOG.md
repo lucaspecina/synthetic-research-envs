@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Case inspection tooling: --seed, --export, /run skill
+- **`test_orchestrator.py` enhanced**: `--seed N` (reproducibility hint), `--export path.json`
+  (full case export), `--verbose` (raw HTTP logs). Step-by-step process display with compact
+  tool args, design_case/dag_construct result summaries, case plan questions with rationale,
+  generated tasks with correct answers, research problem view.
+- **JSON export**: metadata (timestamp, goal, model), process (all tool calls with args/results),
+  world (nodes, edges, scenario), case_plan (questions, rationale), tasks (type, question,
+  correct answer), research_problem (narrative, data_assets, available_actions).
+- **`/run` skill**: new skill for running the orchestrator. Parses topic, builds goal,
+  auto-exports with timestamp, reports findings in Spanish.
+- **`README.md` rewritten**: quick start, generate and inspect research cases, script examples,
+  eval types table (9 types), JSON export structure, LLM integration docs.
+- **`TODO.md`**: added Rich Actions Slice A design debt section (sibling grouping and
+  target-proximity costs are provisional heuristics).
+
 ### 2026-03-10 — Rich Actions Slice A: typed, multi-node, varied-cost actions
 - **`ResearchActionType` enum** in `research_problem.py`: `observe`, `intervene`,
   `request_dataset`, `consult` (reserved). Named `ResearchActionType` to avoid
