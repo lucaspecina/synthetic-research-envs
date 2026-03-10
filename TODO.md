@@ -130,14 +130,43 @@
 > (observe, intervene, request_dataset) + instancias concretas diseñadas
 > por el orchestrator para cada research case.
 >
-> Plan concreto (incremental):
+> **Cuidados de diseño (feedback 2026-03-10):**
+> - No generar acciones multi-nodo arbitrarias. Pocas acciones con
+>   semántica clara (ej: "análisis de laboratorio" revela 3 nodos
+>   específicos, no "observar N nodos random").
+> - Agregar `action_type` desde el inicio (observe, intervene,
+>   request_dataset), no solo nodos. Esto prepara el modelo para que
+>   el orchestrator diseñe acciones tipadas.
+> - El costo NO depende solo de cuántos nodos revela — depende del tipo
+>   de acción y la narrativa (un análisis espectrométrico cuesta 3
+>   aunque solo revele 1 nodo; un muestreo básico cuesta 1 aunque
+>   revele 2 nodos).
+> - Diseñar pensando en que después el orchestrator va a PROPONER
+>   acciones según el research case. El modelo debe ser lo
+>   suficientemente expresivo para recibir esas propuestas.
+>
+> **Plan en 2 slices:**
 
-- [ ] Permitir cost > 1 en `AvailableAction` (el modelo ya lo soporta, falta usarlo)
-- [ ] Permitir acciones que revelan multiples nodos: agregar `nodes: list[str]` a `AvailableAction` (hoy solo `node: str`)
-- [ ] `EpisodeRunner` procesa acciones multi-nodo: una accion revela N valores, cuesta cost
-- [ ] `EpisodeGenTool` genera acciones con costos variados (1, 2, 3) segun config
-- [ ] Acciones de intervencion: do-operations como acciones del agente (costo alto, info alta)
-- [ ] Orchestrator diseña acciones como parte del ResearchCase (ActionPlan)
+##### Slice A: modelo de acciones ricas (PROXIMO)
+> Cambiar el modelo y la infraestructura para soportar acciones con
+> tipo, costo variable y multi-nodo. NO requiere orchestrator — se
+> puede usar programáticamente o con CasePlan.
+
+- [ ] `ActionType` enum: `observe`, `intervene`, `request_dataset` (y `consult` reservado)
+- [ ] `AvailableAction` ampliado: `action_type: ActionType`, `nodes: list[str]`, `cost: int` (> 1 posible). Campo `node: str` se mantiene como alias retrocompatible (= nodes[0] si len==1)
+- [ ] `EpisodeRunner` procesa acciones multi-nodo: una acción revela N valores, cuesta cost. Para `intervene`: aplica do-operation y devuelve resultado interventional
+- [ ] `ProblemBuilder` genera acciones con costos variados y tipos mixtos
+- [ ] `EpisodeGenTool` actualizado: acepta config de acciones ricas o genera un mix por defecto
+- [ ] Teacher solver: optimiza IG/costo (greedy), no solo IG
+- [ ] Tests: acciones con cost > 1, multi-nodo, mix de tipos
+
+##### Slice B: intervenciones como acciones + orchestrator (DESPUES)
+> El agente puede INTERVENIR (do-operation) como acción del episodio.
+> El orchestrator diseña acciones como parte del ResearchCase.
+
+- [ ] Acciones de intervención: do-operations como acciones del agente (costo alto, info alta)
+- [ ] `ActionPlan` model: el orchestrator propone acciones tipadas como parte del CasePlan
+- [ ] Validación de coherencia: cada acción ayuda a al menos 1 pregunta, no regala respuestas
 - [ ] Despues: acciones de consulta (revelar info parcial sobre estructura/CPDs)
 
 #### 3. ResearchCase — el orchestrator diseña el caso completo

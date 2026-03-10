@@ -2331,19 +2331,51 @@ suficiente y ya es la cota superior.
    un "null result" (la distribucion no cambia mucho). Esto es realista
    pero frustrante — dosificar con cuidado.
 
-### Plan de implementacion: acciones ricas
+### Plan de implementacion: acciones ricas (actualizado 2026-03-10)
 
-**No implementar todavia.** Este diseño requiere mas investigacion y los
-eval types de Ola 1 son la prioridad inmediata. Pero el diseño debe estar
-documentado para cuando lleguemos.
+> Ola 1 de eval types COMPLETA (9 tipos). Ahora si, implementar acciones ricas.
 
-**Orden propuesto:**
-1. Terminar Ola 1 de eval types (vocabulario de preguntas suficiente)
-2. Implementar acciones con costo variable (lo minimo: `cost > 1`)
-3. Implementar acciones multi-nodo (`nodes: list[str]`)
-4. Implementar acciones de intervencion (`do-operation` como accion)
-5. Orchestrator diseña acciones como parte del ResearchCase
-6. Acciones de consulta (ultimo — mas difícil de formalizar)
+**Cuidados de diseño (feedback consolidado):**
+
+1. **No generar acciones multi-nodo arbitrarias.** Cada accion multi-nodo
+   debe tener semantica clara: "analisis de laboratorio" revela {pH, minerales,
+   materia_organica}, no "observar 3 nodos random". La agrupacion de nodos
+   responde a la logica del dominio, no a una optimizacion combinatoria.
+
+2. **Agregar `action_type` desde el inicio.** No esperar al Slice B para
+   tipar las acciones. El modelo debe tener `action_type: ActionType` (observe,
+   intervene, request_dataset, consult) desde el Slice A, aunque el Slice A
+   solo implemente `observe` y `request_dataset`. Esto prepara el modelo para
+   que el orchestrator diseñe acciones tipadas sin refactoreo posterior.
+
+3. **El costo NO depende solo de cuantos nodos revela.** Es un atributo
+   semantico de la accion: un analisis espectrometrico cuesta 3 aunque solo
+   revele 1 nodo; un muestreo basico cuesta 1 aunque revele 2 nodos.
+   El costo refleja tiempo/dinero/complejidad del mundo real, no informacion.
+
+4. **Diseñar pensando en el orchestrator.** El modelo debe ser lo
+   suficientemente expresivo para que el orchestrator proponga acciones
+   concretas como parte del research case. Esto significa que `AvailableAction`
+   debe poder representar TODO lo que el orchestrator quiera proponer, no
+   solo lo que `EpisodeGenTool` genera automaticamente.
+
+**Plan en 2 slices:**
+
+**Slice A — Modelo de acciones ricas (PROXIMO)**
+Cambiar el modelo y la infraestructura. NO requiere orchestrator.
+- `ActionType` enum: observe, intervene, request_dataset (consult reservado)
+- `AvailableAction` ampliado: action_type + nodes: list[str] + cost variable
+- `EpisodeRunner` procesa multi-nodo y cost > 1
+- `ProblemBuilder` genera acciones con mix de tipos y costos
+- Teacher solver: optimiza IG/costo (greedy)
+- Ver TODO.md "Slice A" para checklist detallado.
+
+**Slice B — Intervenciones + orchestrator (DESPUES)**
+El agente puede INTERVENIR. El orchestrator diseña acciones.
+- do-operations como acciones del agente (costo alto, info alta)
+- ActionPlan model: orchestrator propone acciones tipadas
+- Validacion de coherencia case-acciones
+- Ver TODO.md "Slice B" para checklist detallado.
 
 ---
 
