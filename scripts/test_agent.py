@@ -214,6 +214,10 @@ def main():
     parser.add_argument("--budget", type=int, default=4)
     parser.add_argument("--edge-strength", type=float, default=0.7)
     parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument(
+        "--save-trajectory", type=str, default=None,
+        help="Save agent trajectory + comparison JSON to this directory",
+    )
     args = parser.parse_args()
 
     if args.verbose:
@@ -259,6 +263,33 @@ def main():
         agent_budget_total=agent_result.budget_total,
     )
     _safe_print("")
+
+    # Save trajectory if requested
+    if args.save_trajectory:
+        from pathlib import Path
+
+        from sreg.harness.agent_trajectory import extract_agent_trajectory
+        from sreg.harness.comparison import compare_trajectories
+        from sreg.harness.trajectory import generate_teacher_trajectory
+
+        out_dir = Path(args.save_trajectory)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        agent_traj = extract_agent_trajectory(
+            agent_result, problem, world_id=world.id, seed=args.seed
+        )
+        teacher_traj = generate_teacher_trajectory(world, problem, seed=args.seed)
+        comp = compare_trajectories(teacher_traj, agent_traj)
+
+        prefix = f"seed{args.seed}_n{args.nodes}"
+        traj_path = out_dir / f"{prefix}_agent_trajectory.json"
+        comp_path = out_dir / f"{prefix}_comparison.json"
+
+        traj_path.write_text(agent_traj.model_dump_json(indent=2), encoding="utf-8")
+        comp_path.write_text(comp.model_dump_json(indent=2), encoding="utf-8")
+
+        _safe_print(f"Trajectory saved: {traj_path}")
+        _safe_print(f"Comparison saved: {comp_path}")
 
 
 if __name__ == "__main__":

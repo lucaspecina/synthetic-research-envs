@@ -322,10 +322,14 @@
 > - Leakage / shortcuts (infiere sin investigar)
 > - Reward que no coincide con "investigar bien"
 
-- [ ] **S.1**: Trayectorias inspeccionables (PRIMERO)
-  - [ ] Exportar trayectoria completa como JSON (acciones, razonamiento, observaciones, respuesta)
-  - [ ] Comparacion lado a lado: agent trajectory vs teacher trajectory
-  - [ ] Script de inspeccion: ver paso a paso que hizo el agente y por que
+- [x] **S.1**: Trayectorias inspeccionables (PRIMERO)
+  - [x] Exportar trayectoria completa como JSON (acciones, razonamiento, observaciones, respuesta)
+  - [x] Comparacion lado a lado: agent trajectory vs teacher trajectory
+  - [x] Script de inspeccion: ver paso a paso que hizo el agente y por que
+  - Deuda conocida (S.1):
+    - Parseo post-hoc de messages es fragil — si cambia el formato del chat se rompe silenciosamente. v1 OK, pero la solucion final son eventos estructurados emitidos por el harness (el on_step callback va en esa direccion).
+    - El "thinking" textual es ruido para diagnosticar el entorno. El nucleo del diagnostico es: que accion eligio, con que evidencia, que observo, cual fue su respuesta, como se compara con el teacher. El thinking ayuda a entender *por que* se confundio, pero no es el dato primario.
+    - La comparacion agent vs teacher es para inspeccion, NO para imponer una unica trayectoria correcta. El teacher es el upper bound formal, un agente puede elegir distinto y estar bien. El verdict se basa en KL del resultado final, no en si siguio los mismos pasos.
 - [ ] **S.2**: Pipeline de diagnostico de entorno
   - [ ] Script que corre N casos E2E y genera reporte
   - [ ] Detectar patrones: trivialidad, imposibilidad, confusion, shortcuts

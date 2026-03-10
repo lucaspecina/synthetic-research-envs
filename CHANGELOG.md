@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Agent trajectory inspection (S.1)
+- **New module `src/sreg/harness/agent_trajectory.py`**: `AgentTrajectoryStep` and
+  `AgentTrajectory` Pydantic models. `extract_agent_trajectory()` post-processes
+  the raw chat messages from `AgentResult` into structured, inspectable steps
+  (thinking, tool call, observation, error, submit). `export_agent_trajectories()`
+  writes JSONL.
+- **New module `src/sreg/harness/comparison.py`**: `TrajectoryComparison` model +
+  `compare_trajectories()` builds side-by-side agent vs teacher comparison with
+  verdict (EXCELLENT/GOOD/FAIR/POOR/NO_SUBMIT).
+- **New script `scripts/view_trajectory.py`**: CLI viewer for agent trajectories
+  and comparisons. Auto-detects file type.
+- **`scripts/test_agent.py`**: new `--save-trajectory DIR` flag. Saves agent
+  trajectory JSON + comparison JSON after running.
+- 18 new tests (601 total): extraction, serialization, export, comparison.
+- Zero changes to `AgentSolver.solve()` — trajectories extracted post-hoc.
+
 ### 2026-03-10 — Fix question/answer mismatch bug + budget wording
 - **BUG FIX (P0)**: `generate_from_plan` was overriding question text for ALL eval
   types, causing mismatches where the question mentioned different nodes/interventions

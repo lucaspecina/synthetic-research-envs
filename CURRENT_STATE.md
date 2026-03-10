@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 552 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
+**Estado actual: 601 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
 
 ---
 
@@ -522,7 +522,9 @@ python scripts/test_agent.py
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
 | **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la BN: multi-dataset (primary+secondary), missing data, narrativas |
 | **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica + diseña research cases via design_case) |
-| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **v1: solo infer_target (observe/submit). No soporta los otros 8 eval types. No genera trayectorias inspeccionables. Pendiente: v2 diagnostico.** |
+| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **v1: solo infer_target (observe/submit). Pendiente: v2 diagnostico (harness multi-tipo, pipeline de diagnostico).** |
+| **Agent trajectory** | `src/sreg/harness/agent_trajectory.py` | Extrae trayectorias estructuradas del agente (post-hoc desde messages). Export JSONL. |
+| **Trajectory comparison** | `src/sreg/harness/comparison.py` | Comparacion lado a lado agent vs teacher. Verdict: EXCELLENT/GOOD/FAIR/POOR/NO_SUBMIT. |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
 | **QualitySuite** | `src/sreg/harness/quality.py` | Suite de evaluación en 3 capas: world quality, task quality, generator diversity |
 | **Trajectory export** | `src/sreg/harness/trajectory.py` | Exporta trayectorias del teacher como JSONL |
