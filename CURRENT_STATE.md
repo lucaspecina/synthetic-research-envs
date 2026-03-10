@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 540 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 8 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso.**
+**Estado actual: 552 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
 
 ---
 
@@ -360,14 +360,37 @@ No es "¿cuál es la mejor?" (best_intervention, muchas opciones) sino "dados
 estos dos tratamientos concretos, ¿cuál preferís?". Requiere razonamiento
 causal comparativo, no búsqueda exhaustiva.
 
-### Diferencias clave entre los 8 task types
+### `infer_latent_cause` — "¿Cuál es la causa oculta?"
 
-| | infer_target | NBO | hypothesis_sel | causal_effect | best_intervention | adjustment_set | compare_interventions | should_condition |
-|---|---|---|---|---|---|---|---|---|
-| **Qué mide** | Estimación | Estrategia | Comparación | Razonamiento causal | Decisión óptima | Comprensión causal | Comparación causal | Confound awareness |
-| **Output** | Distribución | Un nodo | Una letra (A-D) | Distribución interventional | Nodo + estado | Set de variables | A o B | yes/no |
-| **Scoring** | KL (continuo) | IG ratio (continuo) | Accuracy (binario) | KL (continuo) | Effect ratio (continuo) | Match (binario) | Match (binario) | Match (binario) |
-| **Interactúa?** | Sí | No | No | No | No | No | No | No |
+**La pregunta:** "Dados estos síntomas observados, estimá la distribución de
+probabilidad sobre los estados posibles de la variable oculta."
+
+**Cómo funciona:**
+1. Se elige una variable latente del mundo
+2. Se samplea un estado verdadero y se da evidencia parcial (1 a N-2 observaciones)
+3. Se computa la posterior exacta P(latente | evidencia) via inferencia bayesiana
+4. El agente debe estimar esa posterior
+
+**Ejemplo:** Mundo con `hidden_cause` (latente) → 6 indicators → target.
+Se observa que `indicator_1 = high`, `indicator_4 = medium`.
+Posterior: P(hidden_cause | evidence) = {low: 0.05, medium: 0.02, high: 0.93}.
+El agente debe llegar a una distribución similar.
+
+**Scoring:** KL divergence (mismo que infer_target). 0.0 = perfecto.
+
+**Por qué es interesante:** Es la pregunta de diagnóstico por excelencia.
+Un médico ve síntomas e infiere la enfermedad. Un ingeniero ve fallos e
+infiere la causa raíz. Es como infer_target pero al revés — de efectos
+observados a causas ocultas.
+
+### Diferencias clave entre los 9 task types
+
+| | infer_target | NBO | hypothesis_sel | causal_effect | best_intervention | adjustment_set | compare_interv | should_condition | infer_latent |
+|---|---|---|---|---|---|---|---|---|---|
+| **Qué mide** | Estimación | Estrategia | Comparación | Razonamiento causal | Decisión óptima | Comprensión causal | Comparación causal | Confound awareness | Diagnóstico |
+| **Output** | Distribución | Un nodo | Una letra (A-D) | Distribución interventional | Nodo + estado | Set de variables | A o B | yes/no | Distribución |
+| **Scoring** | KL (continuo) | IG ratio (continuo) | Accuracy (binario) | KL (continuo) | Effect ratio (continuo) | Match (binario) | Match (binario) | Match (binario) | KL (continuo) |
+| **Interactúa?** | Sí | No | No | No | No | No | No | No | No |
 
 ---
 
@@ -580,6 +603,13 @@ spec = TaskSpec(type=TaskType.SHOULD_CONDITION, target_node="target_outcome", ma
 task = TaskGenTool().generate(world, spec, seed=42)
 # task.intervention → {"branch_1": "branch_2"}  ({treatment: suggested_control_var})
 # task.correct_answer → {"yes": 1.0} or {"no": 1.0}
+
+# infer_latent_cause
+spec = TaskSpec(type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5)
+task = TaskGenTool().generate(world, spec, seed=42)
+# task.target_node → "hidden_cause"  (the latent variable, NOT the world target)
+# task.given_evidence → {"indicator_1": "high", "indicator_4": "medium"}
+# task.correct_answer → {"low": 0.05, "medium": 0.02, "high": 0.93}  (posterior)
 ```
 
 ### Scoring
@@ -650,7 +680,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
 
 ## Test coverage
 
-- **540 tests** en todos los módulos
+- **552 tests** en todos los módulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)
@@ -667,6 +697,7 @@ episode = EpisodeGenTool().generate(world, EpisodeGenConfig(budget=4))  # → Ep
   - adjustment_set: 20 tests (generation, confounding detection, identifiability, scoring, cross-template)
   - compare_interventions: 15 tests (generation, two-option format, scoring, cross-template, node diversity)
   - should_condition: 14 tests (generation, binary answer, mediator detection, confounder detection, scoring)
+  - infer_latent_cause: 12 tests (generation, latent targeting, posterior validity, evidence, scoring via KL)
 
 ---
 

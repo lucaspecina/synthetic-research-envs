@@ -16,6 +16,7 @@ class TaskType(StrEnum):
     ADJUSTMENT_SET = "adjustment_set"
     COMPARE_INTERVENTIONS = "compare_interventions"
     SHOULD_CONDITION = "should_condition"
+    INFER_LATENT_CAUSE = "infer_latent_cause"
 
 
 class TaskSpec(BaseModel):

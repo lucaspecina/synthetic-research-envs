@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-10 — Ola 1: infer_latent_cause eval type (Ola 1 COMPLETE)
+- **`TaskType.INFER_LATENT_CAUSE`**: "Based on observed symptoms, what is the probability
+  distribution over the hidden cause?"
+- **`TaskGenTool._infer_latent_cause_task()`**: picks a latent node, samples evidence
+  from observables, computes posterior P(latent | evidence) via exact inference
+- Uses existing `kl_divergence` scoring (same as infer_target)
+- Fixed `generate_all()` to only generate the 3 original bundle types (not all 9)
+- 12 new tests. 552 total. E2E validated: entropy reduction 0.13-1.38 bits across
+  all templates. More evidence = more certainty about hidden cause.
+- **Ola 1 complete**: 5 eval types (causal_effect, best_intervention, adjustment_set,
+  compare_interventions, should_condition, infer_latent_cause) + 3 original = 9 total.
+
 ### 2026-03-10 — Ola 1: should_condition eval type
 - **`TaskType.SHOULD_CONDITION`**: "A colleague suggests controlling for Z when
   analyzing X's effect on Y. Is this correct?"

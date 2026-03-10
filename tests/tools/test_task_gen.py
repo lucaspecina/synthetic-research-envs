@@ -372,11 +372,14 @@ def test_generate_all_returns_bundle(world):
     assert bundle.seed == 42
 
 
+BUNDLE_TYPES = {TaskType.INFER_TARGET, TaskType.NEXT_BEST_OBSERVATION, TaskType.HYPOTHESIS_SELECTION}
+
+
 def test_bundle_has_all_task_types(world):
     tool = TaskGenTool()
     bundle = tool.generate_all(world, seed=42)
 
-    assert set(bundle.tasks.keys()) == set(TaskType)
+    assert set(bundle.tasks.keys()) == BUNDLE_TYPES
 
 
 def test_bundle_property_accessors(world):
@@ -411,7 +414,7 @@ def test_bundle_deterministic(world):
     b1 = tool.generate_all(world, seed=99)
     b2 = tool.generate_all(world, seed=99)
 
-    for tt in TaskType:
+    for tt in BUNDLE_TYPES:
         assert b1.tasks[tt].correct_answer == b2.tasks[tt].correct_answer
 
 
@@ -443,8 +446,8 @@ def test_bundle_works_across_templates():
         ))
         bundle = tool.generate_all(world, seed=42)
 
-        assert len(bundle.tasks) == len(TaskType), f"Missing tasks for {template}"
-        for tt in TaskType:
+        assert len(bundle.tasks) == len(BUNDLE_TYPES), f"Missing tasks for {template}"
+        for tt in BUNDLE_TYPES:
             assert tt in bundle.tasks, f"Missing {tt} for {template}"
 
 
@@ -456,8 +459,8 @@ def test_bundle_serialization(world):
     restored = TaskBundle.model_validate(data)
 
     assert restored.world_id == bundle.world_id
-    assert len(restored.tasks) == len(TaskType)
-    for tt in TaskType:
+    assert len(restored.tasks) == len(BUNDLE_TYPES)
+    for tt in BUNDLE_TYPES:
         assert restored.tasks[tt].correct_answer == bundle.tasks[tt].correct_answer
 
 
@@ -916,6 +919,153 @@ def test_score_adjustment_set_not_identifiable():
     assert verifier.score_adjustment_set(["some_var"], valid_sets) == 0.0
     # Agent incorrectly says empty set
     assert verifier.score_adjustment_set([], valid_sets) == 0.0
+
+
+# --- infer_latent_cause tests ---
+
+
+def test_infer_latent_cause_generates(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    assert isinstance(task, Task)
+    assert task.type == TaskType.INFER_LATENT_CAUSE
+    assert task.world_id == world.id
+    assert task.scoring_method == "kl_divergence"
+
+
+def test_infer_latent_cause_targets_latent_node(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    # target_node should be a latent variable, not the world's target
+    latent_names = [n.name for n in world.nodes if n.type == NodeType.LATENT]
+    assert task.target_node in latent_names
+
+
+def test_infer_latent_cause_has_posterior(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    # correct_answer is a probability distribution
+    assert len(task.correct_answer) > 0
+    total = sum(task.correct_answer.values())
+    assert abs(total - 1.0) < 1e-6
+
+
+def test_infer_latent_cause_has_evidence(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    # given_evidence should have some observations
+    assert len(task.given_evidence) >= 1
+    obs_names = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    for k in task.given_evidence:
+        assert k in obs_names
+
+
+def test_infer_latent_cause_question_mentions_hidden(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    assert "hidden" in task.question.lower() or "latent" in task.question.lower()
+    assert task.target_node in task.question
+
+
+def test_infer_latent_cause_deterministic(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    t1 = tool.generate(world, spec, seed=42)
+    t2 = tool.generate(world, spec, seed=42)
+
+    assert t1.correct_answer == t2.correct_answer
+    assert t1.given_evidence == t2.given_evidence
+    assert t1.target_node == t2.target_node
+
+
+def test_infer_latent_cause_different_seeds(world):
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    t1 = tool.generate(world, spec, seed=0)
+    t2 = tool.generate(world, spec, seed=1)
+
+    # Different seeds give different evidence, so different posteriors
+    assert t1.given_evidence != t2.given_evidence or t1.correct_answer != t2.correct_answer
+
+
+def test_infer_latent_cause_posterior_differs_from_prior(world):
+    """Evidence should update the posterior away from the prior."""
+    from sreg.solver.exact_bayes import ExactBayesSolver
+
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(world, spec, seed=42)
+
+    solver = ExactBayesSolver(world)
+    prior = solver.posterior(task.target_node)
+
+    # Posterior should differ from prior (evidence is informative)
+    differences = sum(
+        abs(task.correct_answer.get(s, 0) - prior.get(s, 0)) for s in prior
+    )
+    assert differences > 0.01, "Posterior should differ from prior with evidence"
+
+
+@pytest.mark.parametrize(
+    "template", ["latent_preference", "causal_chain", "fork_collider"]
+)
+def test_infer_latent_cause_works_across_templates(template):
+    gen = WorldGenTool()
+    nodes = 7 if template == "fork_collider" else 6
+    w = gen.generate(
+        WorldGenConfig(template_family=template, seed=42, num_nodes=nodes, edge_strength=0.7)
+    )
+    tool = TaskGenTool()
+    spec = TaskSpec(
+        type=TaskType.INFER_LATENT_CAUSE, target_node="target_outcome", max_budget=5
+    )
+    task = tool.generate(w, spec, seed=42)
+
+    assert task.type == TaskType.INFER_LATENT_CAUSE
+    latent_names = [n.name for n in w.nodes if n.type == NodeType.LATENT]
+    assert task.target_node in latent_names
+    assert abs(sum(task.correct_answer.values()) - 1.0) < 1e-6
+
+
+def test_infer_latent_cause_scorable_with_kl():
+    """Can score infer_latent_cause using existing KL divergence scorer."""
+    verifier = VerifierTool()
+
+    # Perfect answer
+    true_posterior = {"low": 0.1, "medium": 0.2, "high": 0.7}
+    score = verifier.score(true_posterior, true_posterior)
+    assert score.functional_score < 0.01  # KL ~ 0
+
+    # Bad answer
+    bad_answer = {"low": 0.7, "medium": 0.2, "high": 0.1}
+    score = verifier.score(bad_answer, true_posterior)
+    assert score.functional_score > 0.5  # KL >> 0
 
 
 # --- should_condition tests ---

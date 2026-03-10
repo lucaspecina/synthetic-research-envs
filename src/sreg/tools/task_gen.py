@@ -33,8 +33,13 @@ class TaskGenTool:
         Returns a TaskBundle grouping infer_target, next_best_observation,
         and hypothesis_selection tasks derived from the same world and seed.
         """
+        bundle_types = [
+            TaskType.INFER_TARGET,
+            TaskType.NEXT_BEST_OBSERVATION,
+            TaskType.HYPOTHESIS_SELECTION,
+        ]
         tasks: dict[TaskType, Task] = {}
-        for task_type in TaskType:
+        for task_type in bundle_types:
             spec = TaskSpec(type=task_type, target_node=target_node, max_budget=max_budget)
             tasks[task_type] = self.generate(world, spec, seed=seed)
         return TaskBundle(
@@ -67,6 +72,8 @@ class TaskGenTool:
             return self._compare_interventions_task(world, spec, seed)
         if spec.type == TaskType.SHOULD_CONDITION:
             return self._should_condition_task(world, spec, seed)
+        if spec.type == TaskType.INFER_LATENT_CAUSE:
+            return self._infer_latent_cause_task(world, spec, seed)
         raise ValueError(f"Unsupported task type: {spec.type}")
 
     def _infer_target_task(self, world: World, spec: TaskSpec) -> Task:
@@ -462,6 +469,58 @@ class TaskGenTool:
             correct_answer=correct_answer,
             scoring_method="compare_interventions",
             intervention={better_node: better_state},
+        )
+
+    def _infer_latent_cause_task(
+        self, world: World, spec: TaskSpec, seed: int
+    ) -> Task:
+        solver = ExactBayesSolver(world)
+        obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+        latent_nodes = [n for n in world.nodes if n.type == NodeType.LATENT]
+        rng = np.random.default_rng(seed)
+
+        if not latent_nodes:
+            raise ValueError(
+                "Cannot generate infer_latent_cause task: world has no latent nodes"
+            )
+
+        # Pick a latent node
+        latent_node = latent_nodes[rng.choice(len(latent_nodes))]
+
+        # Sample a true state and give some evidence
+        true_state = solver.sample_state(seed=seed)
+
+        # Give 1 to N-2 observations (leave room for uncertainty)
+        max_given = max(1, len(obs_nodes) - 2)
+        num_given = int(rng.integers(1, max_given + 1))
+        shuffled = list(obs_nodes)
+        rng.shuffle(shuffled)
+        given_nodes = shuffled[:num_given]
+        given_evidence = {n: true_state[n] for n in given_nodes}
+
+        # Compute posterior of the latent given evidence
+        posterior = solver.posterior(latent_node.name, evidence=given_evidence)
+
+        state_list = ", ".join(latent_node.states)
+        evidence_desc = ", ".join(f"'{k}' = '{v}'" for k, v in given_evidence.items())
+        question = (
+            f"Based on the observed data ({evidence_desc}), estimate the "
+            f"probability distribution over the possible states of the hidden "
+            f"variable '{latent_node.name}' (possible states: {state_list}). "
+            f"This variable cannot be directly observed — you must infer it "
+            f"from the available evidence."
+        )
+
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=latent_node.name,
+            available_evidence=obs_nodes,
+            correct_answer=posterior,
+            scoring_method="kl_divergence",
+            given_evidence=given_evidence,
         )
 
     def _should_condition_task(

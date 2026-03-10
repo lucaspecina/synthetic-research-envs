@@ -188,12 +188,12 @@
 - [x] **B.1**: `causal_effect` — Si do(X=x), qué pasa con Y?
   > Implementado: `causal_query()`, `_causal_effect_task()`, `Task.intervention`.
   > 14 tests. E2E validado: do() != observe() con confounders.
-- [ ] **Ola 1** (builds on lo que hay, pgmpy directo):
+- [x] **Ola 1** (builds on lo que hay, pgmpy directo):
   - [x] `best_intervention` — Qué intervención maximiza Y? (argmax sobre do-queries)
   - [x] `compare_interventions` — do(X) vs do(Z), cuál cambia más Y?
   - [x] `adjustment_set` — Qué variables debo controlar? (backdoor criterion)
   - [x] `should_condition` — Alguien sugiere controlar por Z. Es correcto? (elemental confounds)
-  - [ ] `infer_latent_cause` — Qué causa oculta explica los síntomas? (posterior sobre LATENT)
+  - [x] `infer_latent_cause` — Qué causa oculta explica los síntomas? (posterior sobre LATENT)
 - [ ] **Ola 2** (requieren más diseño):
   - [ ] `simpson_paradox` — Datos que engañan, solo la estructura causal resuelve
   - [ ] `mediation` — Efecto directo vs indirecto (NDE/NIE via múltiples do-queries)
