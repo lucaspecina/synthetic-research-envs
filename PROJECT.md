@@ -334,6 +334,80 @@ verificable**. Sin generador de CPDs → sin ground truth → sin evaluación.
 
 ---
 
+## SREG como sistema de tres piezas
+
+SREG no es solo un generador. Es un sistema de **tres componentes interdependientes**:
+
+```
+1. GENERADOR de research cases
+   (orchestrator + tools + templates + BN engine)
+   -> Produce el entorno: mundo formal, narrativa, datos, acciones, preguntas
+
+2. TEACHER / EVALUATOR
+   (teacher solver + verifier + QualitySuite)
+   -> Define el upper bound, computa golden answers, evalua respuestas
+
+3. AGENT SOLVER
+   (LLM agent que interactua con el entorno)
+   -> Valida que el entorno FUNCIONE como investigacion
+```
+
+**Sin el agent solver, diseñamos el entorno a ciegas.** Podemos generar mundos,
+tasks, narrativa y golden answers, pero no sabemos cómo se comporta un agente
+real al intentar resolverlos. Recién con el solver vemos problemas como:
+
+- **Casos triviales o imposibles**: el agente resuelve sin medir nada, o no puede
+  resolver ni con budget completo.
+- **Narrativa confusa**: el agente no entiende qué se le pide, o malinterpreta
+  el contexto.
+- **Preguntas que parecen científicas pero no guían investigación real**: el agente
+  no sabe qué medir ni por qué, porque la pregunta no sugiere un camino.
+- **Acciones que no se sienten naturales**: "Measure variable_3" no guía
+  razonamiento; "Solicitar análisis granulométrico" sí.
+- **Leakage o shortcuts**: el agente puede inferir la respuesta sin investigar
+  (por los datos iniciales, por el nombre de las variables, por la narrativa).
+- **Reward que no coincide con "investigar bien"**: el score puede ser alto
+  aunque el agente haya tomado decisiones irracionales.
+
+### El solver como herramienta de diagnóstico
+
+En esta etapa, el solver no tiene que ser perfecto ni competitivo. Su rol
+inicial es **diagnóstico**:
+
+- Correr casos end-to-end
+- Elegir acciones dentro del budget
+- Razonar con los datos disponibles
+- Responder preguntas
+- Dejarnos inspeccionar trayectorias, errores y failure modes
+
+**El agente NO recibe pistas sobre el tipo de evaluación.** Recibe una pregunta
+científica y se las arregla. No hay "soporte por eval type" en el agente — la
+gracia es que el entorno le presenta un problema y el agente investiga. Si le
+diéramos lógica especial por tipo, dejaríamos de medir si el caso realmente
+se sostiene por sí solo.
+
+Lo que sí necesita funcionar es la infraestructura del **harness**: parsing de
+respuestas, validación de formato, y scoring. Eso es plumbing, no inteligencia
+del agente.
+
+**Única excepción**: instrucciones neutrales de formato de salida ("respondé en
+JSON", "si elegís variables, devolvé una lista"). Eso no da pistas científicas
+— solo hace que el sistema sea evaluable.
+
+**Prioridad: trayectorias legibles + diagnóstico ANTES que breadth.** Ver cómo
+un agente recorre 20 casos y dónde se rompe dice más que soporte superficial
+para muchos tipos sin buena inspección.
+
+El solver valida si los research cases realmente funcionan como entornos de
+investigación. SREG no debe evaluarse solo por la calidad del world model o de
+las tasks, sino por si un agente LLM puede interactuar con el caso de una
+manera que **se parezca a investigar**.
+
+Con el solver, el propio entorno empieza a mostrar si tiene sentido para RL
+y para entrenamiento de agentes científicos.
+
+---
+
 ## El agente solver — filosofía
 
 El agente que resuelve los problemas es un LLM. Principios clave:
@@ -706,7 +780,8 @@ Este caso testea:
 
 ## Qué NO es SREG
 
-- **No es el agente que resuelve.** Es el gimnasio donde se entrena.
+- **No es solo el agente que resuelve.** El agente es parte del sistema, pero
+  SREG es el gimnasio completo: generador + evaluador + agente diagnóstico.
 - **No es un benchmark estático.** Es un generador que produce infinitos problemas.
 - **No entrena LLMs.** Genera los mundos, tareas, y datos. Si alguien quiere
   usar eso para entrenar, tiene todo listo.

@@ -522,7 +522,7 @@ python scripts/test_agent.py
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
 | **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la BN: multi-dataset (primary+secondary), missing data, narrativas |
 | **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica + diseña research cases via design_case) |
-| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve observando/enviando |
+| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **v1: solo infer_target (observe/submit). No soporta los otros 8 eval types. No genera trayectorias inspeccionables. Pendiente: v2 diagnostico.** |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
 | **QualitySuite** | `src/sreg/harness/quality.py` | Suite de evaluación en 3 capas: world quality, task quality, generator diversity |
 | **Trajectory export** | `src/sreg/harness/trajectory.py` | Exporta trayectorias del teacher como JSONL |

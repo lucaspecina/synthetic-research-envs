@@ -119,11 +119,12 @@
 > > natural de un caso de investigacion, no como una operacion bonita sobre un DAG.
 > > Si no se puede formular naturalmente dentro de un case, no es prioridad.
 >
-> **Orden de prioridades (revisado 2026-03-09):**
-> 1. Ola 1 de eval types (3 tipos: vocabulario suficiente para cases interesantes)
-> 2. Rich actions (que las acciones se sientan como ciencia, no como "revelar nodo")
-> 3. E2E con LLM real usando design_case (el orchestrator diseña el caso)
-> 4. Paper-seeded cases (el salto cualitativo: paper real → caso sintetico)
+> **Orden de prioridades (revisado 2026-03-10):**
+> 1. ~~Ola 1 de eval types~~ DONE (9 tipos)
+> 2. **Agent Solver v2** (diagnostico del entorno — sin el solver diseñamos a ciegas)
+> 3. Rich actions Slice B (que las acciones se sientan como ciencia)
+> 4. E2E con LLM real usando design_case (el orchestrator diseña el caso)
+> 5. Paper-seeded cases (el salto cualitativo: paper real → caso sintetico)
 >
 > El motor formal ya es suficientemente fuerte. El valor diferencial ahora sale
 > de que los cases se parezcan a mini-investigaciones cientificas reales.
@@ -286,6 +287,58 @@
   - [ ] `structure_discovery` — Recuperar la estructura causal (SHD, edge F1)
   - [ ] `prediction` — Posterior de un nodo no-target
   - [ ] Familia F: evaluaciones de proceso (rubrics, calibración, LLM-as-judge)
+
+#### 4. Agent Solver v2 — diagnostico del entorno (PRIORIDAD)
+> **El agent solver no es un extra. Es parte del loop de validacion de SREG.**
+> Sin el solver, seguimos diseñando el entorno a ciegas. Con el solver, el
+> propio entorno empieza a mostrar si tiene sentido para RL y entrenamiento
+> de agentes cientificos.
+>
+> **Estado actual del solver (v1)**: solo maneja `observe`/`submit`, solo
+> resuelve `infer_target` (distribucion sobre target). No genera trayectorias
+> inspeccionables. No diagnostica el entorno.
+>
+> **Rol del solver v2**: diagnostico, no competitivo. Correr casos E2E,
+> elegir acciones, razonar con budget, responder preguntas, y dejarnos
+> inspeccionar trayectorias, errores y failure modes.
+>
+> **Principio clave: el agente NO recibe pistas sobre el tipo de evaluacion.**
+> Recibe una pregunta cientifica y se las arregla. No hay "soporte por eval
+> type" en el agente — la gracia es que el entorno le presenta un problema
+> y el agente investiga. Lo que si necesita funcionar es la infraestructura
+> del harness: que el formato de respuesta sea aceptable (distribucion,
+> eleccion, set de variables, si/no) y que el verifier pueda scorear lo
+> que devuelve. Eso es plumbing, no inteligencia del agente.
+>
+> **Prioridad: trayectorias legibles + diagnostico ANTES que breadth.**
+> Ver como un agente recorre 20 casos y donde se rompe dice mas que
+> soporte superficial para muchos tipos sin buena inspeccion.
+>
+> **Que queremos detectar con el solver**:
+> - Casos triviales (resuelve sin medir) o imposibles (no puede resolver)
+> - Narrativa confusa (no entiende que se le pide)
+> - Preguntas que no guian investigacion real
+> - Acciones que no se sienten naturales
+> - Leakage / shortcuts (infiere sin investigar)
+> - Reward que no coincide con "investigar bien"
+
+- [ ] **S.1**: Trayectorias inspeccionables (PRIMERO)
+  - [ ] Exportar trayectoria completa como JSON (acciones, razonamiento, observaciones, respuesta)
+  - [ ] Comparacion lado a lado: agent trajectory vs teacher trajectory
+  - [ ] Script de inspeccion: ver paso a paso que hizo el agente y por que
+- [ ] **S.2**: Pipeline de diagnostico de entorno
+  - [ ] Script que corre N casos E2E y genera reporte
+  - [ ] Detectar patrones: trivialidad, imposibilidad, confusion, shortcuts
+  - [ ] Metricas de diagnostico: % resueltos, % sin submit, % shortcuts, KL distribution
+  - [ ] Report de failure modes: que tipos de caso fallan, por que
+- [ ] **S.3**: Harness multi-tipo (plumbing, NO pistas al agente)
+  - [ ] Aceptar formatos de respuesta variados (distribucion, eleccion, set, si/no)
+  - [ ] Verifier scorea cada formato contra ground truth
+  - [ ] El agente recibe la pregunta y punto — no sabe que "tipo" es
+  - [ ] Unica excepcion: instrucciones neutrales de formato de salida ("responde en JSON", "si elegis variables, devolve una lista"). Eso no da pistas cientificas, solo hace que el sistema sea evaluable. NO incluir nada que sugiera estrategia o tipo de razonamiento.
+- [ ] **S.4**: Agent con acciones ricas
+  - [ ] Soportar action_id (acciones multi-nodo, costos variados)
+  - [ ] Soportar intervenciones como acciones del agente
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
