@@ -360,19 +360,37 @@ real — experimentos, mediciones, recolección de datos nuevos:
 - Obtener datos adicionales → cuesta budget
 
 Estas acciones están definidas como parte del mundo. Cada una tiene un costo
-y corresponde a observar un nodo (o conjunto de nodos) de la red bayesiana.
+y corresponde a observar o intervenir en nodos de la red bayesiana.
 
-### Las acciones se definen por mundo
+**Observar vs intervenir**: hay una diferencia fundamental entre ver lo que ya
+existe (observación) y cambiar algo para ver qué pasa (intervención). Observar
+`water_temperature` revela su valor sin modificar el mundo. Intervenir en
+`water_temperature` (fijarla en "alta") rompe las causas naturales de esa
+variable y permite estimar efectos causales. Esta distinción es central en la
+teoría causal (Pearl's do-calculus) y se refleja en los tipos de acción.
+
+### Las acciones se definen por caso
 
 Qué puede hacer el agente, cuánto cuesta cada cosa, y qué restricciones tiene
-se define como parte de la configuración del mundo/episodio. Esto permite:
-- Mundos donde todo es barato pero hay muchas variables
-- Mundos donde hay pocas acciones pero son caras
-- Mundos con acciones que revelan mucho vs poco
-- Mundos con restricciones específicas
+se define como parte del research case — no como una lista genérica. Cada caso
+tiene acciones que hacen sentido para su contexto de investigación:
+- Un caso de ecología puede ofrecer "tomar muestras de suelo" o "analizar pH"
+- Un caso de epidemiología puede ofrecer "consultar registros hospitalarios"
+- Un caso de materiales puede ofrecer "ensayo de adherencia" o "análisis de
+  microdefectos"
 
-En las primeras versiones, las acciones son simples (observar variable X con
-costo Y). Después se puede escalar a acciones más complejas.
+Las acciones tienen **tipos formales fijos** (observar, intervenir, solicitar
+dataset, consultar fuente) pero **instancias concretas** diseñadas por el
+orchestrator para cada caso. Paralelo con los eval types: los tipos son fijos,
+las preguntas son específicas del caso.
+
+Guía: **4-8 acciones por caso** — suficientes para que haya decisiones
+interesantes, pocas para que no sea abrumador.
+
+> **Para el diseño detallado de acciones de investigación** — paradigmas de
+> investigación, tipos de acción, co-diseño con preguntas y evidencia,
+> principios y ejemplos — ver la sección "Diseño de acciones de investigación"
+> en **`WORLD_DESIGN.md`**.
 
 ---
 
@@ -418,6 +436,14 @@ El orchestrator no solo genera el mundo — **diseña el caso completo**:
 tiene libertad creativa para diseñar el caso, pero cada pregunta debe
 tener una respuesta verificable matemáticamente desde la red bayesiana.
 El LLM nunca toca los números — propone estructura, semántica, y preguntas.
+
+**Co-diseño de preguntas, acciones y evidencia.** Las preguntas, las acciones
+disponibles y los datos iniciales no se diseñan por separado — se diseñan
+juntos para que el caso sea coherente. Si una pregunta es "¿cuál es el efecto
+causal de X sobre Y?", debe existir una acción de intervención sobre X. Si
+se presenta un dataset con 5 variables, las acciones deben dar acceso a las
+que faltan. La evidencia inicial no debe regalar la respuesta, y las acciones
+deben poder cambiar la incertidumbre del agente de manera significativa.
 
 ### Validación
 
