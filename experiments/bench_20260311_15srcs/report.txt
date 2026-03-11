@@ -1,0 +1,79 @@
+
+======================================================================
+BENCHMARK REPORT (partial)
+======================================================================
+  Timestamp: 2026-03-11T13:29:11.827077
+  SRCs: 14/15 completed
+  Tasks: 57
+  Submission rate: 95%
+  Format errors: 3
+
+======================================================================
+PER EVAL TYPE
+======================================================================
+  Type                        N  Sub%    Score Verdicts                  Failures
+  --------------------------------------------------------------------------------
+  adjustment_set              4  100%   0.2500 CORRECT:1, WRONG:3        INCORRECT:3, ZERO_OBS_CORRECT:1
+  best_intervention           6  100%   0.6118 CORRECT:2, PARTIAL:4      ZERO_OBS_CORRECT:2
+  causal_effect               7  100%   0.3140 EXCELLENT:2, FAIR:2, GOOD -
+  compare_interventions       7  100%   0.7143 CORRECT:5, WRONG:2        INCORRECT:2, ZERO_OBS_CORRECT:4
+  hypothesis_selection        6  100%   0.1667 CORRECT:1, WRONG:5        FORMAT_RETRY:1, INCORRECT:5
+  infer_latent_cause          4  100%   1.3409 FAIR:2, POOR:2            HIGH_KL:1
+  infer_target               13   85%   0.2825 EXCELLENT:2, FAIR:3, GOOD FORMAT_RETRY:1, NO_SUBMIT:2
+  next_best_observation       6  100%   1.0000 CORRECT:6                 ZERO_OBS_CORRECT:6
+  should_condition            4   75%   0.3333 CORRECT:1, NO_SCORE:1, WR INCORRECT:2, NO_SUBMIT:1, ZERO_OBS_CORRECT:1
+
+======================================================================
+BASELINE COMPARISON (random guess)
+======================================================================
+  Type                        N    Agent   Random  Beats% Note
+  ----------------------------------------------------------------------
+  best_intervention           6   0.6118   0.4319     67% higher=better
+  causal_effect               7   0.3140   0.3824     71% lower=better
+  compare_interventions       7   0.7143   0.5000     71% higher=better
+  hypothesis_selection        6   0.1667   0.2500     17% higher=better
+  infer_latent_cause          4   1.3409   0.6880      0% lower=better
+  infer_target               13   0.2825   0.2407     46% lower=better
+  next_best_observation       6   1.0000   0.7297     50% higher=better
+  should_condition            4   0.3333   0.5000     25% higher=better
+
+======================================================================
+FAILURE MODES BY TYPE
+======================================================================
+  adjustment_set: INCORRECT:3, ZERO_OBS_CORRECT:1
+  best_intervention: ZERO_OBS_CORRECT:2
+  compare_interventions: ZERO_OBS_CORRECT:4, INCORRECT:2
+  hypothesis_selection: INCORRECT:5, FORMAT_RETRY:1
+  infer_latent_cause: HIGH_KL:1
+  infer_target: NO_SUBMIT:2, FORMAT_RETRY:1
+  next_best_observation: ZERO_OBS_CORRECT:6
+  should_condition: INCORRECT:2, ZERO_OBS_CORRECT:1, NO_SUBMIT:1
+
+======================================================================
+PER SRC
+======================================================================
+   ID  Orch   WC Tasks  Sub Types                               Title
+  --------------------------------------------------------------------------------
+    1    OK PASS     4    4 causal_effect, hypothesis_selection Reef Decline Dynamics in 
+    2    OK PASS     3    3 compare_interventions, infer_target Spread of the Morava Feve
+    3    OK PASS     4    4 adjustment_set, best_intervention,  Premature Failure of the 
+    4    OK PASS     4    4 hypothesis_selection, infer_latent_ Fluctuating Crop Yields o
+    5    OK PASS     4    4 best_intervention, causal_effect, c Eruptive Hazard Dynamics 
+    6  FAIL    -     0    0                                     
+    7    OK PASS     4    4 adjustment_set, compare_interventio Drivers of Hydrothermal V
+    8    OK PASS     4    4 best_intervention, causal_effect, i Soil Microbiome Stabiliza
+    9    OK PASS     4    3 compare_interventions, hypothesis_s Cognitive Development Tra
+   10    OK PASS     5    4 adjustment_set, best_intervention,  Freshwater Ecosystem Coll
+   11    OK PASS     4    4 compare_interventions, hypothesis_s Star Formation Bottleneck
+   12    OK PASS     4    4 best_intervention, causal_effect, i Rising Antibiotic Resista
+   13    OK PASS     5    5 adjustment_set, compare_interventio Adaptive Capacity and Eco
+   14    OK PASS     4    3 causal_effect, infer_target, next_b Neural Plasticity and Lea
+   15    OK PASS     4    4 best_intervention, compare_interven Volcanic Ash Soils and Ag
+
+======================================================================
+COVERAGE
+======================================================================
+  Types exercised: ['adjustment_set', 'best_intervention', 'causal_effect', 'compare_interventions', 'hypothesis_selection', 'infer_latent_cause', 'infer_target', 'next_best_observation', 'should_condition']
+  All 9 eval types exercised
+  Benchmark is PARTIAL: True
+======================================================================

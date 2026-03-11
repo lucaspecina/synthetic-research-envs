@@ -29,6 +29,7 @@ from sreg.agent.agent import AgentResult, AgentSolver
 from sreg.models.task import Task, TaskType
 from sreg.models.world import World
 from sreg.orchestrator.orchestrator import Orchestrator
+from sreg.tools.verifier import VerifierTool
 from sreg.tools.world_check import WorldCheckTool
 
 logger = logging.getLogger(__name__)
@@ -124,6 +125,70 @@ def classify_failure_mode(
     return None
 
 
+def compute_baseline_score(
+    task_type: TaskType, correct_answer: dict[str, float] | None
+) -> float | None:
+    """Compute expected score of a random baseline for this task type.
+
+    Returns None if baseline cannot be computed for this type.
+
+    For distribution types (lower KL is better): baseline = KL(uniform || correct).
+    For accuracy types (higher is better): baseline = expected random score.
+    """
+    if not correct_answer:
+        return None
+
+    if task_type in _DISTRIBUTION_TYPES:
+        # KL of uniform vs. correct answer
+        n_states = len(correct_answer)
+        if n_states <= 1:
+            return None
+        uniform = {s: 1.0 / n_states for s in correct_answer}
+        return round(VerifierTool.kl_divergence(uniform, correct_answer), 6)
+
+    if task_type in (TaskType.COMPARE_INTERVENTIONS, TaskType.SHOULD_CONDITION):
+        return 0.5  # Random binary choice
+
+    if task_type == TaskType.HYPOTHESIS_SELECTION:
+        n_hyp = len(correct_answer)
+        return round(1.0 / n_hyp, 6) if n_hyp > 0 else None
+
+    if task_type == TaskType.NEXT_BEST_OBSERVATION:
+        # Expected score = mean(ig) / max(ig)
+        values = list(correct_answer.values())
+        max_ig = max(values) if values else 0
+        if max_ig <= 0:
+            return 1.0  # All zero IG, any choice equally good
+        return round(sum(values) / (len(values) * max_ig), 6)
+
+    if task_type == TaskType.BEST_INTERVENTION:
+        # Expected score = mean(effect) / max(effect)
+        values = list(correct_answer.values())
+        max_eff = max(values) if values else 0
+        if max_eff <= 0:
+            return 1.0
+        return round(sum(values) / (len(values) * max_eff), 6)
+
+    # adjustment_set: too complex without knowing total possible subsets
+    return None
+
+
+def beats_baseline(
+    task_type: TaskType, score: float | None, baseline: float | None
+) -> bool | None:
+    """Check if the agent's score beats the random baseline.
+
+    For distribution types (KL): lower is better, so agent < baseline = beats.
+    For accuracy types: higher is better, so agent > baseline = beats.
+    Returns None if either score is unavailable.
+    """
+    if score is None or baseline is None:
+        return None
+    if task_type in _DISTRIBUTION_TYPES:
+        return score < baseline  # Lower KL = better
+    return score > baseline  # Higher accuracy = better
+
+
 # ---------------------------------------------------------------------------
 # Data models
 # ---------------------------------------------------------------------------
@@ -146,6 +211,8 @@ class TaskResult(BaseModel):
     time_s: float = 0
     answer: Any = None
     error: str | None = None
+    baseline_score: float | None = None
+    agent_beats_baseline: bool | None = None
 
 
 class SRCResult(BaseModel):
@@ -175,6 +242,9 @@ class TypeMetrics(BaseModel):
     format_errors: int = 0
     verdicts: dict[str, int] = Field(default_factory=dict)
     failure_modes: dict[str, int] = Field(default_factory=dict)
+    baseline_scores: list[float] = Field(default_factory=list)
+    n_beats_baseline: int = 0
+    n_baseline_computed: int = 0
 
 
 class BenchmarkReport(BaseModel):
@@ -346,6 +416,12 @@ class BenchmarkRunner:
             tr.budget_used, tr.format_errors, tr.error,
         )
 
+        # Baseline comparison
+        tr.baseline_score = compute_baseline_score(task.type, task.correct_answer)
+        tr.agent_beats_baseline = beats_baseline(
+            task.type, tr.score, tr.baseline_score
+        )
+
         return tr
 
     def _aggregate(self, report: BenchmarkReport) -> None:
@@ -366,6 +442,11 @@ class BenchmarkRunner:
                     m.failure_modes[tr.failure_mode] = (
                         m.failure_modes.get(tr.failure_mode, 0) + 1
                     )
+                if tr.baseline_score is not None:
+                    m.baseline_scores.append(tr.baseline_score)
+                    m.n_baseline_computed += 1
+                    if tr.agent_beats_baseline is True:
+                        m.n_beats_baseline += 1
 
         report.type_metrics = dict(type_data)
 
@@ -435,6 +516,46 @@ def format_benchmark_report(report: BenchmarkReport) -> str:
             f"  {tt:<25} {n:>3} {sub_pct:>5} {score_str:>8} "
             f"{verdicts:<25} {failures}"
         )
+
+    # Baseline comparison
+    has_baseline = any(
+        m.n_baseline_computed > 0 for m in report.type_metrics.values()
+    )
+    if has_baseline:
+        lines.append(f"\n{'='*70}")
+        lines.append("BASELINE COMPARISON (random guess)")
+        lines.append(f"{'='*70}")
+        lines.append(
+            f"  {'Type':<25} {'N':>3} {'Agent':>8} {'Random':>8} "
+            f"{'Beats%':>7} {'Note'}"
+        )
+        lines.append("  " + "-" * 70)
+
+        for tt in sorted(report.type_metrics.keys()):
+            m = report.type_metrics[tt]
+            if m.n_baseline_computed == 0:
+                continue
+            n = m.n_baseline_computed
+            mean_baseline = sum(m.baseline_scores) / n
+            # Agent mean (only tasks with baseline)
+            scored = [s for s in m.scores if s is not None]
+            mean_agent = sum(scored) / len(scored) if scored else float("nan")
+            beat_pct = f"{m.n_beats_baseline/n*100:.0f}%"
+
+            tt_enum = TaskType(tt)
+            if tt_enum in _DISTRIBUTION_TYPES:
+                note = "lower=better"
+                agent_str = f"{mean_agent:.4f}"
+                base_str = f"{mean_baseline:.4f}"
+            else:
+                note = "higher=better"
+                agent_str = f"{mean_agent:.4f}"
+                base_str = f"{mean_baseline:.4f}"
+
+            lines.append(
+                f"  {tt:<25} {n:>3} {agent_str:>8} {base_str:>8} "
+                f"{beat_pct:>7} {note}"
+            )
 
     # Failure modes (grouped by type)
     all_failures = defaultdict(lambda: defaultdict(int))
@@ -525,8 +646,10 @@ __all__ = [
     "SRCResult",
     "TaskResult",
     "TypeMetrics",
+    "beats_baseline",
     "classify_failure_mode",
     "classify_task_verdict",
+    "compute_baseline_score",
     "format_benchmark_report",
     "save_benchmark",
 ]

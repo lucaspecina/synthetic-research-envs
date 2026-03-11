@@ -6,8 +6,10 @@ from sreg.harness.benchmark import (
     SRCResult,
     TaskResult,
     TypeMetrics,
+    beats_baseline,
     classify_failure_mode,
     classify_task_verdict,
+    compute_baseline_score,
     format_benchmark_report,
 )
 from sreg.models.task import TaskType
@@ -259,3 +261,206 @@ class TestFormatReport:
         text = format_benchmark_report(report)
         assert "infer_target" in text
         assert "EXCELLENT" in text
+
+    def test_baseline_section_shown(self):
+        """Report shows baseline comparison when baseline data exists."""
+        report = BenchmarkReport(
+            timestamp="test",
+            n_srcs=1,
+            n_srcs_completed=1,
+            n_tasks=2,
+            type_metrics={
+                "compare_interventions": TypeMetrics(
+                    count=2, submitted=2, scores=[1.0, 0.0],
+                    baseline_scores=[0.5, 0.5],
+                    n_baseline_computed=2, n_beats_baseline=1,
+                ),
+            },
+        )
+        text = format_benchmark_report(report)
+        assert "BASELINE COMPARISON" in text
+        assert "random" in text.lower()
+
+
+# ---------------------------------------------------------------------------
+# compute_baseline_score
+# ---------------------------------------------------------------------------
+
+
+class TestComputeBaseline:
+    """Baseline score computation for each task type."""
+
+    def test_distribution_uniform_kl(self):
+        """For infer_target: baseline = KL(uniform || correct)."""
+        correct = {"low": 0.8, "high": 0.2}
+        baseline = compute_baseline_score(TaskType.INFER_TARGET, correct)
+        assert baseline is not None
+        # Uniform = {low: 0.5, high: 0.5}, correct = {low: 0.8, high: 0.2}
+        # KL(uniform || correct) > 0
+        assert baseline > 0
+
+    def test_distribution_uniform_vs_uniform(self):
+        """If correct IS uniform, baseline KL should be ~0."""
+        correct = {"a": 0.5, "b": 0.5}
+        baseline = compute_baseline_score(TaskType.INFER_TARGET, correct)
+        assert baseline is not None
+        assert baseline < 0.01  # Essentially zero
+
+    def test_causal_effect_baseline(self):
+        correct = {"low": 0.3, "mid": 0.4, "high": 0.3}
+        baseline = compute_baseline_score(TaskType.CAUSAL_EFFECT, correct)
+        assert baseline is not None
+        assert baseline > 0
+
+    def test_latent_cause_baseline(self):
+        correct = {"cause_a": 0.9, "cause_b": 0.1}
+        baseline = compute_baseline_score(TaskType.INFER_LATENT_CAUSE, correct)
+        assert baseline is not None
+        assert baseline > 0
+
+    def test_binary_compare_interventions(self):
+        correct = {"A": 0.8, "B": 0.3}
+        baseline = compute_baseline_score(TaskType.COMPARE_INTERVENTIONS, correct)
+        assert baseline == 0.5
+
+    def test_binary_should_condition(self):
+        correct = {"yes": 1.0}
+        baseline = compute_baseline_score(TaskType.SHOULD_CONDITION, correct)
+        assert baseline == 0.5
+
+    def test_hypothesis_selection_3_options(self):
+        correct = {"H1": 0.1, "H2": 0.5, "H3": 0.8}
+        baseline = compute_baseline_score(TaskType.HYPOTHESIS_SELECTION, correct)
+        assert baseline is not None
+        assert abs(baseline - 1 / 3) < 0.001
+
+    def test_hypothesis_selection_2_options(self):
+        correct = {"H1": 0.1, "H2": 0.9}
+        baseline = compute_baseline_score(TaskType.HYPOTHESIS_SELECTION, correct)
+        assert baseline == 0.5
+
+    def test_nbo_baseline(self):
+        """NBO: baseline = mean(ig) / max(ig)."""
+        correct = {"A": 0.5, "B": 1.0, "C": 0.25}
+        baseline = compute_baseline_score(TaskType.NEXT_BEST_OBSERVATION, correct)
+        # mean = (0.5+1.0+0.25)/3 = 0.583..., max = 1.0, ratio = 0.583
+        assert baseline is not None
+        assert abs(baseline - 0.583333) < 0.001
+
+    def test_nbo_all_equal_ig(self):
+        """If all nodes have same IG, baseline = 1.0 (any pick equally good)."""
+        correct = {"A": 0.5, "B": 0.5, "C": 0.5}
+        baseline = compute_baseline_score(TaskType.NEXT_BEST_OBSERVATION, correct)
+        assert baseline == 1.0
+
+    def test_best_intervention_baseline(self):
+        """best_intervention: baseline = mean(effects) / max(effects)."""
+        correct = {"x:high": 0.8, "y:low": 0.2, "z:mid": 0.4}
+        baseline = compute_baseline_score(TaskType.BEST_INTERVENTION, correct)
+        # mean = (0.8+0.2+0.4)/3 = 0.4667, max = 0.8, ratio = 0.5833
+        assert baseline is not None
+        assert abs(baseline - 0.583333) < 0.001
+
+    def test_adjustment_set_returns_none(self):
+        """adjustment_set: no baseline computable."""
+        correct = {"a,b": 1.0}
+        assert compute_baseline_score(TaskType.ADJUSTMENT_SET, correct) is None
+
+    def test_empty_answer_returns_none(self):
+        assert compute_baseline_score(TaskType.INFER_TARGET, {}) is None
+        assert compute_baseline_score(TaskType.INFER_TARGET, None) is None
+
+
+# ---------------------------------------------------------------------------
+# beats_baseline
+# ---------------------------------------------------------------------------
+
+
+class TestBeatsBaseline:
+    """Agent vs random baseline comparison."""
+
+    def test_distribution_lower_kl_beats(self):
+        """For KL-based types, lower agent score = beats baseline."""
+        assert beats_baseline(TaskType.INFER_TARGET, 0.1, 0.5) is True
+
+    def test_distribution_higher_kl_loses(self):
+        assert beats_baseline(TaskType.INFER_TARGET, 0.8, 0.5) is False
+
+    def test_accuracy_higher_beats(self):
+        """For accuracy types, higher agent score = beats baseline."""
+        assert beats_baseline(TaskType.COMPARE_INTERVENTIONS, 1.0, 0.5) is True
+
+    def test_accuracy_lower_loses(self):
+        assert beats_baseline(TaskType.HYPOTHESIS_SELECTION, 0.0, 0.333) is False
+
+    def test_none_score(self):
+        assert beats_baseline(TaskType.INFER_TARGET, None, 0.5) is None
+
+    def test_none_baseline(self):
+        assert beats_baseline(TaskType.ADJUSTMENT_SET, 1.0, None) is None
+
+    def test_equal_does_not_beat_distribution(self):
+        """Equal KL does not beat (strictly less is needed)."""
+        assert beats_baseline(TaskType.INFER_TARGET, 0.5, 0.5) is False
+
+    def test_equal_does_not_beat_accuracy(self):
+        """Equal accuracy does not beat (strictly greater is needed)."""
+        assert beats_baseline(TaskType.SHOULD_CONDITION, 0.5, 0.5) is False
+
+
+# ---------------------------------------------------------------------------
+# Aggregation with baselines
+# ---------------------------------------------------------------------------
+
+
+class TestBaselineAggregation:
+    """Verify baseline stats are aggregated in type_metrics."""
+
+    def _make_report(self, task_results):
+        src = SRCResult(
+            case_id=1,
+            orchestrator_completed=True,
+            eval_types=[tr.task_type for tr in task_results],
+            task_results=task_results,
+        )
+        report = BenchmarkReport(
+            timestamp="test",
+            n_srcs=1,
+            n_srcs_completed=1,
+            n_tasks=len(task_results),
+            src_results=[src],
+        )
+        runner = BenchmarkRunner.__new__(BenchmarkRunner)
+        runner._aggregate(report)
+        return report
+
+    def test_baseline_scores_collected(self):
+        tasks = [
+            TaskResult(
+                task_id="1", task_type="compare_interventions",
+                submitted=True, score=1.0,
+                baseline_score=0.5, agent_beats_baseline=True,
+            ),
+            TaskResult(
+                task_id="2", task_type="compare_interventions",
+                submitted=True, score=0.0,
+                baseline_score=0.5, agent_beats_baseline=False,
+            ),
+        ]
+        report = self._make_report(tasks)
+        m = report.type_metrics["compare_interventions"]
+        assert m.n_baseline_computed == 2
+        assert m.baseline_scores == [0.5, 0.5]
+        assert m.n_beats_baseline == 1
+
+    def test_no_baseline_when_none(self):
+        tasks = [
+            TaskResult(
+                task_id="1", task_type="adjustment_set",
+                submitted=True, score=1.0,
+            ),
+        ]
+        report = self._make_report(tasks)
+        m = report.type_metrics["adjustment_set"]
+        assert m.n_baseline_computed == 0
+        assert m.baseline_scores == []

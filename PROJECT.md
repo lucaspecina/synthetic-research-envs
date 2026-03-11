@@ -9,25 +9,52 @@
 
 ## La idea en una oración
 
-SREG genera **problemas de investigación ficticios pero realistas** — con contexto, datos,
-preguntas abiertas y restricciones — donde la verdad subyacente es una red bayesiana formal,
-lo que permite evaluar con exactitud matemática qué tan bien razona un agente LLM.
+SREG **genera problemas de investigación sintéticos con reward signals exactos**,
+diseñados para que policy models puedan entrenar razonamiento científico vía RL.
+
+---
+
+## Para qué existe SREG — el propósito central
+
+**SREG genera los entornos donde policy models entrenan a hacer ciencia.**
+
+Así como OpenAI Gym genera entornos donde policies entrenan a jugar juegos,
+y PRIME Intellect genera problemas de matemática con verificación formal,
+SREG genera problemas de investigación científica donde la verdad oculta
+es una red bayesiana — lo que permite computar **reward signals exactos**.
+
+```
+SREG genera:    entorno (SRC) + reward signal (vía BN)
+Otros proveen:  policy + framework de RL + loop de entrenamiento
+```
+
+**SREG no entrena policies.** No hay un `train.py` con PPO acá. SREG produce
+los SRCs, computa rewards, genera trayectorias óptimas del teacher. Quien
+quiera entrenar una policy conecta su propio framework de RL y entrena
+contra los entornos que SREG genera.
+
+Lo que hace a SREG diferente de un benchmark estático: no es un conjunto fijo
+de problemas — es un **generador infinito de entornos**, cada uno con reward
+verificable matemáticamente. Cada seed produce un entorno nuevo.
 
 ---
 
 ## Pensalo así
 
-Imaginá que sos director de un laboratorio y querés evaluar si un investigador junior
-sabe investigar de verdad. Tenés dos opciones:
+Imaginá que sos director de un laboratorio y querés entrenar a un investigador junior
+para que aprenda a investigar de verdad.
 
-**Opción A**: Le das un problema real publicado. Problema: si leyó el paper, ya sabe la
-respuesta. No estás midiendo razonamiento — estás midiendo memoria.
+**Opción A**: Le das problemas reales publicados. Problema: si leyó el paper, ya sabe la
+respuesta. No estás entrenando razonamiento — estás entrenando memoria.
 
-**Opción B**: Inventás un problema ficticio pero realista. Le das datos parciales, contexto
-teórico, y algunas pistas. El dominio no existe, así que no puede haberlo memorizado.
-Si llega a conclusiones correctas, es porque **razonó bien con la evidencia**.
+**Opción B**: Generás un flujo infinito de problemas ficticios pero realistas. Cada uno
+tiene datos parciales, contexto teórico, y pistas. El dominio no existe, así que no puede
+haberlo memorizado. Y detrás hay una verdad formal que te dice exactamente qué tan bien
+lo hizo, sin necesidad de un juez humano. Le das feedback preciso después de cada intento.
+Entrena miles de veces, cada vez con un problema nuevo.
 
-SREG es la Opción B, pero para LLMs y razonamiento científico.
+SREG es la Opción B, pero para LLMs. Es el generador de problemas + el evaluador exacto
+que juntos forman el entorno de entrenamiento.
 
 ---
 
@@ -145,9 +172,15 @@ código, formular hipótesis — pero los "experimentos" cuestan budget.]
 
 ## Dirección final del proyecto
 
-Es fundamental entender que los templates iniciales, los mundos pequeños y las tasks acotadas son solo el punto de partida.
+SREG existe para generar entornos de entrenamiento cada vez más ricos y
+realistas para policy models que aprenden a hacer ciencia.
 
-La dirección final de SREG no es quedarse en problemas pequeños y estáticos, sino avanzar hacia mundos subyacentes mucho más complejos y que se parezcan, en estructura y dificultad, a problemas reales de investigación científica y técnica.
+Los templates iniciales, los mundos pequeños y las tasks acotadas son solo
+el punto de partida. La dirección final es avanzar hacia entornos que se
+parezcan, en estructura y dificultad, a problemas reales de investigación
+científica y técnica — entornos donde una policy tenga que aprender
+razonamiento causal, diseño experimental, y toma de decisiones bajo
+incertidumbre para obtener reward alto.
 
 A largo plazo, los mundos formales deberían poder representar:
 
@@ -336,25 +369,34 @@ verificable**. Sin generador de CPDs → sin ground truth → sin evaluación.
 
 ## SREG como sistema de tres piezas
 
-SREG no es solo un generador. Es un sistema de **tres componentes interdependientes**:
+SREG no es solo un generador. Tiene tres componentes interdependientes:
 
 ```
-1. GENERADOR de research cases
+1. GENERADOR de entornos (research cases)
    (orchestrator + tools + templates + BN engine)
-   -> Produce el entorno: mundo formal, narrativa, datos, acciones, preguntas
+   -> Produce SRCs: mundo formal, narrativa, datos, acciones, preguntas
+   -> Generador infinito — cada seed produce un entorno nuevo
 
-2. TEACHER / EVALUATOR
+2. TEACHER / EVALUATOR (reward signal)
    (teacher solver + verifier + QualitySuite)
-   -> Define el upper bound, computa golden answers, evalua respuestas
+   -> Computa la policy optima (upper bound)
+   -> Genera golden answers y trayectorias optimas
+   -> Computa reward signals exactos desde el BN
 
-3. AGENT SOLVER
-   (LLM agent que interactua con el entorno)
-   -> Valida que el entorno FUNCIONE como investigacion
+3. POLICY DIAGNOSTICA
+   (LLM agent zero-shot que interactua con el entorno)
+   -> Valida que los entornos FUNCIONEN como investigacion
+   -> Detecta problemas de diseño antes de que alguien entrene una policy real
 ```
 
-**Sin el agent solver, diseñamos el entorno a ciegas.** Podemos generar mundos,
+Las tres piezas producen lo que necesita un framework externo de RL:
+entornos generables bajo demanda, reward signals exactos, y trayectorias
+óptimas de referencia. SREG NO ejecuta el loop de RL — genera lo que
+ese loop consume.
+
+**Sin la policy diagnostica, diseñamos entornos a ciegas.** Podemos generar mundos,
 tasks, narrativa y golden answers, pero no sabemos cómo se comporta un agente
-real al intentar resolverlos. Recién con el solver vemos problemas como:
+real al intentar resolverlos. Recién con la policy diagnostica vemos problemas como:
 
 - **Casos triviales o imposibles**: el agente resuelve sin medir nada, o no puede
   resolver ni con budget completo.
@@ -369,60 +411,55 @@ real al intentar resolverlos. Recién con el solver vemos problemas como:
 - **Reward que no coincide con "investigar bien"**: el score puede ser alto
   aunque el agente haya tomado decisiones irracionales.
 
-### El solver como herramienta de diagnóstico
+### La policy diagnóstica — validar el entorno antes de entrenar
 
-En esta etapa, el solver no tiene que ser perfecto ni competitivo. Su rol
-inicial es **diagnóstico**:
+Antes de conectar una policy real con RL, necesitamos saber que los entornos
+funcionan. La policy diagnóstica (un LLM zero-shot) cumple ese rol:
 
-- Correr casos end-to-end
-- Elegir acciones dentro del budget
-- Razonar con los datos disponibles
-- Responder preguntas
-- Dejarnos inspeccionar trayectorias, errores y failure modes
+- Corre casos end-to-end
+- Elige acciones dentro del budget
+- Razona con los datos disponibles
+- Responde preguntas
+- Nos deja inspeccionar trayectorias, errores y failure modes
 
-**El agente NO recibe pistas sobre el tipo de evaluación.** Recibe una pregunta
-científica y se las arregla. No hay "soporte por eval type" en el agente — la
-gracia es que el entorno le presenta un problema y el agente investiga. Si le
-diéramos lógica especial por tipo, dejaríamos de medir si el caso realmente
-se sostiene por sí solo.
+**La policy NO recibe pistas sobre el tipo de evaluación.** Recibe una pregunta
+científica y se las arregla. Si le diéramos lógica especial por tipo, dejaríamos
+de medir si el entorno realmente se sostiene por sí solo como experiencia de
+investigación.
 
 Lo que sí necesita funcionar es la infraestructura del **harness**: parsing de
-respuestas, validación de formato, y scoring. Eso es plumbing, no inteligencia
-del agente.
+respuestas, validación de formato, y scoring. Eso es plumbing del entorno.
 
 **Única excepción**: instrucciones neutrales de formato de salida ("respondé en
 JSON", "si elegís variables, devolvé una lista"). Eso no da pistas científicas
-— solo hace que el sistema sea evaluable.
+— solo hace que el reward signal sea computable.
 
 **Prioridad: trayectorias legibles + diagnóstico ANTES que breadth.** Ver cómo
-un agente recorre 20 casos y dónde se rompe dice más que soporte superficial
+una policy recorre 20 entornos y dónde se rompe dice más que soporte superficial
 para muchos tipos sin buena inspección.
 
-El solver valida si los research cases realmente funcionan como entornos de
-investigación. SREG no debe evaluarse solo por la calidad del world model o de
-las tasks, sino por si un agente LLM puede interactuar con el caso de una
-manera que **se parezca a investigar**.
-
-Con el solver, el propio entorno empieza a mostrar si tiene sentido para RL
-y para entrenamiento de agentes científicos.
+La policy diagnóstica valida que los entornos funcionen para el propósito final:
+entrenar policies que aprendan a investigar. Si una policy zero-shot no puede
+ni interactuar coherentemente con el entorno, ese entorno no sirve para RL.
 
 ---
 
-## El agente solver — filosofía
+## La policy que interactúa con el entorno — filosofía
 
-El agente que resuelve los problemas es un LLM. Principios clave:
+Cualquier policy (LLM, RL agent, híbrido) puede interactuar con los entornos
+de SREG. Principios clave:
 
-### El agente tiene libertad total para razonar
+### La policy tiene libertad total para razonar
 
-El agente puede hacer lo que quiera para resolver el problema:
+La policy puede hacer lo que quiera para resolver el problema:
 - Leer y analizar el contexto (gratis)
 - Analizar los datos disponibles (gratis)
 - Formular hipótesis (gratis)
 - Escribir código para analizar datos (gratis)
 - Razonar, comparar explicaciones, pensar (gratis)
 
-**Nosotros no prescribimos cómo debe pensar.** No le decimos "primero hacé X,
-después hacé Y". Le damos el problema y que haga lo que quiera.
+**No prescribimos cómo debe razonar.** Le damos el entorno y que haga
+lo que quiera.
 
 ### Lo único que cuesta son las "acciones del mundo real"
 
@@ -530,20 +567,21 @@ deben poder cambiar la incertidumbre del agente de manera significativa.
 
 ---
 
-## El Teacher Solver — el investigador perfecto
+## El Teacher — la policy óptima
 
-El teacher es un motor bayesiano exacto (no es un LLM) que resuelve cada
-problema de forma óptima:
+El teacher es un motor bayesiano exacto (no es un LLM) que computa la
+**policy óptima** para cada entorno:
 
 - Siempre elige la acción que más información le da
 - Siempre mantiene la distribución de probabilidad exacta
 - Siempre da la respuesta correcta al final
 
+Es el **upper bound** — ninguna policy puede hacerlo mejor que el teacher.
 Sirve para:
-1. **Validar mundos**: si el teacher no puede resolver bien, el mundo está mal
-2. **Línea base perfecta**: comparar cualquier agente contra lo mejor posible
+1. **Validar entornos**: si el teacher no puede resolver bien, el entorno está mal
+2. **Upper bound para training**: comparar cualquier policy contra lo mejor posible
 3. **Generar trayectorias óptimas**: secuencias de decisiones perfectas que
-   pueden usarse como datos de entrenamiento
+   pueden usarse como datos de entrenamiento (imitation learning, DPO, etc.)
 
 ---
 
@@ -645,13 +683,19 @@ a todo problema:
 - **Comparación vs teacher**: ¿qué tan lejos está del óptimo?
 - **Comparación vs random**: ¿es mejor que elegir al azar?
 
-### Por qué esto es una ventaja
+### Por qué esto es una ventaja — reward signals exactos para RL
 
-SREG tiene una ventaja sobre la mayoría de benchmarks de agentes: **la verdad
-es matemática**. En SWE-bench necesitás tests que pueden no cubrir todos los
-casos. En WebArena necesitás heurísticas para verificar resultados. En SREG,
-la red bayesiana te da la respuesta exacta a cualquier pregunta que tenga
-sentido hacer sobre el mundo oculto — sin jueces, sin ambigüedad.
+SREG tiene una ventaja fundamental sobre otros entornos de entrenamiento:
+**el reward signal es matemático, no heurístico**. En SWE-bench necesitás
+tests que pueden no cubrir todos los casos. En WebArena necesitás heurísticas.
+En entornos con LLM-as-judge, el reward es ruidoso y sesgado.
+
+En SREG, la red bayesiana te da la respuesta exacta a cualquier pregunta
+que tenga sentido hacer sobre el mundo oculto — sin jueces, sin ambigüedad,
+sin ruido. Esto es exactamente lo que hace falta para un verifier environment:
+**un reward signal limpio y verificable que permite entrenar con RL de forma
+estable**. Similar a los entornos de PRIME Intellect donde la verificación
+formal permite reward exacto.
 
 ---
 
@@ -827,13 +871,15 @@ el sistema hoy usa orchestrator + CasePlan + semantica, el benchmark los usa.
 
 ## Que NO es SREG
 
-- **No es solo el agente que resuelve.** El agente es parte del sistema, pero
-  SREG es el gimnasio completo: generador + evaluador + agente diagnostico.
-- **No es un benchmark estatico.** Es un generador que produce infinitos problemas.
-- **No entrena LLMs.** Genera los mundos, tareas, y datos. Si alguien quiere
-  usar eso para entrenar, tiene todo listo.
-- **No prescribe como debe razonar el agente.** Solo le da el problema y las
-  acciones disponibles. El agente decide como proceder.
+- **No entrena policies.** No hay loop de RL, no hay training code, no hay
+  optimizer. SREG genera entornos y computa rewards. Otros traen su policy
+  y su framework de RL y entrenan contra los entornos de SREG.
+- **No es un benchmark estatico.** Es un generador infinito de entornos,
+  cada uno verificable matemáticamente. Cada seed produce un entorno nuevo.
+- **No prescribe como debe razonar la policy.** Solo le da el problema y las
+  acciones disponibles. La policy decide como proceder.
+- **No necesita un juez humano ni LLM-as-judge para evaluar.** La red bayesiana
+  da la respuesta exacta — el reward signal es matemático, no heurístico.
 
 ---
 
@@ -879,8 +925,9 @@ Corresponde a la **Etapa 3** de WORLD_DESIGN.md: diseño mechanism-first.
 
 Variables continuas y mixtas. Documentos sintéticos (papers ficticios,
 reportes). Rúbricas de proceso (evaluar razonamiento, no solo respuesta).
-Currículo de complejidad. RL loop con verificador como reward.
-Herramientas externas para agentes.
+Currículo de complejidad creciente para training. Herramientas externas
+para policies. Export formal de entornos para integración con frameworks
+de RL (reward function API, episode format, trajectory export).
 
 ---
 

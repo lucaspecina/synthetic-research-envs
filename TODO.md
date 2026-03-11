@@ -143,13 +143,23 @@
   - [x] BenchmarkRunner como biblioteca importable (src/sreg/harness/benchmark.py)
   - [x] Verdicts type-aware: KL thresholds para distribution, accuracy para choice
   - [x] Failure modes por tipo (no TRIVIAL global): ZERO_OBS_LOW_KL, ZERO_OBS_CORRECT, etc.
-  - [x] Script wrapper (scripts/run_benchmark.py)
-  - [x] 30 tests para clasificacion, agregacion, formato
+  - [x] Script wrapper (scripts/run_benchmark.py) — 15 goals variados
+  - [x] 54 tests para clasificacion, agregacion, formato, baseline
+  - [x] Per-type baseline scoring: compute_baseline_score + beats_baseline
+    - Distribution types: KL(uniform || correct)
+    - Binary choice: 0.5
+    - hypothesis_selection: 1/N
+    - NBO/best_intervention: mean(values)/max(values)
+    - adjustment_set: no computable baseline (returns None)
   - Marcado como PARTIAL (is_partial=True siempre)
   - [ ] Metrica `prior_delta` (agent vs prior, teacher vs prior)
 - [x] **BM.2**: Crear `experiments/` directory con index.md
 - [ ] **BM.3**: Actualizar `quality.py` Layer B para cubrir 9 eval types (no solo 3)
-- [ ] **BM.4**: Primer benchmark run real (20-30 casos, varied goals)
+- [~] **BM.4**: Primer benchmark run real (20-30 casos, varied goals)
+  > 15 SRCs corridos (bench_20260311_15srcs): 14/15 completados, 57 tasks, 9/9 tipos.
+  > Hallazgos: causal_effect y compare_interventions beats baseline 71%.
+  > hypothesis_selection PEOR que azar (17%). NBO sospechoso (100% sin observar).
+  > Falta escalar a 20-30 SRCs y analizar patrones mas profundamente.
 - [ ] **BM.5**: Consolidar scripts sueltos (deprecar diagnostic_batch.py, absorber test_e2e.py)
 
 ### Enriquecimiento del case (SIGUIENTE FOCO — actualizado 2026-03-09)
@@ -428,4 +438,4 @@
 - [ ] Synthetic document artifacts (papers, reports, notes)
 - [ ] Approximate inference teacher (larger worlds)
 - [ ] Curriculum over world complexity
-- [ ] RL training loop with verifier as reward
+- [ ] Export formal de entornos para integracion con frameworks de RL (formato estandar, API de reward)

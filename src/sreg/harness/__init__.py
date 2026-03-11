@@ -6,6 +6,19 @@ from sreg.harness.agent_trajectory import (
     export_agent_trajectories,
     extract_agent_trajectory,
 )
+from sreg.harness.benchmark import (
+    BenchmarkReport,
+    BenchmarkRunner,
+    SRCResult,
+    TaskResult,
+    TypeMetrics,
+    beats_baseline,
+    classify_failure_mode,
+    classify_task_verdict,
+    compute_baseline_score,
+    format_benchmark_report,
+    save_benchmark,
+)
 from sreg.harness.comparison import TrajectoryComparison, compare_trajectories
 from sreg.harness.eval import BatchEvaluator, BatchResult, ProblemResult
 from sreg.harness.quality import (
@@ -19,17 +32,6 @@ from sreg.harness.quality import (
     compute_world_quality,
     print_quality_report,
     run_quality_suite,
-)
-from sreg.harness.benchmark import (
-    BenchmarkReport,
-    BenchmarkRunner,
-    SRCResult,
-    TaskResult,
-    TypeMetrics,
-    classify_failure_mode,
-    classify_task_verdict,
-    format_benchmark_report,
-    save_benchmark,
 )
 from sreg.harness.trajectory import TeacherTrajectory, TrajectoryStep, generate_teacher_trajectory
 
@@ -52,9 +54,11 @@ __all__ = [
     "TypeMetrics",
     "WorldQualityMetrics",
     "WorldReport",
+    "beats_baseline",
     "classify_failure_mode",
     "classify_task_verdict",
     "compare_trajectories",
+    "compute_baseline_score",
     "compute_generator_diversity",
     "compute_task_quality",
     "compute_world_quality",

@@ -36,6 +36,7 @@ from sreg.harness.benchmark import (
 # ---------------------------------------------------------------------------
 
 GOALS = [
+    # --- Original 5 ---
     (
         "Generate a research problem about marine ecology in a fictional "
         "archipelago. Use dag_construct with 8 nodes. Design a research case "
@@ -66,14 +67,74 @@ GOALS = [
         "Design a research case with at least 4 evaluation types including "
         "compare_interventions and best_intervention."
     ),
+    # --- New 10 for broader coverage ---
+    (
+        "Generate a research problem about urban air quality in a fictional "
+        "megacity. Use dag_construct with 10 nodes. Design a research case "
+        "with infer_target, causal_effect, should_condition, and "
+        "hypothesis_selection."
+    ),
+    (
+        "Generate a research problem about deep-sea hydrothermal vents on a "
+        "fictional ocean moon. Use dag_construct with 8 nodes. Design a case "
+        "with infer_latent_cause, next_best_observation, compare_interventions, "
+        "and adjustment_set."
+    ),
+    (
+        "Generate a research problem about soil microbiome dynamics in a "
+        "fictional terraforming project. Use dag_construct with 10 nodes. "
+        "Include infer_target, best_intervention, should_condition, and "
+        "causal_effect questions."
+    ),
+    (
+        "Generate a research problem about cognitive development in a "
+        "fictional education system. Use dag_construct with 8 nodes. Design "
+        "a case with hypothesis_selection, compare_interventions, "
+        "next_best_observation, and infer_target."
+    ),
+    (
+        "Generate a research problem about freshwater ecosystem collapse "
+        "in a fictional lake district. Use dag_construct with 10 nodes. "
+        "Include causal_effect, adjustment_set, infer_latent_cause, and "
+        "best_intervention."
+    ),
+    (
+        "Generate a research problem about stellar formation in a fictional "
+        "nebula. Use dag_construct with 8 nodes. Design a case with "
+        "infer_target, hypothesis_selection, should_condition, and "
+        "compare_interventions."
+    ),
+    (
+        "Generate a research problem about antibiotic resistance in a "
+        "fictional hospital network. Use dag_construct with 10 nodes. "
+        "Include next_best_observation, causal_effect, best_intervention, "
+        "and infer_target."
+    ),
+    (
+        "Generate a research problem about climate adaptation in a fictional "
+        "coastal community. Use dag_construct with 8 nodes. Design a case "
+        "with adjustment_set, compare_interventions, hypothesis_selection, "
+        "and infer_latent_cause."
+    ),
+    (
+        "Generate a research problem about neural plasticity in a fictional "
+        "species. Use dag_construct with 10 nodes. Include infer_target, "
+        "should_condition, next_best_observation, and causal_effect."
+    ),
+    (
+        "Generate a research problem about volcanic soil fertility on a "
+        "fictional island. Use dag_construct with 8 nodes. Design a case "
+        "with best_intervention, hypothesis_selection, infer_target, and "
+        "compare_interventions."
+    ),
 ]
 
 
 def main():
     parser = argparse.ArgumentParser(description="SREG Benchmark Runner")
     parser.add_argument(
-        "--cases", type=int, default=3,
-        help="Number of SRCs to generate (max 5)",
+        "--cases", type=int, default=15,
+        help="Number of SRCs to generate (max 15)",
     )
     parser.add_argument(
         "--output", type=str, default=None,
@@ -115,9 +176,13 @@ def main():
         for tr in src_result.task_results:
             fm = f" [{tr.failure_mode}]" if tr.failure_mode else ""
             score_str = f"{tr.score:.4f}" if tr.score is not None else "N/A"
+            base_str = ""
+            if tr.baseline_score is not None and tr.agent_beats_baseline is not None:
+                beat = ">" if tr.agent_beats_baseline else "<="
+                base_str = f" (vs random {tr.baseline_score:.4f} {beat})"
             print(
                 f"    {tr.task_type:<25} {tr.verdict:<10} "
-                f"score={score_str} obs={tr.budget_used}{fm}"
+                f"score={score_str} obs={tr.budget_used}{fm}{base_str}"
             )
 
     agent = AgentSolver(max_iterations=15)

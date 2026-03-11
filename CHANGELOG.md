@@ -5,6 +5,32 @@
 
 ## [Unreleased]
 
+### 2026-03-11 — Documentation rewrite: SREG purpose ultra-clear
+- **PROJECT.md, CLAUDE.md, CURRENT_STATE.md rewritten** to make SREG's purpose crystal clear:
+  SREG generates synthetic research environments with exact reward signals, designed for
+  training policy models that do science via RL. SREG generates + computes rewards; it does
+  NOT train policies (no training loop, no optimizer, no train.py).
+- Reframed as verifier environment (like PRIME Intellect for math, but for scientific reasoning).
+- New terminology: SRC = training environment, Teacher = optimal policy, Policy = any agent.
+- Backlog: replaced "RL training loop" with "Export formal de entornos para integracion con RL".
+
+### 2026-03-11 — Per-type baseline scoring + 15-SRC benchmark
+- **`src/sreg/harness/benchmark.py`**: `compute_baseline_score()` and `beats_baseline()` functions.
+  Computes random baseline per eval type: KL(uniform||correct) for distributions, 0.5 for binary
+  choice, 1/N for hypothesis_selection, mean/max ratios for NBO and best_intervention.
+  Direction-aware comparison (lower KL = beats, higher accuracy = beats).
+- **`TaskResult`**: new fields `baseline_score`, `agent_beats_baseline`.
+- **`TypeMetrics`**: new fields `baseline_scores`, `n_baseline_computed`, `n_beats_baseline`.
+- **`format_benchmark_report()`**: new "BASELINE COMPARISON (random guess)" section.
+- **24 new tests** (54 total in test_benchmark.py): TestComputeBaseline (14), TestBeatsBaseline (8),
+  TestBaselineAggregation (2). 696 tests total.
+- **`scripts/run_benchmark.py`**: expanded to 15 goals (from 5) across diverse domains.
+  Default --cases=15. Output shows baseline comparison per task.
+- **`experiments/bench_20260311_15srcs/`**: 14/15 SRCs completed, 57 tasks, 9/9 eval types.
+  Key findings: causal_effect and compare_interventions beat baseline 71%. hypothesis_selection
+  WORSE than random (17% beats). NBO suspicious (100% correct, 100% ZERO_OBS). should_condition
+  and infer_latent_cause struggle (25%, 0% beats respectively).
+
 ### 2026-03-11 — First full benchmark: 5 SRCs, 19 tasks, 9/9 eval types
 - **`experiments/bench_20260311_5srcs/`**: first benchmark covering all 9 eval types.
   5/5 SRCs completed, 100% submit, 0 format errors. infer_target consistently GOOD+.
