@@ -13,7 +13,7 @@ La verdad oculta es una red bayesiana — el reward es matemático, sin jueces
 humanos ni heurísticas. SREG genera los entornos y computa rewards; no entrena
 policies (eso lo hace un framework de RL externo).
 
-**Estado actual: 696 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Harness multi-tipo (submit + prompt + scoring para los 9 eval types). BenchmarkRunner con baseline scoring por tipo. S.2 diagnostic pipeline (real multi-type E2E con orchestrator). Benchmark 15 SRCs (57 tasks, 9/9 tipos). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
+**Estado actual: 696 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Harness multi-tipo (submit + prompt + scoring para los 9 eval types). DiagnosticRunner con baseline scoring por tipo. S.2 diagnostic pipeline (real multi-type E2E con orchestrator). Benchmark 15 SRCs (57 tasks, 9/9 tipos). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
 
 **Terminologia clave: SRC** (Synthetic Research Case) = un caso completo generado por el sistema (world + problem + tasks + data). Es la unidad de producto de SREG.
 
@@ -529,7 +529,7 @@ python scripts/test_agent.py
 | **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **Harness multi-tipo: submit + prompt + scoring para los 9 eval types. S.2 diagnostic pipeline validado en E2E real. Observe todavia simple (nodo unico, costo 1). Pendiente: S.4 rich actions.** |
 | **Agent trajectory** | `src/sreg/harness/agent_trajectory.py` | Extrae trayectorias estructuradas del agente (post-hoc desde messages). Export JSONL. |
 | **Trajectory comparison** | `src/sreg/harness/comparison.py` | Comparacion lado a lado agent vs teacher. Verdict: EXCELLENT/GOOD/FAIR/POOR/NO_SUBMIT. |
-| **BenchmarkRunner** | `src/sreg/harness/benchmark.py` | Benchmark real E2E: orchestrator -> agent en cada task -> verdicts type-aware + failure modes por tipo + **baseline scoring por eval type**. Marcado PARTIAL. Importable. |
+| **DiagnosticRunner** | `src/sreg/harness/diagnostic.py` | Diagnostico de entornos E2E: orchestrator -> agent en cada task -> verdicts type-aware + failure modes por tipo + **baseline scoring por eval type**. Marcado PARTIAL. Importable. |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
 | **QualitySuite** | `src/sreg/harness/quality.py` | Metricas estructurales del motor formal (capas A+B+C). **Desactualizado: solo cubre 3/9 eval types, no usa LLM. Pendiente: evolucion a benchmark del producto real (ver TODO.md "Benchmark y diagnostico").** |
 | **Trajectory export** | `src/sreg/harness/trajectory.py` | Exporta trayectorias del teacher como JSONL |
@@ -698,25 +698,31 @@ solver.generate_trajectory(target, available, budget, costs=node_costs)
 
 ## Quality assurance strategy
 
-SREG tiene dos niveles de aseguramiento de calidad (ver PROJECT.md para detalles):
+SREG tiene tres niveles de aseguramiento de calidad (ver PROJECT.md para detalles):
 
 1. **Tests + Validacion (pre-commit)**: unit tests (`pytest tests/`) + E2E smoke con LLM.
    "¿El codigo funciona?" Pass/fail, cada commit.
 
-2. **Benchmark y diagnostico (periodico)**: el sistema REAL corriendo E2E con LLM.
-   "¿El producto es bueno? ¿Donde falla?" Metricas agregadas + failure modes.
+2. **Diagnostico de entornos (periodico)**: el sistema REAL corriendo E2E con LLM.
+   "¿Los entornos son de calidad? ¿Donde fallan?" Metricas agregadas + failure modes.
    **SIEMPRE con LLM, siempre con la mejor version implementada, nunca con mundos toy.**
+   NOTA: esto valida la calidad del generador, NO prueba que entrenar con SREG mejore policies.
 
-**Estado actual del benchmark**:
-- **BenchmarkRunner** (`src/sreg/harness/benchmark.py`): biblioteca importable para benchmarks
-  reales E2E. Verdicts type-aware, failure modes por tipo, **baseline scoring por eval type**
-  (KL(uniform) para distribution, 0.5 para binary, 1/N para hypothesis, mean/max para ratio).
-- **15-SRC benchmark** (`experiments/bench_20260311_15srcs/`): 14/15 completados, 57 tasks,
+3. **Benchmark de transferencia (FUTURO)**: la prueba real de SREG. Evaluar una policy
+   en benchmarks externos (CLadder, QRData), entrenarla con entornos SREG, y re-evaluarla.
+   El delta es la evidencia. Ver `docs/EXTERNAL_BENCHMARKS.md`. NO IMPLEMENTADO.
+
+**Estado actual del diagnostico**:
+- **DiagnosticRunner** (`src/sreg/harness/diagnostic.py`): biblioteca importable para
+  diagnosticos E2E. Verdicts type-aware, failure modes por tipo, **baseline scoring por
+  eval type** (KL(uniform) para distribution, 0.5 para binary, 1/N para hypothesis,
+  mean/max para ratio).
+- **15-SRC diagnostic** (`experiments/bench_20260311_15srcs/`): 14/15 completados, 57 tasks,
   9/9 tipos ejercitados. Hallazgos: causal_effect/compare_interventions beat baseline 71%.
   hypothesis_selection PEOR que azar (17%). NBO sospechoso (100% ZERO_OBS).
 - **S.2 diagnostic pipeline** (`scripts/diagnostic_batch.py`): N SRCs via orchestrator real.
 - `quality.py` (QualitySuite v2) solo cubre metricas estructurales del motor formal (3/9 eval
-  types, sin LLM). Pendiente: metrica prior_delta, escalar benchmark a 20-30 SRCs.
+  types, sin LLM). Pendiente: metrica prior_delta, escalar diagnostico a 20-30 SRCs.
 
 ---
 

@@ -75,8 +75,8 @@ Every training environment has two layers:
 ### Current state
 
 v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness.
-v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation) + 9 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives) + Rich Actions Slice A (ResearchActionType, multi-node, varied costs, IG/cost teacher) + Agent trajectory inspection (extract, compare, export) + Multi-type agent harness (submit + prompt + scoring for 9 eval types) + BenchmarkRunner with per-type baseline scoring + 15-SRC benchmark (57 tasks, 9/9 types). 696 tests. Ola 1 COMPLETE. Rich Actions Slice A COMPLETE. Agent Solver S.1-S.3 COMPLETE. BM.1 COMPLETE.
-**Next: Rich Actions Slice B (S.4 rich observe), scale benchmark to 20-30 SRCs, narrative.** See TODO.md and WORLD_DESIGN.md.
+v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation) + 9 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives) + Rich Actions Slice A (ResearchActionType, multi-node, varied costs, IG/cost teacher) + Agent trajectory inspection (extract, compare, export) + Multi-type agent harness (submit + prompt + scoring for 9 eval types) + DiagnosticRunner with per-type baseline scoring + 15-SRC diagnostic (57 tasks, 9/9 types). 696 tests. Ola 1 COMPLETE. Rich Actions Slice A COMPLETE. Agent Solver S.1-S.3 COMPLETE. DIAG.1 COMPLETE.
+**Next: Rich Actions Slice B (S.4 rich observe), scale diagnostic to 20-30 SRCs, transfer benchmark infrastructure (BENCH.1-5).** See TODO.md and WORLD_DESIGN.md.
 
 ## Environment setup
 
@@ -114,7 +114,7 @@ src/sreg/
 ├── env/             # EpisodeRunner (step-by-step environment interface)
 ├── orchestrator/    # LLM orchestrator loop (system prompt, tool definitions)
 ├── agent/           # LLM agent solver (Phase 7)
-├── harness/         # BenchmarkRunner, teacher/agent trajectory, comparison, batch eval
+├── harness/         # DiagnosticRunner, teacher/agent trajectory, comparison, batch eval
 └── display.py       # Dual-mode pretty printing (terminal ANSI + notebook HTML)
 
 scripts/
@@ -124,12 +124,12 @@ scripts/
 ├── test_agent.py          # Agent vs teacher vs random baseline comparison (--save-trajectory)
 ├── view_trajectory.py     # Inspect agent trajectories and agent-vs-teacher comparisons
 ├── test_e2e.py            # End-to-end: orchestrator -> agent -> score
-├── mini_benchmark.py      # Mini benchmark: N real SRCs via orchestrator + agent + teacher
+├── mini_benchmark.py      # Mini diagnostic: N real SRCs via orchestrator + agent + teacher
 ├── batch_eval.py          # Batch eval + teacher trajectory JSONL export
 ├── diagnostic_batch.py    # S.2 diagnostic: N SRCs via orchestrator, agent on all tasks, per-type metrics
-└── run_benchmark.py       # BenchmarkRunner wrapper: type-aware verdicts + failure modes
+└── run_diagnostic.py      # DiagnosticRunner wrapper: type-aware verdicts + failure modes
 
-experiments/                 # Benchmark results (timestamped directories)
+experiments/                 # Diagnostic results (timestamped directories)
 └── index.md                 # Experiment registry
 
 notebooks/
@@ -142,6 +142,7 @@ WORLD_DESIGN.md              # Research doc: toy worlds → realistic worlds (st
 EVAL_DESIGN.md               # Evaluation strategy: metrics, experimental designs, infrastructure
 
 docs/
+├── EXTERNAL_BENCHMARKS.md   # External benchmarks for transfer validation (CLadder, QRData, etc.)
 └── references/              # Original design docs (read-only)
 
 .claude/skills/      # Project skills: /plan, /status, /test, /review, /phase
@@ -165,9 +166,9 @@ ruff check src/ tests/                    # Lint
 ruff format src/ tests/                   # Format
 ```
 
-## Quality assurance — two levels (CRITICAL)
+## Quality assurance — three levels (CRITICAL)
 
-SREG has two distinct levels of quality assurance. **Both must stay current.**
+SREG has three distinct levels of quality assurance.
 See PROJECT.md "Aseguramiento de calidad" for the full rationale.
 
 ### Level 1: Tests + Validation (pre-commit)
@@ -178,28 +179,42 @@ See PROJECT.md "Aseguramiento de calidad" for the full rationale.
   pipeline still works. Run when code changes touch orchestrator, agent, env, or tools.
 - **Purpose: "Did I break something?"** — pass/fail, not quality measurement.
 
-### Level 2: Benchmark & Diagnostic (periodic)
+### Level 2: Environment Diagnostic (periodic)
 
-- **Product quality control.** Runs the REAL system end-to-end (always with LLM)
-  and measures the quality of what it produces.
-- **ALWAYS uses LLM** — the product uses LLM, so the benchmark must too.
+- **Generator quality control.** Runs the REAL system end-to-end (always with LLM)
+  and measures the quality of the environments it produces.
+- **ALWAYS uses LLM** — the product uses LLM, so the diagnostic must too.
   No toy worlds, no template shortcuts, no fabricated inputs.
-- **ALWAYS uses the best current implementation** — if the system now uses
-  orchestrator + CasePlan + rich data, the benchmark uses all of that.
 - **Two outputs from the same run:**
   1. Aggregate metrics (completion rate, submit rate, KL, per-eval-type breakdown)
   2. Failure mode analysis (what patterns appear and why)
 - **Results saved** in `experiments/` for comparison across runs.
-- **Purpose: "How good is the product? Where does it fail?"**
+- **Purpose: "Are the environments well-formed, solvable, and non-trivial?"**
+- **NOTE: This is NOT the real benchmark.** It validates that the generator produces
+  quality environments, but does NOT prove that training on them improves policies.
+  See Level 3.
+
+### Level 3: Transfer Benchmark (the real test — FUTURE)
+
+- **The true measure of SREG**: take a policy, evaluate it on external benchmarks,
+  train it on SREG environments, evaluate again. The delta is the evidence.
+- **External benchmarks**: CLadder (causal reasoning), QRData (causal + data),
+  DiscoveryBench (hypothesis from data), SciGym (experimental cycle).
+  See `docs/EXTERNAL_BENCHMARKS.md` for the full analysis.
+- **Purpose: "Does training on SREG environments actually improve scientific reasoning?"**
+- If a policy improves in SREG but not in external benchmarks = overfitting to the generator.
+  If it improves in both = real transfer of scientific reasoning ability.
+- **Status: NOT YET IMPLEMENTED.** Requires training infrastructure, model access,
+  and benchmark adapters. See TODO.md "Benchmark de transferencia".
 
 ### Keeping it current (NON-NEGOTIABLE)
 
 When you add a new feature (eval type, action type, data format, orchestrator tool):
 1. The **unit tests** validate the piece works in isolation
-2. The **benchmark** must be able to exercise it with the real system
-3. If the benchmark can't exercise it, that's a gap — log it and fix it
+2. The **diagnostic** must be able to exercise it with the real system
+3. If the diagnostic can't exercise it, that's a gap — log it and fix it
 
-The benchmark is NOT a one-time thing. It's a living tool that evolves
+The diagnostic is NOT a one-time thing. It's a living tool that evolves
 with the system. If it falls behind, we're designing the product blind.
 
 ## Git conventions
@@ -250,5 +265,5 @@ These are common changes that REQUIRE updating specific docs:
 | New research findings on world generation | `WORLD_DESIGN.md`: update relevant section |
 | Added/changed a NodeType | `display.py`: `_node_styles()` and `_HTML_NODE_COLORS` |
 | New display function | `display.py`, update `scripts/demo.py` and notebook |
-| New eval type or task type | `quality.py`: add non-trivial check. Benchmark: verify it's exercised by the real system. |
-| Changed orchestrator/agent/env | Benchmark: re-run to verify product quality hasn't degraded. |
+| New eval type or task type | `quality.py`: add non-trivial check. Diagnostic: verify it's exercised by the real system. |
+| Changed orchestrator/agent/env | Diagnostic: re-run to verify environment quality hasn't degraded. |

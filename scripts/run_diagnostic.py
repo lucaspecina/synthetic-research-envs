@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Run the SREG benchmark: real SRCs via orchestrator, agent on all tasks.
+"""Run the SREG environment diagnostic: real SRCs via orchestrator, agent on all tasks.
 
-This is Level 2 QA — periodic product quality evaluation.
-The benchmark is PARTIAL and EVOLVING.
+This is Level 2 QA — periodic environment quality validation.
+The diagnostic is PARTIAL and EVOLVING.
+
+NOTE: This is NOT the real benchmark of SREG. The real benchmark is the
+transfer experiment (BEFORE -> TRAIN on SREG -> AFTER on external benchmarks).
+See docs/EXTERNAL_BENCHMARKS.md. This diagnostic validates that the generator
+produces quality environments.
 
 Usage:
-    python scripts/run_benchmark.py
-    python scripts/run_benchmark.py --cases 5 --output experiments/bench_001
+    python scripts/run_diagnostic.py
+    python scripts/run_diagnostic.py --cases 5 --output experiments/diag_001
 """
 
 from __future__ import annotations
@@ -25,10 +30,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from sreg.agent.agent import AgentSolver
-from sreg.harness.benchmark import (
-    BenchmarkRunner,
-    format_benchmark_report,
-    save_benchmark,
+from sreg.harness.diagnostic import (
+    DiagnosticRunner,
+    format_diagnostic_report,
+    save_diagnostic,
 )
 
 # ---------------------------------------------------------------------------
@@ -131,14 +136,14 @@ GOALS = [
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SREG Benchmark Runner")
+    parser = argparse.ArgumentParser(description="SREG Environment Diagnostic")
     parser.add_argument(
         "--cases", type=int, default=15,
         help="Number of SRCs to generate (max 15)",
     )
     parser.add_argument(
         "--output", type=str, default=None,
-        help="Output directory (default: experiments/bench_TIMESTAMP)",
+        help="Output directory (default: experiments/diag_TIMESTAMP)",
     )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -158,9 +163,9 @@ def main():
         output_dir = Path(args.output)
     else:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = Path("experiments") / f"bench_{ts}"
+        output_dir = Path("experiments") / f"diag_{ts}"
 
-    print(f"SREG Benchmark: {n_cases} SRCs")
+    print(f"SREG Diagnostic: {n_cases} SRCs")
     print(f"Output: {output_dir}")
     print(f"Seed: {args.seed}")
 
@@ -186,14 +191,14 @@ def main():
             )
 
     agent = AgentSolver(max_iterations=15)
-    runner = BenchmarkRunner(agent=agent)
+    runner = DiagnosticRunner(agent=agent)
     report = runner.run(goals, seed=args.seed, on_src=on_src)
 
     # Print and save
-    text = format_benchmark_report(report)
+    text = format_diagnostic_report(report)
     print(text)
 
-    save_benchmark(report, output_dir)
+    save_diagnostic(report, output_dir)
     print(f"\nResults saved to: {output_dir}/")
 
 

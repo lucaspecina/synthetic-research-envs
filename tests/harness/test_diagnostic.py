@@ -1,8 +1,8 @@
-"""Tests for BenchmarkRunner classification and aggregation logic."""
+"""Tests for DiagnosticRunner classification and aggregation logic."""
 
-from sreg.harness.benchmark import (
-    BenchmarkReport,
-    BenchmarkRunner,
+from sreg.harness.diagnostic import (
+    DiagnosticReport,
+    DiagnosticRunner,
     SRCResult,
     TaskResult,
     TypeMetrics,
@@ -10,7 +10,7 @@ from sreg.harness.benchmark import (
     classify_failure_mode,
     classify_task_verdict,
     compute_baseline_score,
-    format_benchmark_report,
+    format_diagnostic_report,
 )
 from sreg.models.task import TaskType
 
@@ -151,7 +151,7 @@ class TestClassifyFailure:
 
 
 class TestAggregation:
-    """BenchmarkRunner._aggregate populates type_metrics correctly."""
+    """DiagnosticRunner._aggregate populates type_metrics correctly."""
 
     def _make_report(self, task_results):
         """Create a report with a single SRC containing the given tasks."""
@@ -161,14 +161,14 @@ class TestAggregation:
             eval_types=[tr.task_type for tr in task_results],
             task_results=task_results,
         )
-        report = BenchmarkReport(
+        report = DiagnosticReport(
             timestamp="test",
             n_srcs=1,
             n_srcs_completed=1,
             n_tasks=len(task_results),
             src_results=[src],
         )
-        runner = BenchmarkRunner.__new__(BenchmarkRunner)
+        runner = DiagnosticRunner.__new__(DiagnosticRunner)
         runner._aggregate(report)
         return report
 
@@ -227,10 +227,10 @@ class TestAggregation:
 
 
 class TestFormatReport:
-    """format_benchmark_report produces readable output."""
+    """format_diagnostic_report produces readable output."""
 
     def test_basic_formatting(self):
-        report = BenchmarkReport(
+        report = DiagnosticReport(
             timestamp="2026-03-11T12:00:00",
             n_srcs=1,
             n_srcs_completed=1,
@@ -240,13 +240,13 @@ class TestFormatReport:
             overall_submission_rate=1.0,
             is_partial=True,
         )
-        text = format_benchmark_report(report)
-        assert "BENCHMARK REPORT (partial)" in text
+        text = format_diagnostic_report(report)
+        assert "DIAGNOSTIC REPORT (partial)" in text
         assert "infer_target" in text
         assert "PARTIAL: True" in text
 
     def test_per_type_table(self):
-        report = BenchmarkReport(
+        report = DiagnosticReport(
             timestamp="test",
             n_srcs=1,
             n_srcs_completed=1,
@@ -258,13 +258,13 @@ class TestFormatReport:
                 ),
             },
         )
-        text = format_benchmark_report(report)
+        text = format_diagnostic_report(report)
         assert "infer_target" in text
         assert "EXCELLENT" in text
 
     def test_baseline_section_shown(self):
         """Report shows baseline comparison when baseline data exists."""
-        report = BenchmarkReport(
+        report = DiagnosticReport(
             timestamp="test",
             n_srcs=1,
             n_srcs_completed=1,
@@ -277,7 +277,7 @@ class TestFormatReport:
                 ),
             },
         )
-        text = format_benchmark_report(report)
+        text = format_diagnostic_report(report)
         assert "BASELINE COMPARISON" in text
         assert "random" in text.lower()
 
@@ -423,14 +423,14 @@ class TestBaselineAggregation:
             eval_types=[tr.task_type for tr in task_results],
             task_results=task_results,
         )
-        report = BenchmarkReport(
+        report = DiagnosticReport(
             timestamp="test",
             n_srcs=1,
             n_srcs_completed=1,
             n_tasks=len(task_results),
             src_results=[src],
         )
-        runner = BenchmarkRunner.__new__(BenchmarkRunner)
+        runner = DiagnosticRunner.__new__(DiagnosticRunner)
         runner._aggregate(report)
         return report
 

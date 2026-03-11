@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### 2026-03-11 — Rename benchmark to diagnostic + transfer benchmark concept + external benchmarks doc
+- **Terminology change**: "benchmark" -> "diagnostic" for the internal environment quality
+  control pipeline. Reserved "benchmark" for the real test: transfer experiment on external
+  benchmarks (BEFORE -> TRAIN on SREG -> AFTER).
+- **`docs/EXTERNAL_BENCHMARKS.md`** created: consolidated analysis of 20+ external benchmarks
+  from two independent sources (Claude + GPT). Recommended suite: CLadder (causal reasoning,
+  10K questions, deterministic), QRData (causal + data, 411 questions), DiscoveryBench
+  (hypothesis from data, 264 tasks), SciGym (experimental cycle, 350 systems).
+  Includes BEFORE/AFTER protocol, controls, success criteria, overfitting risks.
+- **Three-level QA** documented across PROJECT.md, CLAUDE.md, CURRENT_STATE.md:
+  1. Tests + Validation (pre-commit): "did I break something?"
+  2. Environment Diagnostic (periodic): "are the environments good?"
+  3. Transfer Benchmark (FUTURE): "does training on SREG improve policies?"
+- **TODO.md**: BM.* renamed to DIAG.*, new BENCH.1-BENCH.5 section for transfer benchmark.
+- **Skills updated**: `/eval` and `/precommit` reflect diagnostic terminology.
+- **Code rename complete**: `benchmark.py` -> `diagnostic.py`, `run_benchmark.py` ->
+  `run_diagnostic.py`, `test_benchmark.py` -> `test_diagnostic.py`. All classes renamed:
+  BenchmarkRunner -> DiagnosticRunner, BenchmarkReport -> DiagnosticReport,
+  format_benchmark_report -> format_diagnostic_report, save_benchmark -> save_diagnostic.
+
 ### 2026-03-11 — Documentation rewrite: SREG purpose ultra-clear
 - **PROJECT.md, CLAUDE.md, CURRENT_STATE.md rewritten** to make SREG's purpose crystal clear:
   SREG generates synthetic research environments with exact reward signals, designed for

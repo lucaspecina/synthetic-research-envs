@@ -115,35 +115,36 @@
   > sirven para estrategia (budget satura). preferential_attachment eliminable (0% WC).
   > Documentado en WORLD_DESIGN.md "Batch sweep: regimenes de generacion".
 
-### Benchmark y diagnostico — control de calidad del producto (NUEVO)
-> **Definicion clave**: el benchmark NO es lo mismo que los unit tests.
+### Diagnostico de entornos — control de calidad del generador
+> **Definicion clave**: el diagnostico NO es lo mismo que los unit tests NI que
+> el benchmark real de SREG.
 > - Unit tests = "¿el codigo funciona?" (piezas aisladas, inputs fabricados, sin LLM)
-> - Benchmark = "¿el producto es bueno?" (sistema real, con LLM, pipeline completo)
+> - Diagnostico = "¿los entornos son de calidad?" (sistema real, con LLM, pipeline completo)
+> - Benchmark real = "¿entrenar con SREG mejora policies?" (ver seccion aparte abajo)
 >
-> El benchmark SIEMPRE usa el sistema real en su mejor version implementada.
-> No mundos de juguete, no atajos. Si el sistema usa orchestrator + CasePlan +
-> semantica + rich data, el benchmark los usa.
+> El diagnostico valida que el GENERADOR produce entornos de calidad: solubles,
+> no triviales, con reward signals que funcionan. Es control de calidad del
+> generador, NO prueba de que SREG sirve para entrenar policies.
 >
 > Produce dos salidas del mismo run:
 > 1. **Metricas agregadas**: completion rate, submit rate, KL, per-eval-type breakdown
 > 2. **Analisis de failure modes**: que patrones de fallo aparecen y por que
 >
-> Ver PROJECT.md "Aseguramiento de calidad" y CLAUDE.md "Quality assurance" para
-> la vision completa. Ver skill `/eval` para como correrlo.
+> Ver PROJECT.md "Aseguramiento de calidad" y CLAUDE.md "Quality assurance".
 >
 > Los scripts sueltos (test_e2e.py, test_agent.py, batch_eval.py, diagnostic_batch.py)
-> se consolidan en el benchmark. Solo se mantienen como utilidades: demo.py, view_trajectory.py.
+> se consolidan en el diagnostico. Solo se mantienen como utilidades: demo.py, view_trajectory.py.
 
-- [x] **BM.1**: Implementar BenchmarkRunner (sistema real E2E con LLM)
-  - [x] Mini benchmark: 3 SRCs reales (scripts/mini_benchmark.py)
+- [x] **DIAG.1**: Implementar DiagnosticRunner (sistema real E2E con LLM)
+  - [x] Mini diagnostic: 3 SRCs reales (scripts/mini_benchmark.py)
   - [x] Orchestrator genera N casos con goals variados
   - [x] Agent solver en CADA task del SRC (multi-tipo)
   - [x] Metricas agregadas por eval type + failure modes type-aware
   - [x] Resultados guardados en `experiments/` con timestamp
-  - [x] BenchmarkRunner como biblioteca importable (src/sreg/harness/benchmark.py)
+  - [x] DiagnosticRunner como biblioteca importable (src/sreg/harness/diagnostic.py)
   - [x] Verdicts type-aware: KL thresholds para distribution, accuracy para choice
   - [x] Failure modes por tipo (no TRIVIAL global): ZERO_OBS_LOW_KL, ZERO_OBS_CORRECT, etc.
-  - [x] Script wrapper (scripts/run_benchmark.py) — 15 goals variados
+  - [x] Script wrapper (scripts/run_diagnostic.py) — 15 goals variados
   - [x] 54 tests para clasificacion, agregacion, formato, baseline
   - [x] Per-type baseline scoring: compute_baseline_score + beats_baseline
     - Distribution types: KL(uniform || correct)
@@ -153,14 +154,57 @@
     - adjustment_set: no computable baseline (returns None)
   - Marcado como PARTIAL (is_partial=True siempre)
   - [ ] Metrica `prior_delta` (agent vs prior, teacher vs prior)
-- [x] **BM.2**: Crear `experiments/` directory con index.md
-- [ ] **BM.3**: Actualizar `quality.py` Layer B para cubrir 9 eval types (no solo 3)
-- [~] **BM.4**: Primer benchmark run real (20-30 casos, varied goals)
-  > 15 SRCs corridos (bench_20260311_15srcs): 14/15 completados, 57 tasks, 9/9 tipos.
+  - [x] Renombrar archivos y clases: benchmark.py -> diagnostic.py, BenchmarkRunner -> DiagnosticRunner, etc.
+- [x] **DIAG.2**: Crear `experiments/` directory con index.md
+- [ ] **DIAG.3**: Actualizar `quality.py` Layer B para cubrir 9 eval types (no solo 3)
+- [~] **DIAG.4**: Primer diagnostic run real (20-30 casos, varied goals)
+  > 15 SRCs corridos (diag_20260311_15srcs): 14/15 completados, 57 tasks, 9/9 tipos.
   > Hallazgos: causal_effect y compare_interventions beats baseline 71%.
   > hypothesis_selection PEOR que azar (17%). NBO sospechoso (100% sin observar).
   > Falta escalar a 20-30 SRCs y analizar patrones mas profundamente.
-- [ ] **BM.5**: Consolidar scripts sueltos (deprecar diagnostic_batch.py, absorber test_e2e.py)
+- [ ] **DIAG.5**: Consolidar scripts sueltos (deprecar diagnostic_batch.py, absorber test_e2e.py)
+
+### Benchmark de transferencia — la prueba real de SREG (FUTURO)
+> **El verdadero benchmark de SREG no es el diagnostico de entornos.**
+> El diagnostico valida que el generador produce entornos de calidad, pero no
+> prueba que entrenar con ellos mejore a una policy.
+>
+> La prueba real es: tomar una policy, evaluarla en benchmarks externos,
+> entrenarla con entornos SREG, y volver a evaluarla. El delta es la evidencia.
+>
+> Si mejora en SREG pero no afuera = sobreajuste al generador.
+> Si mejora en ambos = transferencia real de habilidad cientifica.
+>
+> Ver `docs/EXTERNAL_BENCHMARKS.md` para el analisis completo de benchmarks
+> externos, suite recomendada, y protocolo BEFORE/AFTER.
+>
+> **Estado: NO IMPLEMENTADO.** Requiere definir infra de entrenamiento,
+> acceso a modelos open-weight, adapters para benchmarks, y frameworks de RL.
+> Es el objetivo de largo plazo del proyecto.
+
+- [ ] **BENCH.1**: Montar CLadder como benchmark externo
+  - Descargar dataset (HuggingFace: causalnlp/CLadder)
+  - Script para evaluar cualquier modelo (API call -> yes/no -> accuracy)
+  - Separar por rung (asociacion/intervencion/contrafactual) y variante (commonsense/nonsense)
+  - Correr modelo base (BEFORE) y guardar resultados
+- [ ] **BENCH.2**: Montar QRData como benchmark externo
+  - Descargar dataset (GitHub: xxxiaol/QRData)
+  - Script para evaluar (Q&A con datos tabulares -> accuracy)
+  - Separar subset causal vs estadistico
+- [ ] **BENCH.3**: Export de training data desde SREG
+  - Generar N SRCs en formato consumible por frameworks de RL
+  - Teacher trajectories como SFT data (input/output pairs)
+  - Reward function exportable (API o formato estandar)
+- [ ] **BENCH.4**: Primer experimento de transferencia
+  - Modelo base open-weight (LLaMA, Qwen, Mistral)
+  - BEFORE: CLadder + QRData
+  - TRAIN: SFT con teacher trajectories de SREG
+  - AFTER: mismos benchmarks, mismos splits
+  - Comparar deltas con significancia estadistica
+- [ ] **BENCH.5**: Experimento con RL
+  - RL con rewards de SREG (ademas de SFT)
+  - Comparar SFT-only vs SFT+RL
+  - Control negativo: entrenamiento placebo (datos no relacionados)
 
 ### Enriquecimiento del case (SIGUIENTE FOCO — actualizado 2026-03-09)
 > **Diagnostico de alineacion con PROJECT.md**: el nucleo formal (BN, generacion,

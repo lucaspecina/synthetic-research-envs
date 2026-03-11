@@ -1,13 +1,15 @@
-"""BenchmarkRunner: real E2E product quality evaluation.
+"""DiagnosticRunner: real E2E environment quality evaluation.
 
 Generates SRCs via the real orchestrator, runs agent on each task,
 collects per-eval-type metrics with type-aware failure classification.
 
-This is Level 2 QA (periodic product quality control), NOT Level 1
-(pre-commit tests). It ALWAYS uses the real system with LLM.
+This is Level 2 QA (periodic environment diagnostic), NOT Level 1
+(pre-commit tests) nor Level 3 (transfer benchmark). It validates
+that the generator produces quality environments. It ALWAYS uses
+the real system with LLM.
 
-IMPORTANT: This benchmark is partial and evolving. It does not yet
-cover all aspects of product quality (e.g. rich actions, narrative
+IMPORTANT: This diagnostic is partial and evolving. It does not yet
+cover all aspects of environment quality (e.g. rich actions, narrative
 quality). Failure classifications are task-type-dependent — the same
 behavior (e.g. zero observations + correct answer) means different
 things for different eval types.
@@ -247,8 +249,8 @@ class TypeMetrics(BaseModel):
     n_baseline_computed: int = 0
 
 
-class BenchmarkReport(BaseModel):
-    """Complete benchmark report."""
+class DiagnosticReport(BaseModel):
+    """Complete diagnostic report."""
 
     timestamp: str
     n_srcs: int
@@ -265,14 +267,14 @@ class BenchmarkReport(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# BenchmarkRunner
+# DiagnosticRunner
 # ---------------------------------------------------------------------------
 
 
-class BenchmarkRunner:
-    """Runs the real E2E benchmark: orchestrator -> agent -> score.
+class DiagnosticRunner:
+    """Runs the real E2E diagnostic: orchestrator -> agent -> score.
 
-    This benchmark is PARTIAL and EVOLVING. It uses the real system
+    This diagnostic is PARTIAL and EVOLVING. It uses the real system
     (LLM orchestrator + LLM agent) and measures product quality, not
     just code correctness.
     """
@@ -290,15 +292,15 @@ class BenchmarkRunner:
         goals: list[str],
         seed: int = 42,
         on_src: callable | None = None,
-    ) -> BenchmarkReport:
-        """Run the benchmark on a list of orchestrator goals.
+    ) -> DiagnosticReport:
+        """Run the diagnostic on a list of orchestrator goals.
 
         Args:
             goals: List of goal strings for the orchestrator.
             seed: Base seed (incremented per SRC).
             on_src: Optional callback(case_id, src_result) for progress.
         """
-        report = BenchmarkReport(
+        report = DiagnosticReport(
             timestamp=datetime.now().isoformat(),
             n_srcs=len(goals),
             n_srcs_completed=0,
@@ -424,7 +426,7 @@ class BenchmarkRunner:
 
         return tr
 
-    def _aggregate(self, report: BenchmarkReport) -> None:
+    def _aggregate(self, report: DiagnosticReport) -> None:
         """Compute aggregated per-type metrics."""
         type_data: dict[str, TypeMetrics] = defaultdict(TypeMetrics)
 
@@ -471,12 +473,12 @@ class BenchmarkRunner:
 # ---------------------------------------------------------------------------
 
 
-def format_benchmark_report(report: BenchmarkReport) -> str:
-    """Format a BenchmarkReport as human-readable text."""
+def format_diagnostic_report(report: DiagnosticReport) -> str:
+    """Format a DiagnosticReport as human-readable text."""
     lines = []
     lines.append("")
     lines.append("=" * 70)
-    lines.append("BENCHMARK REPORT (partial)")
+    lines.append("DIAGNOSTIC REPORT (partial)")
     lines.append("=" * 70)
     lines.append(f"  Timestamp: {report.timestamp}")
     lines.append(f"  SRCs: {report.n_srcs_completed}/{report.n_srcs} completed")
@@ -614,12 +616,12 @@ def format_benchmark_report(report: BenchmarkReport) -> str:
     return "\n".join(lines)
 
 
-def save_benchmark(report: BenchmarkReport, output_dir: Path) -> None:
-    """Save a benchmark report to disk."""
+def save_diagnostic(report: DiagnosticReport, output_dir: Path) -> None:
+    """Save a diagnostic report to disk."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Report text
-    text = format_benchmark_report(report)
+    text = format_diagnostic_report(report)
     (output_dir / "report.txt").write_text(text, encoding="utf-8")
 
     # Summary JSON (no trajectories)
@@ -641,8 +643,8 @@ def save_benchmark(report: BenchmarkReport, output_dir: Path) -> None:
 
 
 __all__ = [
-    "BenchmarkReport",
-    "BenchmarkRunner",
+    "DiagnosticReport",
+    "DiagnosticRunner",
     "SRCResult",
     "TaskResult",
     "TypeMetrics",
@@ -650,6 +652,6 @@ __all__ = [
     "classify_failure_mode",
     "classify_task_verdict",
     "compute_baseline_score",
-    "format_benchmark_report",
-    "save_benchmark",
+    "format_diagnostic_report",
+    "save_diagnostic",
 ]

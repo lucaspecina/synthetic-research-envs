@@ -822,10 +822,10 @@ Este caso testea:
 
 ---
 
-## Aseguramiento de calidad — dos niveles
+## Aseguramiento de calidad — tres niveles
 
-SREG tiene dos niveles de aseguramiento de calidad bien diferenciados.
-Es fundamental entender la diferencia y mantener ambos actualizados.
+SREG tiene tres niveles de aseguramiento de calidad bien diferenciados.
+Es fundamental entender la diferencia y mantener los tres actualizados.
 
 ### Nivel 1: Tests + Validacion (pre-commit)
 
@@ -834,38 +834,71 @@ Es fundamental entender la diferencia y mantener ambos actualizados.
 - **Unit tests** (`pytest tests/`): funciones aisladas con inputs fabricados.
   Rapidos, sin LLM, deterministas. Corren en cada commit.
 - **Validacion E2E** (smoke test): 1-2 casos con LLM real para verificar que
-  el pipeline completo (orchestrator → mundo → agente → score) no se rompio.
+  el pipeline completo (orchestrator -> mundo -> agente -> score) no se rompio.
   Rapido, no necesita ser exhaustivo — solo confirmar que el producto sigue
   funcionando de punta a punta.
 
 **Esto NO mide si el producto es bueno.** Solo mide que no esta roto.
 
-### Nivel 2: Benchmark y diagnostico (periodico)
+### Nivel 2: Diagnostico de entornos (periodico)
 
-**Pregunta que responde: "¿Que tan bueno es el producto? ¿Donde falla?"**
+**Pregunta que responde: "¿Los entornos son de calidad? ¿Donde fallan?"**
 
-Este es el **control de calidad del producto**, no del codigo. Corre el
-sistema REAL de punta a punta (siempre con LLM, porque asi funciona el
-producto) y mide la calidad de lo que produce. No con inputs fabricados
-ni mundos de juguete — con el pipeline real completo.
+Este es **control de calidad del generador**, no del codigo ni del producto
+final. Corre el sistema REAL de punta a punta (siempre con LLM) y mide
+la calidad de los entornos que produce: son solubles, no triviales, el reward
+funciona, las preguntas tienen sentido.
 
-**SIEMPRE usa LLM** porque el producto usa LLM. Correrlo sin orchestrator
+**SIEMPRE usa LLM** porque el generador usa LLM. Correrlo sin orchestrator
 o con templates programaticos seria como evaluar una fabrica mirando solo
 los planos en vez de los productos que salen de la linea.
 
 Produce dos salidas del mismo run:
 
 1. **Metricas agregadas**: completion rate, submit rate, KL distribution,
-   teacher > random rate, per-eval-type breakdown, etc. Numeros comparables
-   entre runs para trackear si el producto mejora o empeora.
+   baseline comparison, per-eval-type breakdown. Numeros comparables entre
+   runs para trackear si los entornos mejoran o empeoran.
 
 2. **Analisis de failure modes**: que patrones de fallo aparecen y por que.
    Casos triviales, narrativa confusa, preguntas imposibles, leakage, etc.
    Esto guia que trabajar next.
 
-**Principio: el benchmark trabaja con el sistema real, en su mejor version
-implementada.** No cosas anteriores, no mundos de juguete, no atajos. Si
-el sistema hoy usa orchestrator + CasePlan + semantica, el benchmark los usa.
+**Principio: el diagnostico trabaja con el sistema real, en su mejor version
+implementada.** No cosas anteriores, no mundos de juguete, no atajos.
+
+**IMPORTANTE: esto NO es el benchmark real de SREG.** Garantiza que los
+entornos son de calidad, pero no prueba que entrenar con ellos mejore a una
+policy. Es como verificar que el gimnasio tiene las maquinas bien calibradas —
+necesario, pero no prueba que alguien se ponga en forma usandolo.
+
+### Nivel 3: Benchmark de transferencia (la prueba real — FUTURO)
+
+**Pregunta que responde: "¿Entrenar con SREG realmente mejora el razonamiento
+cientifico de una policy?"**
+
+Este es **el verdadero benchmark de SREG**. No mide si los entornos son
+buenos (eso es el Nivel 2). Mide si entrenar con ellos produce una policy
+que razona mejor cientificamente.
+
+```
+1. BEFORE: evaluar policy base en benchmarks externos (CLadder, QRData, etc.)
+2. TRAIN:  entrenar la policy con entornos SREG (SFT + RL)
+3. AFTER:  evaluar la misma policy en los MISMOS benchmarks
+4. DELTA:  la diferencia es la evidencia
+```
+
+**Benchmarks externos recomendados** (ver `docs/EXTERNAL_BENCHMARKS.md`):
+- **CLadder** — razonamiento causal formal (10K preguntas, scoring determinista)
+- **QRData** — razonamiento causal con datos reales (411 preguntas)
+- **DiscoveryBench** — formulacion de hipotesis desde datos (264 tareas)
+- **SciGym** — ciclo experimental completo (350 sistemas)
+
+Si la policy mejora en SREG pero no en benchmarks externos = sobreajuste
+al generador. Si mejora en ambos = evidencia de transferencia real.
+
+**Estado: NO IMPLEMENTADO.** Requiere infraestructura de entrenamiento,
+acceso a modelos open-weight, y adapters para benchmarks externos. Es el
+objetivo de largo plazo del proyecto.
 
 ---
 
