@@ -1,0 +1,1689 @@
+{
+  "world": {
+    "id": "world-custom-004242",
+    "seed": 4242,
+    "template_family": "custom",
+    "description": "Custom world with 8 nodes (1 latent, 6 observable, 1 target)",
+    "nodes": [
+      {
+        "name": "sea_surface_temperature",
+        "type": "observable",
+        "description": "observable variable: sea_surface_temperature",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "nutrient_upwelling_intensity",
+        "type": "observable",
+        "description": "observable variable: nutrient_upwelling_intensity",
+        "states": [
+          "weak",
+          "moderate",
+          "strong"
+        ]
+      },
+      {
+        "name": "coastal_pollution_load",
+        "type": "observable",
+        "description": "observable variable: coastal_pollution_load",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "phytoplankton_biomass",
+        "type": "observable",
+        "description": "observable variable: phytoplankton_biomass",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "coral_health_index",
+        "type": "observable",
+        "description": "observable variable: coral_health_index",
+        "states": [
+          "poor",
+          "fair",
+          "good"
+        ]
+      },
+      {
+        "name": "herbivorous_fish_abundance",
+        "type": "observable",
+        "description": "observable variable: herbivorous_fish_abundance",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "reef_resilience_trait",
+        "type": "latent",
+        "description": "latent variable: reef_resilience_trait",
+        "states": [
+          "low",
+          "high"
+        ]
+      },
+      {
+        "name": "reef_biodiversity_status",
+        "type": "target",
+        "description": "target variable: reef_biodiversity_status",
+        "states": [
+          "degraded",
+          "stable",
+          "thriving"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "sea_surface_temperature",
+        "to_node": "phytoplankton_biomass",
+        "mechanism": "sea_surface_temperature influences phytoplankton_biomass"
+      },
+      {
+        "from_node": "nutrient_upwelling_intensity",
+        "to_node": "phytoplankton_biomass",
+        "mechanism": "nutrient_upwelling_intensity influences phytoplankton_biomass"
+      },
+      {
+        "from_node": "coastal_pollution_load",
+        "to_node": "coral_health_index",
+        "mechanism": "coastal_pollution_load influences coral_health_index"
+      },
+      {
+        "from_node": "phytoplankton_biomass",
+        "to_node": "coral_health_index",
+        "mechanism": "phytoplankton_biomass influences coral_health_index"
+      },
+      {
+        "from_node": "coral_health_index",
+        "to_node": "reef_biodiversity_status",
+        "mechanism": "coral_health_index influences reef_biodiversity_status"
+      },
+      {
+        "from_node": "herbivorous_fish_abundance",
+        "to_node": "reef_biodiversity_status",
+        "mechanism": "herbivorous_fish_abundance influences reef_biodiversity_status"
+      },
+      {
+        "from_node": "reef_resilience_trait",
+        "to_node": "coral_health_index",
+        "mechanism": "reef_resilience_trait influences coral_health_index"
+      },
+      {
+        "from_node": "reef_resilience_trait",
+        "to_node": "reef_biodiversity_status",
+        "mechanism": "reef_resilience_trait influences reef_biodiversity_status"
+      }
+    ],
+    "cpds": [
+      {
+        "node": "sea_surface_temperature",
+        "parents": [],
+        "table": [
+          [
+            0.18852065155744022
+          ],
+          [
+            0.34366128383368144
+          ],
+          [
+            0.4678180646088783
+          ]
+        ],
+        "state_names": {
+          "sea_surface_temperature": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "nutrient_upwelling_intensity",
+        "parents": [],
+        "table": [
+          [
+            0.23114290427287695
+          ],
+          [
+            0.2602928801091918
+          ],
+          [
+            0.5085642156179313
+          ]
+        ],
+        "state_names": {
+          "nutrient_upwelling_intensity": [
+            "weak",
+            "moderate",
+            "strong"
+          ]
+        }
+      },
+      {
+        "node": "coastal_pollution_load",
+        "parents": [],
+        "table": [
+          [
+            0.008845735788310834
+          ],
+          [
+            0.7094791451994901
+          ],
+          [
+            0.28167511901219916
+          ]
+        ],
+        "state_names": {
+          "coastal_pollution_load": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "phytoplankton_biomass",
+        "parents": [
+          "sea_surface_temperature",
+          "nutrient_upwelling_intensity"
+        ],
+        "table": [
+          [
+            0.9031982715685565,
+            0.9018877793136101,
+            0.9121492882361968,
+            0.011605656869693082,
+            0.9352114726466038,
+            0.0953858860392451,
+            0.09382510876501049,
+            0.8692005434140394,
+            0.12854764720392547
+          ],
+          [
+            0.08395057525096306,
+            0.04177046908685311,
+            0.03411540545431117,
+            0.982965530430945,
+            0.010097579183599995,
+            0.025512982344601913,
+            0.8930191956870118,
+            0.1262878477885185,
+            0.7861126532740926
+          ],
+          [
+            0.012851153180480464,
+            0.056341751599536936,
+            0.053735306309492165,
+            0.005428812699361907,
+            0.054690948169796305,
+            0.8791011316161529,
+            0.01315569554797757,
+            0.004511608797442051,
+            0.08533969952198166
+          ]
+        ],
+        "state_names": {
+          "phytoplankton_biomass": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "sea_surface_temperature": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "nutrient_upwelling_intensity": [
+            "weak",
+            "moderate",
+            "strong"
+          ]
+        }
+      },
+      {
+        "node": "coral_health_index",
+        "parents": [
+          "coastal_pollution_load",
+          "phytoplankton_biomass",
+          "reef_resilience_trait"
+        ],
+        "table": [
+          [
+            0.949749656063544,
+            0.8210859372815451,
+            0.00864582301912121,
+            0.9194124835060843,
+            0.8952226885456357,
+            0.014594974881616712,
+            0.008763695516361445,
+            0.9870557999049977,
+            0.05751415504671111,
+            0.0033089420376667027,
+            0.008836000230234342,
+            0.019572363362777803,
+            0.8229340202815202,
+            0.01858126481841831,
+            0.00011215796929007028,
+            0.0010378776011864676,
+            0.10606823950925504,
+            0.07865030812816921
+          ],
+          [
+            0.03236819132470511,
+            0.002388105699850804,
+            0.035554054942423224,
+            0.060299500693286594,
+            0.059443070295715605,
+            0.8313263867804267,
+            0.002428875290433339,
+            0.011436023921897503,
+            0.0909972492466689,
+            0.0001441135745292531,
+            0.08371504784558588,
+            0.9259825908884938,
+            0.06212508789987313,
+            0.9613126777455588,
+            0.01980842111630739,
+            0.9172918268438061,
+            0.8627997334882911,
+            0.9212756054247139
+          ],
+          [
+            0.017882152611750933,
+            0.17652595701860416,
+            0.9558001220384557,
+            0.02028801580062915,
+            0.04533424115864867,
+            0.15407863833795657,
+            0.9888074291932053,
+            0.0015081761731047737,
+            0.8514885957066199,
+            0.996546944387804,
+            0.9074489519241797,
+            0.05444504574872839,
+            0.11494089181860678,
+            0.020106057436022978,
+            0.9800794209144026,
+            0.08167029555500736,
+            0.0311320270024539,
+            7.408644711673408e-05
+          ]
+        ],
+        "state_names": {
+          "coral_health_index": [
+            "poor",
+            "fair",
+            "good"
+          ],
+          "coastal_pollution_load": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "phytoplankton_biomass": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "reef_resilience_trait": [
+            "low",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "herbivorous_fish_abundance",
+        "parents": [],
+        "table": [
+          [
+            0.5140782888446238
+          ],
+          [
+            0.0958595700493198
+          ],
+          [
+            0.39006214110605636
+          ]
+        ],
+        "state_names": {
+          "herbivorous_fish_abundance": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "reef_resilience_trait",
+        "parents": [],
+        "table": [
+          [
+            0.4477923913229659
+          ],
+          [
+            0.5522076086770341
+          ]
+        ],
+        "state_names": {
+          "reef_resilience_trait": [
+            "low",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "reef_biodiversity_status",
+        "parents": [
+          "coral_health_index",
+          "herbivorous_fish_abundance",
+          "reef_resilience_trait"
+        ],
+        "table": [
+          [
+            0.06660467943044435,
+            0.8922298005344073,
+            0.921362718709324,
+            0.8188934400103083,
+            0.10628428092061075,
+            0.0157216750704662,
+            0.08686048479754704,
+            0.07638781743041466,
+            0.006263229940205304,
+            0.9458457739959598,
+            0.09973663039183445,
+            0.9014236701837479,
+            0.011352848703762337,
+            0.8649348233154017,
+            0.824676935913842,
+            0.804124680890884,
+            0.9801233879320814,
+            0.7832673190093594
+          ],
+          [
+            0.8928154226613974,
+            0.04898177818747178,
+            0.07293700424517846,
+            0.020227349758589384,
+            0.003723458490029673,
+            0.07100585983120442,
+            0.8821428699171939,
+            0.92188132855884,
+            0.9563579577845944,
+            0.0347716690099255,
+            0.8817615505741178,
+            0.08897228572649377,
+            0.791797599237733,
+            0.026480774063818116,
+            0.038433991915031454,
+            0.024896873834489415,
+            0.007750055612813184,
+            0.1944292212708733
+          ],
+          [
+            0.04057989790815817,
+            0.05878842127812085,
+            0.005700277045497555,
+            0.1608792102311024,
+            0.8899922605893595,
+            0.9132724650983295,
+            0.030996645285259035,
+            0.001730854010745477,
+            0.037378812275200186,
+            0.019382556994114508,
+            0.018501819034047816,
+            0.00960404408975831,
+            0.19684955205850485,
+            0.10858440262077995,
+            0.1368890721711266,
+            0.17097844527462674,
+            0.012126556455105592,
+            0.02230345971976731
+          ]
+        ],
+        "state_names": {
+          "reef_biodiversity_status": [
+            "degraded",
+            "stable",
+            "thriving"
+          ],
+          "coral_health_index": [
+            "poor",
+            "fair",
+            "good"
+          ],
+          "herbivorous_fish_abundance": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "reef_resilience_trait": [
+            "low",
+            "high"
+          ]
+        }
+      }
+    ],
+    "difficulty": {
+      "level": "medium",
+      "num_nodes": 8,
+      "num_latent": 1,
+      "num_observable": 6,
+      "edge_density": 0.2857142857142857,
+      "avg_states_per_node": 2.875,
+      "posterior_entropy": null
+    },
+    "scenario_title": "Reef Biodiversity Decline in the Pelagia Archipelago",
+    "scenario_description": "The Pelagia Archipelago is a remote chain of tropical islands whose coral reefs support fisheries, tourism, and shoreline protection. Over the past decade, marine surveys have reported uneven patterns of reef biodiversity: some reefs remain vibrant while others show rapid degradation, even under similar climatic conditions. Local authorities are concerned that continued losses could undermine food security and ecosystem stability across the archipelago.\n\nPrevious monitoring programs have focused on surface temperature anomalies and visible pollution sources, but results have been inconclusive. Some reefs exposed to warming waters appear unexpectedly resilient, while others collapse despite moderate conditions. Researchers suspect that hidden ecological traits, interacting with nutrient dynamics and food-web structure, may be driving these divergent outcomes. The current research effort aims to disentangle these causal pathways and identify leverage points for conservation interventions.",
+    "domain": "marine ecology",
+    "theoretical_context": "Prior studies in comparable island systems suggest that reef biodiversity emerges from coupled bottom-up (nutrient and phytoplankton dynamics) and top-down (herbivory and grazing) controls. Other work emphasizes the role of latent resilience traits, such as genetic diversity or microbial symbioses, that buffer corals against stress. However, the relative importance of direct pollution effects versus indirect food-web-mediated pathways remains contested in the literature."
+  },
+  "problem": {
+    "world_id": "world-custom-004242",
+    "title": "Reef Biodiversity Decline in the Pelagia Archipelago",
+    "description": "The Pelagia Archipelago is a remote chain of tropical islands whose coral reefs support fisheries, tourism, and shoreline protection. Over the past decade, marine surveys have reported uneven patterns of reef biodiversity: some reefs remain vibrant while others show rapid degradation, even under similar climatic conditions. Local authorities are concerned that continued losses could undermine food security and ecosystem stability across the archipelago.\n\nPrevious monitoring programs have focused on surface temperature anomalies and visible pollution sources, but results have been inconclusive. Some reefs exposed to warming waters appear unexpectedly resilient, while others collapse despite moderate conditions. Researchers suspect that hidden ecological traits, interacting with nutrient dynamics and food-web structure, may be driving these divergent outcomes. The current research effort aims to disentangle these causal pathways and identify leverage points for conservation interventions.",
+    "domain": "marine ecology",
+    "theoretical_context": "Prior studies in comparable island systems suggest that reef biodiversity emerges from coupled bottom-up (nutrient and phytoplankton dynamics) and top-down (herbivory and grazing) controls. Other work emphasizes the role of latent resilience traits, such as genetic diversity or microbial symbioses, that buffer corals against stress. However, the relative importance of direct pollution effects versus indirect food-web-mediated pathways remains contested in the literature.",
+    "data_assets": [
+      {
+        "name": "reef_biodiversity_decline_in_the_pelagia_data",
+        "description": "Dataset with 80 samples. Columns: sea_surface_temperature, nutrient_upwelling_intensity, coastal_pollution_load, phytoplankton_biomass, coral_health_index, herbivorous_fish_abundance, reef_biodiversity_status.",
+        "format": "tabular",
+        "data": [
+          {
+            "sample_id": 1.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 2.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 3.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 4.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 5.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 6.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 7.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 8.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 9.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 10.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 11.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 12.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 13.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 14.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 15.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 16.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 17.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 18.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 19.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 20.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 21.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 22.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 23.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 24.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 25.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 26.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 27.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 28.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 29.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 30.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 31.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 32.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 33.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 34.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 35.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 36.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 37.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 38.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 39.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 40.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 41.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 42.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 43.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 44.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 45.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 46.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 47.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 48.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 49.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 50.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 51.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 52.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 53.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 54.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 55.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 56.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "thriving"
+          },
+          {
+            "sample_id": 57.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 58.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 59.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 60.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 61.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 62.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 63.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 64.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 65.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 66.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 67.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 68.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 69.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 70.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 71.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "medium",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 72.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 73.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "fair",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 74.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "moderate",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "poor",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 75.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 76.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 77.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "high",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "high",
+            "reef_biodiversity_status": "degraded"
+          },
+          {
+            "sample_id": 78.0,
+            "sea_surface_temperature": "high",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "high",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 79.0,
+            "sea_surface_temperature": "medium",
+            "nutrient_upwelling_intensity": "weak",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "medium",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "stable"
+          },
+          {
+            "sample_id": 80.0,
+            "sea_surface_temperature": "low",
+            "nutrient_upwelling_intensity": "strong",
+            "coastal_pollution_load": "medium",
+            "phytoplankton_biomass": "low",
+            "coral_health_index": "good",
+            "herbivorous_fish_abundance": "low",
+            "reef_biodiversity_status": "thriving"
+          }
+        ],
+        "source": null,
+        "columns": null,
+        "num_rows": null
+      },
+      {
+        "name": "field_observations",
+        "description": "30 individual field observations.",
+        "format": "observations",
+        "data": [
+          {
+            "observation": "observable variable: sea_surface_temperature: high",
+            "variable": "sea_surface_temperature",
+            "value": "high",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling_intensity: strong",
+            "variable": "nutrient_upwelling_intensity",
+            "value": "strong",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: coastal_pollution_load: medium",
+            "variable": "coastal_pollution_load",
+            "value": "medium",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: phytoplankton_biomass: medium",
+            "variable": "phytoplankton_biomass",
+            "value": "medium",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: coral_health_index: good",
+            "variable": "coral_health_index",
+            "value": "good",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: herbivorous_fish_abundance: low",
+            "variable": "herbivorous_fish_abundance",
+            "value": "low",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: sea_surface_temperature: high",
+            "variable": "sea_surface_temperature",
+            "value": "high",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling_intensity: strong",
+            "variable": "nutrient_upwelling_intensity",
+            "value": "strong",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: coastal_pollution_load: medium",
+            "variable": "coastal_pollution_load",
+            "value": "medium",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: phytoplankton_biomass: medium",
+            "variable": "phytoplankton_biomass",
+            "value": "medium",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: coral_health_index: good",
+            "variable": "coral_health_index",
+            "value": "good",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: herbivorous_fish_abundance: medium",
+            "variable": "herbivorous_fish_abundance",
+            "value": "medium",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: sea_surface_temperature: low",
+            "variable": "sea_surface_temperature",
+            "value": "low",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling_intensity: moderate",
+            "variable": "nutrient_upwelling_intensity",
+            "value": "moderate",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: coastal_pollution_load: medium",
+            "variable": "coastal_pollution_load",
+            "value": "medium",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: phytoplankton_biomass: low",
+            "variable": "phytoplankton_biomass",
+            "value": "low",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: coral_health_index: poor",
+            "variable": "coral_health_index",
+            "value": "poor",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: herbivorous_fish_abundance: low",
+            "variable": "herbivorous_fish_abundance",
+            "value": "low",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: sea_surface_temperature: medium",
+            "variable": "sea_surface_temperature",
+            "value": "medium",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling_intensity: strong",
+            "variable": "nutrient_upwelling_intensity",
+            "value": "strong",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: coastal_pollution_load: medium",
+            "variable": "coastal_pollution_load",
+            "value": "medium",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: phytoplankton_biomass: high",
+            "variable": "phytoplankton_biomass",
+            "value": "high",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: coral_health_index: fair",
+            "variable": "coral_health_index",
+            "value": "fair",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: herbivorous_fish_abundance: low",
+            "variable": "herbivorous_fish_abundance",
+            "value": "low",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: sea_surface_temperature: low",
+            "variable": "sea_surface_temperature",
+            "value": "low",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling_intensity: strong",
+            "variable": "nutrient_upwelling_intensity",
+            "value": "strong",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: coastal_pollution_load: high",
+            "variable": "coastal_pollution_load",
+            "value": "high",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: phytoplankton_biomass: high",
+            "variable": "phytoplankton_biomass",
+            "value": "high",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: coral_health_index: fair",
+            "variable": "coral_health_index",
+            "value": "fair",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: herbivorous_fish_abundance: medium",
+            "variable": "herbivorous_fish_abundance",
+            "value": "medium",
+            "sample": 5.0
+          }
+        ],
+        "source": null,
+        "columns": null,
+        "num_rows": null
+      }
+    ],
+    "available_actions": [
+      {
+        "action_type": "observe",
+        "nodes": [
+          "sea_surface_temperature"
+        ],
+        "description": "Measure sea surface temperature",
+        "cost": 1,
+        "node": "sea_surface_temperature"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "nutrient_upwelling_intensity"
+        ],
+        "description": "Measure nutrient upwelling intensity",
+        "cost": 1,
+        "node": "nutrient_upwelling_intensity"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "coastal_pollution_load"
+        ],
+        "description": "Measure coastal pollution load",
+        "cost": 1,
+        "node": "coastal_pollution_load"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "phytoplankton_biomass"
+        ],
+        "description": "Measure phytoplankton biomass",
+        "cost": 1,
+        "node": "phytoplankton_biomass"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "coral_health_index"
+        ],
+        "description": "Measure coral health index",
+        "cost": 2,
+        "node": "coral_health_index"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "herbivorous_fish_abundance"
+        ],
+        "description": "Measure herbivorous fish abundance",
+        "cost": 2,
+        "node": "herbivorous_fish_abundance"
+      }
+    ],
+    "budget": 5,
+    "research_question": "Given the available environmental and ecological measurements, what is the most likely current biodiversity status of a reef site in the Pelagia Archipelago?\n\nTarget variable: 'reef_biodiversity_status' (possible states: degraded, stable, thriving). You may request additional measurements within your budget.",
+    "target_node": "reef_biodiversity_status",
+    "target_states": [
+      "degraded",
+      "stable",
+      "thriving"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "task-world-custom-004242-infer_target",
+      "type": "infer_target",
+      "world_id": "world-custom-004242",
+      "question": "Given the available environmental and ecological measurements, what is the most likely current biodiversity status of a reef site in the Pelagia Archipelago?",
+      "target_node": "reef_biodiversity_status",
+      "available_evidence": [
+        "sea_surface_temperature",
+        "nutrient_upwelling_intensity",
+        "coastal_pollution_load",
+        "phytoplankton_biomass",
+        "coral_health_index",
+        "herbivorous_fish_abundance"
+      ],
+      "correct_answer": {
+        "degraded": 0.5090424418461302,
+        "stable": 0.3438522574360082,
+        "thriving": 0.14710530071786157
+      },
+      "scoring_method": "kl_divergence",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {}
+    },
+    {
+      "id": "task-world-custom-004242-causal_effect",
+      "type": "causal_effect",
+      "world_id": "world-custom-004242",
+      "question": "If we intervene and set 'coral_health_index' to 'fair', what would be the probability distribution over 'reef_biodiversity_status' (possible states: degraded, stable, thriving)? This is a causal question: you are asked about the effect of an intervention (do-operation), not just an observation.",
+      "target_node": "reef_biodiversity_status",
+      "available_evidence": [
+        "sea_surface_temperature",
+        "nutrient_upwelling_intensity",
+        "coastal_pollution_load",
+        "phytoplankton_biomass",
+        "herbivorous_fish_abundance"
+      ],
+      "correct_answer": {
+        "degraded": 0.3036,
+        "stable": 0.680843,
+        "thriving": 0.015558
+      },
+      "scoring_method": "kl_divergence",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {
+        "coral_health_index": "fair"
+      }
+    },
+    {
+      "id": "task-world-custom-004242-compare_interventions",
+      "type": "compare_interventions",
+      "world_id": "world-custom-004242",
+      "question": "Your team is debating between two possible interventions to maximize 'reef_biodiversity_status' being 'thriving'. Intervention A: set 'herbivorous_fish_abundance' to 'high'. Intervention B: set 'coral_health_index' to 'poor'. Which intervention would have a larger causal effect on the probability of 'reef_biodiversity_status' being 'thriving'? This is about do-operations (interventions), not observations. Answer 'A' or 'B'.",
+      "target_node": "reef_biodiversity_status",
+      "available_evidence": [
+        "sea_surface_temperature",
+        "nutrient_upwelling_intensity",
+        "coastal_pollution_load",
+        "phytoplankton_biomass",
+        "coral_health_index",
+        "herbivorous_fish_abundance"
+      ],
+      "correct_answer": {
+        "herbivorous_fish_abundance:high": 0.217762,
+        "coral_health_index:poor": 0.386958
+      },
+      "scoring_method": "compare_interventions",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {
+        "coral_health_index": "poor"
+      }
+    },
+    {
+      "id": "task-world-custom-004242-hypothesis_selection",
+      "type": "hypothesis_selection",
+      "world_id": "world-custom-004242",
+      "question": "Which of the competing hypotheses best explains the observed pattern of reef outcomes: that biodiversity is primarily driven by direct pollution stress, or that it is mediated by an underlying reef resilience trait?",
+      "target_node": "reef_biodiversity_status",
+      "available_evidence": [
+        "coral_health_index"
+      ],
+      "correct_answer": {
+        "A": 0.000184,
+        "B": 1.009105,
+        "C": 0.881167,
+        "D": 0.0
+      },
+      "scoring_method": "hypothesis_accuracy",
+      "given_evidence": {
+        "herbivorous_fish_abundance": "low",
+        "nutrient_upwelling_intensity": "strong",
+        "sea_surface_temperature": "medium",
+        "phytoplankton_biomass": "high",
+        "coastal_pollution_load": "medium"
+      },
+      "hypotheses": {
+        "A": {
+          "degraded": 0.0861,
+          "stable": 0.8311,
+          "thriving": 0.0828
+        },
+        "B": {
+          "degraded": 0.509,
+          "stable": 0.3439,
+          "thriving": 0.1471
+        },
+        "C": {
+          "degraded": 0.3333,
+          "stable": 0.3333,
+          "thriving": 0.3333
+        },
+        "D": {
+          "degraded": 0.0828,
+          "stable": 0.8311,
+          "thriving": 0.0861
+        }
+      },
+      "intervention": {}
+    }
+  ]
+}

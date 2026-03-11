@@ -1,0 +1,2107 @@
+{
+  "world": {
+    "id": "world-custom-000042",
+    "seed": 42,
+    "template_family": "custom",
+    "description": "Custom world with 10 nodes (1 latent, 8 observable, 1 target)",
+    "nodes": [
+      {
+        "name": "pathogen_strain",
+        "type": "latent",
+        "description": "latent variable: pathogen_strain",
+        "states": [
+          "alpha",
+          "beta",
+          "gamma"
+        ]
+      },
+      {
+        "name": "population_density",
+        "type": "observable",
+        "description": "observable variable: population_density",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "vaccination_coverage",
+        "type": "observable",
+        "description": "observable variable: vaccination_coverage",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "sanitation_quality",
+        "type": "observable",
+        "description": "observable variable: sanitation_quality",
+        "states": [
+          "poor",
+          "adequate",
+          "good"
+        ]
+      },
+      {
+        "name": "vector_abundance",
+        "type": "observable",
+        "description": "observable variable: vector_abundance",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "human_mobility",
+        "type": "observable",
+        "description": "observable variable: human_mobility",
+        "states": [
+          "restricted",
+          "moderate",
+          "high"
+        ]
+      },
+      {
+        "name": "healthcare_access",
+        "type": "observable",
+        "description": "observable variable: healthcare_access",
+        "states": [
+          "poor",
+          "adequate",
+          "good"
+        ]
+      },
+      {
+        "name": "public_awareness",
+        "type": "observable",
+        "description": "observable variable: public_awareness",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "testing_rate",
+        "type": "observable",
+        "description": "observable variable: testing_rate",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "infection_incidence",
+        "type": "target",
+        "description": "target variable: infection_incidence",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "pathogen_strain",
+        "to_node": "infection_incidence",
+        "mechanism": "pathogen_strain influences infection_incidence"
+      },
+      {
+        "from_node": "vaccination_coverage",
+        "to_node": "infection_incidence",
+        "mechanism": "vaccination_coverage influences infection_incidence"
+      },
+      {
+        "from_node": "sanitation_quality",
+        "to_node": "vector_abundance",
+        "mechanism": "sanitation_quality influences vector_abundance"
+      },
+      {
+        "from_node": "vector_abundance",
+        "to_node": "infection_incidence",
+        "mechanism": "vector_abundance influences infection_incidence"
+      },
+      {
+        "from_node": "human_mobility",
+        "to_node": "infection_incidence",
+        "mechanism": "human_mobility influences infection_incidence"
+      },
+      {
+        "from_node": "population_density",
+        "to_node": "human_mobility",
+        "mechanism": "population_density influences human_mobility"
+      },
+      {
+        "from_node": "public_awareness",
+        "to_node": "human_mobility",
+        "mechanism": "public_awareness influences human_mobility"
+      },
+      {
+        "from_node": "healthcare_access",
+        "to_node": "testing_rate",
+        "mechanism": "healthcare_access influences testing_rate"
+      }
+    ],
+    "cpds": [
+      {
+        "node": "pathogen_strain",
+        "parents": [],
+        "table": [
+          [
+            0.5943929054322812
+          ],
+          [
+            0.07920824527857441
+          ],
+          [
+            0.3263988492891443
+          ]
+        ],
+        "state_names": {
+          "pathogen_strain": [
+            "alpha",
+            "beta",
+            "gamma"
+          ]
+        }
+      },
+      {
+        "node": "population_density",
+        "parents": [],
+        "table": [
+          [
+            0.2409631561717172
+          ],
+          [
+            0.2826131218882785
+          ],
+          [
+            0.47642372194000443
+          ]
+        ],
+        "state_names": {
+          "population_density": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "vaccination_coverage",
+        "parents": [],
+        "table": [
+          [
+            0.30772781722142456
+          ],
+          [
+            0.34206803429301275
+          ],
+          [
+            0.3502041484855628
+          ]
+        ],
+        "state_names": {
+          "vaccination_coverage": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "sanitation_quality",
+        "parents": [],
+        "table": [
+          [
+            0.08666393169725864
+          ],
+          [
+            0.3937246997115855
+          ],
+          [
+            0.519611368591156
+          ]
+        ],
+        "state_names": {
+          "sanitation_quality": [
+            "poor",
+            "adequate",
+            "good"
+          ]
+        }
+      },
+      {
+        "node": "vector_abundance",
+        "parents": [
+          "sanitation_quality"
+        ],
+        "table": [
+          [
+            0.882139751903881,
+            0.1046980180263166,
+            6.682407028625931e-05
+          ],
+          [
+            0.10428098666131196,
+            0.013754359707529798,
+            0.9131921662333135
+          ],
+          [
+            0.013579261434807047,
+            0.8815476222661536,
+            0.0867410096964002
+          ]
+        ],
+        "state_names": {
+          "vector_abundance": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "sanitation_quality": [
+            "poor",
+            "adequate",
+            "good"
+          ]
+        }
+      },
+      {
+        "node": "human_mobility",
+        "parents": [
+          "population_density",
+          "public_awareness"
+        ],
+        "table": [
+          [
+            0.10694487391124297,
+            0.9906949973404997,
+            0.13177700733012604,
+            0.8086477540252222,
+            0.9001076637625544,
+            0.9579853521098527,
+            0.004056855637398725,
+            0.9602736132517915,
+            0.02889215257164866
+          ],
+          [
+            0.7984567720536715,
+            0.0005475012360975219,
+            0.001413453167675964,
+            0.06839996880162155,
+            0.09251775676084023,
+            0.02727685442317983,
+            0.9829970034485609,
+            0.035963188042600076,
+            0.9640940252076642
+          ],
+          [
+            0.09459835403508551,
+            0.008757501423402715,
+            0.866809539502198,
+            0.12295227717315635,
+            0.007374579476605287,
+            0.014737793466967374,
+            0.012946140914040437,
+            0.0037631987056084477,
+            0.007013822220687127
+          ]
+        ],
+        "state_names": {
+          "human_mobility": [
+            "restricted",
+            "moderate",
+            "high"
+          ],
+          "population_density": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "public_awareness": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "healthcare_access",
+        "parents": [],
+        "table": [
+          [
+            0.38970869980523826
+          ],
+          [
+            0.3193064396456719
+          ],
+          [
+            0.2909848605490898
+          ]
+        ],
+        "state_names": {
+          "healthcare_access": [
+            "poor",
+            "adequate",
+            "good"
+          ]
+        }
+      },
+      {
+        "node": "public_awareness",
+        "parents": [],
+        "table": [
+          [
+            0.7493119016988797
+          ],
+          [
+            0.14168803599467078
+          ],
+          [
+            0.10900006230644968
+          ]
+        ],
+        "state_names": {
+          "public_awareness": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "testing_rate",
+        "parents": [
+          "healthcare_access"
+        ],
+        "table": [
+          [
+            0.0003363747016735449,
+            0.9704666734089086,
+            0.036453710352174824
+          ],
+          [
+            0.028589517549427096,
+            0.022995788624592093,
+            0.7971367357814803
+          ],
+          [
+            0.9710741077488994,
+            0.006537537966499351,
+            0.16640955386634498
+          ]
+        ],
+        "state_names": {
+          "testing_rate": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "healthcare_access": [
+            "poor",
+            "adequate",
+            "good"
+          ]
+        }
+      },
+      {
+        "node": "infection_incidence",
+        "parents": [
+          "pathogen_strain",
+          "vaccination_coverage",
+          "vector_abundance",
+          "human_mobility"
+        ],
+        "table": [
+          [
+            0.9903504163493622,
+            0.8301809398808951,
+            0.981161697059113,
+            0.028059154571274975,
+            0.12712809266876984,
+            0.9612658440059112,
+            0.008618455074034663,
+            0.0004506341722062667,
+            0.8844131692489503,
+            0.004711400160986772,
+            0.07181516463933184,
+            0.8017618520635217,
+            0.0279707740256732,
+            0.006342808648853696,
+            0.03517531035136482,
+            0.015352082042194914,
+            0.005625966765297073,
+            0.004075009303234315,
+            0.04905933491967343,
+            0.018682493300316752,
+            0.8370378696652491,
+            0.10960320530397302,
+            0.08528857289953548,
+            0.005229983817281529,
+            0.019801078012560605,
+            0.030692799074069077,
+            0.0621334783679915,
+            0.993324485670829,
+            0.8023221954278538,
+            0.8579317527142316,
+            0.0860363287470397,
+            0.04524208279606034,
+            0.8940105609605986,
+            0.12344766146701776,
+            0.24415360159181954,
+            0.9026905714645543,
+            0.004706154004416667,
+            0.00025795442360579255,
+            0.896789212673227,
+            0.0031880587133304816,
+            0.00452195944603518,
+            0.00011300707945115538,
+            0.001663095779566126,
+            0.0006693434557690636,
+            0.13731744945868257,
+            0.001242991547858021,
+            0.003971874444081303,
+            0.7660788871715846,
+            0.05704957704712599,
+            0.018928740987557032,
+            0.055909926556498124,
+            0.05280253751932559,
+            0.14364246759631813,
+            0.07244460234997979,
+            0.9645649337507661,
+            0.9658273538995266,
+            0.8422536219921486,
+            0.5989378974235395,
+            0.9532434666943623,
+            0.5428166931957155,
+            0.9778972112796823,
+            0.9454606293225141,
+            0.8400370609625285,
+            0.9499779557256213,
+            0.8818709624780848,
+            0.8940757878402489,
+            0.021057515715338752,
+            0.010155185760279278,
+            0.817027592105856,
+            0.003998841471466069,
+            0.12470557216158895,
+            0.9293361695043291,
+            0.8468157605258504,
+            0.8577333621227166,
+            0.9238530562806795,
+            0.0777438988102161,
+            0.07043764214586067,
+            0.8586568410964124,
+            0.00739890803621521,
+            0.0050553022800337456,
+            0.8886775593753728
+          ],
+          [
+            0.0024376819532408635,
+            0.149633502974985,
+            0.012294694152540685,
+            0.9333646964476424,
+            0.11501710764660572,
+            0.004039417576527163,
+            0.10124689116196703,
+            0.01116563488477515,
+            0.011559456352601758,
+            0.21289073286229496,
+            0.016226145159062937,
+            0.0045373752712863724,
+            0.8611532233262269,
+            0.030746598721450195,
+            0.10049953970952195,
+            0.16310226479615883,
+            0.20754624930138935,
+            0.05090798958779413,
+            0.9406584081862275,
+            0.03381405868603957,
+            0.0028068438453419347,
+            0.8854926692436683,
+            0.7801640018200922,
+            0.9736763043811294,
+            0.6932779493105885,
+            0.03759319524267876,
+            0.022710138837063965,
+            0.0036189222837335476,
+            0.10261072860793494,
+            0.06768724195211889,
+            0.7340344605873691,
+            0.9494473873237669,
+            0.08948992469547244,
+            0.8684063466718172,
+            0.023926743901001177,
+            0.021098478618183862,
+            0.9391967074683696,
+            0.19470840168055886,
+            0.0903936179177674,
+            0.9963143063045966,
+            0.9427810564460174,
+            0.9747704462529121,
+            0.9146729028178268,
+            0.0033873213049404145,
+            0.08376744597524734,
+            0.9287636068926212,
+            0.8536862011459604,
+            0.19660282350467467,
+            0.9201318617263795,
+            0.902201656837577,
+            0.9424037829025346,
+            0.8766602690856998,
+            0.8280973693256555,
+            0.8948242063782105,
+            0.033485430561737486,
+            0.017874209420825918,
+            0.15136654986296744,
+            0.32061153963791933,
+            0.00015916378218189817,
+            0.3563346718955457,
+            0.0017369884624510127,
+            0.013085576208818768,
+            0.026282638285464812,
+            0.001747303092335051,
+            0.08583398748707058,
+            0.031232050226497943,
+            0.9458487655639254,
+            0.042193198025398324,
+            0.08050572582971524,
+            0.02896524844472991,
+            0.02856571137826969,
+            0.03901996174728135,
+            0.07316423815090228,
+            0.0064277833833462335,
+            0.07609408718782262,
+            0.8461166148168775,
+            0.904500685231585,
+            0.02018464969205958,
+            0.7039278063042771,
+            0.0018773672093750683,
+            0.025067421263179172
+          ],
+          [
+            0.007211901697396978,
+            0.020185557144119806,
+            0.006543608788346352,
+            0.03857614898108271,
+            0.7578547996846244,
+            0.034694738417561585,
+            0.8901346537639983,
+            0.9883837309430187,
+            0.10402737439844799,
+            0.7823978669767182,
+            0.9119586902016052,
+            0.19370077266519198,
+            0.11087600264809971,
+            0.9629105926296962,
+            0.8643251499391131,
+            0.8215456531616462,
+            0.7868277839333137,
+            0.9450170011089715,
+            0.010282256894099166,
+            0.9475034480136436,
+            0.16015528648940894,
+            0.004904125452358687,
+            0.13454742528037256,
+            0.021093711801589095,
+            0.2869209726768509,
+            0.9317140056832521,
+            0.9151563827949445,
+            0.00305659204543758,
+            0.09506707596421135,
+            0.07438100533364954,
+            0.17992921066559112,
+            0.005310529880172758,
+            0.016499514343928823,
+            0.008145991861165087,
+            0.7319196545071792,
+            0.07621094991726186,
+            0.056097138527213826,
+            0.8050336438958353,
+            0.012817169409005668,
+            0.0004976349820727778,
+            0.0526969841079475,
+            0.02511654666763669,
+            0.08366400140260706,
+            0.9959433352392904,
+            0.77891510456607,
+            0.0699934015595208,
+            0.14234192440995827,
+            0.03731828932374079,
+            0.02281856122649442,
+            0.07886960217486585,
+            0.0016862905409673209,
+            0.07053719339497466,
+            0.028260163078026472,
+            0.0327311912718097,
+            0.0019496356874963703,
+            0.01629843667964728,
+            0.006379828144883896,
+            0.08045056293854112,
+            0.04659736952345583,
+            0.10084863490873874,
+            0.020365800257866752,
+            0.04145379446866712,
+            0.13368030075200674,
+            0.04827474118204361,
+            0.03229505003484467,
+            0.07469216193325304,
+            0.03309371872073583,
+            0.9476516162143225,
+            0.10246668206442876,
+            0.9670359100838039,
+            0.8467287164601415,
+            0.03164386874838957,
+            0.08002000132324717,
+            0.1358388544939373,
+            5.2856531497902496e-05,
+            0.07613948637290624,
+            0.025061672622554355,
+            0.12115850921152813,
+            0.28867328565950773,
+            0.9930673305105912,
+            0.08625501936144797
+          ]
+        ],
+        "state_names": {
+          "infection_incidence": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "pathogen_strain": [
+            "alpha",
+            "beta",
+            "gamma"
+          ],
+          "vaccination_coverage": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "vector_abundance": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "human_mobility": [
+            "restricted",
+            "moderate",
+            "high"
+          ]
+        }
+      }
+    ],
+    "difficulty": {
+      "level": "medium",
+      "num_nodes": 10,
+      "num_latent": 1,
+      "num_observable": 8,
+      "edge_density": 0.17777777777777778,
+      "avg_states_per_node": 3.0,
+      "posterior_entropy": null
+    },
+    "scenario_title": "Spread Dynamics of Morava Fever in the Karsin Highlands",
+    "scenario_description": "Morava Fever is a newly identified infectious disease affecting small, isolated communities in the fictional Karsin Highlands, a mountainous and sparsely connected region. Initial outbreaks have shown large variation in infection incidence between neighboring valleys, puzzling local health authorities. Limited infrastructure and difficult terrain make data collection costly, increasing the importance of choosing the right measurements and interventions.\n\nPrevious rapid-response efforts have focused on vaccination campaigns and sanitation improvements, but their effectiveness has been inconsistent. Epidemiologists suspect that unobserved differences in the circulating pathogen strain, combined with social factors such as mobility and public awareness, may be driving these mixed outcomes. The current research effort aims to disentangle these factors to better predict outbreak severity and guide future control strategies.",
+    "domain": "epidemiology",
+    "theoretical_context": "Prior outbreak investigations in remote regions suggest that heterogeneity in pathogen strains can substantially alter transmission dynamics, even when observable conditions appear similar. Social-behavioral models also indicate that public awareness can indirectly affect disease spread by altering mobility patterns, while testing rates may bias observed incidence if not properly accounted for."
+  },
+  "problem": {
+    "world_id": "world-custom-000042",
+    "title": "Spread Dynamics of Morava Fever in the Karsin Highlands",
+    "description": "Morava Fever is a newly identified infectious disease affecting small, isolated communities in the fictional Karsin Highlands, a mountainous and sparsely connected region. Initial outbreaks have shown large variation in infection incidence between neighboring valleys, puzzling local health authorities. Limited infrastructure and difficult terrain make data collection costly, increasing the importance of choosing the right measurements and interventions.\n\nPrevious rapid-response efforts have focused on vaccination campaigns and sanitation improvements, but their effectiveness has been inconsistent. Epidemiologists suspect that unobserved differences in the circulating pathogen strain, combined with social factors such as mobility and public awareness, may be driving these mixed outcomes. The current research effort aims to disentangle these factors to better predict outbreak severity and guide future control strategies.",
+    "domain": "epidemiology",
+    "theoretical_context": "Prior outbreak investigations in remote regions suggest that heterogeneity in pathogen strains can substantially alter transmission dynamics, even when observable conditions appear similar. Social-behavioral models also indicate that public awareness can indirectly affect disease spread by altering mobility patterns, while testing rates may bias observed incidence if not properly accounted for.",
+    "data_assets": [
+      {
+        "name": "spread_dynamics_of_morava_fever_in_the_k_data",
+        "description": "Dataset with 80 samples. Columns: population_density, vaccination_coverage, sanitation_quality, vector_abundance, human_mobility, healthcare_access, public_awareness, testing_rate, infection_incidence.",
+        "format": "tabular",
+        "data": [
+          {
+            "sample_id": 1.0,
+            "population_density": "medium",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "poor",
+            "public_awareness": "high",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 2.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 3.0,
+            "population_density": "medium",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "poor",
+            "public_awareness": "medium",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 4.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "medium",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 5.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 6.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 7.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "medium",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 8.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 9.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 10.0,
+            "population_density": "medium",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 11.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "poor",
+            "vector_abundance": "low",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "high",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 12.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "high",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 13.0,
+            "population_density": "medium",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "high",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 14.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "medium",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 15.0,
+            "population_density": "low",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 16.0,
+            "population_density": "medium",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 17.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 18.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "low",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 19.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 20.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "high",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 21.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "high",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 22.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 23.0,
+            "population_density": "medium",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 24.0,
+            "population_density": "medium",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 25.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "medium",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 26.0,
+            "population_density": "low",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 27.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 28.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "medium",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 29.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 30.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 31.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 32.0,
+            "population_density": "medium",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 33.0,
+            "population_density": "medium",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "high",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 34.0,
+            "population_density": "low",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "good",
+            "public_awareness": "medium",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 35.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 36.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 37.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 38.0,
+            "population_density": "low",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "poor",
+            "vector_abundance": "low",
+            "human_mobility": "restricted",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 39.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 40.0,
+            "population_density": "low",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 41.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "high",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 42.0,
+            "population_density": "low",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 43.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 44.0,
+            "population_density": "medium",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "good",
+            "public_awareness": "medium",
+            "testing_rate": "medium",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 45.0,
+            "population_density": "low",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "poor",
+            "public_awareness": "medium",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 46.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 47.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 48.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "poor",
+            "vector_abundance": "low",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "high",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 49.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 50.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "high",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 51.0,
+            "population_density": "low",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "low",
+            "human_mobility": "restricted",
+            "healthcare_access": "poor",
+            "public_awareness": "medium",
+            "testing_rate": "medium",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 52.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 53.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "poor",
+            "vector_abundance": "low",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 54.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 55.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 56.0,
+            "population_density": "medium",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 57.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 58.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 59.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "poor",
+            "vector_abundance": "low",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 60.0,
+            "population_density": "medium",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "high",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 61.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "high",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 62.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 63.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "restricted",
+            "healthcare_access": "poor",
+            "public_awareness": "medium",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 64.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 65.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 66.0,
+            "population_density": "medium",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "medium",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 67.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 68.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 69.0,
+            "population_density": "medium",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "poor",
+            "public_awareness": "medium",
+            "testing_rate": "high",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 70.0,
+            "population_density": "low",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 71.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "poor",
+            "vector_abundance": "low",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 72.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "high",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 73.0,
+            "population_density": "low",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 74.0,
+            "population_density": "high",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "poor",
+            "public_awareness": "low",
+            "testing_rate": "high",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 75.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 76.0,
+            "population_density": "low",
+            "vaccination_coverage": "medium",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 77.0,
+            "population_density": "high",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          },
+          {
+            "sample_id": 78.0,
+            "population_density": "high",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "adequate",
+            "vector_abundance": "high",
+            "human_mobility": "moderate",
+            "healthcare_access": "good",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "high"
+          },
+          {
+            "sample_id": 79.0,
+            "population_density": "low",
+            "vaccination_coverage": "low",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "high",
+            "healthcare_access": "adequate",
+            "public_awareness": "low",
+            "testing_rate": "low",
+            "infection_incidence": "medium"
+          },
+          {
+            "sample_id": 80.0,
+            "population_density": "medium",
+            "vaccination_coverage": "high",
+            "sanitation_quality": "good",
+            "vector_abundance": "medium",
+            "human_mobility": "restricted",
+            "healthcare_access": "adequate",
+            "public_awareness": "medium",
+            "testing_rate": "low",
+            "infection_incidence": "low"
+          }
+        ],
+        "source": null,
+        "columns": null,
+        "num_rows": null
+      },
+      {
+        "name": "field_observations",
+        "description": "40 individual field observations.",
+        "format": "observations",
+        "data": [
+          {
+            "observation": "observable variable: population_density: medium",
+            "variable": "population_density",
+            "value": "medium",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: vaccination_coverage: high",
+            "variable": "vaccination_coverage",
+            "value": "high",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: sanitation_quality: good",
+            "variable": "sanitation_quality",
+            "value": "good",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: vector_abundance: medium",
+            "variable": "vector_abundance",
+            "value": "medium",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: human_mobility: restricted",
+            "variable": "human_mobility",
+            "value": "restricted",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: healthcare_access: poor",
+            "variable": "healthcare_access",
+            "value": "poor",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: public_awareness: high",
+            "variable": "public_awareness",
+            "value": "high",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: testing_rate: high",
+            "variable": "testing_rate",
+            "value": "high",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: population_density: low",
+            "variable": "population_density",
+            "value": "low",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: vaccination_coverage: low",
+            "variable": "vaccination_coverage",
+            "value": "low",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: sanitation_quality: good",
+            "variable": "sanitation_quality",
+            "value": "good",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: vector_abundance: medium",
+            "variable": "vector_abundance",
+            "value": "medium",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: human_mobility: moderate",
+            "variable": "human_mobility",
+            "value": "moderate",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: healthcare_access: adequate",
+            "variable": "healthcare_access",
+            "value": "adequate",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: public_awareness: low",
+            "variable": "public_awareness",
+            "value": "low",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: testing_rate: low",
+            "variable": "testing_rate",
+            "value": "low",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: population_density: medium",
+            "variable": "population_density",
+            "value": "medium",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: vaccination_coverage: medium",
+            "variable": "vaccination_coverage",
+            "value": "medium",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: sanitation_quality: good",
+            "variable": "sanitation_quality",
+            "value": "good",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: vector_abundance: medium",
+            "variable": "vector_abundance",
+            "value": "medium",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: human_mobility: restricted",
+            "variable": "human_mobility",
+            "value": "restricted",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: healthcare_access: poor",
+            "variable": "healthcare_access",
+            "value": "poor",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: public_awareness: medium",
+            "variable": "public_awareness",
+            "value": "medium",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: testing_rate: high",
+            "variable": "testing_rate",
+            "value": "high",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: population_density: high",
+            "variable": "population_density",
+            "value": "high",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: vaccination_coverage: high",
+            "variable": "vaccination_coverage",
+            "value": "high",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: sanitation_quality: good",
+            "variable": "sanitation_quality",
+            "value": "good",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: vector_abundance: medium",
+            "variable": "vector_abundance",
+            "value": "medium",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: human_mobility: restricted",
+            "variable": "human_mobility",
+            "value": "restricted",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: healthcare_access: adequate",
+            "variable": "healthcare_access",
+            "value": "adequate",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: public_awareness: medium",
+            "variable": "public_awareness",
+            "value": "medium",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: testing_rate: low",
+            "variable": "testing_rate",
+            "value": "low",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: population_density: low",
+            "variable": "population_density",
+            "value": "low",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: vaccination_coverage: low",
+            "variable": "vaccination_coverage",
+            "value": "low",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: sanitation_quality: good",
+            "variable": "sanitation_quality",
+            "value": "good",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: vector_abundance: medium",
+            "variable": "vector_abundance",
+            "value": "medium",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: human_mobility: moderate",
+            "variable": "human_mobility",
+            "value": "moderate",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: healthcare_access: good",
+            "variable": "healthcare_access",
+            "value": "good",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: public_awareness: low",
+            "variable": "public_awareness",
+            "value": "low",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: testing_rate: medium",
+            "variable": "testing_rate",
+            "value": "medium",
+            "sample": 5.0
+          }
+        ],
+        "source": null,
+        "columns": null,
+        "num_rows": null
+      }
+    ],
+    "available_actions": [
+      {
+        "action_type": "observe",
+        "nodes": [
+          "population_density"
+        ],
+        "description": "Measure population density",
+        "cost": 1,
+        "node": "population_density"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "vaccination_coverage"
+        ],
+        "description": "Measure vaccination coverage",
+        "cost": 2,
+        "node": "vaccination_coverage"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "sanitation_quality"
+        ],
+        "description": "Measure sanitation quality",
+        "cost": 1,
+        "node": "sanitation_quality"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "vector_abundance"
+        ],
+        "description": "Measure vector abundance",
+        "cost": 2,
+        "node": "vector_abundance"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "human_mobility"
+        ],
+        "description": "Measure human mobility",
+        "cost": 2,
+        "node": "human_mobility"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "healthcare_access"
+        ],
+        "description": "Measure healthcare access",
+        "cost": 1,
+        "node": "healthcare_access"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "public_awareness"
+        ],
+        "description": "Measure public awareness",
+        "cost": 1,
+        "node": "public_awareness"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "testing_rate"
+        ],
+        "description": "Measure testing rate",
+        "cost": 1,
+        "node": "testing_rate"
+      }
+    ],
+    "budget": 6,
+    "research_question": "Given current observations in a community, how severe is the ongoing Morava Fever outbreak likely to be?\n\nTarget variable: 'infection_incidence' (possible states: low, medium, high). You may request additional measurements within your budget.",
+    "target_node": "infection_incidence",
+    "target_states": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "task-world-custom-000042-infer_target",
+      "type": "infer_target",
+      "world_id": "world-custom-000042",
+      "question": "Given current observations in a community, how severe is the ongoing Morava Fever outbreak likely to be?",
+      "target_node": "infection_incidence",
+      "available_evidence": [
+        "population_density",
+        "vaccination_coverage",
+        "sanitation_quality",
+        "vector_abundance",
+        "human_mobility",
+        "healthcare_access",
+        "public_awareness",
+        "testing_rate"
+      ],
+      "correct_answer": {
+        "low": 0.19638171632530274,
+        "medium": 0.34975459820555843,
+        "high": 0.45386368546913874
+      },
+      "scoring_method": "kl_divergence",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {}
+    },
+    {
+      "id": "task-world-custom-000042-compare_interventions",
+      "type": "compare_interventions",
+      "world_id": "world-custom-000042",
+      "question": "Your team is debating between two possible interventions to maximize 'infection_incidence' being 'medium'. Intervention A: set 'testing_rate' to 'low'. Intervention B: set 'human_mobility' to 'restricted'. Which intervention would have a larger causal effect on the probability of 'infection_incidence' being 'medium'? This is about do-operations (interventions), not observations. Answer 'A' or 'B'.",
+      "target_node": "infection_incidence",
+      "available_evidence": [
+        "population_density",
+        "vaccination_coverage",
+        "sanitation_quality",
+        "vector_abundance",
+        "human_mobility",
+        "healthcare_access",
+        "public_awareness",
+        "testing_rate"
+      ],
+      "correct_answer": {
+        "testing_rate:low": 0.349755,
+        "human_mobility:restricted": 0.581671
+      },
+      "scoring_method": "compare_interventions",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {
+        "human_mobility": "restricted"
+      }
+    },
+    {
+      "id": "task-world-custom-000042-should_condition",
+      "type": "should_condition",
+      "world_id": "world-custom-000042",
+      "question": "You are analyzing the causal effect of 'sanitation_quality' on 'testing_rate' using observational data. A colleague suggests controlling for 'vector_abundance' in your analysis. Is this a good idea? Should you include 'vector_abundance' as a control variable? Answer 'yes' or 'no', and explain your reasoning.",
+      "target_node": "testing_rate",
+      "available_evidence": [
+        "population_density",
+        "vaccination_coverage",
+        "sanitation_quality",
+        "vector_abundance",
+        "human_mobility",
+        "healthcare_access",
+        "public_awareness",
+        "testing_rate"
+      ],
+      "correct_answer": {
+        "no": 1.0
+      },
+      "scoring_method": "should_condition",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {
+        "sanitation_quality": "vector_abundance"
+      }
+    }
+  ]
+}

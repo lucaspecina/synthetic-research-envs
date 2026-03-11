@@ -370,11 +370,14 @@
     - Parseo post-hoc de messages es fragil — si cambia el formato del chat se rompe silenciosamente. v1 OK, pero la solucion final son eventos estructurados emitidos por el harness (el on_step callback va en esa direccion).
     - El "thinking" textual es ruido para diagnosticar el entorno. El nucleo del diagnostico es: que accion eligio, con que evidencia, que observo, cual fue su respuesta, como se compara con el teacher. El thinking ayuda a entender *por que* se confundio, pero no es el dato primario.
     - La comparacion agent vs teacher es para inspeccion, NO para imponer una unica trayectoria correcta. El teacher es el upper bound formal, un agente puede elegir distinto y estar bien. El verdict se basa en KL del resultado final, no en si siguio los mismos pasos.
-- [ ] **S.2**: Pipeline de diagnostico de entorno
-  - [ ] Script que corre N casos E2E y genera reporte
-  - [ ] Detectar patrones: trivialidad, imposibilidad, confusion, shortcuts
-  - [ ] Metricas de diagnostico: % resueltos, % sin submit, % shortcuts, KL distribution
-  - [ ] Report de failure modes: que tipos de caso fallan, por que
+- [x] **S.2**: Pipeline de diagnostico de entorno
+  - [x] Script que corre N SRCs E2E via orchestrator real, agent en CADA task
+  - [x] Detectar patrones: TRIVIAL, NO_SUBMIT, WRONG_ANSWER, HIGH_KL, FORMAT_ERROR
+  - [x] Metricas por eval type: count, submission rate, mean score, failures
+  - [x] Report diagnostico: por tipo, por SRC, failure modes, tipos no ejercitados
+  - [x] Primer diagnostico real: 3 SRCs, 11 tasks, 7/9 tipos, 91% submit, 0 format errors
+  - Hallazgos: choice types (hypothesis, compare, best_intervention) tienden a ser
+    triviales o wrong — sugiere que no requieren suficiente razonamiento basado en evidencia
 - [x] **S.3**: Harness multi-tipo (plumbing, NO pistas al agente)
   - [x] Aceptar formatos de respuesta variados (distribucion, eleccion, set, si/no)
   - [x] Verifier scorea cada formato contra ground truth

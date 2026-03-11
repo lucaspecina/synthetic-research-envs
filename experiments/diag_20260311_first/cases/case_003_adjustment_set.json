@@ -1,0 +1,66 @@
+{
+  "task_id": "task-world-custom-000042-adjustment_set",
+  "task_type": "adjustment_set",
+  "question": "You want to estimate the causal effect of 'residual_stress' on 'fracture_failure' using observational data. There may be confounding variables that create spurious associations. Which variables should",
+  "submitted": true,
+  "score": 0.0,
+  "budget_used": 0,
+  "num_observations": 0,
+  "num_steps": 1,
+  "format_errors": 0,
+  "error": null,
+  "answer": [
+    "cooling_rate",
+    "heat_treatment_temperature",
+    "precipitate_density"
+  ],
+  "time_s": 8.1,
+  "failure_mode": "WRONG_ANSWER",
+  "trajectory": {
+    "world_id": "world-custom-000042",
+    "seed": 44,
+    "target_node": "fracture_failure",
+    "target_states": [
+      "no",
+      "yes"
+    ],
+    "budget": 5,
+    "budget_used": 0,
+    "steps": [
+      {
+        "step": 0,
+        "thinking": null,
+        "tool_call": "submit",
+        "tool_args": {
+          "variables": [
+            "heat_treatment_temperature",
+            "cooling_rate",
+            "precipitate_density"
+          ],
+          "confidence": 0.68,
+          "reasoning": "Residual stress is influenced by upstream processing variables such as heat treatment temperature, cooling rate, and precipitate density, all of which also affect fracture failure, creating backdoor paths. Operating temperature and applied load affect fracture in service but do not plausibly cause residual stress, so they are not confounders for the residual_stress \u2192 fracture_failure effect. Controlling for these three blocks the major backdoor paths."
+        },
+        "tool_result": {
+          "status": "submitted",
+          "variables": [
+            "cooling_rate",
+            "heat_treatment_temperature",
+            "precipitate_density"
+          ]
+        },
+        "observation": null,
+        "error": null,
+        "is_submit": true
+      }
+    ],
+    "submitted_answer": [
+      "cooling_rate",
+      "heat_treatment_temperature",
+      "precipitate_density"
+    ],
+    "reasoning": "Residual stress is influenced by upstream processing variables such as heat treatment temperature, cooling rate, and precipitate density, all of which also affect fracture failure, creating backdoor paths. Operating temperature and applied load affect fracture in service but do not plausibly cause residual stress, so they are not confounders for the residual_stress \u2192 fracture_failure effect. Controlling for these three blocks the major backdoor paths.",
+    "confidence": 0.68,
+    "score": 0.0,
+    "task_type": null
+  }
+}

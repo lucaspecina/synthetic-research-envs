@@ -1,0 +1,135 @@
+{
+  "task_id": "task-world-custom-004242-causal_effect",
+  "task_type": "causal_effect",
+  "question": "If we intervene and set 'coral_health_index' to 'fair', what would be the probability distribution over 'reef_biodiversity_status' (possible states: degraded, stable, thriving)? This is a causal quest",
+  "submitted": true,
+  "score": 0.7088,
+  "budget_used": 4,
+  "num_observations": 4,
+  "num_steps": 5,
+  "format_errors": 0,
+  "error": null,
+  "answer": {
+    "degraded": 0.25,
+    "stable": 0.5,
+    "thriving": 0.25
+  },
+  "time_s": 14.1,
+  "failure_mode": null,
+  "trajectory": {
+    "world_id": "world-custom-004242",
+    "seed": 42,
+    "target_node": "reef_biodiversity_status",
+    "target_states": [
+      "degraded",
+      "stable",
+      "thriving"
+    ],
+    "budget": 5,
+    "budget_used": 4,
+    "steps": [
+      {
+        "step": 0,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "nutrient_upwelling_intensity"
+        },
+        "tool_result": {
+          "variable": "nutrient_upwelling_intensity",
+          "observed_state": "moderate",
+          "remaining_budget": 4,
+          "message": "nutrient_upwelling_intensity was observed to be 'moderate'."
+        },
+        "observation": "nutrient_upwelling_intensity = moderate",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 1,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "coastal_pollution_load"
+        },
+        "tool_result": {
+          "variable": "coastal_pollution_load",
+          "observed_state": "high",
+          "remaining_budget": 3,
+          "message": "coastal_pollution_load was observed to be 'high'."
+        },
+        "observation": "coastal_pollution_load = high",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 2,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "phytoplankton_biomass"
+        },
+        "tool_result": {
+          "variable": "phytoplankton_biomass",
+          "observed_state": "medium",
+          "remaining_budget": 2,
+          "message": "phytoplankton_biomass was observed to be 'medium'."
+        },
+        "observation": "phytoplankton_biomass = medium",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 3,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "herbivorous_fish_abundance"
+        },
+        "tool_result": {
+          "variable": "herbivorous_fish_abundance",
+          "observed_state": "high",
+          "remaining_budget": 1,
+          "message": "herbivorous_fish_abundance was observed to be 'high'."
+        },
+        "observation": "herbivorous_fish_abundance = high",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 4,
+        "thinking": null,
+        "tool_call": "submit",
+        "tool_args": {
+          "distribution": {
+            "degraded": 0.25,
+            "stable": 0.5,
+            "thriving": 0.25
+          },
+          "confidence": 0.73,
+          "reasoning": "Given moderate upwelling and medium phytoplankton, bottom-up pressure is balanced. High coastal pollution increases degradation risk, but high herbivorous fish abundance provides strong top-down control that typically stabilizes reefs. Under an intervention setting coral health to fair, historical patterns suggest stable outcomes dominate, with some chance of degradation from pollution and some chance of thriving due to strong grazing."
+        },
+        "tool_result": {
+          "status": "submitted",
+          "distribution": {
+            "degraded": 0.25,
+            "stable": 0.5,
+            "thriving": 0.25
+          }
+        },
+        "observation": null,
+        "error": null,
+        "is_submit": true
+      }
+    ],
+    "submitted_answer": {
+      "degraded": 0.25,
+      "stable": 0.5,
+      "thriving": 0.25
+    },
+    "reasoning": "Given moderate upwelling and medium phytoplankton, bottom-up pressure is balanced. High coastal pollution increases degradation risk, but high herbivorous fish abundance provides strong top-down control that typically stabilizes reefs. Under an intervention setting coral health to fair, historical patterns suggest stable outcomes dominate, with some chance of degradation from pollution and some chance of thriving due to strong grazing.",
+    "confidence": 0.73,
+    "score": 0.7087933825143538,
+    "task_type": null
+  }
+}

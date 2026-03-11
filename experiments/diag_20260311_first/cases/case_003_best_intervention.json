@@ -1,0 +1,58 @@
+{
+  "task_id": "task-world-custom-000042-best_intervention",
+  "task_type": "best_intervention",
+  "question": "You want to maximize the probability of 'fracture_failure' being 'yes' (current baseline probability: 0.42). You can intervene on ONE variable by setting it to a specific value. Which variable would y",
+  "submitted": true,
+  "score": 1.0,
+  "budget_used": 0,
+  "num_observations": 0,
+  "num_steps": 1,
+  "format_errors": 0,
+  "error": null,
+  "answer": {
+    "node": "applied_load",
+    "state": "high"
+  },
+  "time_s": 5.2,
+  "failure_mode": "TRIVIAL",
+  "trajectory": {
+    "world_id": "world-custom-000042",
+    "seed": 44,
+    "target_node": "fracture_failure",
+    "target_states": [
+      "no",
+      "yes"
+    ],
+    "budget": 5,
+    "budget_used": 0,
+    "steps": [
+      {
+        "step": 0,
+        "thinking": null,
+        "tool_call": "submit",
+        "tool_args": {
+          "node": "applied_load",
+          "state": "high",
+          "confidence": 0.74,
+          "reasoning": "Historical data indicate applied_load has a strong direct causal influence on fracture initiation. High applied load consistently coincides with fracture across heat treatments and temperatures, making it the most reliable intervention to maximize fracture probability regardless of other conditions."
+        },
+        "tool_result": {
+          "status": "submitted",
+          "node": "applied_load",
+          "state": "high"
+        },
+        "observation": null,
+        "error": null,
+        "is_submit": true
+      }
+    ],
+    "submitted_answer": {
+      "node": "applied_load",
+      "state": "high"
+    },
+    "reasoning": "Historical data indicate applied_load has a strong direct causal influence on fracture initiation. High applied load consistently coincides with fracture across heat treatments and temperatures, making it the most reliable intervention to maximize fracture probability regardless of other conditions.",
+    "confidence": 0.74,
+    "score": 1.0,
+    "task_type": null
+  }
+}

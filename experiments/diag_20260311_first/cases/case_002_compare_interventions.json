@@ -1,0 +1,51 @@
+{
+  "task_id": "task-world-custom-000042-compare_interventions",
+  "task_type": "compare_interventions",
+  "question": "Your team is debating between two possible interventions to maximize 'infection_incidence' being 'medium'. Intervention A: set 'testing_rate' to 'low'. Intervention B: set 'human_mobility' to 'restric",
+  "submitted": true,
+  "score": 1.0,
+  "budget_used": 0,
+  "num_observations": 0,
+  "num_steps": 1,
+  "format_errors": 0,
+  "error": null,
+  "answer": "B",
+  "time_s": 6.7,
+  "failure_mode": "TRIVIAL",
+  "trajectory": {
+    "world_id": "world-custom-000042",
+    "seed": 43,
+    "target_node": "infection_incidence",
+    "target_states": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "budget": 6,
+    "budget_used": 0,
+    "steps": [
+      {
+        "step": 0,
+        "thinking": null,
+        "tool_call": "submit",
+        "tool_args": {
+          "choice": "B",
+          "confidence": 0.77,
+          "reasoning": "Testing rate primarily affects detection rather than true transmission, so do(testing_rate=low) has little causal impact on true infection_incidence. Restricting human mobility directly reduces contact rates and transmission, making it more likely to shift outcomes from high toward medium incidence, giving a larger causal effect."
+        },
+        "tool_result": {
+          "status": "submitted",
+          "choice": "B"
+        },
+        "observation": null,
+        "error": null,
+        "is_submit": true
+      }
+    ],
+    "submitted_answer": "B",
+    "reasoning": "Testing rate primarily affects detection rather than true transmission, so do(testing_rate=low) has little causal impact on true infection_incidence. Restricting human mobility directly reduces contact rates and transmission, making it more likely to shift outcomes from high toward medium incidence, giving a larger causal effect.",
+    "confidence": 0.77,
+    "score": 1.0,
+    "task_type": null
+  }
+}

@@ -39,10 +39,11 @@ class AgentTrajectory(BaseModel):
     budget: int
     budget_used: int
     steps: list[AgentTrajectoryStep]
-    submitted_answer: dict[str, float] | None = None
+    submitted_answer: Any = None  # dict, str, list — depends on task type
     reasoning: str | None = None
     confidence: float | None = None
     score: float | None = None
+    task_type: str | None = None
 
 
 def extract_agent_trajectory(

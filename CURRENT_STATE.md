@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 642 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Harness multi-tipo (submit + prompt + scoring para los 9 eval types). Primer mini benchmark real (3 SRCs). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
+**Estado actual: 642 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Harness multi-tipo (submit + prompt + scoring para los 9 eval types). S.2 diagnostic pipeline (real multi-type E2E con orchestrator). Primer mini benchmark real (3 SRCs). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
 
 **Terminologia clave: SRC** (Synthetic Research Case) = un caso completo generado por el sistema (world + problem + tasks + data). Es la unidad de producto de SREG.
 
@@ -524,7 +524,7 @@ python scripts/test_agent.py
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
 | **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la BN: multi-dataset (primary+secondary), missing data, narrativas |
 | **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica + diseña research cases via design_case) |
-| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **Harness multi-tipo: submit + prompt + scoring para los 9 eval types. Observe todavia simple (nodo unico, costo 1). Pendiente: S.2 diagnostico, S.4 rich actions.** |
+| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **Harness multi-tipo: submit + prompt + scoring para los 9 eval types. S.2 diagnostic pipeline validado en E2E real. Observe todavia simple (nodo unico, costo 1). Pendiente: S.4 rich actions.** |
 | **Agent trajectory** | `src/sreg/harness/agent_trajectory.py` | Extrae trayectorias estructuradas del agente (post-hoc desde messages). Export JSONL. |
 | **Trajectory comparison** | `src/sreg/harness/comparison.py` | Comparacion lado a lado agent vs teacher. Verdict: EXCELLENT/GOOD/FAIR/POOR/NO_SUBMIT. |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
@@ -704,12 +704,14 @@ SREG tiene dos niveles de aseguramiento de calidad (ver PROJECT.md para detalles
    "¿El producto es bueno? ¿Donde falla?" Metricas agregadas + failure modes.
    **SIEMPRE con LLM, siempre con la mejor version implementada, nunca con mundos toy.**
 
-**Estado actual del benchmark**: primer mini benchmark completado (`scripts/mini_benchmark.py`).
-3 SRCs reales via orchestrator + agent + teacher, resultados en `experiments/mini_20260311_100704/`.
-Hallazgos: orchestrator 100%, agent 1/3 beats random, variable selection por sentido comun.
-**Limitacion mayor**: solo evalua infer_target — los otros 8 eval types no tienen solver aun.
-`quality.py` (QualitySuite v2) solo cubre metricas estructurales del motor formal (3/9 eval
-types, sin LLM). Pendiente: BenchmarkRunner completo, metrica prior_delta, multi-type.
+**Estado actual del benchmark**:
+- Mini benchmark (`scripts/mini_benchmark.py`): 3 SRCs reales via orchestrator, solo infer_target.
+- **S.2 diagnostic pipeline** (`scripts/diagnostic_batch.py`): N SRCs via orchestrator real, agent
+  en CADA task (multi-tipo). Metricas por eval type, failure modes, report diagnostico.
+  Primer diagnostico: 3 SRCs, 11 tasks, 7/9 tipos ejercitados, 91% submit, 0 format errors.
+  Hallazgo: choice types tienden a ser triviales o wrong. Distribution types funcionan bien.
+- `quality.py` (QualitySuite v2) solo cubre metricas estructurales del motor formal (3/9 eval
+  types, sin LLM). Pendiente: BenchmarkRunner consolidado, metrica prior_delta.
 
 ---
 

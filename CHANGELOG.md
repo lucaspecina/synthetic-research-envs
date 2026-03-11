@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+### 2026-03-11 — S.2 Diagnostic pipeline: real multi-type E2E validation
+- **`scripts/diagnostic_batch.py`** (rewritten): generates N SRCs via real orchestrator,
+  runs agent on EACH task (not just infer_target), collects per-eval-type metrics,
+  classifies failure modes (TRIVIAL, NO_SUBMIT, WRONG_ANSWER, HIGH_KL, FORMAT_ERROR),
+  generates diagnostic report. Saves summary + report + per-task trajectories.
+- **`src/sreg/harness/agent_trajectory.py`**: `AgentTrajectory.submitted_answer` now `Any`
+  (was `dict[str, float]`). Added `task_type` field.
+- **First real multi-type diagnostic** (`experiments/diag_20260311_first/`):
+  3 SRCs, 11 tasks, 7/9 eval types exercised, 91% submission rate, 0 format errors.
+  Key finding: choice types (hypothesis, compare, best_intervention) tend to be trivial
+  (agent answers without observing) or wrong. Distribution types (infer_target, causal_effect)
+  work well when agent submits.
+
 ### 2026-03-11 — Multi-type agent harness: submit + prompt + scoring for all 9 eval types
 - **`src/sreg/agent/prompts.py`**: dynamic submit tool per task type (distribution, choice,
   intervention, variable set). System prompt adapts question, target node, format instructions.

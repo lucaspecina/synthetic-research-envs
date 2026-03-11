@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Run a diagnostic batch: generate N cases, run agent + teacher, save trajectories.
+"""S.2 Diagnostic pipeline: run N real SRCs, agent on EACH task, per-type metrics.
 
-This is NOT a test or benchmark. It's a diagnostic tool to inspect how the
-agent interacts with the environment and identify failure modes.
+Generates SRCs via the real orchestrator (LLM), then runs the agent on every
+task in each SRC. Collects per-eval-type metrics and failure mode analysis.
+
+This is the bridge between "tests pass" and "benchmark of the real product".
 
 Usage:
-    python scripts/diagnostic_batch.py --output output/diagnostic_001
-    python scripts/diagnostic_batch.py --output output/diagnostic_001 --cases 10
+    python scripts/diagnostic_batch.py
+    python scripts/diagnostic_batch.py --cases 5 --output experiments/diag_001
 """
 
 from __future__ import annotations
@@ -17,7 +19,9 @@ import logging
 import os
 import sys
 import time
-import traceback
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -27,177 +31,433 @@ load_dotenv()
 
 from sreg.agent.agent import AgentSolver
 from sreg.harness.agent_trajectory import extract_agent_trajectory
-from sreg.harness.comparison import compare_trajectories
-from sreg.harness.trajectory import generate_teacher_trajectory
-from sreg.tools.problem_builder import ProblemBuilder
-from sreg.tools.world_gen import WorldGenConfig, WorldGenTool
+from sreg.orchestrator.orchestrator import Orchestrator
+from sreg.tools.world_check import WorldCheckTool
 
+# ---------------------------------------------------------------------------
+# Goals — varied domains, explicitly requesting diverse eval types
+# ---------------------------------------------------------------------------
 
-# -- Case configurations --
-# Varied: templates, seeds, nodes, edge_strength, budget
-CASE_CONFIGS = [
-    # latent_preference - 6 nodes (small)
-    {"seed": 1, "template": "latent_preference", "nodes": 6, "es": 0.7, "budget": 3},
-    {"seed": 2, "template": "latent_preference", "nodes": 6, "es": 0.5, "budget": 3},
-    {"seed": 3, "template": "latent_preference", "nodes": 6, "es": 0.9, "budget": 4},
-    # latent_preference - 8 nodes
-    {"seed": 10, "template": "latent_preference", "nodes": 8, "es": 0.7, "budget": 4},
-    {"seed": 11, "template": "latent_preference", "nodes": 8, "es": 0.5, "budget": 5},
-    # latent_preference - 10 nodes (sweet spot)
-    {"seed": 20, "template": "latent_preference", "nodes": 10, "es": 0.6, "budget": 5},
-    {"seed": 21, "template": "latent_preference", "nodes": 10, "es": 0.7, "budget": 6},
-    {"seed": 22, "template": "latent_preference", "nodes": 10, "es": 0.5, "budget": 5},
-    # causal_chain - various sizes
-    {"seed": 30, "template": "causal_chain", "nodes": 6, "es": 0.7, "budget": 3},
-    {"seed": 31, "template": "causal_chain", "nodes": 6, "es": 0.5, "budget": 3},
-    {"seed": 32, "template": "causal_chain", "nodes": 8, "es": 0.7, "budget": 4},
-    {"seed": 33, "template": "causal_chain", "nodes": 8, "es": 0.5, "budget": 5},
-    {"seed": 34, "template": "causal_chain", "nodes": 10, "es": 0.6, "budget": 5},
-    # fork_collider - various sizes
-    {"seed": 40, "template": "fork_collider", "nodes": 6, "es": 0.7, "budget": 3},
-    {"seed": 41, "template": "fork_collider", "nodes": 6, "es": 0.5, "budget": 3},
-    {"seed": 42, "template": "fork_collider", "nodes": 8, "es": 0.7, "budget": 4},
-    {"seed": 43, "template": "fork_collider", "nodes": 8, "es": 0.5, "budget": 5},
-    {"seed": 44, "template": "fork_collider", "nodes": 10, "es": 0.6, "budget": 5},
-    # Edge cases: tight budget, generous budget
-    {"seed": 50, "template": "latent_preference", "nodes": 6, "es": 0.7, "budget": 1},
-    {"seed": 51, "template": "latent_preference", "nodes": 6, "es": 0.7, "budget": 5},
-    {"seed": 52, "template": "causal_chain", "nodes": 10, "es": 0.7, "budget": 3},
-    {"seed": 53, "template": "fork_collider", "nodes": 10, "es": 0.7, "budget": 8},
-    # High edge_strength (easy signal) vs low (noisy)
-    {"seed": 60, "template": "latent_preference", "nodes": 8, "es": 0.3, "budget": 4},
-    {"seed": 61, "template": "latent_preference", "nodes": 8, "es": 0.9, "budget": 4},
-    {"seed": 62, "template": "causal_chain", "nodes": 8, "es": 0.3, "budget": 4},
+GOALS = [
+    (
+        "Generate a research problem about marine ecology in a fictional "
+        "archipelago. Use dag_construct with 8 nodes. Design a research case "
+        "with at least 4 different evaluation types including causal_effect "
+        "and hypothesis_selection. Medium difficulty."
+    ),
+    (
+        "Generate a research problem about epidemiology, studying the spread "
+        "of a fictional disease in a remote region. Use dag_construct with 10 "
+        "nodes. Design a research case with infer_target, compare_interventions, "
+        "and should_condition questions."
+    ),
+    (
+        "Generate a research problem about materials science, investigating "
+        "why a new alloy fails under certain conditions. Use dag_construct "
+        "with 8 nodes. Include causal_effect, best_intervention, and "
+        "adjustment_set questions."
+    ),
+    (
+        "Generate a research problem about agricultural productivity on a "
+        "fictional planet. Use dag_construct with 10 nodes. Design a case "
+        "with infer_target, next_best_observation, infer_latent_cause, "
+        "and hypothesis_selection."
+    ),
+    (
+        "Generate a research problem about geological processes in a "
+        "fictional volcanic island chain. Use dag_construct with 8 nodes. "
+        "Design a research case with at least 4 evaluation types including "
+        "compare_interventions and best_intervention."
+    ),
 ]
 
 
-def run_single_case(
-    config: dict, agent: AgentSolver, case_num: int, total: int
+# ---------------------------------------------------------------------------
+# Failure mode classification
+# ---------------------------------------------------------------------------
+
+def classify_failure(task_result: dict) -> str | None:
+    """Classify the failure mode for a single task result.
+
+    Returns None if no failure detected.
+    """
+    if task_result.get("error"):
+        return "AGENT_CRASH"
+    if not task_result.get("submitted"):
+        return "NO_SUBMIT"
+    if task_result.get("format_errors", 0) > 0 and not task_result.get("submitted"):
+        return "FORMAT_ERROR"
+    score = task_result.get("score")
+    if score is None:
+        return "NO_SCORE"
+    # For distribution types: KL > 2 is very bad; for choice: score == 0 is wrong
+    task_type = task_result.get("task_type", "")
+    if task_type in ("infer_target", "causal_effect", "infer_latent_cause"):
+        if score > 2.0:
+            return "HIGH_KL"
+    else:
+        if score == 0.0:
+            return "WRONG_ANSWER"
+    # Trivial: answered well without observing
+    if task_result.get("budget_used", 0) == 0 and score is not None:
+        if task_type in ("infer_target", "causal_effect", "infer_latent_cause"):
+            if score < 0.5:
+                return "TRIVIAL"
+        else:
+            if score > 0.5:
+                return "TRIVIAL"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Run agent on a single task
+# ---------------------------------------------------------------------------
+
+def run_agent_on_task(
+    agent: AgentSolver,
+    world,
+    problem,
+    task,
+    seed: int,
 ) -> dict:
-    """Run a single case and return results dict."""
-    label = "case_%02d" % case_num
-    tpl = config["template"]
-    seed = config["seed"]
-    nodes = config["nodes"]
-    es = config["es"]
-    budget = config["budget"]
-
-    print(
-        "\n--- [%d/%d] %s: %s seed=%d nodes=%d es=%.1f budget=%d ---"
-        % (case_num, total, label, tpl, seed, nodes, es, budget)
-    )
-
-    result = {
-        "case": label,
-        "config": config,
-        "status": "unknown",
+    """Run the agent on a specific task and return metrics."""
+    task_result = {
+        "task_id": task.id,
+        "task_type": task.type.value,
+        "question": task.question[:200] if task.question else "",
+        "submitted": False,
+        "score": None,
+        "budget_used": 0,
+        "num_observations": 0,
+        "num_steps": 0,
+        "format_errors": 0,
         "error": None,
-        "world_id": None,
-        "agent_kl": None,
-        "teacher_kl": None,
-        "agent_budget_used": None,
-        "teacher_budget_used": None,
-        "verdict": None,
-        "agent_submitted": False,
-        "num_agent_steps": 0,
-        "num_agent_errors": 0,
-        "agent_trajectory": None,
-        "comparison": None,
+        "answer": None,
+        "time_s": 0,
+        "failure_mode": None,
     }
 
     try:
-        # Generate world
-        gen = WorldGenTool()
-        world = gen.generate(
-            WorldGenConfig(
-                seed=seed,
-                num_nodes=nodes,
-                edge_strength=es,
-                template_family=tpl,
-            )
-        )
-        result["world_id"] = world.id
-
-        # Build problem
-        builder = ProblemBuilder()
-        problem = builder.build(world, budget=budget)
-
-        print("  World: %s | Target: %s" % (world.id, problem.target_node))
-        print("  Question: %s" % problem.research_question[:100])
-
-        # Run teacher
-        teacher_traj = generate_teacher_trajectory(world, problem, seed=seed)
-        result["teacher_kl"] = 0.0  # teacher is optimal
-        result["teacher_budget_used"] = len(teacher_traj.steps)
-
-        # Run agent
         t0 = time.time()
-        agent_result = agent.solve(world, problem, seed=seed)
-        elapsed = time.time() - t0
+        result = agent.solve(world, problem, seed=seed, task=task)
+        task_result["time_s"] = round(time.time() - t0, 1)
 
-        # Extract trajectory
-        agent_traj = extract_agent_trajectory(
-            agent_result, problem, world_id=world.id, seed=seed
-        )
-        comp = compare_trajectories(teacher_traj, agent_traj)
+        task_result["submitted"] = result.submitted_answer is not None
+        task_result["budget_used"] = result.budget_used
+        task_result["num_observations"] = len(result.observations)
 
-        result["status"] = "completed"
-        result["agent_submitted"] = agent_result.submitted_answer is not None
-        result["agent_kl"] = agent_traj.score
-        result["agent_budget_used"] = agent_traj.budget_used
-        result["verdict"] = comp.verdict
-        result["num_agent_steps"] = len(agent_traj.steps)
-        result["num_agent_errors"] = len(
-            [s for s in agent_traj.steps if s.error is not None]
-        )
-        result["agent_trajectory"] = agent_traj.model_dump()
-        result["comparison"] = comp.model_dump()
+        if result.score is not None:
+            task_result["score"] = round(result.score.functional_score, 4)
 
-        # Print summary
-        kl_str = "%.4f" % agent_traj.score if agent_traj.score is not None else "N/A"
-        print(
-            "  Agent: KL=%s budget=%d/%d verdict=%s (%.1fs)"
-            % (kl_str, agent_traj.budget_used, budget, comp.verdict, elapsed)
-        )
-        if agent_traj.budget_used == 0 and agent_result.submitted_answer is not None:
-            print("  !! Agent submitted without observing anything")
-        if not agent_result.submitted_answer:
-            print("  !! Agent did NOT submit an answer")
-        if result["num_agent_errors"] > 0:
-            print("  !! Agent had %d tool errors" % result["num_agent_errors"])
+        if result.submitted_answer is not None:
+            # Serialize answer for JSON
+            task_result["answer"] = result.submitted_answer
 
-        # Show teacher vs agent action comparison
-        teacher_actions = [s.action_node for s in teacher_traj.steps]
-        agent_actions = [
-            s.tool_args.get("variable", "?")
-            for s in agent_traj.steps
-            if s.tool_call == "observe" and s.tool_args
-        ]
-        print("  Teacher actions: %s" % teacher_actions)
-        print("  Agent actions:   %s" % agent_actions)
+        # Count format errors from messages
+        for msg in result.messages:
+            if msg.get("role") == "tool":
+                content = msg.get("content", "")
+                try:
+                    parsed = json.loads(content)
+                    if "error" in parsed:
+                        task_result["format_errors"] += 1
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        # Count steps (tool calls)
+        for msg in result.messages:
+            if msg.get("role") == "assistant":
+                task_result["num_steps"] += len(msg.get("tool_calls", []))
+
+        # Extract trajectory for saving
+        traj = extract_agent_trajectory(result, problem, world_id=world.id, seed=seed)
+        task_result["trajectory"] = traj.model_dump(mode="json")
 
     except Exception as e:
-        result["status"] = "error"
-        result["error"] = str(e)
-        print("  ERROR: %s" % str(e)[:200])
-        traceback.print_exc()
+        task_result["error"] = str(e)[:300]
+        task_result["time_s"] = round(time.time() - t0, 1)
 
-    return result
+    task_result["failure_mode"] = classify_failure(task_result)
+    return task_result
 
+
+# ---------------------------------------------------------------------------
+# Run a single SRC (orchestrator + agent on all tasks)
+# ---------------------------------------------------------------------------
+
+def run_single_src(
+    goal: str,
+    case_id: int,
+    seed: int,
+    agent: AgentSolver,
+) -> dict:
+    """Generate one SRC via orchestrator, run agent on each task."""
+    src_result = {
+        "case_id": case_id,
+        "goal": goal[:120],
+        "seed": seed,
+        "timestamp": datetime.now().isoformat(),
+        "orchestrator_completed": False,
+        "orchestrator_error": None,
+        "orchestrator_time_s": 0,
+        "worldcheck_passed": None,
+        "num_nodes": 0,
+        "num_edges": 0,
+        "scenario_title": "",
+        "num_tasks": 0,
+        "eval_types": [],
+        "task_results": [],
+    }
+
+    # --- Phase 1: Orchestrator ---
+    print(f"\n{'='*70}")
+    print(f"SRC {case_id}: Orchestrator generating...")
+    print(f"  Goal: {goal[:80]}...")
+
+    t0 = time.time()
+    try:
+        orchestrator = Orchestrator()
+        orch_result = orchestrator.run(goal)
+    except Exception as e:
+        src_result["orchestrator_error"] = str(e)[:200]
+        print(f"  ORCHESTRATOR FAILED: {e}")
+        return src_result
+
+    src_result["orchestrator_time_s"] = round(time.time() - t0, 1)
+
+    if not orch_result.world or not orch_result.problem:
+        src_result["orchestrator_error"] = "Incomplete result"
+        print("  ORCHESTRATOR INCOMPLETE")
+        return src_result
+
+    src_result["orchestrator_completed"] = True
+    world = orch_result.world
+    problem = orch_result.problem
+    tasks = orch_result.task or []
+
+    # Structural metrics
+    checker = WorldCheckTool()
+    check_result = checker.check(world)
+    src_result["worldcheck_passed"] = check_result.passed
+    src_result["num_nodes"] = len(world.nodes)
+    src_result["num_edges"] = len(world.edges)
+    src_result["scenario_title"] = world.scenario_title or ""
+    src_result["num_tasks"] = len(tasks)
+    src_result["eval_types"] = list(set(t.type.value for t in tasks))
+
+    print(f"  OK in {src_result['orchestrator_time_s']}s")
+    print(f"  Title: {src_result['scenario_title'][:60]}")
+    print(f"  Nodes: {len(world.nodes)}, Edges: {len(world.edges)}")
+    print(f"  WorldCheck: {'PASS' if check_result.passed else 'FAIL'}")
+    print(f"  Tasks: {len(tasks)} ({', '.join(src_result['eval_types'])})")
+
+    # Save SRC data
+    src_result["world"] = world.model_dump(mode="json")
+    src_result["problem"] = problem.model_dump(mode="json")
+    src_result["tasks_data"] = [t.model_dump(mode="json") for t in tasks]
+    if hasattr(orch_result, "case_plan") and orch_result.case_plan:
+        src_result["case_plan"] = orch_result.case_plan.model_dump(mode="json")
+
+    # --- Phase 2: Agent on each task ---
+    if not tasks:
+        print("  No tasks generated, skipping agent")
+        return src_result
+
+    for i, task in enumerate(tasks, 1):
+        print(f"\n  Task {i}/{len(tasks)}: {task.type.value}")
+        print(f"    Q: {task.question[:80]}...")
+
+        task_result = run_agent_on_task(agent, world, problem, task, seed)
+        src_result["task_results"].append(task_result)
+
+        # Print task result
+        status = "OK" if task_result["submitted"] else "NO SUBMIT"
+        score_str = (
+            f"{task_result['score']:.4f}" if task_result["score"] is not None else "N/A"
+        )
+        fm = task_result["failure_mode"] or "-"
+        errs = task_result["format_errors"]
+        print(
+            f"    -> {status} | score={score_str} | "
+            f"budget={task_result['budget_used']} | "
+            f"errors={errs} | mode={fm} | {task_result['time_s']}s"
+        )
+
+    return src_result
+
+
+# ---------------------------------------------------------------------------
+# Diagnostic report
+# ---------------------------------------------------------------------------
+
+def generate_report(results: list[dict]) -> str:
+    """Generate the diagnostic report from all SRC results."""
+    lines = []
+    lines.append("")
+    lines.append("=" * 70)
+    lines.append("S.2 DIAGNOSTIC REPORT")
+    lines.append("=" * 70)
+
+    # --- Overall SRC stats ---
+    total_srcs = len(results)
+    completed = sum(1 for r in results if r["orchestrator_completed"])
+    total_tasks = sum(len(r["task_results"]) for r in results)
+
+    lines.append(f"\nSRCs: {completed}/{total_srcs} completed")
+    lines.append(f"Tasks: {total_tasks} total")
+
+    # --- Per-eval-type breakdown ---
+    type_metrics = defaultdict(lambda: {
+        "count": 0,
+        "submitted": 0,
+        "scores": [],
+        "format_errors": 0,
+        "failure_modes": defaultdict(int),
+        "budget_used": [],
+        "times": [],
+    })
+
+    for r in results:
+        for tr in r["task_results"]:
+            tt = tr["task_type"]
+            m = type_metrics[tt]
+            m["count"] += 1
+            if tr["submitted"]:
+                m["submitted"] += 1
+            if tr["score"] is not None:
+                m["scores"].append(tr["score"])
+            m["format_errors"] += tr["format_errors"]
+            m["budget_used"].append(tr["budget_used"])
+            m["times"].append(tr["time_s"])
+            if tr["failure_mode"]:
+                m["failure_modes"][tr["failure_mode"]] += 1
+
+    lines.append(f"\n{'='*70}")
+    lines.append("PER EVAL TYPE")
+    lines.append(f"{'='*70}")
+
+    header = f"  {'Type':<25} {'N':>3} {'Sub%':>5} {'Score':>8} {'Errs':>5} {'Failures'}"
+    lines.append(header)
+    lines.append("  " + "-" * 65)
+
+    for tt in sorted(type_metrics.keys()):
+        m = type_metrics[tt]
+        n = m["count"]
+        sub_pct = f"{m['submitted']/n*100:.0f}%" if n > 0 else "-"
+        if m["scores"]:
+            mean_score = sum(m["scores"]) / len(m["scores"])
+            score_str = f"{mean_score:.4f}"
+        else:
+            score_str = "N/A"
+        errs = m["format_errors"]
+        failures = ", ".join(
+            f"{mode}:{cnt}" for mode, cnt in sorted(m["failure_modes"].items())
+        ) or "-"
+        lines.append(f"  {tt:<25} {n:>3} {sub_pct:>5} {score_str:>8} {errs:>5} {failures}")
+
+    # --- Global failure mode summary ---
+    all_failures = defaultdict(int)
+    for r in results:
+        for tr in r["task_results"]:
+            if tr["failure_mode"]:
+                all_failures[tr["failure_mode"]] += 1
+
+    lines.append(f"\n{'='*70}")
+    lines.append("FAILURE MODES")
+    lines.append(f"{'='*70}")
+
+    if all_failures:
+        for mode, cnt in sorted(all_failures.items(), key=lambda x: -x[1]):
+            pct = cnt / total_tasks * 100 if total_tasks > 0 else 0
+            lines.append(f"  {mode}: {cnt}/{total_tasks} ({pct:.0f}%)")
+    else:
+        lines.append("  None detected")
+
+    # --- Per-SRC summary table ---
+    lines.append(f"\n{'='*70}")
+    lines.append("PER SRC SUMMARY")
+    lines.append(f"{'='*70}")
+
+    lines.append(
+        f"  {'ID':>3} {'Orch':>5} {'WC':>4} {'Tasks':>5} "
+        f"{'Sub':>4} {'AvgSc':>7} {'Types':>30} {'Title'}"
+    )
+    lines.append("  " + "-" * 80)
+
+    for r in results:
+        cid = r["case_id"]
+        orch = "OK" if r["orchestrator_completed"] else "FAIL"
+        wc_val = r.get("worldcheck_passed")
+        wc = "PASS" if wc_val else "FAIL" if wc_val is not None else "-"
+        n_tasks = len(r["task_results"])
+        n_sub = sum(1 for tr in r["task_results"] if tr["submitted"])
+        scores = [tr["score"] for tr in r["task_results"] if tr["score"] is not None]
+        avg_score = f"{sum(scores)/len(scores):.4f}" if scores else "N/A"
+        types = ", ".join(sorted(set(tr["task_type"] for tr in r["task_results"])))[:30]
+        title = r.get("scenario_title", "")[:25]
+        lines.append(
+            f"  {cid:>3} {orch:>5} {wc:>4} {n_tasks:>5} "
+            f"{n_sub:>4} {avg_score:>7} {types:>30} {title}"
+        )
+
+    # --- Diagnostic signals ---
+    lines.append(f"\n{'='*70}")
+    lines.append("DIAGNOSTIC SIGNALS")
+    lines.append(f"{'='*70}")
+
+    # Types not seen
+    all_types_seen = set()
+    for r in results:
+        for tr in r["task_results"]:
+            all_types_seen.add(tr["task_type"])
+    all_possible = {
+        "infer_target", "next_best_observation", "hypothesis_selection",
+        "causal_effect", "best_intervention", "adjustment_set",
+        "compare_interventions", "should_condition", "infer_latent_cause",
+    }
+    missing = all_possible - all_types_seen
+    if missing:
+        lines.append(f"  Types NOT exercised: {sorted(missing)}")
+    else:
+        lines.append("  All 9 eval types exercised!")
+
+    # Submission rate
+    if total_tasks > 0:
+        total_sub = sum(
+            1 for r in results for tr in r["task_results"] if tr["submitted"]
+        )
+        lines.append(f"  Overall submission rate: {total_sub}/{total_tasks} "
+                     f"({total_sub/total_tasks*100:.0f}%)")
+
+    # Format error rate
+    total_errs = sum(
+        tr["format_errors"] for r in results for tr in r["task_results"]
+    )
+    if total_errs > 0:
+        lines.append(f"  Total format errors: {total_errs} across {total_tasks} tasks")
+
+    lines.append("=" * 70)
+
+    text = "\n".join(lines)
+    print(text)
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Diagnostic batch run")
-    parser.add_argument(
-        "--output", "-o", type=str, default="output/diagnostic",
-        help="Output directory for results",
+    parser = argparse.ArgumentParser(
+        description="S.2 Diagnostic pipeline: real SRCs, agent on all tasks"
     )
+    parser.add_argument("--cases", type=int, default=3, help="Number of SRCs (max 5)")
     parser.add_argument(
-        "--cases", "-n", type=int, default=None,
-        help="Limit to first N cases (default: all)",
+        "--output", type=str, default=None,
+        help="Output directory (default: experiments/diag_TIMESTAMP)"
     )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true",
-    )
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
     if args.verbose:
@@ -205,109 +465,106 @@ def main():
     else:
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("sreg.agent.agent").setLevel(logging.WARNING)
+        logging.getLogger("sreg.orchestrator.orchestrator").setLevel(logging.WARNING)
 
-    configs = CASE_CONFIGS[:args.cases] if args.cases else CASE_CONFIGS
-    total = len(configs)
+    n_cases = min(args.cases, len(GOALS))
 
-    print("=" * 70)
-    print("SREG Diagnostic Batch: %d cases" % total)
-    print("=" * 70)
+    # Output directory
+    if args.output:
+        output_dir = Path(args.output)
+    else:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = Path("experiments") / f"diag_{ts}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"S.2 Diagnostic Pipeline: {n_cases} SRCs")
+    print(f"Output: {output_dir}")
+    print(f"Seed: {args.seed}")
 
     agent = AgentSolver(max_iterations=15)
     results = []
 
-    for i, config in enumerate(configs, 1):
-        result = run_single_case(config, agent, i, total)
-        results.append(result)
+    for i in range(n_cases):
+        goal = GOALS[i]
+        seed = args.seed + i
+        src_result = run_single_src(goal, i + 1, seed, agent)
+        results.append(src_result)
 
-    # -- Summary report --
-    print("\n" + "=" * 70)
-    print("DIAGNOSTIC SUMMARY")
-    print("=" * 70)
+    # --- Generate report ---
+    report_text = generate_report(results)
 
-    completed = [r for r in results if r["status"] == "completed"]
-    errors = [r for r in results if r["status"] == "error"]
-    submitted = [r for r in completed if r["agent_submitted"]]
-    no_submit = [r for r in completed if not r["agent_submitted"]]
-
-    print("\nOverall: %d/%d completed, %d errors" % (len(completed), total, len(errors)))
-    print("Submitted: %d/%d" % (len(submitted), len(completed)))
-
-    if submitted:
-        kls = [r["agent_kl"] for r in submitted if r["agent_kl"] is not None]
-        if kls:
-            print("\nAgent KL distribution:")
-            print("  min=%.4f  median=%.4f  max=%.4f  mean=%.4f" % (
-                min(kls),
-                sorted(kls)[len(kls) // 2],
-                max(kls),
-                sum(kls) / len(kls),
-            ))
-
-    # Verdict distribution
-    verdicts = {}
-    for r in completed:
-        v = r["verdict"] or "UNKNOWN"
-        verdicts[v] = verdicts.get(v, 0) + 1
-    print("\nVerdicts:")
-    for v in ["EXCELLENT", "GOOD", "FAIR", "POOR", "NO_SUBMIT", "UNKNOWN"]:
-        if v in verdicts:
-            print("  %s: %d" % (v, verdicts[v]))
-
-    # Cases with errors in tool calls
-    error_cases = [r for r in completed if r["num_agent_errors"] > 0]
-    if error_cases:
-        print("\nCases with agent tool errors: %d" % len(error_cases))
-        for r in error_cases:
-            print("  %s: %d errors" % (r["case"], r["num_agent_errors"]))
-
-    # Zero-observation submissions
-    zero_obs = [
-        r for r in submitted
-        if r["agent_budget_used"] == 0
-    ]
-    if zero_obs:
-        print("\nZero-observation submissions (possible trivial cases): %d" % len(zero_obs))
-        for r in zero_obs:
-            kl = r["agent_kl"]
-            kl_str = "%.4f" % kl if kl is not None else "N/A"
-            print("  %s: KL=%s" % (r["case"], kl_str))
-
-    # Save results
-    from pathlib import Path
-
-    out_dir = Path(args.output)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # Save summary (without full trajectories)
+    # --- Save results ---
+    # Summary (without full trajectories and world data — keep it small)
     summary = []
     for r in results:
-        s = {k: v for k, v in r.items() if k not in ("agent_trajectory", "comparison")}
+        s = {
+            k: v for k, v in r.items()
+            if k not in ("world", "problem", "tasks_data", "case_plan")
+        }
+        # Strip trajectories from task_results for summary
+        s["task_results"] = [
+            {k: v for k, v in tr.items() if k != "trajectory"}
+            for tr in r.get("task_results", [])
+        ]
         summary.append(s)
 
-    summary_path = out_dir / "summary.json"
-    summary_path.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
-    print("\nSummary saved: %s" % summary_path)
+    summary_path = output_dir / "summary.json"
+    summary_path.write_text(
+        json.dumps(summary, indent=2, default=str), encoding="utf-8"
+    )
 
-    # Save individual trajectories and comparisons
+    report_path = output_dir / "report.txt"
+    report_path.write_text(report_text, encoding="utf-8")
+
+    # Save per-SRC detailed data (includes trajectories)
+    cases_dir = output_dir / "cases"
+    cases_dir.mkdir(exist_ok=True)
+
     for r in results:
-        if r["agent_trajectory"]:
-            traj_path = out_dir / ("%s_trajectory.json" % r["case"])
-            traj_path.write_text(
-                json.dumps(r["agent_trajectory"], indent=2, default=str),
-                encoding="utf-8",
-            )
-        if r["comparison"]:
-            comp_path = out_dir / ("%s_comparison.json" % r["case"])
-            comp_path.write_text(
-                json.dumps(r["comparison"], indent=2, default=str),
-                encoding="utf-8",
+        cid = r["case_id"]
+
+        # SRC data (world + problem + tasks)
+        src_data = {}
+        if "world" in r:
+            src_data["world"] = r["world"]
+        if "problem" in r:
+            src_data["problem"] = r["problem"]
+        if "tasks_data" in r:
+            src_data["tasks"] = r["tasks_data"]
+        if "case_plan" in r:
+            src_data["case_plan"] = r["case_plan"]
+
+        if src_data:
+            src_path = cases_dir / f"case_{cid:03d}_src.json"
+            src_path.write_text(
+                json.dumps(src_data, indent=2, default=str), encoding="utf-8"
             )
 
-    print("Trajectories saved: %s/" % out_dir)
-    print("\nView any trajectory:")
-    print("  python scripts/view_trajectory.py %s/case_01_trajectory.json" % out_dir)
-    print("  python scripts/view_trajectory.py -c %s/case_01_comparison.json" % out_dir)
+        # Task results with trajectories
+        for tr in r.get("task_results", []):
+            task_type = tr["task_type"]
+            task_path = cases_dir / f"case_{cid:03d}_{task_type}.json"
+            task_path.write_text(
+                json.dumps(tr, indent=2, default=str), encoding="utf-8"
+            )
+
+    # Save config
+    config = {
+        "n_cases": n_cases,
+        "seed": args.seed,
+        "goals": GOALS[:n_cases],
+        "timestamp": datetime.now().isoformat(),
+        "script": "diagnostic_batch.py",
+        "version": "S.2",
+    }
+    config_path = output_dir / "config.json"
+    config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+    print(f"\nResults saved to: {output_dir}/")
+    print("  summary.json  - per-SRC metrics (no trajectories)")
+    print("  report.txt    - diagnostic report")
+    print("  cases/        - per-task detail + trajectories")
+    print("  config.json   - experiment config")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,51 @@
+{
+  "task_id": "task-world-custom-004242-compare_interventions",
+  "task_type": "compare_interventions",
+  "question": "Your team is debating between two possible interventions to maximize 'reef_biodiversity_status' being 'thriving'. Intervention A: set 'herbivorous_fish_abundance' to 'high'. Intervention B: set 'coral",
+  "submitted": true,
+  "score": 0.0,
+  "budget_used": 0,
+  "num_observations": 0,
+  "num_steps": 1,
+  "format_errors": 0,
+  "error": null,
+  "answer": "A",
+  "time_s": 5.7,
+  "failure_mode": "WRONG_ANSWER",
+  "trajectory": {
+    "world_id": "world-custom-004242",
+    "seed": 42,
+    "target_node": "reef_biodiversity_status",
+    "target_states": [
+      "degraded",
+      "stable",
+      "thriving"
+    ],
+    "budget": 5,
+    "budget_used": 0,
+    "steps": [
+      {
+        "step": 0,
+        "thinking": null,
+        "tool_call": "submit",
+        "tool_args": {
+          "choice": "A",
+          "confidence": 0.86,
+          "reasoning": "From ecological theory and the historical patterns, increasing herbivorous fish abundance strengthens top\u2011down control on algae, which generally promotes coral dominance and higher biodiversity. In contrast, intervening to set coral health to 'poor' is directly harmful and would almost certainly reduce the probability of a thriving reef. Therefore Intervention A has a much larger positive causal effect on reef_biodiversity_status than Intervention B."
+        },
+        "tool_result": {
+          "status": "submitted",
+          "choice": "A"
+        },
+        "observation": null,
+        "error": null,
+        "is_submit": true
+      }
+    ],
+    "submitted_answer": "A",
+    "reasoning": "From ecological theory and the historical patterns, increasing herbivorous fish abundance strengthens top\u2011down control on algae, which generally promotes coral dominance and higher biodiversity. In contrast, intervening to set coral health to 'poor' is directly harmful and would almost certainly reduce the probability of a thriving reef. Therefore Intervention A has a much larger positive causal effect on reef_biodiversity_status than Intervention B.",
+    "confidence": 0.86,
+    "score": 0.0,
+    "task_type": null
+  }
+}

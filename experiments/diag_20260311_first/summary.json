@@ -1,0 +1,253 @@
+[
+  {
+    "case_id": 1,
+    "goal": "Generate a research problem about marine ecology in a fictional archipelago. Use dag_construct with 8 nodes. Design a re",
+    "seed": 42,
+    "timestamp": "2026-03-11T11:22:30.489188",
+    "orchestrator_completed": true,
+    "orchestrator_error": null,
+    "orchestrator_time_s": 39.9,
+    "worldcheck_passed": true,
+    "num_nodes": 8,
+    "num_edges": 8,
+    "scenario_title": "Reef Biodiversity Decline in the Pelagia Archipelago",
+    "num_tasks": 4,
+    "eval_types": [
+      "causal_effect",
+      "infer_target",
+      "compare_interventions",
+      "hypothesis_selection"
+    ],
+    "task_results": [
+      {
+        "task_id": "task-world-custom-004242-infer_target",
+        "task_type": "infer_target",
+        "question": "Given the available environmental and ecological measurements, what is the most likely current biodiversity status of a reef site in the Pelagia Archipelago?",
+        "submitted": true,
+        "score": 0.0741,
+        "budget_used": 5,
+        "num_observations": 5,
+        "num_steps": 6,
+        "format_errors": 0,
+        "error": null,
+        "answer": {
+          "degraded": 0.35,
+          "stable": 0.45,
+          "thriving": 0.2
+        },
+        "time_s": 16.0,
+        "failure_mode": null
+      },
+      {
+        "task_id": "task-world-custom-004242-causal_effect",
+        "task_type": "causal_effect",
+        "question": "If we intervene and set 'coral_health_index' to 'fair', what would be the probability distribution over 'reef_biodiversity_status' (possible states: degraded, stable, thriving)? This is a causal quest",
+        "submitted": true,
+        "score": 0.7088,
+        "budget_used": 4,
+        "num_observations": 4,
+        "num_steps": 5,
+        "format_errors": 0,
+        "error": null,
+        "answer": {
+          "degraded": 0.25,
+          "stable": 0.5,
+          "thriving": 0.25
+        },
+        "time_s": 14.1,
+        "failure_mode": null
+      },
+      {
+        "task_id": "task-world-custom-004242-compare_interventions",
+        "task_type": "compare_interventions",
+        "question": "Your team is debating between two possible interventions to maximize 'reef_biodiversity_status' being 'thriving'. Intervention A: set 'herbivorous_fish_abundance' to 'high'. Intervention B: set 'coral",
+        "submitted": true,
+        "score": 0.0,
+        "budget_used": 0,
+        "num_observations": 0,
+        "num_steps": 1,
+        "format_errors": 0,
+        "error": null,
+        "answer": "A",
+        "time_s": 5.7,
+        "failure_mode": "WRONG_ANSWER"
+      },
+      {
+        "task_id": "task-world-custom-004242-hypothesis_selection",
+        "task_type": "hypothesis_selection",
+        "question": "Which of the competing hypotheses best explains the observed pattern of reef outcomes: that biodiversity is primarily driven by direct pollution stress, or that it is mediated by an underlying reef re",
+        "submitted": true,
+        "score": 0.0,
+        "budget_used": 3,
+        "num_observations": 3,
+        "num_steps": 4,
+        "format_errors": 0,
+        "error": null,
+        "answer": "B",
+        "time_s": 9.9,
+        "failure_mode": "WRONG_ANSWER"
+      }
+    ]
+  },
+  {
+    "case_id": 2,
+    "goal": "Generate a research problem about epidemiology, studying the spread of a fictional disease in a remote region. Use dag_c",
+    "seed": 43,
+    "timestamp": "2026-03-11T11:23:55.993849",
+    "orchestrator_completed": true,
+    "orchestrator_error": null,
+    "orchestrator_time_s": 36.7,
+    "worldcheck_passed": true,
+    "num_nodes": 10,
+    "num_edges": 8,
+    "scenario_title": "Spread Dynamics of Morava Fever in the Karsin Highlands",
+    "num_tasks": 3,
+    "eval_types": [
+      "infer_target",
+      "compare_interventions",
+      "should_condition"
+    ],
+    "task_results": [
+      {
+        "task_id": "task-world-custom-000042-infer_target",
+        "task_type": "infer_target",
+        "question": "Given current observations in a community, how severe is the ongoing Morava Fever outbreak likely to be?",
+        "submitted": false,
+        "score": null,
+        "budget_used": 6,
+        "num_observations": 6,
+        "num_steps": 6,
+        "format_errors": 0,
+        "error": null,
+        "answer": null,
+        "time_s": 17.7,
+        "failure_mode": "NO_SUBMIT"
+      },
+      {
+        "task_id": "task-world-custom-000042-compare_interventions",
+        "task_type": "compare_interventions",
+        "question": "Your team is debating between two possible interventions to maximize 'infection_incidence' being 'medium'. Intervention A: set 'testing_rate' to 'low'. Intervention B: set 'human_mobility' to 'restric",
+        "submitted": true,
+        "score": 1.0,
+        "budget_used": 0,
+        "num_observations": 0,
+        "num_steps": 1,
+        "format_errors": 0,
+        "error": null,
+        "answer": "B",
+        "time_s": 6.7,
+        "failure_mode": "TRIVIAL"
+      },
+      {
+        "task_id": "task-world-custom-000042-should_condition",
+        "task_type": "should_condition",
+        "question": "You are analyzing the causal effect of 'sanitation_quality' on 'testing_rate' using observational data. A colleague suggests controlling for 'vector_abundance' in your analysis. Is this a good idea? S",
+        "submitted": true,
+        "score": 1.0,
+        "budget_used": 0,
+        "num_observations": 0,
+        "num_steps": 1,
+        "format_errors": 0,
+        "error": null,
+        "answer": "no",
+        "time_s": 6.8,
+        "failure_mode": "TRIVIAL"
+      }
+    ]
+  },
+  {
+    "case_id": 3,
+    "goal": "Generate a research problem about materials science, investigating why a new alloy fails under certain conditions. Use d",
+    "seed": 44,
+    "timestamp": "2026-03-11T11:25:03.967850",
+    "orchestrator_completed": true,
+    "orchestrator_error": null,
+    "orchestrator_time_s": 30.4,
+    "worldcheck_passed": true,
+    "num_nodes": 8,
+    "num_edges": 9,
+    "scenario_title": "Unexpected Fracture of the L-92 Structural Alloy",
+    "num_tasks": 4,
+    "eval_types": [
+      "causal_effect",
+      "infer_target",
+      "best_intervention",
+      "adjustment_set"
+    ],
+    "task_results": [
+      {
+        "task_id": "task-world-custom-000042-infer_target",
+        "task_type": "infer_target",
+        "question": "Given the observed processing conditions and service environment, how likely is the L-92 alloy to experience fracture failure?",
+        "submitted": true,
+        "score": 0.1589,
+        "budget_used": 4,
+        "num_observations": 4,
+        "num_steps": 5,
+        "format_errors": 0,
+        "error": null,
+        "answer": {
+          "no": 0.8,
+          "yes": 0.2
+        },
+        "time_s": 18.7,
+        "failure_mode": null
+      },
+      {
+        "task_id": "task-world-custom-000042-causal_effect",
+        "task_type": "causal_effect",
+        "question": "If we intervene and set 'applied_load' to 'low', what would be the probability distribution over 'fracture_failure' (possible states: no, yes)? This is a causal question: you are asked about the effec",
+        "submitted": true,
+        "score": 0.0256,
+        "budget_used": 4,
+        "num_observations": 4,
+        "num_steps": 5,
+        "format_errors": 0,
+        "error": null,
+        "answer": {
+          "no": 0.75,
+          "yes": 0.25
+        },
+        "time_s": 10.5,
+        "failure_mode": null
+      },
+      {
+        "task_id": "task-world-custom-000042-best_intervention",
+        "task_type": "best_intervention",
+        "question": "You want to maximize the probability of 'fracture_failure' being 'yes' (current baseline probability: 0.42). You can intervene on ONE variable by setting it to a specific value. Which variable would y",
+        "submitted": true,
+        "score": 1.0,
+        "budget_used": 0,
+        "num_observations": 0,
+        "num_steps": 1,
+        "format_errors": 0,
+        "error": null,
+        "answer": {
+          "node": "applied_load",
+          "state": "high"
+        },
+        "time_s": 5.2,
+        "failure_mode": "TRIVIAL"
+      },
+      {
+        "task_id": "task-world-custom-000042-adjustment_set",
+        "task_type": "adjustment_set",
+        "question": "You want to estimate the causal effect of 'residual_stress' on 'fracture_failure' using observational data. There may be confounding variables that create spurious associations. Which variables should",
+        "submitted": true,
+        "score": 0.0,
+        "budget_used": 0,
+        "num_observations": 0,
+        "num_steps": 1,
+        "format_errors": 0,
+        "error": null,
+        "answer": [
+          "cooling_rate",
+          "heat_treatment_temperature",
+          "precipitate_density"
+        ],
+        "time_s": 8.1,
+        "failure_mode": "WRONG_ANSWER"
+      }
+    ]
+  }
+]
