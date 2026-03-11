@@ -1,0 +1,261 @@
+{
+  "agent_trajectory": {
+    "world_id": "world-custom-000042",
+    "seed": 42,
+    "target_node": "reef_fish_biomass",
+    "target_states": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "budget": 4,
+    "budget_used": 4,
+    "steps": [
+      {
+        "step": 0,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "coral_cover"
+        },
+        "tool_result": {
+          "variable": "coral_cover",
+          "observed_state": "partial",
+          "remaining_budget": 3,
+          "message": "coral_cover was observed to be 'partial'."
+        },
+        "observation": "coral_cover = partial",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 1,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "fishing_pressure"
+        },
+        "tool_result": {
+          "variable": "fishing_pressure",
+          "observed_state": "high",
+          "remaining_budget": 2,
+          "message": "fishing_pressure was observed to be 'high'."
+        },
+        "observation": "fishing_pressure = high",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 2,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "algal_bloom_intensity"
+        },
+        "tool_result": {
+          "variable": "algal_bloom_intensity",
+          "observed_state": "medium",
+          "remaining_budget": 1,
+          "message": "algal_bloom_intensity was observed to be 'medium'."
+        },
+        "observation": "algal_bloom_intensity = medium",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 3,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "turbidity"
+        },
+        "tool_result": {
+          "variable": "turbidity",
+          "observed_state": "clear",
+          "remaining_budget": 0,
+          "message": "turbidity was observed to be 'clear'."
+        },
+        "observation": "turbidity = clear",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 4,
+        "thinking": null,
+        "tool_call": "submit",
+        "tool_args": {
+          "confidence": 0.75,
+          "reasoning": "Observed conditions show partial coral cover and high fishing pressure, both historically associated with reduced reef fish biomass. However, clear water and only medium algal bloom intensity mitigate some negative effects. Comparable historical cases most often exhibit medium biomass under this combination, with low biomass also plausible and high biomass unlikely."
+        },
+        "tool_result": {
+          "error": "You must provide 'distribution' with keys: high, low, medium. Example: {\"distribution\": {'low': 0.33, 'medium': 0.33, 'high': 0.33}}"
+        },
+        "observation": null,
+        "error": "You must provide 'distribution' with keys: high, low, medium. Example: {\"distribution\": {'low': 0.33, 'medium': 0.33, 'high': 0.33}}",
+        "is_submit": false
+      },
+      {
+        "step": 5,
+        "thinking": null,
+        "tool_call": "submit",
+        "tool_args": {
+          "distribution": {
+            "low": 0.4,
+            "medium": 0.5,
+            "high": 0.1
+          },
+          "confidence": 0.75,
+          "reasoning": "Observed conditions show partial coral cover and high fishing pressure, both historically associated with reduced reef fish biomass. Clear turbidity and only medium algal bloom intensity reduce stress compared to murky, high-bloom reefs. Historical patterns with partial coral + high fishing most often show medium biomass, with low biomass also common and high biomass rare."
+        },
+        "tool_result": {
+          "status": "submitted",
+          "distribution": {
+            "low": 0.4,
+            "medium": 0.5,
+            "high": 0.1
+          }
+        },
+        "observation": null,
+        "error": null,
+        "is_submit": true
+      }
+    ],
+    "submitted_answer": {
+      "low": 0.4,
+      "medium": 0.5,
+      "high": 0.1
+    },
+    "reasoning": "Observed conditions show partial coral cover and high fishing pressure, both historically associated with reduced reef fish biomass. Clear turbidity and only medium algal bloom intensity reduce stress compared to murky, high-bloom reefs. Historical patterns with partial coral + high fishing most often show medium biomass, with low biomass also common and high biomass rare.",
+    "confidence": 0.75,
+    "score": 0.005458169457708009
+  },
+  "comparison": {
+    "world_id": "world-custom-000042",
+    "seed": 42,
+    "target_node": "reef_fish_biomass",
+    "true_state": "medium",
+    "budget": 4,
+    "teacher_steps": [
+      {
+        "step": 0,
+        "action": "fishing_pressure",
+        "observation": "fishing_pressure = high",
+        "info_gain": 0.337998,
+        "posterior": {
+          "low": 0.4126,
+          "medium": 0.4034,
+          "high": 0.184
+        }
+      },
+      {
+        "step": 1,
+        "action": "coral_cover",
+        "observation": "coral_cover = partial",
+        "info_gain": 0.372865,
+        "posterior": {
+          "low": 0.2547,
+          "medium": 0.3679,
+          "high": 0.3773
+        }
+      },
+      {
+        "step": 2,
+        "action": "sea_surface_temperature",
+        "observation": "sea_surface_temperature = warm",
+        "info_gain": 1.018995,
+        "posterior": {
+          "low": 0.183,
+          "medium": 0.757,
+          "high": 0.06
+        }
+      },
+      {
+        "step": 3,
+        "action": "nutrient_upwelling",
+        "observation": "nutrient_upwelling = low",
+        "info_gain": 0.0,
+        "posterior": {
+          "low": 0.183,
+          "medium": 0.757,
+          "high": 0.06
+        }
+      }
+    ],
+    "agent_steps": [
+      {
+        "step": 0,
+        "action": "observe",
+        "args": {
+          "variable": "coral_cover"
+        },
+        "observation": "coral_cover = partial"
+      },
+      {
+        "step": 1,
+        "action": "observe",
+        "args": {
+          "variable": "fishing_pressure"
+        },
+        "observation": "fishing_pressure = high"
+      },
+      {
+        "step": 2,
+        "action": "observe",
+        "args": {
+          "variable": "algal_bloom_intensity"
+        },
+        "observation": "algal_bloom_intensity = medium"
+      },
+      {
+        "step": 3,
+        "action": "observe",
+        "args": {
+          "variable": "turbidity"
+        },
+        "observation": "turbidity = clear"
+      },
+      {
+        "step": 4,
+        "action": "submit",
+        "args": {
+          "confidence": 0.75,
+          "reasoning": "Observed conditions show partial coral cover and high fishing pressure, both historically associated with reduced reef fish biomass. However, clear water and only medium algal bloom intensity mitigate some negative effects. Comparable historical cases most often exhibit medium biomass under this combination, with low biomass also plausible and high biomass unlikely."
+        },
+        "error": "You must provide 'distribution' with keys: high, low, medium. Example: {\"distribution\": {'low': 0.33, 'medium': 0.33, 'high': 0.33}}"
+      },
+      {
+        "step": 5,
+        "action": "submit",
+        "args": {
+          "distribution": {
+            "low": 0.4,
+            "medium": 0.5,
+            "high": 0.1
+          },
+          "confidence": 0.75,
+          "reasoning": "Observed conditions show partial coral cover and high fishing pressure, both historically associated with reduced reef fish biomass. Clear turbidity and only medium algal bloom intensity reduce stress compared to murky, high-bloom reefs. Historical patterns with partial coral + high fishing most often show medium biomass, with low biomass also common and high biomass rare."
+        },
+        "submitted": {
+          "low": 0.4,
+          "medium": 0.5,
+          "high": 0.1
+        }
+      }
+    ],
+    "teacher_final_posterior": {
+      "low": 0.182951,
+      "medium": 0.75704,
+      "high": 0.060009
+    },
+    "agent_final_posterior": {
+      "low": 0.4,
+      "medium": 0.5,
+      "high": 0.1
+    },
+    "teacher_kl": 0.0,
+    "agent_kl": 0.005458169457708009,
+    "agent_budget_used": 4,
+    "teacher_budget_used": 4,
+    "verdict": "EXCELLENT"
+  }
+}

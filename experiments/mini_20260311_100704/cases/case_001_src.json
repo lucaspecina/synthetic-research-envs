@@ -1,0 +1,1695 @@
+{
+  "world": {
+    "id": "world-custom-000042",
+    "seed": 42,
+    "template_family": "custom",
+    "description": "Custom world with 8 nodes (1 latent, 6 observable, 1 target)",
+    "nodes": [
+      {
+        "name": "ocean_current_regime",
+        "type": "latent",
+        "description": "latent variable: ocean_current_regime",
+        "states": [
+          "weak",
+          "moderate",
+          "strong"
+        ]
+      },
+      {
+        "name": "sea_surface_temperature",
+        "type": "observable",
+        "description": "observable variable: sea_surface_temperature",
+        "states": [
+          "cool",
+          "average",
+          "warm"
+        ]
+      },
+      {
+        "name": "nutrient_upwelling",
+        "type": "observable",
+        "description": "observable variable: nutrient_upwelling",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "algal_bloom_intensity",
+        "type": "observable",
+        "description": "observable variable: algal_bloom_intensity",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "turbidity",
+        "type": "observable",
+        "description": "observable variable: turbidity",
+        "states": [
+          "clear",
+          "moderate",
+          "murky"
+        ]
+      },
+      {
+        "name": "coral_cover",
+        "type": "observable",
+        "description": "observable variable: coral_cover",
+        "states": [
+          "degraded",
+          "partial",
+          "healthy"
+        ]
+      },
+      {
+        "name": "fishing_pressure",
+        "type": "observable",
+        "description": "observable variable: fishing_pressure",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "name": "reef_fish_biomass",
+        "type": "target",
+        "description": "target variable: reef_fish_biomass",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from_node": "ocean_current_regime",
+        "to_node": "sea_surface_temperature",
+        "mechanism": "ocean_current_regime influences sea_surface_temperature"
+      },
+      {
+        "from_node": "ocean_current_regime",
+        "to_node": "nutrient_upwelling",
+        "mechanism": "ocean_current_regime influences nutrient_upwelling"
+      },
+      {
+        "from_node": "nutrient_upwelling",
+        "to_node": "algal_bloom_intensity",
+        "mechanism": "nutrient_upwelling influences algal_bloom_intensity"
+      },
+      {
+        "from_node": "sea_surface_temperature",
+        "to_node": "algal_bloom_intensity",
+        "mechanism": "sea_surface_temperature influences algal_bloom_intensity"
+      },
+      {
+        "from_node": "turbidity",
+        "to_node": "coral_cover",
+        "mechanism": "turbidity influences coral_cover"
+      },
+      {
+        "from_node": "algal_bloom_intensity",
+        "to_node": "coral_cover",
+        "mechanism": "algal_bloom_intensity influences coral_cover"
+      },
+      {
+        "from_node": "coral_cover",
+        "to_node": "reef_fish_biomass",
+        "mechanism": "coral_cover influences reef_fish_biomass"
+      },
+      {
+        "from_node": "fishing_pressure",
+        "to_node": "reef_fish_biomass",
+        "mechanism": "fishing_pressure influences reef_fish_biomass"
+      },
+      {
+        "from_node": "sea_surface_temperature",
+        "to_node": "reef_fish_biomass",
+        "mechanism": "sea_surface_temperature influences reef_fish_biomass"
+      }
+    ],
+    "cpds": [
+      {
+        "node": "ocean_current_regime",
+        "parents": [],
+        "table": [
+          [
+            0.5943929054322812
+          ],
+          [
+            0.07920824527857441
+          ],
+          [
+            0.3263988492891443
+          ]
+        ],
+        "state_names": {
+          "ocean_current_regime": [
+            "weak",
+            "moderate",
+            "strong"
+          ]
+        }
+      },
+      {
+        "node": "sea_surface_temperature",
+        "parents": [
+          "ocean_current_regime"
+        ],
+        "table": [
+          [
+            0.9279986129954798,
+            0.03399064298483507,
+            0.222986265599126
+          ],
+          [
+            0.04874594481174026,
+            0.8938865728743048,
+            0.06862821277315394
+          ],
+          [
+            0.023255442192779984,
+            0.0721227841408602,
+            0.70838552162772
+          ]
+        ],
+        "state_names": {
+          "sea_surface_temperature": [
+            "cool",
+            "average",
+            "warm"
+          ],
+          "ocean_current_regime": [
+            "weak",
+            "moderate",
+            "strong"
+          ]
+        }
+      },
+      {
+        "node": "nutrient_upwelling",
+        "parents": [
+          "ocean_current_regime"
+        ],
+        "table": [
+          [
+            0.08052020239587636,
+            0.007257832571313672,
+            0.8912685449910486
+          ],
+          [
+            0.8947274911652867,
+            0.029222294419561114,
+            0.096105861734019
+          ],
+          [
+            0.024752306438836774,
+            0.9635198730091252,
+            0.012625593274932461
+          ]
+        ],
+        "state_names": {
+          "nutrient_upwelling": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "ocean_current_regime": [
+            "weak",
+            "moderate",
+            "strong"
+          ]
+        }
+      },
+      {
+        "node": "algal_bloom_intensity",
+        "parents": [
+          "nutrient_upwelling",
+          "sea_surface_temperature"
+        ],
+        "table": [
+          [
+            0.84386440712534,
+            0.037430198067451896,
+            0.08086750077553473,
+            0.9133889999600914,
+            0.9670120927055326,
+            0.921153618589209,
+            0.9268538427432024,
+            0.0037907579940004155,
+            0.2229006707083087
+          ],
+          [
+            0.06103005075096209,
+            0.003210840824049262,
+            0.8953229364523542,
+            0.01567795406730445,
+            0.025934168339624242,
+            0.03650821587899504,
+            0.020510153208323896,
+            0.8918647456338391,
+            0.7676388754457851
+          ],
+          [
+            0.09510554212369772,
+            0.9593589611084988,
+            0.023809562772110975,
+            0.07093304597260418,
+            0.0070537389548431875,
+            0.04233816553179587,
+            0.052636004048473566,
+            0.10434449637216045,
+            0.00946045384590624
+          ]
+        ],
+        "state_names": {
+          "algal_bloom_intensity": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "nutrient_upwelling": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "sea_surface_temperature": [
+            "cool",
+            "average",
+            "warm"
+          ]
+        }
+      },
+      {
+        "node": "turbidity",
+        "parents": [],
+        "table": [
+          [
+            0.6147060194933621
+          ],
+          [
+            0.18843570419126587
+          ],
+          [
+            0.19685827631537198
+          ]
+        ],
+        "state_names": {
+          "turbidity": [
+            "clear",
+            "moderate",
+            "murky"
+          ]
+        }
+      },
+      {
+        "node": "coral_cover",
+        "parents": [
+          "turbidity",
+          "algal_bloom_intensity"
+        ],
+        "table": [
+          [
+            0.04883329682938551,
+            0.013010383299880718,
+            0.7005920679466491,
+            0.7839729011271982,
+            0.7448280252996033,
+            0.9791145798245475,
+            0.06435055028778403,
+            0.059575061103725055,
+            0.981161697059113
+          ],
+          [
+            0.0025637669440255364,
+            0.981931859446877,
+            0.04485879854679548,
+            0.02741330206524707,
+            0.03258122187437752,
+            0.004266913750065098,
+            0.9272700537785706,
+            0.9173732856346642,
+            0.012294694152540685
+          ],
+          [
+            0.9486029362265889,
+            0.005057757253242394,
+            0.25454913350655545,
+            0.1886137968075547,
+            0.2225907528260192,
+            0.01661850642538744,
+            0.00837939593364531,
+            0.02305165326161049,
+            0.006543608788346352
+          ]
+        ],
+        "state_names": {
+          "coral_cover": [
+            "degraded",
+            "partial",
+            "healthy"
+          ],
+          "turbidity": [
+            "clear",
+            "moderate",
+            "murky"
+          ],
+          "algal_bloom_intensity": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "fishing_pressure",
+        "parents": [],
+        "table": [
+          [
+            0.34417150203135216
+          ],
+          [
+            0.2298298108319951
+          ],
+          [
+            0.4259986871366528
+          ]
+        ],
+        "state_names": {
+          "fishing_pressure": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      {
+        "node": "reef_fish_biomass",
+        "parents": [
+          "coral_cover",
+          "fishing_pressure",
+          "sea_surface_temperature"
+        ],
+        "table": [
+          [
+            0.008739513871136613,
+            0.8188874963302863,
+            0.28123439624046365,
+            0.9268505731898775,
+            0.8976015800804756,
+            0.016106676190979424,
+            0.06399223083388395,
+            0.052952335381251735,
+            0.004867995014381857,
+            0.10699492760666161,
+            0.19442347190352263,
+            0.002320252386761472,
+            0.006372069557903359,
+            0.9347403875184613,
+            0.8410476192460913,
+            0.007517524776090957,
+            0.9926796596529633,
+            0.18295075958058374,
+            0.012825626082338193,
+            0.9724605226694366,
+            0.7080503683741352,
+            0.9338657816547415,
+            0.9713805884468907,
+            0.993324485670829,
+            0.8023221954278538,
+            0.8579317527142316,
+            0.0860363287470397
+          ],
+          [
+            0.00773548106012233,
+            0.1639032346452698,
+            0.7097328192501041,
+            0.031599738924420764,
+            0.09740795556654752,
+            0.7996170303427396,
+            0.8977689012274896,
+            0.8393686921983227,
+            0.9422063961297825,
+            0.018099071717313918,
+            0.015357672460011199,
+            0.03348084093270377,
+            0.007785524472289364,
+            0.008240249975687435,
+            0.03300742433551955,
+            0.011836425472113233,
+            0.0020822577449556897,
+            0.7570400002156602,
+            0.0972840060955455,
+            0.005471534956968075,
+            0.06273938255894465,
+            0.026143422163538516,
+            0.01784545583666641,
+            0.0036189222837335476,
+            0.10261072860793494,
+            0.06768724195211889,
+            0.7340344605873691
+          ],
+          [
+            0.9835250050687411,
+            0.017209269024443825,
+            0.009032784509432077,
+            0.041549687885701694,
+            0.004990464352976863,
+            0.18427629346628102,
+            0.038238867938626395,
+            0.10767897242042561,
+            0.05292560885583568,
+            0.8749060006760245,
+            0.7902188556364661,
+            0.9641989066805347,
+            0.9858424059698073,
+            0.05701936250585113,
+            0.12594495641838907,
+            0.9806460497517958,
+            0.005238082602080996,
+            0.06000924020375606,
+            0.8898903678221163,
+            0.022067942373595308,
+            0.22921024906692025,
+            0.03999079618171988,
+            0.010773955716443044,
+            0.00305659204543758,
+            0.09506707596421135,
+            0.07438100533364954,
+            0.17992921066559112
+          ]
+        ],
+        "state_names": {
+          "reef_fish_biomass": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "coral_cover": [
+            "degraded",
+            "partial",
+            "healthy"
+          ],
+          "fishing_pressure": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "sea_surface_temperature": [
+            "cool",
+            "average",
+            "warm"
+          ]
+        }
+      }
+    ],
+    "difficulty": {
+      "level": "medium",
+      "num_nodes": 8,
+      "num_latent": 1,
+      "num_observable": 6,
+      "edge_density": 0.32142857142857145,
+      "avg_states_per_node": 3.0,
+      "posterior_entropy": null
+    },
+    "scenario_title": "Reef Fish Decline in the Pelagian Archipelago",
+    "scenario_description": "The Pelagian Archipelago is a remote chain of tropical islands whose coral reefs support both high biodiversity and the livelihoods of local fishing communities. Over the past decade, marine surveys have reported uneven declines in reef fish biomass across islands, with some reefs remaining productive while others show severe depletion. Managers suspect that interacting oceanographic and ecological processes are driving these differences, but the dominant mechanisms remain unclear.\n\nPrevious monitoring programs have focused on surface temperature anomalies and fishing pressure, yet recent field reports also note episodic algal blooms and increased water turbidity near certain reefs. Oceanographers argue that changes in regional current regimes may be altering nutrient delivery and thermal conditions, indirectly affecting coral health and fish populations. The research challenge is to disentangle these linked factors to understand why fish biomass remains high in some locations but collapses in others, and to identify which levers offer the greatest potential for intervention.",
+    "domain": "marine ecology",
+    "theoretical_context": "Prior studies in comparable island systems suggest that strong ocean currents can enhance nutrient upwelling while simultaneously buffering reefs from extreme warming. Ecological theory predicts that moderate nutrient input can support food webs, but excessive nutrients may fuel algal blooms that smother corals. Healthy coral cover is widely considered a key mediator between physical conditions and reef fish biomass, although the direct role of temperature stress on fish remains debated."
+  },
+  "problem": {
+    "world_id": "world-custom-000042",
+    "title": "Reef Fish Decline in the Pelagian Archipelago",
+    "description": "The Pelagian Archipelago is a remote chain of tropical islands whose coral reefs support both high biodiversity and the livelihoods of local fishing communities. Over the past decade, marine surveys have reported uneven declines in reef fish biomass across islands, with some reefs remaining productive while others show severe depletion. Managers suspect that interacting oceanographic and ecological processes are driving these differences, but the dominant mechanisms remain unclear.\n\nPrevious monitoring programs have focused on surface temperature anomalies and fishing pressure, yet recent field reports also note episodic algal blooms and increased water turbidity near certain reefs. Oceanographers argue that changes in regional current regimes may be altering nutrient delivery and thermal conditions, indirectly affecting coral health and fish populations. The research challenge is to disentangle these linked factors to understand why fish biomass remains high in some locations but collapses in others, and to identify which levers offer the greatest potential for intervention.",
+    "domain": "marine ecology",
+    "theoretical_context": "Prior studies in comparable island systems suggest that strong ocean currents can enhance nutrient upwelling while simultaneously buffering reefs from extreme warming. Ecological theory predicts that moderate nutrient input can support food webs, but excessive nutrients may fuel algal blooms that smother corals. Healthy coral cover is widely considered a key mediator between physical conditions and reef fish biomass, although the direct role of temperature stress on fish remains debated.",
+    "data_assets": [
+      {
+        "name": "reef_fish_decline_in_the_pelagian_archip_data",
+        "description": "Dataset with 80 samples. Columns: sea_surface_temperature, nutrient_upwelling, algal_bloom_intensity, turbidity, coral_cover, fishing_pressure, reef_fish_biomass.",
+        "format": "tabular",
+        "data": [
+          {
+            "sample_id": 1.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 2.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 3.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 4.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 5.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 6.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 7.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 8.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 9.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 10.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 11.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "high",
+            "turbidity": "clear",
+            "coral_cover": "degraded",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 12.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 13.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 14.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "high",
+            "turbidity": "murky",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 15.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 16.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 17.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 18.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 19.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 20.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "high",
+            "turbidity": "moderate",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 21.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "high",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 22.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 23.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 24.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 25.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 26.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 27.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 28.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 29.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 30.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 31.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 32.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 33.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "degraded",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 34.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 35.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 36.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 37.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 38.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 39.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 40.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 41.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 42.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 43.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 44.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 45.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 46.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 47.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 48.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 49.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 50.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 51.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 52.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 53.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 54.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 55.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 56.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 57.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "high",
+            "turbidity": "murky",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 58.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 59.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 60.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 61.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 62.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 63.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 64.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 65.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 66.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 67.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 68.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 69.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 70.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "clear",
+            "coral_cover": "healthy",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 71.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 72.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "high",
+            "turbidity": "clear",
+            "coral_cover": "degraded",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 73.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 74.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "medium",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 75.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "medium",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 76.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "medium"
+          },
+          {
+            "sample_id": 77.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "murky",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 78.0,
+            "sea_surface_temperature": "cool",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "low",
+            "turbidity": "moderate",
+            "coral_cover": "degraded",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          },
+          {
+            "sample_id": 79.0,
+            "sea_surface_temperature": "warm",
+            "nutrient_upwelling": "low",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "low",
+            "reef_fish_biomass": "high"
+          },
+          {
+            "sample_id": 80.0,
+            "sea_surface_temperature": "average",
+            "nutrient_upwelling": "high",
+            "algal_bloom_intensity": "medium",
+            "turbidity": "clear",
+            "coral_cover": "partial",
+            "fishing_pressure": "high",
+            "reef_fish_biomass": "low"
+          }
+        ],
+        "source": null,
+        "columns": null,
+        "num_rows": null
+      },
+      {
+        "name": "field_observations",
+        "description": "30 individual field observations.",
+        "format": "observations",
+        "data": [
+          {
+            "observation": "observable variable: sea_surface_temperature: warm",
+            "variable": "sea_surface_temperature",
+            "value": "warm",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling: low",
+            "variable": "nutrient_upwelling",
+            "value": "low",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: algal_bloom_intensity: medium",
+            "variable": "algal_bloom_intensity",
+            "value": "medium",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: turbidity: clear",
+            "variable": "turbidity",
+            "value": "clear",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: coral_cover: partial",
+            "variable": "coral_cover",
+            "value": "partial",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: fishing_pressure: high",
+            "variable": "fishing_pressure",
+            "value": "high",
+            "sample": 1.0
+          },
+          {
+            "observation": "observable variable: sea_surface_temperature: average",
+            "variable": "sea_surface_temperature",
+            "value": "average",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling: high",
+            "variable": "nutrient_upwelling",
+            "value": "high",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: algal_bloom_intensity: medium",
+            "variable": "algal_bloom_intensity",
+            "value": "medium",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: turbidity: clear",
+            "variable": "turbidity",
+            "value": "clear",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: coral_cover: partial",
+            "variable": "coral_cover",
+            "value": "partial",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: fishing_pressure: low",
+            "variable": "fishing_pressure",
+            "value": "low",
+            "sample": 2.0
+          },
+          {
+            "observation": "observable variable: sea_surface_temperature: average",
+            "variable": "sea_surface_temperature",
+            "value": "average",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling: medium",
+            "variable": "nutrient_upwelling",
+            "value": "medium",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: algal_bloom_intensity: low",
+            "variable": "algal_bloom_intensity",
+            "value": "low",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: turbidity: clear",
+            "variable": "turbidity",
+            "value": "clear",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: coral_cover: healthy",
+            "variable": "coral_cover",
+            "value": "healthy",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: fishing_pressure: medium",
+            "variable": "fishing_pressure",
+            "value": "medium",
+            "sample": 3.0
+          },
+          {
+            "observation": "observable variable: sea_surface_temperature: cool",
+            "variable": "sea_surface_temperature",
+            "value": "cool",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling: medium",
+            "variable": "nutrient_upwelling",
+            "value": "medium",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: algal_bloom_intensity: low",
+            "variable": "algal_bloom_intensity",
+            "value": "low",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: turbidity: clear",
+            "variable": "turbidity",
+            "value": "clear",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: coral_cover: healthy",
+            "variable": "coral_cover",
+            "value": "healthy",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: fishing_pressure: high",
+            "variable": "fishing_pressure",
+            "value": "high",
+            "sample": 4.0
+          },
+          {
+            "observation": "observable variable: sea_surface_temperature: warm",
+            "variable": "sea_surface_temperature",
+            "value": "warm",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: nutrient_upwelling: medium",
+            "variable": "nutrient_upwelling",
+            "value": "medium",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: algal_bloom_intensity: low",
+            "variable": "algal_bloom_intensity",
+            "value": "low",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: turbidity: clear",
+            "variable": "turbidity",
+            "value": "clear",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: coral_cover: healthy",
+            "variable": "coral_cover",
+            "value": "healthy",
+            "sample": 5.0
+          },
+          {
+            "observation": "observable variable: fishing_pressure: low",
+            "variable": "fishing_pressure",
+            "value": "low",
+            "sample": 5.0
+          }
+        ],
+        "source": null,
+        "columns": null,
+        "num_rows": null
+      }
+    ],
+    "available_actions": [
+      {
+        "action_type": "observe",
+        "nodes": [
+          "algal_bloom_intensity"
+        ],
+        "description": "Measure algal bloom intensity",
+        "cost": 1,
+        "node": "algal_bloom_intensity"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "turbidity"
+        ],
+        "description": "Measure turbidity",
+        "cost": 1,
+        "node": "turbidity"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "coral_cover"
+        ],
+        "description": "Measure coral cover",
+        "cost": 2,
+        "node": "coral_cover"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "fishing_pressure"
+        ],
+        "description": "Measure fishing pressure",
+        "cost": 2,
+        "node": "fishing_pressure"
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "nutrient_upwelling",
+          "sea_surface_temperature"
+        ],
+        "description": "Field survey: measure nutrient upwelling, sea surface temperature",
+        "cost": 2,
+        "node": "nutrient_upwelling"
+      }
+    ],
+    "budget": 4,
+    "research_question": "Given the observed ecological conditions at a reef, what is the most likely level of reef fish biomass?\n\nTarget variable: 'reef_fish_biomass' (possible states: low, medium, high). You may request additional measurements within your budget.",
+    "target_node": "reef_fish_biomass",
+    "target_states": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "task-world-custom-000042-infer_target",
+      "type": "infer_target",
+      "world_id": "world-custom-000042",
+      "question": "Given the observed ecological conditions at a reef, what is the most likely level of reef fish biomass?",
+      "target_node": "reef_fish_biomass",
+      "available_evidence": [
+        "sea_surface_temperature",
+        "nutrient_upwelling",
+        "algal_bloom_intensity",
+        "turbidity",
+        "coral_cover",
+        "fishing_pressure"
+      ],
+      "correct_answer": {
+        "low": 0.3969445253828804,
+        "medium": 0.21583677979583335,
+        "high": 0.3872186948212864
+      },
+      "scoring_method": "kl_divergence",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {}
+    },
+    {
+      "id": "task-world-custom-000042-causal_effect",
+      "type": "causal_effect",
+      "world_id": "world-custom-000042",
+      "question": "If we intervene and set 'turbidity' to 'moderate', what would be the probability distribution over 'reef_fish_biomass' (possible states: low, medium, high)? This is a causal question: you are asked about the effect of an intervention (do-operation), not just an observation.",
+      "target_node": "reef_fish_biomass",
+      "available_evidence": [
+        "sea_surface_temperature",
+        "nutrient_upwelling",
+        "algal_bloom_intensity",
+        "coral_cover",
+        "fishing_pressure"
+      ],
+      "correct_answer": {
+        "low": 0.304187,
+        "medium": 0.427758,
+        "high": 0.268055
+      },
+      "scoring_method": "kl_divergence",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {
+        "turbidity": "moderate"
+      }
+    },
+    {
+      "id": "task-world-custom-000042-compare_interventions",
+      "type": "compare_interventions",
+      "world_id": "world-custom-000042",
+      "question": "Your team is debating between two possible interventions to maximize 'reef_fish_biomass' being 'high'. Intervention A: set 'nutrient_upwelling' to 'high'. Intervention B: set 'fishing_pressure' to 'low'. Which intervention would have a larger causal effect on the probability of 'reef_fish_biomass' being 'high'? This is about do-operations (interventions), not observations. Answer 'A' or 'B'.",
+      "target_node": "reef_fish_biomass",
+      "available_evidence": [
+        "sea_surface_temperature",
+        "nutrient_upwelling",
+        "algal_bloom_intensity",
+        "turbidity",
+        "coral_cover",
+        "fishing_pressure"
+      ],
+      "correct_answer": {
+        "nutrient_upwelling:high": 0.395311,
+        "fishing_pressure:low": 0.782664
+      },
+      "scoring_method": "compare_interventions",
+      "given_evidence": {},
+      "hypotheses": {},
+      "intervention": {
+        "fishing_pressure": "low"
+      }
+    },
+    {
+      "id": "task-world-custom-000042-infer_latent_cause",
+      "type": "infer_latent_cause",
+      "world_id": "world-custom-000042",
+      "question": "Which unobserved oceanographic factor best explains the pattern of temperature and nutrient conditions seen across reefs?",
+      "target_node": "ocean_current_regime",
+      "available_evidence": [
+        "sea_surface_temperature",
+        "nutrient_upwelling",
+        "algal_bloom_intensity",
+        "turbidity",
+        "coral_cover",
+        "fishing_pressure"
+      ],
+      "correct_answer": {
+        "weak": 0.8859660091035807,
+        "moderate": 0.00440884740074225,
+        "strong": 0.10962514349567698
+      },
+      "scoring_method": "kl_divergence",
+      "given_evidence": {
+        "algal_bloom_intensity": "low",
+        "coral_cover": "healthy",
+        "fishing_pressure": "high",
+        "sea_surface_temperature": "cool"
+      },
+      "hypotheses": {},
+      "intervention": {}
+    }
+  ]
+}

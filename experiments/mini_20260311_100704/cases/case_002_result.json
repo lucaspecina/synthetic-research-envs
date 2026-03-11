@@ -1,0 +1,273 @@
+{
+  "agent_trajectory": {
+    "world_id": "world-custom-000042",
+    "seed": 43,
+    "target_node": "outbreak_size",
+    "target_states": [
+      "contained",
+      "localized",
+      "widespread"
+    ],
+    "budget": 5,
+    "budget_used": 5,
+    "steps": [
+      {
+        "step": 0,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "public_health_intervention"
+        },
+        "tool_result": {
+          "variable": "public_health_intervention",
+          "observed_state": "none",
+          "remaining_budget": 4,
+          "message": "public_health_intervention was observed to be 'none'."
+        },
+        "observation": "public_health_intervention = none",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 1,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "mobility_rate"
+        },
+        "tool_result": {
+          "variable": "mobility_rate",
+          "observed_state": "low",
+          "remaining_budget": 3,
+          "message": "mobility_rate was observed to be 'low'."
+        },
+        "observation": "mobility_rate = low",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 2,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "sanitation_quality"
+        },
+        "tool_result": {
+          "variable": "sanitation_quality",
+          "observed_state": "good",
+          "remaining_budget": 2,
+          "message": "sanitation_quality was observed to be 'good'."
+        },
+        "observation": "sanitation_quality = good",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 3,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "healthcare_access"
+        },
+        "tool_result": {
+          "variable": "healthcare_access",
+          "observed_state": "limited",
+          "remaining_budget": 1,
+          "message": "healthcare_access was observed to be 'limited'."
+        },
+        "observation": "healthcare_access = limited",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 4,
+        "thinking": null,
+        "tool_call": "observe",
+        "tool_args": {
+          "variable": "population_immunity"
+        },
+        "tool_result": {
+          "variable": "population_immunity",
+          "observed_state": "low",
+          "remaining_budget": 0,
+          "message": "population_immunity was observed to be 'low'."
+        },
+        "observation": "population_immunity = low",
+        "error": null,
+        "is_submit": false
+      },
+      {
+        "step": 5,
+        "thinking": null,
+        "tool_call": "submit",
+        "tool_args": {
+          "confidence": 0.67,
+          "reasoning": "Observed conditions show low population immunity and no public health intervention, which increase risk, but low mobility and good sanitation tend to limit spread in historical cases. Limited healthcare raises severity risk but does not consistently drive widespread outbreaks when mobility is low. Overall pattern aligns more with localized outbreaks, with some chance of containment failure leading to wider spread.",
+          "distribution": {
+            "contained": 0.2,
+            "localized": 0.55,
+            "widespread": 0.25
+          }
+        },
+        "tool_result": {
+          "status": "submitted",
+          "distribution": {
+            "contained": 0.2,
+            "localized": 0.55,
+            "widespread": 0.25
+          }
+        },
+        "observation": null,
+        "error": null,
+        "is_submit": true
+      }
+    ],
+    "submitted_answer": {
+      "contained": 0.2,
+      "localized": 0.55,
+      "widespread": 0.25
+    },
+    "reasoning": "Observed conditions show low population immunity and no public health intervention, which increase risk, but low mobility and good sanitation tend to limit spread in historical cases. Limited healthcare raises severity risk but does not consistently drive widespread outbreaks when mobility is low. Overall pattern aligns more with localized outbreaks, with some chance of containment failure leading to wider spread.",
+    "confidence": 0.67,
+    "score": 0.5395952410532598
+  },
+  "comparison": {
+    "world_id": "world-custom-000042",
+    "seed": 43,
+    "target_node": "outbreak_size",
+    "true_state": "localized",
+    "budget": 5,
+    "teacher_steps": [
+      {
+        "step": 0,
+        "action": "case_severity",
+        "observation": "case_severity = mild",
+        "info_gain": 0.356691,
+        "posterior": {
+          "contained": 0.2145,
+          "localized": 0.7216,
+          "widespread": 0.0639
+        }
+      },
+      {
+        "step": 1,
+        "action": "infection_exposure",
+        "observation": "infection_exposure = low",
+        "info_gain": 0.495207,
+        "posterior": {
+          "contained": 0.047,
+          "localized": 0.9382,
+          "widespread": 0.0148
+        }
+      },
+      {
+        "step": 2,
+        "action": "sanitation_quality",
+        "observation": "sanitation_quality = good",
+        "info_gain": 0.0,
+        "posterior": {
+          "contained": 0.047,
+          "localized": 0.9382,
+          "widespread": 0.0148
+        }
+      },
+      {
+        "step": 3,
+        "action": "population_immunity",
+        "observation": "population_immunity = low",
+        "info_gain": 0.0,
+        "posterior": {
+          "contained": 0.047,
+          "localized": 0.9382,
+          "widespread": 0.0148
+        }
+      },
+      {
+        "step": 4,
+        "action": "population_density",
+        "observation": "population_density = sparse",
+        "info_gain": 0.0,
+        "posterior": {
+          "contained": 0.047,
+          "localized": 0.9382,
+          "widespread": 0.0148
+        }
+      }
+    ],
+    "agent_steps": [
+      {
+        "step": 0,
+        "action": "observe",
+        "args": {
+          "variable": "public_health_intervention"
+        },
+        "observation": "public_health_intervention = none"
+      },
+      {
+        "step": 1,
+        "action": "observe",
+        "args": {
+          "variable": "mobility_rate"
+        },
+        "observation": "mobility_rate = low"
+      },
+      {
+        "step": 2,
+        "action": "observe",
+        "args": {
+          "variable": "sanitation_quality"
+        },
+        "observation": "sanitation_quality = good"
+      },
+      {
+        "step": 3,
+        "action": "observe",
+        "args": {
+          "variable": "healthcare_access"
+        },
+        "observation": "healthcare_access = limited"
+      },
+      {
+        "step": 4,
+        "action": "observe",
+        "args": {
+          "variable": "population_immunity"
+        },
+        "observation": "population_immunity = low"
+      },
+      {
+        "step": 5,
+        "action": "submit",
+        "args": {
+          "confidence": 0.67,
+          "reasoning": "Observed conditions show low population immunity and no public health intervention, which increase risk, but low mobility and good sanitation tend to limit spread in historical cases. Limited healthcare raises severity risk but does not consistently drive widespread outbreaks when mobility is low. Overall pattern aligns more with localized outbreaks, with some chance of containment failure leading to wider spread.",
+          "distribution": {
+            "contained": 0.2,
+            "localized": 0.55,
+            "widespread": 0.25
+          }
+        },
+        "submitted": {
+          "contained": 0.2,
+          "localized": 0.55,
+          "widespread": 0.25
+        }
+      }
+    ],
+    "teacher_final_posterior": {
+      "contained": 0.046994,
+      "localized": 0.938178,
+      "widespread": 0.014828
+    },
+    "agent_final_posterior": {
+      "contained": 0.2,
+      "localized": 0.55,
+      "widespread": 0.25
+    },
+    "teacher_kl": 0.0,
+    "agent_kl": 0.5395952410532598,
+    "agent_budget_used": 5,
+    "teacher_budget_used": 5,
+    "verdict": "FAIR"
+  }
+}

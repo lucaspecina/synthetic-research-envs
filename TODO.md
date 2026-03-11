@@ -134,13 +134,16 @@
 > Los scripts sueltos (test_e2e.py, test_agent.py, batch_eval.py, diagnostic_batch.py)
 > se consolidan en el benchmark. Solo se mantienen como utilidades: demo.py, view_trajectory.py.
 
-- [ ] **BM.1**: Implementar script de benchmark (sistema real E2E con LLM)
-  - [ ] Orchestrator genera N casos con goals variados
-  - [ ] Agent solver intenta resolver cada caso
-  - [ ] Trayectorias extraidas y comparadas con teacher
-  - [ ] Metricas agregadas + failure modes
-  - [ ] Resultados guardados en `experiments/` con timestamp
-- [ ] **BM.2**: Crear `experiments/` directory con index.md
+- [~] **BM.1**: Implementar script de benchmark (sistema real E2E con LLM)
+  - [x] Mini benchmark: 3 SRCs reales (scripts/mini_benchmark.py)
+  - [x] Orchestrator genera N casos con goals variados
+  - [x] Agent solver intenta resolver cada caso
+  - [x] Trayectorias extraidas y comparadas con teacher
+  - [x] Metricas agregadas + failure modes
+  - [x] Resultados guardados en `experiments/` con timestamp
+  - [ ] Metrica `prior_delta` (agent vs prior, teacher vs prior) — para interpretar "peor que random"
+  - [ ] Evolucionar a BenchmarkRunner con infraestructura completa
+- [x] **BM.2**: Crear `experiments/` directory con index.md
 - [ ] **BM.3**: Actualizar `quality.py` Layer B para cubrir 9 eval types (no solo 3)
 - [ ] **BM.4**: Primer benchmark run real (20-30 casos, varied goals)
 - [ ] **BM.5**: Consolidar scripts sueltos (deprecar diagnostic_batch.py, absorber test_e2e.py)
