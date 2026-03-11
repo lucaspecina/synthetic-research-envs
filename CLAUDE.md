@@ -223,6 +223,28 @@ with the system. If it falls behind, we're designing the product blind.
 - Commit messages: imperative mood, concise
 - Push works from the assistant. Always ask user before pushing.
 
+## Codex collaboration — critical second opinion
+
+**ONLY when Codex MCP (`mcp__codex__codex`) is available.** If not connected, skip entirely.
+
+Codex (OpenAI) acts as a **critical collaborator** — it should challenge, find flaws,
+and propose alternatives. If it just agrees with everything, it's not doing its job.
+
+- **MANDATORY: Code review** — After implementation, before presenting to user.
+  Codex reviews the diff for bugs, over-engineering, inconsistencies.
+- **RECOMMENDED (use judgment, don't overuse):**
+  - **Strategy/next steps** — When deciding what to work on next or how to prioritize.
+  - **Design/architecture** — When there are multiple valid approaches.
+  - **Problem-solving** — When stuck or unsure about an approach.
+- **SKIP:** Doc-only changes, trivial fixes, when user says to skip.
+
+Thread management: start with `mcp__codex__codex`, continue with `codex-reply` + `threadId`.
+Always ask Codex to be critical: "Don't just agree — tell me what's wrong."
+
+When Codex and Claude disagree: present BOTH perspectives to the user. The user decides.
+
+See `/codex-collab` skill for full protocol.
+
 ## Commit workflow — MANDATORY
 
 **The ONLY way to commit changes. No exceptions. See `/precommit` skill for full details.**
@@ -231,22 +253,28 @@ with the system. If it falls behind, we're designing the product blind.
 1. Tests + Validation     (skip if doc-only or trivial)
    pytest + ruff + E2E with real execution
 
-2. Present to user        (ALWAYS, even for doc-only)
+2. Codex review           (MANDATORY if Codex MCP available, skip if doc-only/trivial)
+   Pass diff to Codex, ask for critical review
+   Fix issues found before presenting to user
+
+3. Present to user        (ALWAYS, even for doc-only)
    Explain in Spanish, friendly + detailed
+   Include Codex feedback and how disagreements were resolved
    Ask: "¿Actualizo docs y hago commit + push?"
    WAIT for approval. Do NOT proceed without it.
 
-3. Update docs + Commit   (only AFTER user says yes)
+4. Update docs + Commit   (only AFTER user says yes)
    TODO.md, CHANGELOG.md, CURRENT_STATE.md, CLAUDE.md
    Then commit + push
 
-4. What's next?           (right after commit+push)
+5. What's next?           (right after commit+push)
    Review TODO, suggest 1-3 concrete next steps
    Ask: "¿Qué te parece? ¿Seguimos con algo?"
 ```
 
-**Why this order:** tests first (catch bugs), present before docs (if user
-requests changes you'd re-update everything), docs last (written once correctly).
+**Why this order:** tests first (catch bugs), Codex review (catch what tests don't),
+present before docs (if user requests changes you'd re-update everything),
+docs last (written once correctly).
 
 ### Trigger-specific updates
 

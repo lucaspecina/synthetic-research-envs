@@ -23,18 +23,30 @@ Every change — code or docs — follows this workflow.
     run 1-2 real LLM pipeline cases as smoke test.
   - Read the output carefully. Do the values make sense?
 
-### Step 2: Present to user
+### Step 2: Codex review (if Codex MCP available)
+**MANDATORY for code changes. SKIP for doc-only or trivial changes.**
+**SKIP ENTIRELY if Codex MCP is not connected.**
+
+- Pass the diff to Codex via `mcp__codex__codex` (or `codex-reply` if thread exists).
+- Include context briefing: what we're doing, why, what the user decided.
+- Ask Codex to be critical: bugs, over-engineering, missed edge cases.
+- If Codex finds real issues → fix them before presenting to user.
+- If Codex disagrees on approach → note it for the presentation.
+- See `/codex-collab` skill for full protocol.
+
+### Step 3: Present to user
 **MANDATORY. ALWAYS. Even for doc-only changes.**
 
 - Explain the changes in Spanish, friendly and detailed.
 - Cover: what was done, how it fits, what's now possible.
 - If there was E2E validation, show the key results.
+- If Codex reviewed: include key feedback and how it was addressed.
 - Be honest about limitations and next steps.
 - **Ask explicitly**: "¿Actualizo docs y hago commit + push?" (or similar).
 - **WAIT for the user's approval.** Do NOT proceed without it.
 - If the user requests changes → make them → re-run tests → re-present.
 
-### Step 3: Update docs + Commit + Push
+### Step 4: Update docs + Commit + Push
 **Only AFTER user says yes.**
 
 - Update docs:
@@ -46,7 +58,7 @@ Every change — code or docs — follows this workflow.
 - Commit with descriptive message
 - Push (ask user first if unsure)
 
-### Step 4: What's next?
+### Step 5: What's next?
 **MANDATORY. Right after commit+push.**
 
 - Review `TODO.md` and identify what's next in the roadmap.
