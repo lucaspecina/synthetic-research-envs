@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### 2026-03-11 — Multi-type agent harness: submit + prompt + scoring for all 9 eval types
+- **`src/sreg/agent/prompts.py`**: dynamic submit tool per task type (distribution, choice,
+  intervention, variable set). System prompt adapts question, target node, format instructions.
+  Only overrides states_str for distribution types (not choice/NBO/hypothesis).
+- **`src/sreg/agent/agent.py`**: `_handle_submit()` routes to 4 specialized handlers.
+  `_submit_distribution()` validates against task-specific states (not just problem.target_states).
+  `_score_result()` routes to correct verifier method per type.
+  NBO -> choice + score_nbo(). causal_effect/infer_latent_cause -> task.correct_answer.
+- **54 agent tests** (was ~15). Full coverage: tool generation, dispatch, scoring, full loops
+  for all 9 types. Tests for bug fixes (prompt states, distribution validation, NBO error msg).
+- **NOT "the agent solves all 9 types well"** — that requires the real benchmark. This is
+  correct plumbing: the harness accepts, formats, and scores all 9 types correctly.
+- **Known limitation**: observe remains single-node/cost-1 (Rich Actions S.4 pending).
+
 ### 2026-03-11 — First mini benchmark: 3 real SRCs end-to-end
 - **`scripts/mini_benchmark.py`**: runs N real SRCs via orchestrator + agent + teacher.
   5 varied goals (marine ecology, epidemiology, materials science, agriculture, geology).

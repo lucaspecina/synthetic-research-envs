@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 601 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Primer mini benchmark real (3 SRCs). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
+**Estado actual: 642 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Harness multi-tipo (submit + prompt + scoring para los 9 eval types). Primer mini benchmark real (3 SRCs). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
 
 **Terminologia clave: SRC** (Synthetic Research Case) = un caso completo generado por el sistema (world + problem + tasks + data). Es la unidad de producto de SREG.
 
@@ -524,7 +524,7 @@ python scripts/test_agent.py
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
 | **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la BN: multi-dataset (primary+secondary), missing data, narrativas |
 | **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica + diseña research cases via design_case) |
-| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **v1: solo infer_target (observe/submit). Pendiente: v2 diagnostico (harness multi-tipo, pipeline de diagnostico).** |
+| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **Harness multi-tipo: submit + prompt + scoring para los 9 eval types. Observe todavia simple (nodo unico, costo 1). Pendiente: S.2 diagnostico, S.4 rich actions.** |
 | **Agent trajectory** | `src/sreg/harness/agent_trajectory.py` | Extrae trayectorias estructuradas del agente (post-hoc desde messages). Export JSONL. |
 | **Trajectory comparison** | `src/sreg/harness/comparison.py` | Comparacion lado a lado agent vs teacher. Verdict: EXCELLENT/GOOD/FAIR/POOR/NO_SUBMIT. |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
@@ -715,7 +715,7 @@ types, sin LLM). Pendiente: BenchmarkRunner completo, metrica prior_delta, multi
 
 ## Test coverage
 
-- **601 tests** en todos los modulos
+- **642 tests** en todos los modulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` -> `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

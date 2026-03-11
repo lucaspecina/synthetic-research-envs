@@ -333,9 +333,10 @@
 > propio entorno empieza a mostrar si tiene sentido para RL y entrenamiento
 > de agentes cientificos.
 >
-> **Estado actual del solver (v1)**: solo maneja `observe`/`submit`, solo
-> resuelve `infer_target` (distribucion sobre target). No genera trayectorias
-> inspeccionables. No diagnostica el entorno.
+> **Estado actual del solver**: observe/submit con soporte multi-tipo en el
+> harness (submit + prompt + scoring para los 9 eval types). Trayectorias
+> inspeccionables (S.1). Observe todavia simple (nodo unico, costo 1).
+> Pendiente: S.2 diagnostico, S.4 rich actions.
 >
 > **Rol del solver v2**: diagnostico, no competitivo. Correr casos E2E,
 > elegir acciones, razonar con budget, responder preguntas, y dejarnos
@@ -374,11 +375,14 @@
   - [ ] Detectar patrones: trivialidad, imposibilidad, confusion, shortcuts
   - [ ] Metricas de diagnostico: % resueltos, % sin submit, % shortcuts, KL distribution
   - [ ] Report de failure modes: que tipos de caso fallan, por que
-- [ ] **S.3**: Harness multi-tipo (plumbing, NO pistas al agente)
-  - [ ] Aceptar formatos de respuesta variados (distribucion, eleccion, set, si/no)
-  - [ ] Verifier scorea cada formato contra ground truth
-  - [ ] El agente recibe la pregunta y punto — no sabe que "tipo" es
-  - [ ] Unica excepcion: instrucciones neutrales de formato de salida ("responde en JSON", "si elegis variables, devolve una lista"). Eso no da pistas cientificas, solo hace que el sistema sea evaluable. NO incluir nada que sugiera estrategia o tipo de razonamiento.
+- [x] **S.3**: Harness multi-tipo (plumbing, NO pistas al agente)
+  - [x] Aceptar formatos de respuesta variados (distribucion, eleccion, set, si/no)
+  - [x] Verifier scorea cada formato contra ground truth
+  - [x] El agente recibe la pregunta y punto — no sabe que "tipo" es
+  - [x] Instrucciones neutrales de formato de salida (submit tool adapta schema por tipo, no sugiere estrategia)
+  - [x] Prompt no mezcla correct_answer.keys() con "possible states" para tipos no distribucionales
+  - [x] _submit_distribution() valida contra estados de la task (no solo problem.target_states)
+  - Limitacion conocida: observe sigue siendo nodo unico / costo 1 (Rich Actions S.4 pendiente)
 - [ ] **S.4**: Agent con acciones ricas
   - [ ] Soportar action_id (acciones multi-nodo, costos variados)
   - [ ] Soportar intervenciones como acciones del agente
