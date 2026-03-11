@@ -5,6 +5,13 @@
 
 ## [Unreleased]
 
+### 2026-03-11 — First full benchmark: 5 SRCs, 19 tasks, 9/9 eval types
+- **`experiments/bench_20260311_5srcs/`**: first benchmark covering all 9 eval types.
+  5/5 SRCs completed, 100% submit, 0 format errors. infer_target consistently GOOD+.
+  causal_effect acceptable (KL ~0.49). ZERO_OBS_CORRECT in 4/19 binary choice tasks
+  (preliminary — could be guessing at 50%). N per type still low (1-5).
+- Updated `experiments/index.md` with diag and bench entries.
+
 ### 2026-03-11 — BenchmarkRunner: type-aware verdicts and failure classification
 - **`src/sreg/harness/benchmark.py`**: BenchmarkRunner class — importable library for
   running real E2E benchmarks. Type-aware verdict (KL thresholds for distribution types,

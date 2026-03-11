@@ -1,0 +1,51 @@
+
+======================================================================
+BENCHMARK REPORT (partial)
+======================================================================
+  Timestamp: 2026-03-11T13:03:58.472548
+  SRCs: 5/5 completed
+  Tasks: 19
+  Submission rate: 100%
+
+======================================================================
+PER EVAL TYPE
+======================================================================
+  Type                        N  Sub%    Score Verdicts                  Failures
+  --------------------------------------------------------------------------------
+  adjustment_set              1  100%   0.0000 WRONG:1                   INCORRECT:1
+  best_intervention           2  100%   0.5958 CORRECT:1, PARTIAL:1      ZERO_OBS_CORRECT:1
+  causal_effect               3  100%   0.4921 FAIR:2, GOOD:1            -
+  compare_interventions       3  100%   0.6667 CORRECT:2, WRONG:1        INCORRECT:1, ZERO_OBS_CORRECT:2
+  hypothesis_selection        2  100%   0.5000 CORRECT:1, WRONG:1        INCORRECT:1
+  infer_latent_cause          1  100%   0.2069 GOOD:1                    -
+  infer_target                5  100%   0.2406 EXCELLENT:1, GOOD:4       -
+  next_best_observation       1  100%   0.8175 PARTIAL:1                 -
+  should_condition            1  100%   1.0000 CORRECT:1                 ZERO_OBS_CORRECT:1
+
+======================================================================
+FAILURE MODES BY TYPE
+======================================================================
+  adjustment_set: INCORRECT:1
+  best_intervention: ZERO_OBS_CORRECT:1
+  compare_interventions: ZERO_OBS_CORRECT:2, INCORRECT:1
+  hypothesis_selection: INCORRECT:1
+  should_condition: ZERO_OBS_CORRECT:1
+
+======================================================================
+PER SRC
+======================================================================
+   ID  Orch   WC Tasks  Sub Types                               Title
+  --------------------------------------------------------------------------------
+    1    OK PASS     4    4 causal_effect, compare_intervention Coral Reef Decline in the
+    2    OK PASS     3    3 compare_interventions, infer_target Spread Dynamics of the Ka
+    3    OK PASS     4    4 adjustment_set, best_intervention,  Unexpected Failure of the
+    4    OK PASS     4    4 hypothesis_selection, infer_latent_ Declining Staple Crop Yie
+    5    OK PASS     4    4 best_intervention, causal_effect, c Eruption Dynamics in the 
+
+======================================================================
+COVERAGE
+======================================================================
+  Types exercised: ['adjustment_set', 'best_intervention', 'causal_effect', 'compare_interventions', 'hypothesis_selection', 'infer_latent_cause', 'infer_target', 'next_best_observation', 'should_condition']
+  All 9 eval types exercised
+  Benchmark is PARTIAL: True
+======================================================================
