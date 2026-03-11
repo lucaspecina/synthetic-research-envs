@@ -11,7 +11,7 @@ SREG genera **problemas de investigación ficticios** donde la verdad oculta es 
 red bayesiana. Un agente LLM intenta resolverlos, y el sistema evalúa automáticamente
 qué tan bien razonó — sin necesidad de un humano que corrija.
 
-**Estado actual: 642 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Harness multi-tipo (submit + prompt + scoring para los 9 eval types). S.2 diagnostic pipeline (real multi-type E2E con orchestrator). Primer mini benchmark real (3 SRCs). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
+**Estado actual: 672 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan (orchestrator diseña research cases). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Harness multi-tipo (submit + prompt + scoring para los 9 eval types). S.2 diagnostic pipeline (real multi-type E2E con orchestrator). Primer mini benchmark real (3 SRCs). Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA.**
 
 **Terminologia clave: SRC** (Synthetic Research Case) = un caso completo generado por el sistema (world + problem + tasks + data). Es la unidad de producto de SREG.
 
@@ -527,6 +527,7 @@ python scripts/test_agent.py
 | **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **Harness multi-tipo: submit + prompt + scoring para los 9 eval types. S.2 diagnostic pipeline validado en E2E real. Observe todavia simple (nodo unico, costo 1). Pendiente: S.4 rich actions.** |
 | **Agent trajectory** | `src/sreg/harness/agent_trajectory.py` | Extrae trayectorias estructuradas del agente (post-hoc desde messages). Export JSONL. |
 | **Trajectory comparison** | `src/sreg/harness/comparison.py` | Comparacion lado a lado agent vs teacher. Verdict: EXCELLENT/GOOD/FAIR/POOR/NO_SUBMIT. |
+| **BenchmarkRunner** | `src/sreg/harness/benchmark.py` | Benchmark real E2E: orchestrator -> agent en cada task -> verdicts type-aware + failure modes por tipo. Marcado PARTIAL. Importable. |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |
 | **QualitySuite** | `src/sreg/harness/quality.py` | Metricas estructurales del motor formal (capas A+B+C). **Desactualizado: solo cubre 3/9 eval types, no usa LLM. Pendiente: evolucion a benchmark del producto real (ver TODO.md "Benchmark y diagnostico").** |
 | **Trajectory export** | `src/sreg/harness/trajectory.py` | Exporta trayectorias del teacher como JSONL |
@@ -717,7 +718,7 @@ SREG tiene dos niveles de aseguramiento de calidad (ver PROJECT.md para detalles
 
 ## Test coverage
 
-- **642 tests** en todos los modulos
+- **672 tests** en todos los modulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` -> `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

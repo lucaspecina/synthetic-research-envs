@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### 2026-03-11 — BenchmarkRunner: type-aware verdicts and failure classification
+- **`src/sreg/harness/benchmark.py`**: BenchmarkRunner class — importable library for
+  running real E2E benchmarks. Type-aware verdict (KL thresholds for distribution types,
+  accuracy for choice types). Type-aware failure modes (ZERO_OBS_LOW_KL, ZERO_OBS_CORRECT,
+  INCORRECT, HIGH_KL, FORMAT_RETRY — no global TRIVIAL). Marked PARTIAL always.
+- **`scripts/run_benchmark.py`**: thin script wrapper for BenchmarkRunner.
+- **30 new tests** (`tests/harness/test_benchmark.py`): verdict classification (11),
+  failure mode classification (12), aggregation (5), report formatting (2).
+- Absorbs patterns from diagnostic_batch.py and mini_benchmark.py into reusable library.
+- 672 tests total.
+
 ### 2026-03-11 — S.2 Diagnostic pipeline: real multi-type E2E validation
 - **`scripts/diagnostic_batch.py`** (rewritten): generates N SRCs via real orchestrator,
   runs agent on EACH task (not just infer_target), collects per-eval-type metrics,

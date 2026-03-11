@@ -134,15 +134,19 @@
 > Los scripts sueltos (test_e2e.py, test_agent.py, batch_eval.py, diagnostic_batch.py)
 > se consolidan en el benchmark. Solo se mantienen como utilidades: demo.py, view_trajectory.py.
 
-- [~] **BM.1**: Implementar script de benchmark (sistema real E2E con LLM)
+- [x] **BM.1**: Implementar BenchmarkRunner (sistema real E2E con LLM)
   - [x] Mini benchmark: 3 SRCs reales (scripts/mini_benchmark.py)
   - [x] Orchestrator genera N casos con goals variados
-  - [x] Agent solver intenta resolver cada caso
-  - [x] Trayectorias extraidas y comparadas con teacher
-  - [x] Metricas agregadas + failure modes
+  - [x] Agent solver en CADA task del SRC (multi-tipo)
+  - [x] Metricas agregadas por eval type + failure modes type-aware
   - [x] Resultados guardados en `experiments/` con timestamp
-  - [ ] Metrica `prior_delta` (agent vs prior, teacher vs prior) — para interpretar "peor que random"
-  - [ ] Evolucionar a BenchmarkRunner con infraestructura completa
+  - [x] BenchmarkRunner como biblioteca importable (src/sreg/harness/benchmark.py)
+  - [x] Verdicts type-aware: KL thresholds para distribution, accuracy para choice
+  - [x] Failure modes por tipo (no TRIVIAL global): ZERO_OBS_LOW_KL, ZERO_OBS_CORRECT, etc.
+  - [x] Script wrapper (scripts/run_benchmark.py)
+  - [x] 30 tests para clasificacion, agregacion, formato
+  - Marcado como PARTIAL (is_partial=True siempre)
+  - [ ] Metrica `prior_delta` (agent vs prior, teacher vs prior)
 - [x] **BM.2**: Crear `experiments/` directory con index.md
 - [ ] **BM.3**: Actualizar `quality.py` Layer B para cubrir 9 eval types (no solo 3)
 - [ ] **BM.4**: Primer benchmark run real (20-30 casos, varied goals)

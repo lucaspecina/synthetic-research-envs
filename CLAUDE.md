@@ -64,7 +64,7 @@ Every research problem has two layers:
 ### Current state
 
 v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness.
-v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation) + 9 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives) + Rich Actions Slice A (ResearchActionType, multi-node, varied costs, IG/cost teacher) + Agent trajectory inspection (extract, compare, export) + Multi-type agent harness (submit + prompt + scoring for 9 eval types) + S.2 diagnostic pipeline (real multi-type E2E with orchestrator). 642 tests. Ola 1 COMPLETE. Rich Actions Slice A COMPLETE. Agent Solver S.1-S.3 COMPLETE.
+v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation) + 9 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives) + Rich Actions Slice A (ResearchActionType, multi-node, varied costs, IG/cost teacher) + Agent trajectory inspection (extract, compare, export) + Multi-type agent harness (submit + prompt + scoring for 9 eval types) + S.2 diagnostic pipeline (real multi-type E2E with orchestrator). 672 tests. Ola 1 COMPLETE. Rich Actions Slice A COMPLETE. Agent Solver S.1-S.3 COMPLETE.
 **Next: BenchmarkRunner (consolidate diagnostic into reusable runner), Rich Actions Slice B (S.4 rich observe), narrative.** See TODO.md and WORLD_DESIGN.md.
 
 ## Environment setup
@@ -103,7 +103,7 @@ src/sreg/
 ├── env/             # EpisodeRunner (step-by-step environment interface)
 ├── orchestrator/    # LLM orchestrator loop (system prompt, tool definitions)
 ├── agent/           # LLM agent solver (Phase 7)
-├── harness/         # Teacher trajectory, agent trajectory, comparison, batch eval (Phase 8)
+├── harness/         # BenchmarkRunner, teacher/agent trajectory, comparison, batch eval
 └── display.py       # Dual-mode pretty printing (terminal ANSI + notebook HTML)
 
 scripts/
@@ -115,7 +115,8 @@ scripts/
 ├── test_e2e.py            # End-to-end: orchestrator -> agent -> score
 ├── mini_benchmark.py      # Mini benchmark: N real SRCs via orchestrator + agent + teacher
 ├── batch_eval.py          # Batch eval + teacher trajectory JSONL export
-└── diagnostic_batch.py    # S.2 diagnostic: N SRCs via orchestrator, agent on all tasks, per-type metrics
+├── diagnostic_batch.py    # S.2 diagnostic: N SRCs via orchestrator, agent on all tasks, per-type metrics
+└── run_benchmark.py       # BenchmarkRunner wrapper: type-aware verdicts + failure modes
 
 experiments/                 # Benchmark results (timestamped directories)
 └── index.md                 # Experiment registry
