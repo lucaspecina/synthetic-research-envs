@@ -265,8 +265,10 @@ def _submit_instruction(task: Task | None, problem: ResearchProblem) -> str:
         labels = sorted(task.hypotheses.keys())
         return (
             f"4. When ready, use the `submit` tool with your `choice` "
-            f"({', '.join(labels)}). Pick the hypothesis that best matches "
-            f"the evidence."
+            f"({', '.join(labels)}). Pick the hypothesis whose PROBABILITY "
+            f"DISTRIBUTION best matches the evidence you gathered. Compare "
+            f"the numbers in each hypothesis against what the data suggests — "
+            f"do not just pick the most plausible-sounding narrative."
         )
     elif task.type == TaskType.COMPARE_INTERVENTIONS:
         return (
@@ -351,6 +353,23 @@ def build_agent_system_prompt(
     # Use task question if provided, otherwise problem's research_question
     research_question = task.question if task else problem.research_question
 
+    # For hypothesis_selection: append the candidate distributions to the question
+    # so the agent sees them even when the orchestrator overwrote the question
+    # with a narrative version that omits the distributions.
+    hypotheses_section = ""
+    if task and task.type == TaskType.HYPOTHESIS_SELECTION and task.hypotheses:
+        hyp_lines = []
+        for label, dist in sorted(task.hypotheses.items()):
+            dist_str = ", ".join(f"{s}={p:.2f}" for s, p in dist.items())
+            hyp_lines.append(f"  {label}: {dist_str}")
+        hypotheses_section = (
+            "\n\n## Candidate Hypotheses\n"
+            "Each hypothesis is a probability distribution over the target variable. "
+            "Your job is to determine which distribution best matches the evidence "
+            "you gather. Compare the NUMBERS, not just the narrative.\n\n"
+            + "\n".join(hyp_lines)
+        )
+
     # Use task's target node when it differs from problem (e.g. infer_latent_cause)
     target_node = task.target_node if task else problem.target_node
 
@@ -394,6 +413,7 @@ units (see the action list below — costs may vary).
 ## Research Question
 
 {research_question}
+{hypotheses_section}
 
 Your target variable is **{target_node}** with possible states: \
 {states_str}.

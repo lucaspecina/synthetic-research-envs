@@ -1500,6 +1500,37 @@ def test_generate_from_plan_unsafe_types_keep_auto_question_without_hints(world)
         )
 
 
+def test_compare_interventions_never_overridden_by_plan(world):
+    """compare_interventions question must NEVER be overridden by the plan's
+    question_text, even when hints are honored. The auto-generated question
+    contains the exact intervention states from correct_answer; overriding
+    would risk semantic inversion (e.g. 'increasing X' but answer is 'X:low')."""
+    tool = TaskGenTool()
+    obs_nodes = [n.name for n in world.nodes if n.type.value == "observable"]
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text="Would reducing A or increasing B be better?",
+            eval_type=TaskType.COMPARE_INTERVENTIONS,
+            target_node="target_outcome",
+            compare_nodes=obs_nodes[:2] if len(obs_nodes) >= 2 else None,
+            desired_state="good",
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    # The auto-generated question should be kept (mentions exact states)
+    assert task.question != "Would reducing A or increasing B be better?"
+    # The auto-generated question should mention "Intervention A" and "Intervention B"
+    assert "Intervention A" in task.question
+    assert "Intervention B" in task.question
+    # Every state in the answer keys must appear in the question
+    for key in task.correct_answer:
+        node, state = key.split(":", 1)
+        assert state in task.question, (
+            f"Answer key '{key}' state '{state}' not in question: {task.question}"
+        )
+
+
 def test_generate_from_plan_all_three_types(world):
     tool = TaskGenTool()
     plan = _make_plan([
@@ -1636,8 +1667,15 @@ def test_hint_compare_interventions_nodes(world):
     # The correct_answer keys should reference the hinted nodes
     answer_nodes = {k.split(":")[0] for k in task.correct_answer}
     assert answer_nodes == {"indicator_1", "indicator_2"}
-    # Question text should be overridden
-    assert task.question == "Compare indicator_1 vs indicator_2 interventions."
+    # Question text should NOT be overridden — auto-generated question
+    # contains the exact intervention states from correct_answer.
+    # Overriding risks semantic inversion.
+    assert task.question != "Compare indicator_1 vs indicator_2 interventions."
+    assert "Intervention A" in task.question
+    # Every state in the answer keys must appear in the question
+    for key in task.correct_answer:
+        _, state = key.split(":", 1)
+        assert state in task.question
 
 
 def test_hint_adjustment_set_treatment(world):

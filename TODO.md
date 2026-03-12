@@ -76,6 +76,8 @@
 
 - [x] **Budget wording**: dice "N observaciones" pero el sistema ya tiene costos variados. Deberia decir "presupuesto de investigacion: N unidades" o similar. No "observaciones".
   > Fixed: "research budget of N units" en agent prompts, task_gen, problem_builder
+- [x] **compare_interventions semantic inversion**: question said "increasing X" but answer key was "X:weak". Fixed: auto-generated question (with exact states) no longer overridden by orchestrator's narrative.
+- [x] **hypothesis_selection framing**: agent reasoned narratively instead of comparing distributions. Fixed: prompt now always shows distributions + explicit instruction to compare numbers.
 - [ ] **Acciones siguen siendo "Measure X"**: la narrativa mejoro pero las acciones siguen siendo 1 nodo = 1 accion. Necesitan ser acciones de investigacion reales (Slice B de Rich Actions).
 - [ ] **Primary question vs caso narrativo**: el caso habla de causalidad pero la primary question es infer_target (prediccion). Falta que el orchestrator alinee la primary question con el objetivo real de la investigacion.
 - [ ] **Titulo duplicado**: scenario_title vs case_plan.title son distintos y compiten. Unificar.

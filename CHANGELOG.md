@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### 2026-03-12 — Qualitative analysis fixes: compare_interventions + hypothesis_selection
+- **compare_interventions semantic inversion fix**: Auto-generated question (which contains
+  the exact intervention states from correct_answer) is no longer overridden by the
+  orchestrator's narrative question. Prevents "increasing X" in question but "X:weak" in
+  answer. New `_NEVER_OVERRIDE_QUESTION_TYPES` set. 2 tests (1 new + 1 updated).
+- **hypothesis_selection framing fix**: Agent prompt now always shows candidate hypotheses
+  as numbered probability distributions with explicit instruction to compare NUMBERS not
+  narratives. Submit instruction updated: "pick the distribution that best matches evidence".
+- **Qualitative analysis script**: New `scripts/qualitative_analysis.py` for step-by-step
+  agent reasoning inspection. 3-case run with gpt-5.3 in `experiments/qualitative_20260312_124512/`.
+- **Root cause from qualitative analysis**: agent fails hypothesis_selection because it
+  reasons narratively ("which story sounds right") not formally ("which distribution matches").
+  compare_interventions had real SREG bug (semantic inversion). Both fixed.
+- 725 tests (1 new).
+
 ### 2026-03-12 — DIAG.4: ZERO_OBS reclassification + Dirichlet distractor fix
 - **ZERO_OBS reclassification**: NBO and should_condition with 0 observations and correct
   answer no longer flagged as failures (return `None` instead of "ZERO_OBS_CORRECT").

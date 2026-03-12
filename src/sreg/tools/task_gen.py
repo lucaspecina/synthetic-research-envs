@@ -788,6 +788,14 @@ class TaskGenTool:
         TaskType.INFER_LATENT_CAUSE,
     })
 
+    # Types where the auto-generated question contains specific intervention
+    # states that MUST match the correct_answer. Overriding these with the
+    # orchestrator's question_text risks semantic inversion (e.g., question
+    # says "increasing resistance" but answer key is "resistance:weak").
+    _NEVER_OVERRIDE_QUESTION_TYPES = frozenset({
+        TaskType.COMPARE_INTERVENTIONS,
+    })
+
     def generate_from_plan(
         self,
         world: World,
@@ -824,7 +832,11 @@ class TaskGenTool:
             # Safe types (answer doesn't reference specific nodes): always OK.
             # Unsafe types: only override when the generated task ACTUALLY USED
             # the hinted nodes (not just when hints were provided).
-            if q.eval_type in self._SAFE_QUESTION_OVERRIDE_TYPES:
+            if q.eval_type in self._NEVER_OVERRIDE_QUESTION_TYPES:
+                # Keep auto-generated question — it contains the exact states
+                # from correct_answer. Overriding risks semantic inversion.
+                pass
+            elif q.eval_type in self._SAFE_QUESTION_OVERRIDE_TYPES:
                 task = task.model_copy(update={"question": q.question_text})
             elif self._hints_honored(q, task):
                 task = task.model_copy(update={"question": q.question_text})
