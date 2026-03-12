@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from sreg.models.task import TaskType
 
 
 class EvalQuestionPlan(BaseModel):
-    """A single evaluation question planned by the orchestrator."""
+    """A single evaluation question planned by the orchestrator.
+
+    Optional node hint fields let the orchestrator specify WHICH nodes the
+    task should use, so that the generated question and answer reference
+    the same nodes as the plan's question_text.  When hints are provided,
+    the task generator respects them (after validating they exist and are
+    usable); when absent, it falls back to random selection.
+    """
 
     question_text: str = Field(
         min_length=10,
@@ -24,6 +31,49 @@ class EvalQuestionPlan(BaseModel):
         default="",
         description="Why this question matters for this research case",
     )
+
+    # --- Node hints (optional) ---
+    # These let the orchestrator guide which nodes the task generator uses,
+    # so that question_text and correct_answer describe the same entities.
+
+    intervention_node: str | None = Field(
+        default=None,
+        description=(
+            "Node to intervene on / treat. Used by causal_effect, "
+            "adjustment_set, should_condition."
+        ),
+    )
+    desired_state: str | None = Field(
+        default=None,
+        description=(
+            "Target state to maximize. Used by best_intervention, "
+            "compare_interventions."
+        ),
+    )
+    compare_nodes: list[str] | None = Field(
+        default=None,
+        description=(
+            "Two node names to compare interventions on. "
+            "Used by compare_interventions."
+        ),
+    )
+    condition_variable: str | None = Field(
+        default=None,
+        description=(
+            "Variable suggested for conditioning. "
+            "Used by should_condition."
+        ),
+    )
+
+    @field_validator("compare_nodes")
+    @classmethod
+    def _validate_compare_nodes(cls, v: list[str] | None) -> list[str] | None:
+        if v is not None:
+            if len(v) != 2:
+                raise ValueError("compare_nodes must have exactly 2 elements")
+            if v[0] == v[1]:
+                raise ValueError("compare_nodes must be two distinct node names")
+        return v
 
 
 class CasePlan(BaseModel):

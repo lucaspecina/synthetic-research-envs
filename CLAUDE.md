@@ -234,6 +234,8 @@ and propose alternatives. If it just agrees with everything, it's not doing its 
   Codex reviews the diff for bugs, over-engineering, inconsistencies.
 - **RECOMMENDED (use judgment, don't overuse):**
   - **Strategy/next steps** — When deciding what to work on next or how to prioritize.
+  - **Pre-implementation strategy** — When a task involves significant design decisions,
+    consider consulting Codex before coding. Use judgment.
   - **Design/architecture** — When there are multiple valid approaches.
   - **Problem-solving** — When stuck or unsure about an approach.
 - **SKIP:** Doc-only changes, trivial fixes, when user says to skip.
@@ -242,6 +244,11 @@ Thread management: start with `mcp__codex__codex`, continue with `codex-reply` +
 Always ask Codex to be critical: "Don't just agree — tell me what's wrong."
 
 When Codex and Claude disagree: present BOTH perspectives to the user. The user decides.
+
+**Claude leads, Codex advises.** Codex will always find something — that's its job.
+Fix what's IMPORTANT (bugs, correctness), log minor findings as deuda, move on.
+Use good judgment on how many review rounds are needed — don't enter infinite loops
+chasing diminishing returns. Time matters.
 
 See `/codex-collab` skill for full protocol.
 

@@ -260,34 +260,37 @@ class TaskGenTool:
         obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
         rng = np.random.default_rng(seed)
 
-        # Find observable nodes with a causal effect on target
-        # (nodes where do(node=state_a) != do(node=state_b) for target)
-        causal_nodes = []
-        for node in obs_nodes:
-            node_obj = next(n for n in world.nodes if n.name == node)
-            states = node_obj.states
-            dist_first = solver.causal_query(target, do={node: states[0]})
-            dist_last = solver.causal_query(target, do={node: states[-1]})
-            max_diff = max(
-                abs(dist_first[s] - dist_last[s])
-                for s in dist_first
-            )
-            if max_diff > 0.02:
-                causal_nodes.append((node, max_diff))
-
-        if not causal_nodes:
-            # Fallback: use any observable node (effect will be zero — degenerate)
-            causal_nodes = [(obs_nodes[0], 0.0)]
-
-        # Pick an intervention node (weighted toward stronger effects)
-        causal_nodes.sort(key=lambda x: x[1], reverse=True)
-        weights = np.array([c[1] for c in causal_nodes])
-        if weights.sum() > 0:
-            weights = weights / weights.sum()
+        # Use hint if provided and valid
+        hint_node = spec.intervention_node
+        if hint_node and hint_node in obs_nodes:
+            intervention_node = hint_node
         else:
-            weights = np.ones(len(causal_nodes)) / len(causal_nodes)
-        chosen_idx = rng.choice(len(causal_nodes), p=weights)
-        intervention_node = causal_nodes[chosen_idx][0]
+            # Find observable nodes with a causal effect on target
+            causal_nodes = []
+            for node in obs_nodes:
+                node_obj = next(n for n in world.nodes if n.name == node)
+                states = node_obj.states
+                dist_first = solver.causal_query(target, do={node: states[0]})
+                dist_last = solver.causal_query(target, do={node: states[-1]})
+                max_diff = max(
+                    abs(dist_first[s] - dist_last[s])
+                    for s in dist_first
+                )
+                if max_diff > 0.02:
+                    causal_nodes.append((node, max_diff))
+
+            if not causal_nodes:
+                causal_nodes = [(obs_nodes[0], 0.0)]
+
+            # Pick an intervention node (weighted toward stronger effects)
+            causal_nodes.sort(key=lambda x: x[1], reverse=True)
+            weights = np.array([c[1] for c in causal_nodes])
+            if weights.sum() > 0:
+                weights = weights / weights.sum()
+            else:
+                weights = np.ones(len(causal_nodes)) / len(causal_nodes)
+            chosen_idx = rng.choice(len(causal_nodes), p=weights)
+            intervention_node = causal_nodes[chosen_idx][0]
 
         # Pick an intervention value
         int_node_obj = next(n for n in world.nodes if n.name == intervention_node)
@@ -331,8 +334,11 @@ class TaskGenTool:
         target_node_obj = next(n for n in world.nodes if n.name == target)
         rng = np.random.default_rng(seed)
 
-        # Pick a desired state for the target
-        desired_state = target_node_obj.states[rng.choice(len(target_node_obj.states))]
+        # Use hint if provided and valid
+        if spec.desired_state and spec.desired_state in target_node_obj.states:
+            desired_state = spec.desired_state
+        else:
+            desired_state = target_node_obj.states[rng.choice(len(target_node_obj.states))]
 
         # Compute effect of each possible single-variable intervention
         intervention_effects: dict[str, float] = {}
@@ -382,8 +388,11 @@ class TaskGenTool:
         target_node_obj = next(n for n in world.nodes if n.name == target)
         rng = np.random.default_rng(seed)
 
-        # Pick a desired state for the target
-        desired_state = target_node_obj.states[rng.choice(len(target_node_obj.states))]
+        # Use hint if provided and valid
+        if spec.desired_state and spec.desired_state in target_node_obj.states:
+            desired_state = spec.desired_state
+        else:
+            desired_state = target_node_obj.states[rng.choice(len(target_node_obj.states))]
 
         # Compute effect of each possible intervention (same as best_intervention)
         intervention_effects: dict[str, float] = {}
@@ -394,36 +403,45 @@ class TaskGenTool:
                 effect = do_dist.get(desired_state, 0.0)
                 intervention_effects[f"{node_name}:{state}"] = round(effect, 6)
 
-        # Pick two interventions from DIFFERENT nodes with distinct effects
+        # Group by node: best intervention per node
         by_node: dict[str, list[tuple[str, float]]] = {}
         for key, eff in intervention_effects.items():
             node_name = key.split(":")[0]
             by_node.setdefault(node_name, []).append((key, eff))
 
-        # For each node, pick its best intervention (state with highest effect)
         node_bests: list[tuple[str, float]] = []
         for node_name, entries in by_node.items():
             best_entry = max(entries, key=lambda e: e[1])
             node_bests.append(best_entry)
 
-        # Sort by effect and pick two with the largest gap
-        node_bests.sort(key=lambda e: e[1], reverse=True)
+        # Use compare_nodes hint if provided and valid (2 distinct existing nodes)
+        hint_nodes = spec.compare_nodes
+        used_hint = False
+        if hint_nodes and len(hint_nodes) == 2 and len(set(hint_nodes)) == 2:
+            valid = all(n in by_node for n in hint_nodes)
+            if valid:
+                pick_a = max(by_node[hint_nodes[0]], key=lambda e: e[1])
+                pick_b = max(by_node[hint_nodes[1]], key=lambda e: e[1])
+                used_hint = True
 
-        if len(node_bests) < 2:
-            # Fallback: pick any two interventions
-            all_sorted = sorted(intervention_effects.items(), key=lambda e: e[1], reverse=True)
-            pick_a = all_sorted[0]
-            pick_b = all_sorted[-1]
-        else:
-            # Pick top and bottom among node-bests for clear contrast
-            pick_a = node_bests[0]
-            pick_b = node_bests[-1]
-            # If effects are identical, try to find a pair with a gap
-            if abs(pick_a[1] - pick_b[1]) < 1e-9 and len(node_bests) > 2:
-                for candidate in reversed(node_bests[1:]):
-                    if abs(pick_a[1] - candidate[1]) > 1e-9:
-                        pick_b = candidate
-                        break
+        if not used_hint:
+            # Sort by effect and pick two with the largest gap
+            node_bests.sort(key=lambda e: e[1], reverse=True)
+
+            if len(node_bests) < 2:
+                all_sorted = sorted(
+                    intervention_effects.items(), key=lambda e: e[1], reverse=True
+                )
+                pick_a = all_sorted[0]
+                pick_b = all_sorted[-1]
+            else:
+                pick_a = node_bests[0]
+                pick_b = node_bests[-1]
+                if abs(pick_a[1] - pick_b[1]) < 1e-9 and len(node_bests) > 2:
+                    for candidate in reversed(node_bests[1:]):
+                        if abs(pick_a[1] - candidate[1]) > 1e-9:
+                            pick_b = candidate
+                            break
 
         key_a, effect_a = pick_a
         key_b, effect_b = pick_b
@@ -558,31 +576,47 @@ class TaskGenTool:
                 elif z in desc_of_x:
                     candidates_no.append((x, z))
 
-        # Randomize which type of question to ask
-        rng.shuffle(candidates_yes)
-        rng.shuffle(candidates_no)
+        # Check if plan provided specific hints
+        hint_treatment = spec.intervention_node
+        hint_condition = spec.condition_variable
+        used_hint = False
 
-        if candidates_no and candidates_yes:
-            # Both available — randomly pick type
-            ask_no = bool(rng.random() < 0.5)
-        elif candidates_no:
-            ask_no = True
-        elif candidates_yes:
-            ask_no = False
-        else:
-            # No clear candidates — fallback: pick any pair, treat as "no"
-            treatment = obs_nodes[0] if obs_nodes[0] != target else obs_nodes[1]
-            others = [z for z in obs_nodes if z != treatment and z != target]
-            suggested = others[0] if others else treatment
-            ask_no = True
-            candidates_no = [(treatment, suggested)]
+        if hint_treatment and hint_condition:
+            pair = (hint_treatment, hint_condition)
+            if pair in candidates_yes:
+                treatment, suggested = pair
+                correct_answer = {"yes": 1.0}
+                used_hint = True
+            elif pair in candidates_no:
+                treatment, suggested = pair
+                correct_answer = {"no": 1.0}
+                used_hint = True
 
-        if ask_no:
-            treatment, suggested = candidates_no[0]
-            correct_answer = {"no": 1.0}
-        else:
-            treatment, suggested = candidates_yes[0]
-            correct_answer = {"yes": 1.0}
+        if not used_hint:
+            # Randomize which type of question to ask
+            rng.shuffle(candidates_yes)
+            rng.shuffle(candidates_no)
+
+            if candidates_no and candidates_yes:
+                ask_no = bool(rng.random() < 0.5)
+            elif candidates_no:
+                ask_no = True
+            elif candidates_yes:
+                ask_no = False
+            else:
+                # No clear candidates — fallback: pick any pair, treat as "no"
+                treatment = obs_nodes[0] if obs_nodes[0] != target else obs_nodes[1]
+                others = [z for z in obs_nodes if z != treatment and z != target]
+                suggested = others[0] if others else treatment
+                ask_no = True
+                candidates_no = [(treatment, suggested)]
+
+            if ask_no:
+                treatment, suggested = candidates_no[0]
+                correct_answer = {"no": 1.0}
+            else:
+                treatment, suggested = candidates_yes[0]
+                correct_answer = {"yes": 1.0}
 
         question = (
             f"You are analyzing the causal effect of '{treatment}' on '{target}' "
@@ -650,15 +684,26 @@ class TaskGenTool:
             x = obs_nodes[0] if obs_nodes[0] != target else obs_nodes[1]
             candidates = [(x, [[]], 1)]
 
-        # Prefer identifiable confounded pairs (priority 3), then unconfounded (1),
-        # then not-identifiable (0)
-        candidates.sort(key=lambda c: c[2], reverse=True)
-        best_priority = candidates[0][2]
-        top_candidates = [c for c in candidates if c[2] == best_priority]
+        # Use hint if provided and valid
+        hint_node = spec.intervention_node
+        chosen = None
+        if hint_node:
+            for c in candidates:
+                if c[0] == hint_node:
+                    chosen = c
+                    break
 
-        chosen = top_candidates[rng.choice(len(top_candidates))]
+        if chosen is None:
+            # Prefer identifiable confounded pairs (priority 3), then unconfounded (1),
+            # then not-identifiable (0)
+            candidates.sort(key=lambda c: c[2], reverse=True)
+            best_priority = candidates[0][2]
+            top_candidates = [c for c in candidates if c[2] == best_priority]
+            chosen = top_candidates[rng.choice(len(top_candidates))]
+
         treatment_node = chosen[0]
         valid_sets = chosen[1]
+        chosen_priority = chosen[2]
 
         # Build correct_answer: each valid minimal set as comma-joined key -> 1.0
         correct_answer: dict[str, float] = {}
@@ -673,7 +718,7 @@ class TaskGenTool:
         # Available variables for the adjustment set (exclude treatment and target)
         available = [n for n in obs_nodes if n != treatment_node and n != target]
 
-        is_identifiable_confounded = best_priority == 3
+        is_identifiable_confounded = chosen_priority == 3
         is_not_identifiable = "_not_identifiable_" in correct_answer
         if is_identifiable_confounded:
             question = (
@@ -735,13 +780,16 @@ class TaskGenTool:
     ) -> list[Task]:
         """Generate tasks driven by a CasePlan instead of fixed task types.
 
-        Only creates the tasks the plan requests. For eval types where the
-        correct_answer doesn't reference specific nodes/interventions
-        (infer_target, NBO, hypothesis_selection, infer_latent_cause), the
-        plan's question_text replaces the generic text. For other types
-        (causal_effect, best_intervention, compare_interventions, adjustment_set,
-        should_condition), the auto-generated question is kept because it
-        describes the exact nodes/interventions used in the correct_answer.
+        Node hints in the plan (intervention_node, desired_state, etc.) are
+        passed through to the task generator so that the generated answer
+        references the same nodes as the plan's question_text.
+
+        Question text override rules:
+        - "Safe" types (infer_target, NBO, hypothesis_selection, infer_latent_cause):
+          always override with plan's question_text.
+        - Other types: override ONLY when ``_hints_honored()`` confirms the
+          generated task actually used the hinted nodes.  If hints were invalid
+          or ignored, the auto-generated question is kept to prevent mismatch.
         """
         tasks: list[Task] = []
         for i, q in enumerate(plan.questions):
@@ -749,14 +797,65 @@ class TaskGenTool:
                 type=q.eval_type,
                 target_node=q.target_node,
                 max_budget=plan.shared_budget,
+                intervention_node=q.intervention_node,
+                desired_state=q.desired_state,
+                compare_nodes=q.compare_nodes,
+                condition_variable=q.condition_variable,
             )
             task = self.generate(world, spec, seed=seed + i)
-            # Only override question text for types where the answer doesn't
-            # reference specific nodes mentioned in the question
+
+            # Decide whether to override the auto-generated question text.
+            # Safe types (answer doesn't reference specific nodes): always OK.
+            # Unsafe types: only override when the generated task ACTUALLY USED
+            # the hinted nodes (not just when hints were provided).
             if q.eval_type in self._SAFE_QUESTION_OVERRIDE_TYPES:
+                task = task.model_copy(update={"question": q.question_text})
+            elif self._hints_honored(q, task):
                 task = task.model_copy(update={"question": q.question_text})
             tasks.append(task)
         return tasks
+
+    @staticmethod
+    def _hints_honored(q: "EvalQuestionPlan", task: Task) -> bool:
+        """Check whether the generated task actually used the plan's hints.
+
+        Only returns True when the task's concrete nodes/states match what
+        the plan specified.  If hints were provided but ignored (invalid
+        node, not in candidates, etc.), returns False so the auto-generated
+        question is kept — preventing question/answer mismatch.
+        """
+        et = q.eval_type
+        inv = task.intervention  # {node: state} or {treatment: suggested}
+
+        if et == TaskType.CAUSAL_EFFECT:
+            return bool(q.intervention_node and q.intervention_node in inv)
+
+        if et == TaskType.BEST_INTERVENTION:
+            # The generator uses desired_state if it's a valid state for the target.
+            # Verify by checking the auto-generated question mentions it.
+            return bool(q.desired_state and q.desired_state in task.question)
+
+        if et == TaskType.COMPARE_INTERVENTIONS:
+            if not q.compare_nodes or len(q.compare_nodes) != 2:
+                return False
+            if len(set(q.compare_nodes)) != 2:
+                return False
+            answer_nodes = {k.split(":")[0] for k in task.correct_answer}
+            nodes_match = set(q.compare_nodes) == answer_nodes
+            # If desired_state was also hinted, verify it was used
+            if q.desired_state and q.desired_state not in task.question:
+                return False
+            return nodes_match
+
+        if et == TaskType.ADJUSTMENT_SET:
+            return bool(q.intervention_node and q.intervention_node in inv)
+
+        if et == TaskType.SHOULD_CONDITION:
+            if not (q.intervention_node and q.condition_variable):
+                return False
+            return inv == {q.intervention_node: q.condition_variable}
+
+        return False
 
 
 __all__ = ["TaskGenTool"]

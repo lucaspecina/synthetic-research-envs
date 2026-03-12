@@ -20,12 +20,23 @@ class TaskType(StrEnum):
 
 
 class TaskSpec(BaseModel):
-    """Specification for generating a task from a world."""
+    """Specification for generating a task from a world.
+
+    Optional node hint fields guide the task generator to use specific
+    nodes, so that the generated question and answer align with the
+    orchestrator's CasePlan.  When absent, the generator picks randomly.
+    """
 
     type: TaskType
     target_node: str
     max_budget: int = Field(gt=0)
     difficulty: str | None = None
+
+    # Node hints — flow from EvalQuestionPlan through generate_from_plan
+    intervention_node: str | None = None
+    desired_state: str | None = None
+    compare_nodes: list[str] | None = None
+    condition_variable: str | None = None
 
 
 class Task(BaseModel):

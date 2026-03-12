@@ -1473,9 +1473,9 @@ def test_generate_from_plan_safe_override_types(world):
         )
 
 
-def test_generate_from_plan_unsafe_types_keep_auto_question(world):
-    """Unsafe types (causal_effect, compare_interventions, etc.) keep the
-    auto-generated question to stay consistent with correct_answer."""
+def test_generate_from_plan_unsafe_types_keep_auto_question_without_hints(world):
+    """Unsafe types WITHOUT hints keep the auto-generated question
+    to stay consistent with correct_answer."""
     tool = TaskGenTool()
     for eval_type in [
         TaskType.CAUSAL_EFFECT,
@@ -1493,10 +1493,10 @@ def test_generate_from_plan_unsafe_types_keep_auto_question(world):
             ),
         ])
         tasks = tool.generate_from_plan(world, plan)
-        # Should NOT use the custom text (would cause mismatch)
+        # Should NOT use the custom text (no hints = would cause mismatch)
         assert tasks[0].question != custom, (
             f"{eval_type}: should keep auto-generated question, "
-            f"not override with plan text"
+            f"not override with plan text (no hints provided)"
         )
 
 
@@ -1578,3 +1578,186 @@ def test_generate_from_plan_uses_shared_budget(world):
     tasks = tool.generate_from_plan(world, plan)
     # The task should use the plan's budget (visible in available_evidence count)
     assert len(tasks) == 1
+
+
+# --- Node hints tests (P0 bug fix) ---
+
+
+def test_hint_causal_effect_intervention_node(world):
+    """causal_effect respects intervention_node hint."""
+    tool = TaskGenTool()
+    hint_node = "indicator_1"
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text=f"What happens if we intervene on {hint_node}?",
+            eval_type=TaskType.CAUSAL_EFFECT,
+            target_node="target_outcome",
+            intervention_node=hint_node,
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    # The intervention should use the hinted node
+    assert hint_node in task.intervention
+    # Question text should be overridden (hints provided)
+    assert task.question == f"What happens if we intervene on {hint_node}?"
+
+
+def test_hint_best_intervention_desired_state(world):
+    """best_intervention respects desired_state hint."""
+    tool = TaskGenTool()
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text="How can we maximize the target being 'low'?",
+            eval_type=TaskType.BEST_INTERVENTION,
+            target_node="target_outcome",
+            desired_state="low",
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    # Question text should be overridden
+    assert task.question == "How can we maximize the target being 'low'?"
+
+
+def test_hint_compare_interventions_nodes(world):
+    """compare_interventions respects compare_nodes hint."""
+    tool = TaskGenTool()
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text="Compare indicator_1 vs indicator_2 interventions.",
+            eval_type=TaskType.COMPARE_INTERVENTIONS,
+            target_node="target_outcome",
+            compare_nodes=["indicator_1", "indicator_2"],
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    # The correct_answer keys should reference the hinted nodes
+    answer_nodes = {k.split(":")[0] for k in task.correct_answer}
+    assert answer_nodes == {"indicator_1", "indicator_2"}
+    # Question text should be overridden
+    assert task.question == "Compare indicator_1 vs indicator_2 interventions."
+
+
+def test_hint_adjustment_set_treatment(world):
+    """adjustment_set respects intervention_node hint as treatment."""
+    tool = TaskGenTool()
+    hint_node = "indicator_1"
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text=f"What confounders affect {hint_node} -> target?",
+            eval_type=TaskType.ADJUSTMENT_SET,
+            target_node="target_outcome",
+            intervention_node=hint_node,
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    # Treatment node in intervention field should be the hinted one
+    assert hint_node in task.intervention
+    # Question text should be overridden
+    assert task.question == f"What confounders affect {hint_node} -> target?"
+
+
+def test_hint_should_condition(world):
+    """should_condition respects intervention_node + condition_variable hints."""
+    tool = TaskGenTool()
+    # First, find a valid pair to use as hints
+    task_no_hint = tool.generate(
+        world,
+        TaskSpec(type=TaskType.SHOULD_CONDITION, target_node="target_outcome", max_budget=5),
+        seed=0,
+    )
+    # Use the same pair the generator found (guaranteed valid)
+    treatment = list(task_no_hint.intervention.keys())[0]
+    condition = list(task_no_hint.intervention.values())[0]
+
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text=f"Should we control for {condition}?",
+            eval_type=TaskType.SHOULD_CONDITION,
+            target_node="target_outcome",
+            intervention_node=treatment,
+            condition_variable=condition,
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    assert task.intervention == {treatment: condition}
+    assert task.question == f"Should we control for {condition}?"
+
+
+def test_hint_invalid_node_keeps_auto_question(world):
+    """Invalid hint nodes are ignored: generator falls back to random AND
+    the auto-generated question is kept (not overridden with plan text)."""
+    tool = TaskGenTool()
+    custom_text = "Custom question about nonexistent node."
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text=custom_text,
+            eval_type=TaskType.CAUSAL_EFFECT,
+            target_node="target_outcome",
+            intervention_node="nonexistent_node",
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    # Should still generate a valid task (fallback to random)
+    assert task.type == TaskType.CAUSAL_EFFECT
+    assert "nonexistent_node" not in task.intervention
+    # Question should NOT be overridden (hint was not honored)
+    assert task.question != custom_text
+
+
+def test_hint_compare_nodes_invalid_keeps_auto_question(world):
+    """Invalid compare_nodes: falls back to default, keeps auto question."""
+    tool = TaskGenTool()
+    custom_text = "Compare X vs Y."
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text=custom_text,
+            eval_type=TaskType.COMPARE_INTERVENTIONS,
+            target_node="target_outcome",
+            compare_nodes=["nonexistent_a", "nonexistent_b"],
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    # Should still generate a valid task
+    assert task.type == TaskType.COMPARE_INTERVENTIONS
+    assert len(task.correct_answer) == 2
+    # Question should NOT be overridden (hint was not honored)
+    assert task.question != custom_text
+
+
+def test_hint_compare_nodes_duplicates_rejected():
+    """compare_nodes with duplicate names is rejected at the model level."""
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match="distinct"):
+        EvalQuestionPlan(
+            question_text="Compare X vs X.",
+            eval_type=TaskType.COMPARE_INTERVENTIONS,
+            target_node="target_outcome",
+            compare_nodes=["indicator_1", "indicator_1"],
+        )
+
+
+def test_hint_partial_should_condition_keeps_auto_question(world):
+    """should_condition with only one of two required hints: keeps auto question."""
+    tool = TaskGenTool()
+    custom_text = "Should we control for something?"
+    plan = _make_plan([
+        EvalQuestionPlan(
+            question_text=custom_text,
+            eval_type=TaskType.SHOULD_CONDITION,
+            target_node="target_outcome",
+            intervention_node="indicator_1",
+            # Missing condition_variable — partial hint
+        ),
+    ])
+    tasks = tool.generate_from_plan(world, plan)
+    task = tasks[0]
+    # Question should NOT be overridden (partial hints)
+    assert task.question != custom_text
