@@ -5,16 +5,24 @@
 
 ## [Unreleased]
 
-### 2026-03-12 — Fix P0: generate_from_plan question/answer mismatch + Codex collab workflow
-- **P0 bug fix**: `generate_from_plan` now supports node hints (`intervention_node`,
-  `desired_state`, `compare_nodes`, `condition_variable`) on `EvalQuestionPlan` and
-  `TaskSpec`. Generators respect hints when valid, fall back to random when not.
-  `_hints_honored()` verifies per-type that hints were actually used before allowing
-  question text override. Prevents question/answer mismatch for 5 eval types.
+### 2026-03-12 — Complete P0 fix: node hints connected to orchestrator + manual audit
+- **P0 fix completion**: Node hints now flow end-to-end from orchestrator LLM to task
+  generators. Three changes:
+  1. `design_case` tool schema exposes hint fields (`intervention_node`, `desired_state`,
+     `compare_nodes`, `condition_variable`) so the orchestrator LLM can specify them.
+  2. `_handle_design_case()` extracts hints and validates them: required for the 5
+     node-sensitive eval types (error if missing → LLM retries), node names must be
+     OBSERVABLE (not latent/target), `desired_state` must be a valid state of target node.
+  3. System prompt updated with "Node hints — REQUIRED" section guiding the LLM.
+- **Manual audit of 3 SRCs**: Generated 3 targeted cases (latent/confounding, interventions,
+  evidence/diagnosis) to verify all 9 eval types. Found that without hints, 5/9 types
+  had question/answer mismatches. After fix: 4/4 MATCH on the worst case (agriculture).
+  Key finding: `best_intervention` was generating "maximize LOW crop yield" (absurd) —
+  now correctly generates "maximize high crop yield".
 - **Codex collaboration workflow**: Codex (OpenAI) as critical second opinion via MCP.
   Mandatory for code review, recommended for strategy/architecture. Claude leads,
   Codex advises. Flexible guidelines, not rigid checklist.
-- 705 tests (9 new for node hints).
+- 718 tests (22 new: 9 node hints on task_gen, 13 hint validation on orchestrator).
 
 ### 2026-03-11 — Rename benchmark to diagnostic + transfer benchmark concept + external benchmarks doc
 - **Terminology change**: "benchmark" -> "diagnostic" for the internal environment quality

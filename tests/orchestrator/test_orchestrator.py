@@ -1061,3 +1061,405 @@ def test_dispatch_design_case_tasks_have_custom_questions():
     tasks = result.task
     assert len(tasks) == 1
     assert tasks[0].question == custom_q
+
+
+# ---------- design_case: node hints validation ----------
+
+
+def test_design_case_causal_effect_requires_intervention_node():
+    """causal_effect without intervention_node should return error."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Missing Hints",
+            "research_context": "Test that hints are required for causal_effect.",
+            "questions": [
+                {
+                    "question_text": "What is the effect of water pH on crop yield?",
+                    "eval_type": "causal_effect",
+                    "target_node": "crop_yield",
+                    # NO intervention_node
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "intervention_node" in output["error"]
+
+
+def test_design_case_causal_effect_with_hints_succeeds():
+    """causal_effect with intervention_node should work and honor hints."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    custom_q = "What happens to crop yield if we change the water pH level?"
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Causal Effect With Hints",
+            "research_context": "Test that causal_effect hints flow to task generator.",
+            "questions": [
+                {
+                    "question_text": custom_q,
+                    "eval_type": "causal_effect",
+                    "target_node": "crop_yield",
+                    "intervention_node": "water_ph",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" not in output
+    assert output["tasks_generated"] == 1
+    # The task should use the hinted node and override question text
+    tasks = result.task
+    assert len(tasks) == 1
+    task = tasks[0]
+    # Intervention should be on water_ph (the hinted node)
+    assert "water_ph" in task.intervention
+    # Question text should be overridden since hints were honored
+    assert task.question == custom_q
+
+
+def test_design_case_best_intervention_requires_desired_state():
+    """best_intervention without desired_state should return error."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Missing Desired State",
+            "research_context": "Test required hints for best_intervention.",
+            "questions": [
+                {
+                    "question_text": "Which intervention maximizes high crop yield?",
+                    "eval_type": "best_intervention",
+                    "target_node": "crop_yield",
+                    # NO desired_state
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "desired_state" in output["error"]
+
+
+def test_design_case_best_intervention_with_hints_succeeds():
+    """best_intervention with desired_state should work."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Best Intervention With Hints",
+            "research_context": "Test that desired_state flows to task generator.",
+            "questions": [
+                {
+                    "question_text": "Which intervention maximizes high crop yield?",
+                    "eval_type": "best_intervention",
+                    "target_node": "crop_yield",
+                    "desired_state": "high",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" not in output
+    assert output["tasks_generated"] == 1
+
+
+def test_design_case_compare_interventions_requires_hints():
+    """compare_interventions without compare_nodes + desired_state errors."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Missing Compare Hints",
+            "research_context": "Test required hints for compare_interventions.",
+            "questions": [
+                {
+                    "question_text": "Is water pH or nitrogen level more impactful?",
+                    "eval_type": "compare_interventions",
+                    "target_node": "crop_yield",
+                    # NO compare_nodes, NO desired_state
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "compare_nodes" in output["error"] or "desired_state" in output["error"]
+
+
+def test_design_case_compare_interventions_with_hints_succeeds():
+    """compare_interventions with all required hints works."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Compare Interventions With Hints",
+            "research_context": "Test that compare hints flow through.",
+            "questions": [
+                {
+                    "question_text": "Is water pH or nitrogen level more impactful on yield?",
+                    "eval_type": "compare_interventions",
+                    "target_node": "crop_yield",
+                    "compare_nodes": ["water_ph", "nitrogen_level"],
+                    "desired_state": "high",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" not in output
+    assert output["tasks_generated"] == 1
+
+
+def test_design_case_should_condition_requires_both_hints():
+    """should_condition needs intervention_node AND condition_variable."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    # Only intervention_node, missing condition_variable
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Missing Condition Variable",
+            "research_context": "Test required hints for should_condition.",
+            "questions": [
+                {
+                    "question_text": "Should we control for root depth?",
+                    "eval_type": "should_condition",
+                    "target_node": "crop_yield",
+                    "intervention_node": "water_ph",
+                    # NO condition_variable
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "condition_variable" in output["error"]
+
+
+def test_design_case_adjustment_set_requires_intervention_node():
+    """adjustment_set without intervention_node should error."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Missing Adjustment Hint",
+            "research_context": "Test required hints for adjustment_set.",
+            "questions": [
+                {
+                    "question_text": "What should we control for?",
+                    "eval_type": "adjustment_set",
+                    "target_node": "crop_yield",
+                    # NO intervention_node
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "intervention_node" in output["error"]
+
+
+def test_design_case_hint_invalid_node_name():
+    """Hint with nonexistent node name should error."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Bad Node Hint",
+            "research_context": "Test that invalid node names in hints are caught.",
+            "questions": [
+                {
+                    "question_text": "Effect of imaginary variable on yield?",
+                    "eval_type": "causal_effect",
+                    "target_node": "crop_yield",
+                    "intervention_node": "nonexistent_node",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "nonexistent_node" in output["error"]
+
+
+def test_design_case_safe_types_still_work_without_hints():
+    """Safe types (infer_target, NBO, hypothesis_selection) need no hints."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Safe Types Only",
+            "research_context": "Verify safe types work without any node hints.",
+            "questions": [
+                {
+                    "question_text": "What is the most likely crop yield?",
+                    "eval_type": "infer_target",
+                    "target_node": "crop_yield",
+                },
+                {
+                    "question_text": "What should we measure next?",
+                    "eval_type": "next_best_observation",
+                    "target_node": "crop_yield",
+                },
+                {
+                    "question_text": "Which hypothesis best fits?",
+                    "eval_type": "hypothesis_selection",
+                    "target_node": "crop_yield",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" not in output
+    assert output["tasks_generated"] == 3
+
+
+def test_design_case_hint_invalid_desired_state():
+    """desired_state that doesn't exist in target node's states should error."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Bad Desired State",
+            "research_context": "Test that invalid desired_state is caught.",
+            "questions": [
+                {
+                    "question_text": "Which intervention maximizes FAKE crop yield?",
+                    "eval_type": "best_intervention",
+                    "target_node": "crop_yield",
+                    "desired_state": "nonexistent_state",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "nonexistent_state" in output["error"]
+    assert "desired_state" in output["error"]
+
+
+def test_design_case_hint_target_node_rejected_as_intervention():
+    """Target node used as intervention_node should error (not observable)."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Target As Intervention",
+            "research_context": "Test that target node cannot be used as intervention.",
+            "questions": [
+                {
+                    "question_text": "What if we intervene on crop yield itself?",
+                    "eval_type": "causal_effect",
+                    "target_node": "crop_yield",
+                    "intervention_node": "crop_yield",
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "observable" in output["error"].lower()
+
+
+def test_design_case_hint_latent_node_rejected_as_intervention():
+    """Latent node used as intervention_node should error."""
+    orch = Orchestrator(client=MagicMock())
+    result = OrchestratorResult()
+    world_id = _setup_world_with_semantics(orch, result)
+
+    output = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Latent As Intervention",
+            "research_context": "Test that latent node cannot be used as intervention.",
+            "questions": [
+                {
+                    "question_text": "What if we intervene on the hidden cause?",
+                    "eval_type": "causal_effect",
+                    "target_node": "crop_yield",
+                    "intervention_node": "soil_acidity",  # latent node
+                },
+            ],
+            "shared_budget": 4,
+        },
+        result,
+    )
+
+    assert "error" in output
+    assert "observable" in output["error"].lower()

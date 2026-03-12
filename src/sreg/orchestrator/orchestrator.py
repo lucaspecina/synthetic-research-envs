@@ -428,14 +428,32 @@ class Orchestrator:
             "next_step": "Now call build_problem to sample data and produce the final problem.",
         }
 
+    # Eval types that REQUIRE node hints when used in a CasePlan.
+    # Without hints, the task generator picks random nodes and the
+    # question/answer won't match the plan's question_text.
+    _HINT_REQUIRED_TYPES: dict[TaskType, list[str]] = {
+        TaskType.CAUSAL_EFFECT: ["intervention_node"],
+        TaskType.BEST_INTERVENTION: ["desired_state"],
+        TaskType.COMPARE_INTERVENTIONS: ["compare_nodes", "desired_state"],
+        TaskType.ADJUSTMENT_SET: ["intervention_node"],
+        TaskType.SHOULD_CONDITION: ["intervention_node", "condition_variable"],
+    }
+
     def _handle_design_case(self, args: dict, result: OrchestratorResult) -> dict:
         world_id = args["world_id"]
         world = self._worlds.get(world_id)
         if world is None:
             return {"error": f"World '{world_id}' not found"}
 
-        # Validate target nodes exist in the world
+        # Build lookup maps for validation
         world_node_names = {n.name for n in world.nodes}
+        obs_node_names = {
+            n.name for n in world.nodes if n.type == NodeType.OBSERVABLE
+        }
+        node_states: dict[str, set[str]] = {
+            n.name: set(n.states) for n in world.nodes
+        }
+
         raw_questions = args.get("questions", [])
         if not raw_questions:
             return {"error": "questions list is empty. Provide at least one question."}
@@ -450,6 +468,69 @@ class Orchestrator:
                     )
                 }
 
+            # Validate required hints for node-sensitive eval types
+            eval_type_str = rq.get("eval_type", "")
+            try:
+                eval_type = TaskType(eval_type_str)
+            except ValueError:
+                # Will be caught by Pydantic later
+                continue
+            required_hints = self._HINT_REQUIRED_TYPES.get(eval_type, [])
+            missing = [h for h in required_hints if not rq.get(h)]
+            if missing:
+                return {
+                    "error": (
+                        f"Question {i} ({eval_type_str}): missing required hint(s): "
+                        f"{missing}. These are needed so the generated task matches "
+                        f"your question text. See tool description for details."
+                    )
+                }
+
+            # Validate hint node names: must be OBSERVABLE (not latent, not target)
+            # because generators only operate on observable nodes for interventions
+            for hint_field in ("intervention_node", "condition_variable"):
+                hint_val = rq.get(hint_field)
+                if hint_val:
+                    if hint_val not in world_node_names:
+                        return {
+                            "error": (
+                                f"Question {i}: {hint_field}='{hint_val}' not found "
+                                f"in world. Available nodes: {sorted(world_node_names)}"
+                            )
+                        }
+                    if hint_val not in obs_node_names:
+                        return {
+                            "error": (
+                                f"Question {i}: {hint_field}='{hint_val}' must be an "
+                                f"observable node (not latent/target). Observable "
+                                f"nodes: {sorted(obs_node_names)}"
+                            )
+                        }
+            compare = rq.get("compare_nodes")
+            if compare:
+                for cn in compare:
+                    if cn not in obs_node_names:
+                        return {
+                            "error": (
+                                f"Question {i}: compare_nodes contains '{cn}' which "
+                                f"is not an observable node. Available observable "
+                                f"nodes: {sorted(obs_node_names)}"
+                            )
+                        }
+
+            # Validate desired_state against the target node's actual states
+            desired = rq.get("desired_state")
+            if desired:
+                valid_states = node_states.get(target, set())
+                if desired not in valid_states:
+                    return {
+                        "error": (
+                            f"Question {i}: desired_state='{desired}' is not a valid "
+                            f"state of target node '{target}'. Valid states: "
+                            f"{sorted(valid_states)}"
+                        )
+                    }
+
         # Build the CasePlan (Pydantic validates structure + duplicates)
         try:
             questions = [
@@ -458,6 +539,10 @@ class Orchestrator:
                     eval_type=TaskType(rq["eval_type"]),
                     target_node=rq["target_node"],
                     rationale=rq.get("rationale", ""),
+                    intervention_node=rq.get("intervention_node"),
+                    desired_state=rq.get("desired_state"),
+                    compare_nodes=rq.get("compare_nodes"),
+                    condition_variable=rq.get("condition_variable"),
                 )
                 for rq in raw_questions
             ]

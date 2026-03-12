@@ -1,0 +1,1117 @@
+{
+  "metadata": {
+    "timestamp": "2026-03-12T10:08:01.600199",
+    "goal": "Generate a synthetic research case based on the following context. Use dag_construct for the causal structure. Design a research case with multiple evaluation types.\n\n--- RESEARCH SEED ---\n# Research Seed: Intervention-Centric Case (Audit Case 2)\n\n## Context\n\nAn agricultural experiment station on a fictional volcanic island studying crop\nyield optimization. Researchers can intervene on irrigation method, fertilizer\ntype, and soil treatment. Multiple causal pathways exist between interventions\nand yield, with intermediate variables like soil moisture, nutrient absorption,\nand pest resistance.\n\n## Variables of interest\n\n- `irrigation_method`: drip/flood/sprinkler\n- `fertilizer_type`: organic/synthetic/mixed\n- `soil_treatment`: none/composting/biochar\n- `soil_moisture`: low/medium/high\n- `nutrient_absorption`: poor/moderate/efficient\n- `pest_resistance`: weak/moderate/strong\n- `root_health`: poor/fair/good\n- `flowering_rate`: low/medium/high\n- `crop_yield`: low/medium/high (target)\n- `weather_pattern`: dry/normal/wet (exogenous)\n\n## Research questions\n\n- What is the causal effect of switching from flood to drip irrigation on crop yield?\n- Which single intervention (irrigation, fertilizer, or soil treatment) would\n  maximize the probability of high crop yield?\n- Compare: does changing fertilizer_type or soil_treatment have a larger effect\n  on crop_yield?\n- What variables mediate the effect of irrigation_method on crop_yield?\n\n## Constraints\n\n- 10 nodes, no latent variables (all observable)\n- Medium difficulty\n- MUST include eval types: causal_effect, best_intervention, compare_interventions\n- The case should feel like an agricultural field trial\n- Multiple intervention points with different pathways to the outcome\n--- END SEED --- Use seed 202 for reproducibility.",
+    "model": "gpt-5.2-chat"
+  },
+  "process": {
+    "tools_called": [
+      {
+        "tool": "dag_construct",
+        "args": {
+          "nodes": [
+            {
+              "name": "irrigation_method",
+              "type": "observable",
+              "states": [
+                "drip",
+                "flood",
+                "sprinkler"
+              ]
+            },
+            {
+              "name": "fertilizer_type",
+              "type": "observable",
+              "states": [
+                "organic",
+                "synthetic",
+                "mixed"
+              ]
+            },
+            {
+              "name": "soil_treatment",
+              "type": "observable",
+              "states": [
+                "none",
+                "composting",
+                "biochar"
+              ]
+            },
+            {
+              "name": "weather_pattern",
+              "type": "observable",
+              "states": [
+                "dry",
+                "normal",
+                "wet"
+              ]
+            },
+            {
+              "name": "soil_moisture",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "nutrient_absorption",
+              "type": "observable",
+              "states": [
+                "poor",
+                "moderate",
+                "efficient"
+              ]
+            },
+            {
+              "name": "pest_resistance",
+              "type": "observable",
+              "states": [
+                "weak",
+                "moderate",
+                "strong"
+              ]
+            },
+            {
+              "name": "root_health",
+              "type": "observable",
+              "states": [
+                "poor",
+                "fair",
+                "good"
+              ]
+            },
+            {
+              "name": "flowering_rate",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "crop_yield",
+              "type": "target",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "from": "irrigation_method",
+              "to": "soil_moisture"
+            },
+            {
+              "from": "weather_pattern",
+              "to": "soil_moisture"
+            },
+            {
+              "from": "soil_moisture",
+              "to": "root_health"
+            },
+            {
+              "from": "soil_treatment",
+              "to": "root_health"
+            },
+            {
+              "from": "fertilizer_type",
+              "to": "nutrient_absorption"
+            },
+            {
+              "from": "root_health",
+              "to": "nutrient_absorption"
+            },
+            {
+              "from": "soil_treatment",
+              "to": "pest_resistance"
+            },
+            {
+              "from": "nutrient_absorption",
+              "to": "flowering_rate"
+            },
+            {
+              "from": "pest_resistance",
+              "to": "flowering_rate"
+            },
+            {
+              "from": "flowering_rate",
+              "to": "crop_yield"
+            }
+          ],
+          "edge_strength": 0.65,
+          "seed": 202
+        },
+        "result": {
+          "world_id": "world-custom-000202",
+          "num_nodes": 10,
+          "num_edges": 10,
+          "difficulty": "medium",
+          "nodes": [
+            {
+              "name": "irrigation_method",
+              "type": "observable",
+              "states": [
+                "drip",
+                "flood",
+                "sprinkler"
+              ]
+            },
+            {
+              "name": "fertilizer_type",
+              "type": "observable",
+              "states": [
+                "organic",
+                "synthetic",
+                "mixed"
+              ]
+            },
+            {
+              "name": "soil_treatment",
+              "type": "observable",
+              "states": [
+                "none",
+                "composting",
+                "biochar"
+              ]
+            },
+            {
+              "name": "weather_pattern",
+              "type": "observable",
+              "states": [
+                "dry",
+                "normal",
+                "wet"
+              ]
+            },
+            {
+              "name": "soil_moisture",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "nutrient_absorption",
+              "type": "observable",
+              "states": [
+                "poor",
+                "moderate",
+                "efficient"
+              ]
+            },
+            {
+              "name": "pest_resistance",
+              "type": "observable",
+              "states": [
+                "weak",
+                "moderate",
+                "strong"
+              ]
+            },
+            {
+              "name": "root_health",
+              "type": "observable",
+              "states": [
+                "poor",
+                "fair",
+                "good"
+              ]
+            },
+            {
+              "name": "flowering_rate",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "crop_yield",
+              "type": "target",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "tool": "world_check",
+        "args": {
+          "world_id": "world-custom-000202"
+        },
+        "result": {
+          "passed": false,
+          "failures": [
+            "Only 0 latent node(s), need >= 1"
+          ],
+          "metrics": {
+            "dag_valid": 1.0,
+            "num_latent": 0.0,
+            "min_path_to_target": 1.0,
+            "prior_target_entropy": 1.2378608062190952,
+            "has_d_separation": 1.0,
+            "max_parents": 2.0,
+            "treewidth_upper_bound": 2.0
+          }
+        }
+      },
+      {
+        "tool": "dag_construct",
+        "args": {
+          "nodes": [
+            {
+              "name": "irrigation_method",
+              "type": "observable",
+              "states": [
+                "drip",
+                "flood",
+                "sprinkler"
+              ]
+            },
+            {
+              "name": "fertilizer_type",
+              "type": "observable",
+              "states": [
+                "organic",
+                "synthetic",
+                "mixed"
+              ]
+            },
+            {
+              "name": "soil_treatment",
+              "type": "observable",
+              "states": [
+                "none",
+                "composting",
+                "biochar"
+              ]
+            },
+            {
+              "name": "weather_pattern",
+              "type": "observable",
+              "states": [
+                "dry",
+                "normal",
+                "wet"
+              ]
+            },
+            {
+              "name": "soil_moisture",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "nutrient_absorption",
+              "type": "observable",
+              "states": [
+                "poor",
+                "moderate",
+                "efficient"
+              ]
+            },
+            {
+              "name": "pest_resistance",
+              "type": "observable",
+              "states": [
+                "weak",
+                "moderate",
+                "strong"
+              ]
+            },
+            {
+              "name": "root_health",
+              "type": "observable",
+              "states": [
+                "poor",
+                "fair",
+                "good"
+              ]
+            },
+            {
+              "name": "flowering_rate",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "crop_yield",
+              "type": "target",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "field_management_quality",
+              "type": "latent",
+              "states": [
+                "poor",
+                "average",
+                "excellent"
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "from": "irrigation_method",
+              "to": "soil_moisture"
+            },
+            {
+              "from": "weather_pattern",
+              "to": "soil_moisture"
+            },
+            {
+              "from": "soil_moisture",
+              "to": "root_health"
+            },
+            {
+              "from": "soil_treatment",
+              "to": "root_health"
+            },
+            {
+              "from": "fertilizer_type",
+              "to": "nutrient_absorption"
+            },
+            {
+              "from": "root_health",
+              "to": "nutrient_absorption"
+            },
+            {
+              "from": "soil_treatment",
+              "to": "pest_resistance"
+            },
+            {
+              "from": "nutrient_absorption",
+              "to": "flowering_rate"
+            },
+            {
+              "from": "pest_resistance",
+              "to": "flowering_rate"
+            },
+            {
+              "from": "flowering_rate",
+              "to": "crop_yield"
+            },
+            {
+              "from": "field_management_quality",
+              "to": "root_health"
+            },
+            {
+              "from": "field_management_quality",
+              "to": "pest_resistance"
+            }
+          ],
+          "edge_strength": 0.65,
+          "seed": 202
+        },
+        "result": {
+          "world_id": "world-custom-000202",
+          "num_nodes": 11,
+          "num_edges": 12,
+          "difficulty": "medium",
+          "nodes": [
+            {
+              "name": "irrigation_method",
+              "type": "observable",
+              "states": [
+                "drip",
+                "flood",
+                "sprinkler"
+              ]
+            },
+            {
+              "name": "fertilizer_type",
+              "type": "observable",
+              "states": [
+                "organic",
+                "synthetic",
+                "mixed"
+              ]
+            },
+            {
+              "name": "soil_treatment",
+              "type": "observable",
+              "states": [
+                "none",
+                "composting",
+                "biochar"
+              ]
+            },
+            {
+              "name": "weather_pattern",
+              "type": "observable",
+              "states": [
+                "dry",
+                "normal",
+                "wet"
+              ]
+            },
+            {
+              "name": "soil_moisture",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "nutrient_absorption",
+              "type": "observable",
+              "states": [
+                "poor",
+                "moderate",
+                "efficient"
+              ]
+            },
+            {
+              "name": "pest_resistance",
+              "type": "observable",
+              "states": [
+                "weak",
+                "moderate",
+                "strong"
+              ]
+            },
+            {
+              "name": "root_health",
+              "type": "observable",
+              "states": [
+                "poor",
+                "fair",
+                "good"
+              ]
+            },
+            {
+              "name": "flowering_rate",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "crop_yield",
+              "type": "target",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "field_management_quality",
+              "type": "latent",
+              "states": [
+                "poor",
+                "average",
+                "excellent"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "tool": "world_check",
+        "args": {
+          "world_id": "world-custom-000202"
+        },
+        "result": {
+          "passed": true,
+          "failures": [],
+          "metrics": {
+            "dag_valid": 1.0,
+            "num_latent": 1.0,
+            "min_path_to_target": 1.0,
+            "prior_target_entropy": 1.3041372399113484,
+            "has_d_separation": 1.0,
+            "max_parents": 3.0,
+            "treewidth_upper_bound": 3.0
+          }
+        }
+      },
+      {
+        "tool": "apply_semantics",
+        "args": {
+          "world_id": "world-custom-000202",
+          "scenario_title": "Crop Yield Optimization Trials on Isla Pyros",
+          "scenario_description": "The agricultural experiment station on Isla Pyros, a fictional volcanic island, is conducting multi-season field trials to improve staple crop yields under challenging soil and climate conditions. The island’s volcanic soils are rich in minerals but highly variable in water retention, and recent yield fluctuations have raised concerns about the robustness of existing farming practices.\n\nResearchers are systematically testing different irrigation methods, fertilizer formulations, and soil treatments across experimental plots. While prior agronomic studies suggest that these interventions affect yield through intermediate processes such as soil moisture regulation, nutrient uptake, pest resistance, and plant development, the relative importance of each pathway under Isla Pyros conditions remains unclear. Complicating interpretation, day-to-day field management quality varies subtly between plots and is not directly measured.\n\nThe station’s goal is to identify which interventions, or combinations of interventions, most reliably increase the probability of high crop yield, and to understand the mechanisms through which these effects occur so that recommendations can be scaled to local farmers.",
+          "domain": "agricultural science",
+          "theoretical_context": "Previous trials on other islands have shown that drip irrigation can stabilize soil moisture and improve root health, while organic amendments may enhance pest resistance over longer timescales. However, studies also warn that unobserved variation in field management practices can confound apparent treatment effects if not properly accounted for."
+        },
+        "result": {
+          "error": "node_renames is empty. You MUST provide a mapping for every node. Current nodes: ['crop_yield', 'fertilizer_type', 'field_management_quality', 'flowering_rate', 'irrigation_method', 'nutrient_absorption', 'pest_resistance', 'root_health', 'soil_moisture', 'soil_treatment', 'weather_pattern']. Call apply_semantics again with node_renames populated."
+        }
+      },
+      {
+        "tool": "apply_semantics",
+        "args": {
+          "world_id": "world-custom-000202",
+          "scenario_title": "Crop Yield Optimization Trials on Isla Pyros",
+          "scenario_description": "The agricultural experiment station on Isla Pyros, a fictional volcanic island, is conducting multi-season field trials to improve staple crop yields under challenging soil and climate conditions. The island’s volcanic soils are rich in minerals but highly variable in water retention, and recent yield fluctuations have raised concerns about the robustness of existing farming practices.\n\nResearchers are systematically testing different irrigation methods, fertilizer formulations, and soil treatments across experimental plots. While prior agronomic studies suggest that these interventions affect yield through intermediate processes such as soil moisture regulation, nutrient uptake, pest resistance, and plant development, the relative importance of each pathway under Isla Pyros conditions remains unclear. Complicating interpretation, day-to-day field management quality varies subtly between plots and is not directly measured.\n\nThe station’s goal is to identify which interventions, or combinations of interventions, most reliably increase the probability of high crop yield, and to understand the mechanisms through which these effects occur so that recommendations can be scaled to local farmers.",
+          "domain": "agricultural science",
+          "theoretical_context": "Previous trials on other islands have shown that drip irrigation can stabilize soil moisture and improve root health, while organic amendments may enhance pest resistance over longer timescales. However, studies also warn that unobserved variation in field management practices can confound apparent treatment effects if not properly accounted for.",
+          "node_renames": {
+            "irrigation_method": "irrigation_method",
+            "fertilizer_type": "fertilizer_type",
+            "soil_treatment": "soil_treatment",
+            "weather_pattern": "weather_pattern",
+            "soil_moisture": "soil_moisture",
+            "nutrient_absorption": "nutrient_absorption",
+            "pest_resistance": "pest_resistance",
+            "root_health": "root_health",
+            "flowering_rate": "flowering_rate",
+            "crop_yield": "crop_yield",
+            "field_management_quality": "field_management_quality"
+          }
+        },
+        "result": {
+          "world_id": "world-custom-000202",
+          "scenario_title": "Crop Yield Optimization Trials on Isla Pyros",
+          "domain": "agricultural science",
+          "nodes_renamed": 11,
+          "nodes": [
+            {
+              "name": "irrigation_method",
+              "type": "observable"
+            },
+            {
+              "name": "fertilizer_type",
+              "type": "observable"
+            },
+            {
+              "name": "soil_treatment",
+              "type": "observable"
+            },
+            {
+              "name": "weather_pattern",
+              "type": "observable"
+            },
+            {
+              "name": "soil_moisture",
+              "type": "observable"
+            },
+            {
+              "name": "nutrient_absorption",
+              "type": "observable"
+            },
+            {
+              "name": "pest_resistance",
+              "type": "observable"
+            },
+            {
+              "name": "root_health",
+              "type": "observable"
+            },
+            {
+              "name": "flowering_rate",
+              "type": "observable"
+            },
+            {
+              "name": "crop_yield",
+              "type": "target"
+            },
+            {
+              "name": "field_management_quality",
+              "type": "latent"
+            }
+          ],
+          "next_step": "Now call build_problem to sample data and produce the final problem."
+        }
+      },
+      {
+        "tool": "design_case",
+        "args": {
+          "world_id": "world-custom-000202",
+          "title": "Intervention Pathways for Maximizing Crop Yield on Isla Pyros",
+          "research_context": "Using data from controlled field plots on Isla Pyros, researchers aim to quantify how different agricultural interventions influence crop yield and through which biological and environmental pathways these effects occur. Understanding both direct and mediated effects is essential for making robust recommendations to farmers facing variable weather and soil conditions.",
+          "questions": [
+            {
+              "question_text": "What is the causal effect of switching from flood irrigation to drip irrigation on final crop yield under Isla Pyros field conditions?",
+              "eval_type": "causal_effect",
+              "target_node": "crop_yield",
+              "intervention_node": "irrigation_method",
+              "rationale": "Irrigation is a costly infrastructure choice, and understanding its true causal impact on yield is central to decision-making."
+            },
+            {
+              "question_text": "Which single management intervention should be prioritized to maximize the probability of achieving high crop yield?",
+              "eval_type": "best_intervention",
+              "target_node": "crop_yield",
+              "desired_state": "high",
+              "rationale": "Farmers often can only change one practice per season, making prioritization critical."
+            },
+            {
+              "question_text": "Between changing fertilizer type and applying a soil treatment, which intervention has a larger positive effect on crop yield?",
+              "eval_type": "compare_interventions",
+              "target_node": "crop_yield",
+              "compare_nodes": [
+                "fertilizer_type",
+                "soil_treatment"
+              ],
+              "desired_state": "high",
+              "rationale": "This comparison helps allocate limited resources between nutrient inputs and soil amendments."
+            },
+            {
+              "question_text": "Through which intermediate variables does irrigation method most strongly influence crop yield?",
+              "eval_type": "adjustment_set",
+              "target_node": "crop_yield",
+              "intervention_node": "irrigation_method",
+              "rationale": "Identifying mediating pathways clarifies the biological mechanisms linking water management to yield outcomes."
+            }
+          ],
+          "shared_budget": 6,
+          "rationale": "The case emphasizes intervention-centric reasoning by combining direct causal effect estimation, optimization across interventions, and comparison of alternative management strategies, all grounded in realistic agricultural decision constraints."
+        },
+        "result": {
+          "world_id": "world-custom-000202",
+          "title": "Intervention Pathways for Maximizing Crop Yield on Isla Pyros",
+          "num_questions": 4,
+          "primary_question": {
+            "eval_type": "causal_effect",
+            "target_node": "crop_yield",
+            "question_text": "What is the causal effect of switching from flood irrigation to drip irrigation on final crop yield under Isla Pyros field conditions?"
+          },
+          "eval_types": [
+            "adjustment_set",
+            "best_intervention",
+            "causal_effect",
+            "compare_interventions"
+          ],
+          "shared_budget": 6,
+          "tasks_generated": 4,
+          "next_step": "Now call build_problem to sample data and produce the final problem."
+        }
+      },
+      {
+        "tool": "build_problem",
+        "args": {
+          "world_id": "world-custom-000202",
+          "budget": 6,
+          "data_format": "both",
+          "num_data_rows": 80
+        },
+        "result": {
+          "title": "Crop Yield Optimization Trials on Isla Pyros",
+          "domain": "agricultural science",
+          "budget": 6,
+          "research_question": "What is the causal effect of switching from flood irrigation to drip irrigation on final crop yield under Isla Pyros field conditions?\n\nTarget variable: 'crop_yield' (possible states: low, medium, high). You may request additional measurements within your budget.",
+          "num_data_assets": 2,
+          "num_actions": 8,
+          "target_node": "crop_yield",
+          "target_states": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      }
+    ]
+  },
+  "world": {
+    "id": "world-custom-000202",
+    "template_family": "custom",
+    "seed": 202,
+    "scenario_title": "Crop Yield Optimization Trials on Isla Pyros",
+    "scenario_description": "The agricultural experiment station on Isla Pyros, a fictional volcanic island, is conducting multi-season field trials to improve staple crop yields under challenging soil and climate conditions. The island’s volcanic soils are rich in minerals but highly variable in water retention, and recent yield fluctuations have raised concerns about the robustness of existing farming practices.\n\nResearchers are systematically testing different irrigation methods, fertilizer formulations, and soil treatments across experimental plots. While prior agronomic studies suggest that these interventions affect yield through intermediate processes such as soil moisture regulation, nutrient uptake, pest resistance, and plant development, the relative importance of each pathway under Isla Pyros conditions remains unclear. Complicating interpretation, day-to-day field management quality varies subtly between plots and is not directly measured.\n\nThe station’s goal is to identify which interventions, or combinations of interventions, most reliably increase the probability of high crop yield, and to understand the mechanisms through which these effects occur so that recommendations can be scaled to local farmers.",
+    "domain": "agricultural science",
+    "theoretical_context": "Previous trials on other islands have shown that drip irrigation can stabilize soil moisture and improve root health, while organic amendments may enhance pest resistance over longer timescales. However, studies also warn that unobserved variation in field management practices can confound apparent treatment effects if not properly accounted for.",
+    "difficulty": "medium",
+    "nodes": [
+      {
+        "name": "irrigation_method",
+        "type": "observable",
+        "states": [
+          "drip",
+          "flood",
+          "sprinkler"
+        ],
+        "description": "observable variable: irrigation_method"
+      },
+      {
+        "name": "fertilizer_type",
+        "type": "observable",
+        "states": [
+          "organic",
+          "synthetic",
+          "mixed"
+        ],
+        "description": "observable variable: fertilizer_type"
+      },
+      {
+        "name": "soil_treatment",
+        "type": "observable",
+        "states": [
+          "none",
+          "composting",
+          "biochar"
+        ],
+        "description": "observable variable: soil_treatment"
+      },
+      {
+        "name": "weather_pattern",
+        "type": "observable",
+        "states": [
+          "dry",
+          "normal",
+          "wet"
+        ],
+        "description": "observable variable: weather_pattern"
+      },
+      {
+        "name": "soil_moisture",
+        "type": "observable",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "description": "observable variable: soil_moisture"
+      },
+      {
+        "name": "nutrient_absorption",
+        "type": "observable",
+        "states": [
+          "poor",
+          "moderate",
+          "efficient"
+        ],
+        "description": "observable variable: nutrient_absorption"
+      },
+      {
+        "name": "pest_resistance",
+        "type": "observable",
+        "states": [
+          "weak",
+          "moderate",
+          "strong"
+        ],
+        "description": "observable variable: pest_resistance"
+      },
+      {
+        "name": "root_health",
+        "type": "observable",
+        "states": [
+          "poor",
+          "fair",
+          "good"
+        ],
+        "description": "observable variable: root_health"
+      },
+      {
+        "name": "flowering_rate",
+        "type": "observable",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "description": "observable variable: flowering_rate"
+      },
+      {
+        "name": "crop_yield",
+        "type": "target",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "description": "target variable: crop_yield"
+      },
+      {
+        "name": "field_management_quality",
+        "type": "latent",
+        "states": [
+          "poor",
+          "average",
+          "excellent"
+        ],
+        "description": "latent variable: field_management_quality"
+      }
+    ],
+    "edges": [
+      {
+        "from": "irrigation_method",
+        "to": "soil_moisture",
+        "mechanism": "irrigation_method influences soil_moisture"
+      },
+      {
+        "from": "weather_pattern",
+        "to": "soil_moisture",
+        "mechanism": "weather_pattern influences soil_moisture"
+      },
+      {
+        "from": "soil_moisture",
+        "to": "root_health",
+        "mechanism": "soil_moisture influences root_health"
+      },
+      {
+        "from": "soil_treatment",
+        "to": "root_health",
+        "mechanism": "soil_treatment influences root_health"
+      },
+      {
+        "from": "fertilizer_type",
+        "to": "nutrient_absorption",
+        "mechanism": "fertilizer_type influences nutrient_absorption"
+      },
+      {
+        "from": "root_health",
+        "to": "nutrient_absorption",
+        "mechanism": "root_health influences nutrient_absorption"
+      },
+      {
+        "from": "soil_treatment",
+        "to": "pest_resistance",
+        "mechanism": "soil_treatment influences pest_resistance"
+      },
+      {
+        "from": "nutrient_absorption",
+        "to": "flowering_rate",
+        "mechanism": "nutrient_absorption influences flowering_rate"
+      },
+      {
+        "from": "pest_resistance",
+        "to": "flowering_rate",
+        "mechanism": "pest_resistance influences flowering_rate"
+      },
+      {
+        "from": "flowering_rate",
+        "to": "crop_yield",
+        "mechanism": "flowering_rate influences crop_yield"
+      },
+      {
+        "from": "field_management_quality",
+        "to": "root_health",
+        "mechanism": "field_management_quality influences root_health"
+      },
+      {
+        "from": "field_management_quality",
+        "to": "pest_resistance",
+        "mechanism": "field_management_quality influences pest_resistance"
+      }
+    ]
+  },
+  "case_plan": {
+    "title": "Intervention Pathways for Maximizing Crop Yield on Isla Pyros",
+    "research_context": "Using data from controlled field plots on Isla Pyros, researchers aim to quantify how different agricultural interventions influence crop yield and through which biological and environmental pathways these effects occur. Understanding both direct and mediated effects is essential for making robust recommendations to farmers facing variable weather and soil conditions.",
+    "shared_budget": 6,
+    "rationale": "The case emphasizes intervention-centric reasoning by combining direct causal effect estimation, optimization across interventions, and comparison of alternative management strategies, all grounded in realistic agricultural decision constraints.",
+    "questions": [
+      {
+        "question_text": "What is the causal effect of switching from flood irrigation to drip irrigation on final crop yield under Isla Pyros field conditions?",
+        "eval_type": "causal_effect",
+        "target_node": "crop_yield",
+        "rationale": "Irrigation is a costly infrastructure choice, and understanding its true causal impact on yield is central to decision-making."
+      },
+      {
+        "question_text": "Which single management intervention should be prioritized to maximize the probability of achieving high crop yield?",
+        "eval_type": "best_intervention",
+        "target_node": "crop_yield",
+        "rationale": "Farmers often can only change one practice per season, making prioritization critical."
+      },
+      {
+        "question_text": "Between changing fertilizer type and applying a soil treatment, which intervention has a larger positive effect on crop yield?",
+        "eval_type": "compare_interventions",
+        "target_node": "crop_yield",
+        "rationale": "This comparison helps allocate limited resources between nutrient inputs and soil amendments."
+      },
+      {
+        "question_text": "Through which intermediate variables does irrigation method most strongly influence crop yield?",
+        "eval_type": "adjustment_set",
+        "target_node": "crop_yield",
+        "rationale": "Identifying mediating pathways clarifies the biological mechanisms linking water management to yield outcomes."
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "task-world-custom-000202-causal_effect",
+      "type": "causal_effect",
+      "question": "What is the causal effect of switching from flood irrigation to drip irrigation on final crop yield under Isla Pyros field conditions?",
+      "target_node": "crop_yield",
+      "correct_answer": {
+        "low": 0.310416,
+        "medium": 0.585807,
+        "high": 0.103777
+      },
+      "scoring_method": "kl_divergence"
+    },
+    {
+      "id": "task-world-custom-000202-best_intervention",
+      "type": "best_intervention",
+      "question": "Which single management intervention should be prioritized to maximize the probability of achieving high crop yield?",
+      "target_node": "crop_yield",
+      "correct_answer": {
+        "irrigation_method:drip": 0.103777,
+        "irrigation_method:flood": 0.104751,
+        "irrigation_method:sprinkler": 0.091593,
+        "fertilizer_type:organic": 0.108337,
+        "fertilizer_type:synthetic": 0.128817,
+        "fertilizer_type:mixed": 0.049591,
+        "soil_treatment:none": 0.088697,
+        "soil_treatment:composting": 0.079326,
+        "soil_treatment:biochar": 0.136973,
+        "weather_pattern:dry": 0.090495,
+        "weather_pattern:normal": 0.102368,
+        "weather_pattern:wet": 0.100268,
+        "soil_moisture:low": 0.089613,
+        "soil_moisture:medium": 0.111749,
+        "soil_moisture:high": 0.097796,
+        "nutrient_absorption:poor": 0.0384,
+        "nutrient_absorption:moderate": 0.152491,
+        "nutrient_absorption:efficient": 0.077579,
+        "pest_resistance:weak": 0.087198,
+        "pest_resistance:moderate": 0.05523,
+        "pest_resistance:strong": 0.341327,
+        "root_health:poor": 0.090869,
+        "root_health:fair": 0.05395,
+        "root_health:good": 0.111201,
+        "flowering_rate:low": 0.000379,
+        "flowering_rate:medium": 0.001607,
+        "flowering_rate:high": 0.920267
+      },
+      "scoring_method": "intervention_effect_ratio"
+    },
+    {
+      "id": "task-world-custom-000202-compare_interventions",
+      "type": "compare_interventions",
+      "question": "Between changing fertilizer type and applying a soil treatment, which intervention has a larger positive effect on crop yield?",
+      "target_node": "crop_yield",
+      "correct_answer": {
+        "fertilizer_type:synthetic": 0.128817,
+        "soil_treatment:biochar": 0.136973
+      },
+      "scoring_method": "compare_interventions"
+    },
+    {
+      "id": "task-world-custom-000202-adjustment_set",
+      "type": "adjustment_set",
+      "question": "Through which intermediate variables does irrigation method most strongly influence crop yield?",
+      "target_node": "crop_yield",
+      "correct_answer": {
+        "_empty_": 1.0
+      },
+      "scoring_method": "adjustment_set_match"
+    }
+  ],
+  "research_problem": {
+    "title": "Crop Yield Optimization Trials on Isla Pyros",
+    "domain": "agricultural science",
+    "description": "The agricultural experiment station on Isla Pyros, a fictional volcanic island, is conducting multi-season field trials to improve staple crop yields under challenging soil and climate conditions. The island’s volcanic soils are rich in minerals but highly variable in water retention, and recent yield fluctuations have raised concerns about the robustness of existing farming practices.\n\nResearchers are systematically testing different irrigation methods, fertilizer formulations, and soil treatments across experimental plots. While prior agronomic studies suggest that these interventions affect yield through intermediate processes such as soil moisture regulation, nutrient uptake, pest resistance, and plant development, the relative importance of each pathway under Isla Pyros conditions remains unclear. Complicating interpretation, day-to-day field management quality varies subtly between plots and is not directly measured.\n\nThe station’s goal is to identify which interventions, or combinations of interventions, most reliably increase the probability of high crop yield, and to understand the mechanisms through which these effects occur so that recommendations can be scaled to local farmers.",
+    "theoretical_context": "Previous trials on other islands have shown that drip irrigation can stabilize soil moisture and improve root health, while organic amendments may enhance pest resistance over longer timescales. However, studies also warn that unobserved variation in field management practices can confound apparent treatment effects if not properly accounted for.",
+    "budget": 6,
+    "research_question": "What is the causal effect of switching from flood irrigation to drip irrigation on final crop yield under Isla Pyros field conditions?\n\nTarget variable: 'crop_yield' (possible states: low, medium, high). You may request additional measurements within your budget.",
+    "target_node": "crop_yield",
+    "target_states": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "num_data_assets": 2,
+    "data_assets": [
+      {
+        "name": "crop_yield_optimization_trials_on_isla_p_data",
+        "format": "tabular",
+        "description": "Dataset with 80 samples. Columns: irrigation_method, fertilizer_type, soil_treatment, weather_pattern, soil_moisture, nutrient_absorption, pest_resistance, root_health, flowering_rate, crop_yield.",
+        "num_rows": null,
+        "source": null,
+        "columns": null
+      },
+      {
+        "name": "field_observations",
+        "format": "observations",
+        "description": "45 individual field observations.",
+        "num_rows": null,
+        "source": null,
+        "columns": null
+      }
+    ],
+    "available_actions": [
+      {
+        "action_type": "observe",
+        "nodes": [
+          "irrigation_method"
+        ],
+        "description": "Measure irrigation method",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "fertilizer_type"
+        ],
+        "description": "Measure fertilizer type",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "soil_treatment"
+        ],
+        "description": "Measure soil treatment",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "weather_pattern"
+        ],
+        "description": "Measure weather pattern",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "soil_moisture"
+        ],
+        "description": "Measure soil moisture",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "nutrient_absorption"
+        ],
+        "description": "Measure nutrient absorption",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "flowering_rate"
+        ],
+        "description": "Measure flowering rate",
+        "cost": 2
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "pest_resistance",
+          "root_health"
+        ],
+        "description": "Field survey: measure pest resistance, root health",
+        "cost": 2
+      }
+    ]
+  }
+}

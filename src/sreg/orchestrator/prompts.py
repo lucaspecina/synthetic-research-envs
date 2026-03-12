@@ -74,12 +74,31 @@ Use when the case involves competing theories. Scored by binary match.
 Use when there's a latent variable and the case involves diagnostic reasoning. \
 Scored by KL divergence against the true posterior over the latent node.
 
+**Node hints — REQUIRED for node-sensitive eval types:**
+Some eval types need you to specify WHICH nodes the question is about, so the \
+generated task matches your question text. Without hints, the task generator \
+picks random nodes and your carefully written question becomes mismatched.
+
+Required hints by eval_type:
+- **`causal_effect`**: set `intervention_node` (the node you intervene on).
+- **`best_intervention`**: set `desired_state` (the target state to maximize, \
+e.g. "high" for crop_yield).
+- **`compare_interventions`**: set `compare_nodes` (two nodes to compare) AND \
+`desired_state` (the state to maximize).
+- **`adjustment_set`**: set `intervention_node` (the treatment/exposure variable).
+- **`should_condition`**: set `intervention_node` (the treatment) AND \
+`condition_variable` (the variable someone suggests controlling for).
+
+For `infer_target`, `next_best_observation`, `hypothesis_selection`, and \
+`infer_latent_cause`, no hints are needed — just question_text and target_node.
+
 **Guidelines for question design:**
 - Use 3-5 questions per case. Don't use all types — pick the ones that fit naturally.
 - The first question is the PRIMARY one (shown to the agent as the main research question).
 - Every question must feel like something a scientist would ask, not a graph theory exercise.
 - Don't repeat the same eval_type + target_node combination.
 - Write question_text as a natural research question, not as a formal instruction.
+- For node-sensitive types, always provide the required hints (see above).
 
 ## How to choose a generation method
 
@@ -657,6 +676,40 @@ TOOL_DEFINITIONS = [
                                         "Why this question matters for this specific case. "
                                         "E.g., 'Understanding causal drivers is critical "
                                         "for designing preventive interventions'."
+                                    ),
+                                },
+                                "intervention_node": {
+                                    "type": "string",
+                                    "description": (
+                                        "Node to intervene on / treat. REQUIRED for "
+                                        "causal_effect, adjustment_set, should_condition. "
+                                        "Must be an observable node in the world."
+                                    ),
+                                },
+                                "desired_state": {
+                                    "type": "string",
+                                    "description": (
+                                        "Target state to maximize (e.g. 'high', 'healthy'). "
+                                        "REQUIRED for best_intervention and "
+                                        "compare_interventions. Must be a valid state of "
+                                        "the target node."
+                                    ),
+                                },
+                                "compare_nodes": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": (
+                                        "Exactly two node names to compare interventions "
+                                        "on. REQUIRED for compare_interventions. Both must "
+                                        "be observable nodes in the world."
+                                    ),
+                                },
+                                "condition_variable": {
+                                    "type": "string",
+                                    "description": (
+                                        "Variable someone suggests controlling for. "
+                                        "REQUIRED for should_condition (along with "
+                                        "intervention_node). Must exist in the world."
                                     ),
                                 },
                             },

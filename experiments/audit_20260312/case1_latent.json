@@ -1,0 +1,916 @@
+{
+  "metadata": {
+    "timestamp": "2026-03-12T09:56:08.593877",
+    "goal": "Generate a synthetic research case based on the following context. Use dag_construct for the causal structure. Design a research case with multiple evaluation types.\n\n--- RESEARCH SEED ---\n# Research Seed: Latent/Confounding Case (Audit Case 1)\n\n## Context\n\nA study of neonatal health outcomes in rural hospitals across a fictional tropical region.\nSome hospitals report unexpectedly high rates of jaundice despite similar demographics.\nResearchers suspect an unobserved environmental factor (water contamination from\nnearby mining operations) may confound several observed relationships.\n\n## Variables of interest\n\n- `birth_weight`: newborn weight at delivery (low/normal/high)\n- `gestational_age`: weeks at delivery (preterm/term/post_term)\n- `maternal_nutrition`: nutritional status during pregnancy (poor/adequate/good)\n- `hospital_altitude`: elevation of the hospital (low/medium/high)\n- `prenatal_visits`: number of prenatal checkups (few/moderate/many)\n- `jaundice_severity`: neonatal jaundice outcome (none/mild/severe)\n- `breastfeeding_initiation`: time to first breastfeed (early/delayed)\n- `delivery_method`: type of delivery (vaginal/cesarean)\n- `maternal_anemia`: iron levels during pregnancy (normal/low/deficient)\n- LATENT: `water_contamination` — unobserved environmental exposure affecting\n  both maternal health and neonatal outcomes, creating confounding\n\n## Research questions\n\n- Is the association between hospital_altitude and jaundice_severity confounded\n  by water_contamination?\n- What variables should be controlled for when estimating the effect of\n  maternal_nutrition on birth_weight?\n- What hidden factor could explain why hospitals at similar altitudes have\n  different jaundice rates?\n- Should we condition on delivery_method when studying the effect of\n  gestational_age on jaundice_severity?\n\n## Constraints\n\n- 10-12 nodes, at least 1 latent variable\n- Medium-high difficulty\n- MUST include eval types: infer_latent_cause, adjustment_set, should_condition\n- The case should feel like a perinatal epidemiology study\n- Strong confounding paths through the latent variable\n--- END SEED --- Use seed 101 for reproducibility.",
+    "model": "gpt-5.2-chat"
+  },
+  "process": {
+    "tools_called": [
+      {
+        "tool": "dag_construct",
+        "args": {
+          "nodes": [
+            {
+              "name": "birth_weight",
+              "type": "observable",
+              "states": [
+                "low",
+                "normal",
+                "high"
+              ]
+            },
+            {
+              "name": "gestational_age",
+              "type": "observable",
+              "states": [
+                "preterm",
+                "term",
+                "post_term"
+              ]
+            },
+            {
+              "name": "maternal_nutrition",
+              "type": "observable",
+              "states": [
+                "poor",
+                "adequate",
+                "good"
+              ]
+            },
+            {
+              "name": "hospital_altitude",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "prenatal_visits",
+              "type": "observable",
+              "states": [
+                "few",
+                "moderate",
+                "many"
+              ]
+            },
+            {
+              "name": "jaundice_severity",
+              "type": "target",
+              "states": [
+                "none",
+                "mild",
+                "severe"
+              ]
+            },
+            {
+              "name": "breastfeeding_initiation",
+              "type": "observable",
+              "states": [
+                "early",
+                "delayed"
+              ]
+            },
+            {
+              "name": "delivery_method",
+              "type": "observable",
+              "states": [
+                "vaginal",
+                "cesarean"
+              ]
+            },
+            {
+              "name": "maternal_anemia",
+              "type": "observable",
+              "states": [
+                "normal",
+                "low",
+                "deficient"
+              ]
+            },
+            {
+              "name": "water_contamination",
+              "type": "latent",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "from": "maternal_nutrition",
+              "to": "maternal_anemia"
+            },
+            {
+              "from": "maternal_anemia",
+              "to": "birth_weight"
+            },
+            {
+              "from": "gestational_age",
+              "to": "birth_weight"
+            },
+            {
+              "from": "prenatal_visits",
+              "to": "gestational_age"
+            },
+            {
+              "from": "delivery_method",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "breastfeeding_initiation",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "birth_weight",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "gestational_age",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "hospital_altitude",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "water_contamination",
+              "to": "maternal_anemia"
+            },
+            {
+              "from": "water_contamination",
+              "to": "birth_weight"
+            },
+            {
+              "from": "water_contamination",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "water_contamination",
+              "to": "hospital_altitude"
+            }
+          ],
+          "edge_strength": 0.7,
+          "seed": 101
+        },
+        "result": {
+          "error": "Invalid DAG specification: 1 validation error for DAGSpec\n  Value error, Nodes exceed max parents (4): jaundice_severity=6 [type=value_error, input_value={'nodes': [DAGNodeSpec(na..., 'hospital_altitude')]}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+        }
+      },
+      {
+        "tool": "dag_construct",
+        "args": {
+          "nodes": [
+            {
+              "name": "birth_weight",
+              "type": "observable",
+              "states": [
+                "low",
+                "normal",
+                "high"
+              ]
+            },
+            {
+              "name": "gestational_age",
+              "type": "observable",
+              "states": [
+                "preterm",
+                "term",
+                "post_term"
+              ]
+            },
+            {
+              "name": "maternal_nutrition",
+              "type": "observable",
+              "states": [
+                "poor",
+                "adequate",
+                "good"
+              ]
+            },
+            {
+              "name": "hospital_altitude",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "prenatal_visits",
+              "type": "observable",
+              "states": [
+                "few",
+                "moderate",
+                "many"
+              ]
+            },
+            {
+              "name": "jaundice_severity",
+              "type": "target",
+              "states": [
+                "none",
+                "mild",
+                "severe"
+              ]
+            },
+            {
+              "name": "breastfeeding_initiation",
+              "type": "observable",
+              "states": [
+                "early",
+                "delayed"
+              ]
+            },
+            {
+              "name": "delivery_method",
+              "type": "observable",
+              "states": [
+                "vaginal",
+                "cesarean"
+              ]
+            },
+            {
+              "name": "maternal_anemia",
+              "type": "observable",
+              "states": [
+                "normal",
+                "low",
+                "deficient"
+              ]
+            },
+            {
+              "name": "water_contamination",
+              "type": "latent",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "from": "maternal_nutrition",
+              "to": "maternal_anemia"
+            },
+            {
+              "from": "maternal_anemia",
+              "to": "birth_weight"
+            },
+            {
+              "from": "gestational_age",
+              "to": "birth_weight"
+            },
+            {
+              "from": "prenatal_visits",
+              "to": "gestational_age"
+            },
+            {
+              "from": "birth_weight",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "gestational_age",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "hospital_altitude",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "water_contamination",
+              "to": "maternal_anemia"
+            },
+            {
+              "from": "water_contamination",
+              "to": "birth_weight"
+            },
+            {
+              "from": "water_contamination",
+              "to": "jaundice_severity"
+            },
+            {
+              "from": "water_contamination",
+              "to": "hospital_altitude"
+            }
+          ],
+          "edge_strength": 0.7,
+          "seed": 101
+        },
+        "result": {
+          "world_id": "world-custom-000101",
+          "num_nodes": 10,
+          "num_edges": 11,
+          "difficulty": "medium",
+          "nodes": [
+            {
+              "name": "birth_weight",
+              "type": "observable",
+              "states": [
+                "low",
+                "normal",
+                "high"
+              ]
+            },
+            {
+              "name": "gestational_age",
+              "type": "observable",
+              "states": [
+                "preterm",
+                "term",
+                "post_term"
+              ]
+            },
+            {
+              "name": "maternal_nutrition",
+              "type": "observable",
+              "states": [
+                "poor",
+                "adequate",
+                "good"
+              ]
+            },
+            {
+              "name": "hospital_altitude",
+              "type": "observable",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "name": "prenatal_visits",
+              "type": "observable",
+              "states": [
+                "few",
+                "moderate",
+                "many"
+              ]
+            },
+            {
+              "name": "jaundice_severity",
+              "type": "target",
+              "states": [
+                "none",
+                "mild",
+                "severe"
+              ]
+            },
+            {
+              "name": "breastfeeding_initiation",
+              "type": "observable",
+              "states": [
+                "early",
+                "delayed"
+              ]
+            },
+            {
+              "name": "delivery_method",
+              "type": "observable",
+              "states": [
+                "vaginal",
+                "cesarean"
+              ]
+            },
+            {
+              "name": "maternal_anemia",
+              "type": "observable",
+              "states": [
+                "normal",
+                "low",
+                "deficient"
+              ]
+            },
+            {
+              "name": "water_contamination",
+              "type": "latent",
+              "states": [
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "tool": "world_check",
+        "args": {
+          "world_id": "world-custom-000101"
+        },
+        "result": {
+          "passed": true,
+          "failures": [],
+          "metrics": {
+            "dag_valid": 1.0,
+            "num_latent": 1.0,
+            "min_path_to_target": 1.0,
+            "prior_target_entropy": 1.5635361576607603,
+            "has_d_separation": 1.0,
+            "max_parents": 4.0,
+            "treewidth_upper_bound": 4.0
+          }
+        }
+      },
+      {
+        "tool": "apply_semantics",
+        "args": {
+          "world_id": "world-custom-000101",
+          "scenario_title": "Unexplained Neonatal Jaundice in Mining-Adjacent Rural Hospitals",
+          "scenario_description": "Neonatal care teams across a fictional tropical region have observed puzzling differences in jaundice rates among rural hospitals. Some facilities report a much higher proportion of severe neonatal jaundice, even though they serve populations with similar socioeconomic profiles and obstetric practices. These discrepancies have raised concerns among regional health authorities, as severe jaundice can lead to long-term neurological harm if not promptly managed.\n\nPrevious audits focused on commonly measured risk factors such as birth weight, gestational age, breastfeeding initiation, and delivery method, but these factors have not fully explained the observed variation. Informal reports suggest that hospitals located near small-scale mining operations may rely on contaminated water sources, potentially affecting maternal health during pregnancy and neonatal outcomes after birth. However, direct measurements of environmental contamination are unavailable in the current dataset, leaving researchers to reason indirectly about its influence.\n\nThe current study compiles observational data from multiple hospitals to disentangle clinical, environmental, and care-related contributors to neonatal jaundice. A key challenge is determining whether apparent associations—such as those involving hospital altitude or maternal nutrition—reflect true causal effects or are distorted by unmeasured environmental exposures.",
+          "domain": "perinatal epidemiology",
+          "theoretical_context": "Prior perinatal epidemiology studies in tropical regions have linked maternal anemia and low birth weight to increased jaundice risk, often mediated by impaired bilirubin metabolism. Environmental health research suggests that heavy metal exposure from mining-contaminated water can worsen maternal anemia and directly affect neonatal liver function, but such exposures are rarely measured in hospital-based studies. Altitude has been hypothesized to influence neonatal oxygenation and bilirubin levels, yet evidence is mixed, raising the possibility that altitude may act as a proxy for other unobserved regional factors."
+        },
+        "result": {
+          "error": "node_renames is empty. You MUST provide a mapping for every node. Current nodes: ['birth_weight', 'breastfeeding_initiation', 'delivery_method', 'gestational_age', 'hospital_altitude', 'jaundice_severity', 'maternal_anemia', 'maternal_nutrition', 'prenatal_visits', 'water_contamination']. Call apply_semantics again with node_renames populated."
+        }
+      },
+      {
+        "tool": "apply_semantics",
+        "args": {
+          "world_id": "world-custom-000101",
+          "scenario_title": "Unexplained Neonatal Jaundice in Mining-Adjacent Rural Hospitals",
+          "scenario_description": "Neonatal care teams across a fictional tropical region have observed puzzling differences in jaundice rates among rural hospitals. Some facilities report a much higher proportion of severe neonatal jaundice, even though they serve populations with similar socioeconomic profiles and obstetric practices. These discrepancies have raised concerns among regional health authorities, as severe jaundice can lead to long-term neurological harm if not promptly managed.\n\nPrevious audits focused on commonly measured risk factors such as birth weight, gestational age, breastfeeding initiation, and delivery method, but these factors have not fully explained the observed variation. Informal reports suggest that hospitals located near small-scale mining operations may rely on contaminated water sources, potentially affecting maternal health during pregnancy and neonatal outcomes after birth. However, direct measurements of environmental contamination are unavailable in the current dataset, leaving researchers to reason indirectly about its influence.\n\nThe current study compiles observational data from multiple hospitals to disentangle clinical, environmental, and care-related contributors to neonatal jaundice. A key challenge is determining whether apparent associations—such as those involving hospital altitude or maternal nutrition—reflect true causal effects or are distorted by unmeasured environmental exposures.",
+          "domain": "perinatal epidemiology",
+          "theoretical_context": "Prior perinatal epidemiology studies in tropical regions have linked maternal anemia and low birth weight to increased jaundice risk, often mediated by impaired bilirubin metabolism. Environmental health research suggests that heavy metal exposure from mining-contaminated water can worsen maternal anemia and directly affect neonatal liver function, but such exposures are rarely measured in hospital-based studies. Altitude has been hypothesized to influence neonatal oxygenation and bilirubin levels, yet evidence is mixed, raising the possibility that altitude may act as a proxy for other unobserved regional factors.",
+          "node_renames": {
+            "birth_weight": "birth_weight",
+            "gestational_age": "gestational_age",
+            "maternal_nutrition": "maternal_nutrition",
+            "hospital_altitude": "hospital_altitude",
+            "prenatal_visits": "prenatal_visits",
+            "jaundice_severity": "jaundice_severity",
+            "breastfeeding_initiation": "breastfeeding_initiation",
+            "delivery_method": "delivery_method",
+            "maternal_anemia": "maternal_anemia",
+            "water_contamination": "water_contamination"
+          }
+        },
+        "result": {
+          "world_id": "world-custom-000101",
+          "scenario_title": "Unexplained Neonatal Jaundice in Mining-Adjacent Rural Hospitals",
+          "domain": "perinatal epidemiology",
+          "nodes_renamed": 10,
+          "nodes": [
+            {
+              "name": "birth_weight",
+              "type": "observable"
+            },
+            {
+              "name": "gestational_age",
+              "type": "observable"
+            },
+            {
+              "name": "maternal_nutrition",
+              "type": "observable"
+            },
+            {
+              "name": "hospital_altitude",
+              "type": "observable"
+            },
+            {
+              "name": "prenatal_visits",
+              "type": "observable"
+            },
+            {
+              "name": "jaundice_severity",
+              "type": "target"
+            },
+            {
+              "name": "breastfeeding_initiation",
+              "type": "observable"
+            },
+            {
+              "name": "delivery_method",
+              "type": "observable"
+            },
+            {
+              "name": "maternal_anemia",
+              "type": "observable"
+            },
+            {
+              "name": "water_contamination",
+              "type": "latent"
+            }
+          ],
+          "next_step": "Now call build_problem to sample data and produce the final problem."
+        }
+      },
+      {
+        "tool": "design_case",
+        "args": {
+          "world_id": "world-custom-000101",
+          "title": "Environmental Confounding in Neonatal Jaundice Outcomes",
+          "research_context": "Researchers are analyzing observational data from rural hospitals to understand why neonatal jaundice rates differ across facilities. Because environmental exposure data are unavailable, the team must carefully reason about confounding, appropriate adjustment strategies, and the possibility of hidden causes influencing both maternal health and neonatal outcomes.",
+          "questions": [
+            {
+              "question_text": "What hidden factor could best explain why hospitals at similar altitudes experience markedly different rates of severe neonatal jaundice?",
+              "eval_type": "infer_latent_cause",
+              "target_node": "water_contamination",
+              "rationale": "Identifying an unobserved environmental driver is central to explaining unexplained variation in jaundice outcomes."
+            },
+            {
+              "question_text": "When estimating the causal effect of maternal nutrition on newborn birth weight, which variables should be controlled for to obtain an unbiased estimate?",
+              "eval_type": "adjustment_set",
+              "target_node": "birth_weight",
+              "rationale": "Proper covariate adjustment is necessary to separate nutritional effects from confounding influences."
+            },
+            {
+              "question_text": "Is the observed association between hospital altitude and neonatal jaundice severity likely to be confounded by an unmeasured environmental exposure?",
+              "eval_type": "hypothesis_selection",
+              "target_node": "jaundice_severity",
+              "rationale": "This addresses whether altitude reflects a true causal factor or a proxy for hidden environmental risks."
+            },
+            {
+              "question_text": "Should delivery method be conditioned on when studying the effect of gestational age on neonatal jaundice severity?",
+              "eval_type": "should_condition",
+              "target_node": "jaundice_severity",
+              "rationale": "Conditioning on inappropriate variables can introduce bias, especially if they act as mediators or colliders."
+            }
+          ],
+          "shared_budget": 6,
+          "rationale": "The selected questions mirror real analytic challenges in perinatal epidemiology: diagnosing hidden confounders, selecting adjustment sets, evaluating alternative explanations, and avoiding conditioning bias."
+        },
+        "result": {
+          "world_id": "world-custom-000101",
+          "title": "Environmental Confounding in Neonatal Jaundice Outcomes",
+          "num_questions": 4,
+          "primary_question": {
+            "eval_type": "infer_latent_cause",
+            "target_node": "water_contamination",
+            "question_text": "What hidden factor could best explain why hospitals at similar altitudes experience markedly different rates of severe neonatal jaundice?"
+          },
+          "eval_types": [
+            "adjustment_set",
+            "hypothesis_selection",
+            "infer_latent_cause",
+            "should_condition"
+          ],
+          "shared_budget": 6,
+          "tasks_generated": 4,
+          "next_step": "Now call build_problem to sample data and produce the final problem."
+        }
+      },
+      {
+        "tool": "build_problem",
+        "args": {
+          "world_id": "world-custom-000101",
+          "budget": 6,
+          "data_format": "both",
+          "num_data_rows": 80
+        },
+        "result": {
+          "title": "Unexplained Neonatal Jaundice in Mining-Adjacent Rural Hospitals",
+          "domain": "perinatal epidemiology",
+          "budget": 6,
+          "research_question": "What hidden factor could best explain why hospitals at similar altitudes experience markedly different rates of severe neonatal jaundice?\n\nTarget variable: 'jaundice_severity' (possible states: none, mild, severe). You may request additional measurements within your budget.",
+          "num_data_assets": 2,
+          "num_actions": 6,
+          "target_node": "jaundice_severity",
+          "target_states": [
+            "none",
+            "mild",
+            "severe"
+          ]
+        }
+      }
+    ]
+  },
+  "world": {
+    "id": "world-custom-000101",
+    "template_family": "custom",
+    "seed": 101,
+    "scenario_title": "Unexplained Neonatal Jaundice in Mining-Adjacent Rural Hospitals",
+    "scenario_description": "Neonatal care teams across a fictional tropical region have observed puzzling differences in jaundice rates among rural hospitals. Some facilities report a much higher proportion of severe neonatal jaundice, even though they serve populations with similar socioeconomic profiles and obstetric practices. These discrepancies have raised concerns among regional health authorities, as severe jaundice can lead to long-term neurological harm if not promptly managed.\n\nPrevious audits focused on commonly measured risk factors such as birth weight, gestational age, breastfeeding initiation, and delivery method, but these factors have not fully explained the observed variation. Informal reports suggest that hospitals located near small-scale mining operations may rely on contaminated water sources, potentially affecting maternal health during pregnancy and neonatal outcomes after birth. However, direct measurements of environmental contamination are unavailable in the current dataset, leaving researchers to reason indirectly about its influence.\n\nThe current study compiles observational data from multiple hospitals to disentangle clinical, environmental, and care-related contributors to neonatal jaundice. A key challenge is determining whether apparent associations—such as those involving hospital altitude or maternal nutrition—reflect true causal effects or are distorted by unmeasured environmental exposures.",
+    "domain": "perinatal epidemiology",
+    "theoretical_context": "Prior perinatal epidemiology studies in tropical regions have linked maternal anemia and low birth weight to increased jaundice risk, often mediated by impaired bilirubin metabolism. Environmental health research suggests that heavy metal exposure from mining-contaminated water can worsen maternal anemia and directly affect neonatal liver function, but such exposures are rarely measured in hospital-based studies. Altitude has been hypothesized to influence neonatal oxygenation and bilirubin levels, yet evidence is mixed, raising the possibility that altitude may act as a proxy for other unobserved regional factors.",
+    "difficulty": "medium",
+    "nodes": [
+      {
+        "name": "birth_weight",
+        "type": "observable",
+        "states": [
+          "low",
+          "normal",
+          "high"
+        ],
+        "description": "observable variable: birth_weight"
+      },
+      {
+        "name": "gestational_age",
+        "type": "observable",
+        "states": [
+          "preterm",
+          "term",
+          "post_term"
+        ],
+        "description": "observable variable: gestational_age"
+      },
+      {
+        "name": "maternal_nutrition",
+        "type": "observable",
+        "states": [
+          "poor",
+          "adequate",
+          "good"
+        ],
+        "description": "observable variable: maternal_nutrition"
+      },
+      {
+        "name": "hospital_altitude",
+        "type": "observable",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "description": "observable variable: hospital_altitude"
+      },
+      {
+        "name": "prenatal_visits",
+        "type": "observable",
+        "states": [
+          "few",
+          "moderate",
+          "many"
+        ],
+        "description": "observable variable: prenatal_visits"
+      },
+      {
+        "name": "jaundice_severity",
+        "type": "target",
+        "states": [
+          "none",
+          "mild",
+          "severe"
+        ],
+        "description": "target variable: jaundice_severity"
+      },
+      {
+        "name": "breastfeeding_initiation",
+        "type": "observable",
+        "states": [
+          "early",
+          "delayed"
+        ],
+        "description": "observable variable: breastfeeding_initiation"
+      },
+      {
+        "name": "delivery_method",
+        "type": "observable",
+        "states": [
+          "vaginal",
+          "cesarean"
+        ],
+        "description": "observable variable: delivery_method"
+      },
+      {
+        "name": "maternal_anemia",
+        "type": "observable",
+        "states": [
+          "normal",
+          "low",
+          "deficient"
+        ],
+        "description": "observable variable: maternal_anemia"
+      },
+      {
+        "name": "water_contamination",
+        "type": "latent",
+        "states": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "description": "latent variable: water_contamination"
+      }
+    ],
+    "edges": [
+      {
+        "from": "maternal_nutrition",
+        "to": "maternal_anemia",
+        "mechanism": "maternal_nutrition influences maternal_anemia"
+      },
+      {
+        "from": "maternal_anemia",
+        "to": "birth_weight",
+        "mechanism": "maternal_anemia influences birth_weight"
+      },
+      {
+        "from": "gestational_age",
+        "to": "birth_weight",
+        "mechanism": "gestational_age influences birth_weight"
+      },
+      {
+        "from": "prenatal_visits",
+        "to": "gestational_age",
+        "mechanism": "prenatal_visits influences gestational_age"
+      },
+      {
+        "from": "birth_weight",
+        "to": "jaundice_severity",
+        "mechanism": "birth_weight influences jaundice_severity"
+      },
+      {
+        "from": "gestational_age",
+        "to": "jaundice_severity",
+        "mechanism": "gestational_age influences jaundice_severity"
+      },
+      {
+        "from": "hospital_altitude",
+        "to": "jaundice_severity",
+        "mechanism": "hospital_altitude influences jaundice_severity"
+      },
+      {
+        "from": "water_contamination",
+        "to": "maternal_anemia",
+        "mechanism": "water_contamination influences maternal_anemia"
+      },
+      {
+        "from": "water_contamination",
+        "to": "birth_weight",
+        "mechanism": "water_contamination influences birth_weight"
+      },
+      {
+        "from": "water_contamination",
+        "to": "jaundice_severity",
+        "mechanism": "water_contamination influences jaundice_severity"
+      },
+      {
+        "from": "water_contamination",
+        "to": "hospital_altitude",
+        "mechanism": "water_contamination influences hospital_altitude"
+      }
+    ]
+  },
+  "case_plan": {
+    "title": "Environmental Confounding in Neonatal Jaundice Outcomes",
+    "research_context": "Researchers are analyzing observational data from rural hospitals to understand why neonatal jaundice rates differ across facilities. Because environmental exposure data are unavailable, the team must carefully reason about confounding, appropriate adjustment strategies, and the possibility of hidden causes influencing both maternal health and neonatal outcomes.",
+    "shared_budget": 6,
+    "rationale": "The selected questions mirror real analytic challenges in perinatal epidemiology: diagnosing hidden confounders, selecting adjustment sets, evaluating alternative explanations, and avoiding conditioning bias.",
+    "questions": [
+      {
+        "question_text": "What hidden factor could best explain why hospitals at similar altitudes experience markedly different rates of severe neonatal jaundice?",
+        "eval_type": "infer_latent_cause",
+        "target_node": "water_contamination",
+        "rationale": "Identifying an unobserved environmental driver is central to explaining unexplained variation in jaundice outcomes."
+      },
+      {
+        "question_text": "When estimating the causal effect of maternal nutrition on newborn birth weight, which variables should be controlled for to obtain an unbiased estimate?",
+        "eval_type": "adjustment_set",
+        "target_node": "birth_weight",
+        "rationale": "Proper covariate adjustment is necessary to separate nutritional effects from confounding influences."
+      },
+      {
+        "question_text": "Is the observed association between hospital altitude and neonatal jaundice severity likely to be confounded by an unmeasured environmental exposure?",
+        "eval_type": "hypothesis_selection",
+        "target_node": "jaundice_severity",
+        "rationale": "This addresses whether altitude reflects a true causal factor or a proxy for hidden environmental risks."
+      },
+      {
+        "question_text": "Should delivery method be conditioned on when studying the effect of gestational age on neonatal jaundice severity?",
+        "eval_type": "should_condition",
+        "target_node": "jaundice_severity",
+        "rationale": "Conditioning on inappropriate variables can introduce bias, especially if they act as mediators or colliders."
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "task-world-custom-000101-infer_latent_cause",
+      "type": "infer_latent_cause",
+      "question": "What hidden factor could best explain why hospitals at similar altitudes experience markedly different rates of severe neonatal jaundice?",
+      "target_node": "water_contamination",
+      "correct_answer": {
+        "low": 0.7545806999995456,
+        "medium": 0.004267493087777487,
+        "high": 0.24115180691267696
+      },
+      "scoring_method": "kl_divergence"
+    },
+    {
+      "id": "task-world-custom-000101-adjustment_set",
+      "type": "adjustment_set",
+      "question": "You want to estimate the causal effect of 'prenatal_visits' on 'birth_weight' using observational data. Which variables should you control for (include as covariates) in your analysis? Available variables: ['gestational_age', 'maternal_nutrition', 'hospital_altitude', 'breastfeeding_initiation', 'delivery_method', 'maternal_anemia']. If no confounding exists, controlling for no variables is correct.",
+      "target_node": "birth_weight",
+      "correct_answer": {
+        "_empty_": 1.0
+      },
+      "scoring_method": "adjustment_set_match"
+    },
+    {
+      "id": "task-world-custom-000101-hypothesis_selection",
+      "type": "hypothesis_selection",
+      "question": "Is the observed association between hospital altitude and neonatal jaundice severity likely to be confounded by an unmeasured environmental exposure?",
+      "target_node": "jaundice_severity",
+      "correct_answer": {
+        "A": 0.0,
+        "B": 1.569688,
+        "C": 1.60293,
+        "D": 1.230921
+      },
+      "scoring_method": "hypothesis_accuracy"
+    },
+    {
+      "id": "task-world-custom-000101-should_condition",
+      "type": "should_condition",
+      "question": "You are analyzing the causal effect of 'gestational_age' on 'jaundice_severity' using observational data. A colleague suggests controlling for 'birth_weight' in your analysis. Is this a good idea? Should you include 'birth_weight' as a control variable? Answer 'yes' or 'no', and explain your reasoning.",
+      "target_node": "jaundice_severity",
+      "correct_answer": {
+        "no": 1.0
+      },
+      "scoring_method": "should_condition"
+    }
+  ],
+  "research_problem": {
+    "title": "Unexplained Neonatal Jaundice in Mining-Adjacent Rural Hospitals",
+    "domain": "perinatal epidemiology",
+    "description": "Neonatal care teams across a fictional tropical region have observed puzzling differences in jaundice rates among rural hospitals. Some facilities report a much higher proportion of severe neonatal jaundice, even though they serve populations with similar socioeconomic profiles and obstetric practices. These discrepancies have raised concerns among regional health authorities, as severe jaundice can lead to long-term neurological harm if not promptly managed.\n\nPrevious audits focused on commonly measured risk factors such as birth weight, gestational age, breastfeeding initiation, and delivery method, but these factors have not fully explained the observed variation. Informal reports suggest that hospitals located near small-scale mining operations may rely on contaminated water sources, potentially affecting maternal health during pregnancy and neonatal outcomes after birth. However, direct measurements of environmental contamination are unavailable in the current dataset, leaving researchers to reason indirectly about its influence.\n\nThe current study compiles observational data from multiple hospitals to disentangle clinical, environmental, and care-related contributors to neonatal jaundice. A key challenge is determining whether apparent associations—such as those involving hospital altitude or maternal nutrition—reflect true causal effects or are distorted by unmeasured environmental exposures.",
+    "theoretical_context": "Prior perinatal epidemiology studies in tropical regions have linked maternal anemia and low birth weight to increased jaundice risk, often mediated by impaired bilirubin metabolism. Environmental health research suggests that heavy metal exposure from mining-contaminated water can worsen maternal anemia and directly affect neonatal liver function, but such exposures are rarely measured in hospital-based studies. Altitude has been hypothesized to influence neonatal oxygenation and bilirubin levels, yet evidence is mixed, raising the possibility that altitude may act as a proxy for other unobserved regional factors.",
+    "budget": 6,
+    "research_question": "What hidden factor could best explain why hospitals at similar altitudes experience markedly different rates of severe neonatal jaundice?\n\nTarget variable: 'jaundice_severity' (possible states: none, mild, severe). You may request additional measurements within your budget.",
+    "target_node": "jaundice_severity",
+    "target_states": [
+      "none",
+      "mild",
+      "severe"
+    ],
+    "num_data_assets": 2,
+    "data_assets": [
+      {
+        "name": "unexplained_neonatal_jaundice_in_mining__data",
+        "format": "tabular",
+        "description": "Dataset with 80 samples. Columns: birth_weight, gestational_age, maternal_nutrition, hospital_altitude, prenatal_visits, jaundice_severity, breastfeeding_initiation, delivery_method, maternal_anemia.",
+        "num_rows": null,
+        "source": null,
+        "columns": null
+      },
+      {
+        "name": "field_observations",
+        "format": "observations",
+        "description": "40 individual field observations.",
+        "num_rows": null,
+        "source": null,
+        "columns": null
+      }
+    ],
+    "available_actions": [
+      {
+        "action_type": "observe",
+        "nodes": [
+          "gestational_age"
+        ],
+        "description": "Measure gestational age",
+        "cost": 2
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "maternal_nutrition"
+        ],
+        "description": "Measure maternal nutrition",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "prenatal_visits"
+        ],
+        "description": "Measure prenatal visits",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "breastfeeding_initiation"
+        ],
+        "description": "Measure breastfeeding initiation",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "delivery_method"
+        ],
+        "description": "Measure delivery method",
+        "cost": 1
+      },
+      {
+        "action_type": "observe",
+        "nodes": [
+          "birth_weight",
+          "hospital_altitude",
+          "maternal_anemia"
+        ],
+        "description": "Field survey: measure birth weight, hospital altitude, maternal anemia",
+        "cost": 3
+      }
+    ]
+  }
+}

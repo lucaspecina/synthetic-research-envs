@@ -60,8 +60,12 @@
 > - Se genera la pregunta Y la respuesta a partir del plan, no por separado
 
 - [x] **P0**: Fix generate_from_plan mismatch (pregunta vs respuesta desalineadas)
-  > Fixed: node hints on EvalQuestionPlan + TaskSpec, _hints_honored() per-type verification.
-  > Deuda: best_intervention hint check uses string match (fragile). Ideal: store desired_state on Task.
+  > Phase 1: node hints on EvalQuestionPlan + TaskSpec, _hints_honored() per-type verification.
+  > Phase 2: hints exposed in design_case schema + extracted in _handle_design_case() +
+  > validated (required for 5 types, observable-only, desired_state against target states).
+  > E2E verified: 4/4 MATCH on agriculture case. 13 new orchestrator tests.
+  > Deuda: per-eval-type typed semantic slots (replace generic hints), candidate_nodes
+  > for best_intervention, store honored intent structurally on Task.
 
 ### Problemas de diseno del case (hallazgos E2E 2026-03-10)
 > Analisis detallado de caso_arenamiento con segunda opinion de AI externa.
