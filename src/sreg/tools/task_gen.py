@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
-
 from pgmpy.inference import CausalInference
 
 from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.models.world import NodeType, World
 from sreg.solver.exact_bayes import ExactBayesSolver
 from sreg.world.pgmpy_utils import world_to_pgmpy
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sreg.models.case_plan import CasePlan
@@ -90,7 +92,7 @@ class TaskGenTool:
         question = (
             f"Estimate the probability distribution over the states of '{target}' "
             f"(possible states: {state_list}). "
-            f"You have a budget of {spec.max_budget} observations. "
+            f"You have a research budget of {spec.max_budget} units. "
             f"Choose which variables to observe to refine your estimate, "
             f"then submit your final distribution."
         )
@@ -812,8 +814,51 @@ class TaskGenTool:
                 task = task.model_copy(update={"question": q.question_text})
             elif self._hints_honored(q, task):
                 task = task.model_copy(update={"question": q.question_text})
+
+            # Consistency check: verify question mentions key nodes from answer
+            self._check_question_answer_consistency(task, q.eval_type)
+
             tasks.append(task)
         return tasks
+
+    @staticmethod
+    def _check_question_answer_consistency(
+        task: Task, eval_type: TaskType
+    ) -> None:
+        """Log a warning if the question text doesn't mention nodes from the answer.
+
+        This catches mismatches where the question asks about one thing but the
+        answer is computed for something else. Only checks node-sensitive types.
+        """
+        if not task.correct_answer or not task.question:
+            return
+
+        question_lower = task.question.lower()
+
+        # Extract relevant node names depending on eval type
+        nodes_to_check: list[str] = []
+        if eval_type in (TaskType.CAUSAL_EFFECT, TaskType.ADJUSTMENT_SET,
+                         TaskType.SHOULD_CONDITION):
+            # intervention dict has the key node names
+            if task.intervention:
+                nodes_to_check = list(task.intervention.keys())
+        elif eval_type == TaskType.COMPARE_INTERVENTIONS:
+            # answer keys are "node:state", extract node part
+            nodes_to_check = [k.split(":")[0] for k in task.correct_answer]
+        elif eval_type == TaskType.BEST_INTERVENTION:
+            # No specific node to check in question (any node can be the answer)
+            return
+        else:
+            # Safe types — no check needed
+            return
+
+        missing = [n for n in nodes_to_check if n.lower() not in question_lower]
+        if missing:
+            logger.warning(
+                "Question/answer consistency: task %s (%s) — question does not "
+                "mention nodes from the answer: %s. Question: '%.80s...'",
+                task.id, eval_type.value, missing, task.question,
+            )
 
     @staticmethod
     def _hints_honored(q: "EvalQuestionPlan", task: Task) -> bool:

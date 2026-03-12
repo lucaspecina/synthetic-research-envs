@@ -7,96 +7,56 @@ disable-model-invocation: true
 # Codex Collaboration Protocol (SREG)
 
 **PREREQUISITE:** This workflow ONLY applies when `mcp__codex__codex` is available
-as an MCP tool. If Codex MCP is not connected, skip all Codex steps entirely and
-work normally.
+as an MCP tool. If Codex MCP is not connected, skip all Codex steps entirely.
 
-## Role of Codex
+## How to call Codex — base-instructions (NON-NEGOTIABLE)
 
-Codex is a **critical collaborator**, not an assistant or yes-man.
+**EVERY call to `mcp__codex__codex` MUST include `base-instructions`.**
 
-- Codex should **challenge assumptions**, **find flaws**, and **propose alternatives**
-- If Codex just agrees with everything, it's not doing its job — push for genuine critique
-- Codex is a different model (OpenAI) with different strengths and blind spots
-- The value is in the DISAGREEMENT and DEBATE, not in validation
-- **But Claude leads.** Codex advises, Claude decides. Don't defer blindly.
+Build the base-instructions by concatenating:
+1. **User-level** instructions from `~/.claude/skills/codex-collab/codex-base-instructions.md`
+   (general: role, doc hierarchy, communication style)
+2. **Project-level** instructions from this skill's `codex-base-instructions.md`
+   (SREG-specific: architecture, components, QA levels, review checklist)
+
+Read both files, extract the content between the `---` markers, concatenate them,
+and pass as the `base-instructions` parameter.
+
+This ensures Codex ALWAYS knows:
+- Its role (critical collaborator, not yes-man)
+- The document hierarchy (CLAUDE.md -> PROJECT.md -> CURRENT_STATE.md -> ...)
+- The project architecture (two-layer: formal BN + semantic)
+- How to review (alignment with PROJECT.md, trigger table, etc.)
+
+### Thread management
+- Start a new thread per session with `mcp__codex__codex` (includes base-instructions)
+- Continue with `mcp__codex__codex-reply` + `threadId` (context preserved)
+
+### The prompt (task-specific context)
+The `prompt` parameter contains ONLY the specific task context:
+- What we're working on and why
+- What was decided, user preferences
+- The diff or design to review
+- What happened since last call (if continuing thread)
 
 ## When to consult Codex
 
-### MANDATORY:
-- **Code review** — After implementation, before presenting to user. Codex reviews
-  the diff and finds bugs, over-engineering, missed edge cases, inconsistencies.
+- **MANDATORY:** Code review after implementation, before presenting to user
+- **RECOMMENDED:** Pre-implementation strategy, architecture decisions, when stuck
+- **SKIP:** Doc-only, trivial fixes, user says to skip
 
-### RECOMMENDED (use judgment — don't overuse, Codex takes time):
-- **Pre-implementation strategy** — When a task involves significant design decisions,
-  consider presenting the approach to Codex before coding. Can catch issues early.
-  Use judgment — not every task needs this.
-- **Strategy/next steps** — When deciding what to work on next or how to prioritize.
-- **Design/architecture** — When there are multiple valid approaches and it's not
-  clear which is best.
-- **Problem-solving** — When stuck or unsure, a different perspective can unblock.
+## SREG-specific review checklist
 
-### SKIP:
-- Routine planning for clear, straightforward tasks
-- Doc-only changes, typos, formatting
-- Trivial fixes with obvious solutions
-- When the user explicitly says to skip
+When Codex reviews SREG code, it should check:
+- Alignment with PROJECT.md vision (environments for RL, not training)
+- Tasks feel like science, not graph theory exercises
+- Rewards are exact (from BN), not heuristic
+- Semantic layer is realistic but fictional
+- Doc updates needed (trigger table in CLAUDE.md)
 
-## How to call Codex
+## Claude leads, Codex advises
 
-### Thread management
-- Start a new thread per work session with `mcp__codex__codex`
-- Continue with `mcp__codex__codex-reply` + `threadId`
-
-### Context briefing (CRITICAL)
-
-Codex can read files but does NOT see our conversation with the user. Every call
-must include a **context briefing**:
-
-- **What we're working on** — task, goal, why it matters
-- **What was decided** — choices made, user preferences, strategy
-- **What happened since last call** — if continuing a thread, summarize what
-  was implemented, what the user said, what changed
-
-When Codex gives feedback and we don't follow it, tell Codex WHY in the next call.
-
-### Prompt guidelines
-- **Always ask for SHORT, CONCISE responses**: "Be brief and direct. No repetition,
-  no filler. Bullet points over paragraphs." GPT tends verbose — save time.
-- Share relevant context (diffs, design rationale, user decisions)
-- **Always ask Codex to be critical**: "Don't just agree — tell me what's wrong"
-- For SREG: remind Codex of two-layer architecture (formal BN + semantic) and
-  that SREG generates environments, not trains policies
-
-## Integration with SREG commit workflow
-
-```
-1. ANALYZE   — Understand the problem
-2. STRATEGY  — For non-trivial tasks: propose approach, consult Codex (RECOMMENDED)
-3. IMPLEMENT — Write code + tests
-4. REVIEW    — Codex reviews diff critically (MANDATORY, one round only)
-5. PRESENT   — Show user: changes + Codex feedback + resolution
-6. COMMIT    — Only after user approval
-```
-
-## Claude leads, Codex advises (CRITICAL)
-
-Codex's role is to be critical, so it will ALWAYS find something to flag.
-That's by design. Use good judgment to avoid infinite review loops.
-
-**Guidelines:**
-- **Fix what matters.** Bugs, correctness issues, security = fix. Style nits,
-  theoretical edge cases, "could be slightly better" = note as deuda, move on.
-- **Claude decides.** Codex advises, Claude evaluates on merit and decides what
-  to act on. Don't defer blindly — if a finding is minor or disproportionate, skip it.
-- **Use judgment on review rounds.** Sometimes one round is enough, sometimes a
-  follow-up is warranted for a serious finding. But don't chase diminishing returns.
-- **Time matters.** Perfection is the enemy of progress. Ship and iterate.
-- **Log deuda, don't block.** Valid but non-urgent findings → mention to the user
-  as "deuda conocida" and move on.
-
-## Handling disagreements
-
-- Present BOTH perspectives to the user with reasoning
-- Don't silently ignore Codex's critique
-- Don't blindly follow it either — evaluate on merit
-- The user is the final arbiter
+- Fix bugs and correctness issues. Log style nits as deuda.
+- One review round by default. Follow-up only for critical findings.
+- Present BOTH perspectives to user when Claude and Codex disagree.
+- The user is the final arbiter.

@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-12 — P0 cleanup: submit format, budget wording, apply_semantics, consistency check
+- **Agent submit format**: Tool description now shows correct vs wrong format explicitly.
+  Auto-correction in code: flat keys are silently normalized instead of rejected.
+- **Budget wording**: "N observations" -> "research budget of N units" across agent prompts,
+  task_gen, and problem_builder. Costs now described as variable.
+- **apply_semantics first-call fix**: Prompt clarifies identity mappings are required.
+  Code auto-completes identity mappings when node_renames is empty or partial.
+- **Consistency check**: New `_check_question_answer_consistency()` validates that question
+  text mentions nodes from the formal answer. Logs WARNING on mismatch. 4 new tests.
+- Codex review incorporated: auto-correction in code (not just prompts), test coverage.
+- 722 tests (4 new).
+
 ### 2026-03-12 — Complete P0 fix: node hints connected to orchestrator + manual audit
 - **P0 fix completion**: Node hints now flow end-to-end from orchestrator LLM to task
   generators. Three changes:

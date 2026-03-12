@@ -28,10 +28,12 @@
   > Done via `scripts/batch_sweep.py` (336 worlds). See WORLD_DESIGN.md "Batch sweep".
 
 ## Known issues (from E2E testing + batch sweep)
-- [ ] Agent submit format: LLM sends flat keys instead of `{"distribution": {...}}`, wastes 1 turn on retry every time
+- [x] Agent submit format: LLM sends flat keys instead of `{"distribution": {...}}`, wastes 1 turn on retry every time
+  > Fixed: prompt shows correct vs wrong format + code auto-corrects flat keys silently
 - [ ] Agent worse than random on 8-node worlds: bad inference when more variables are involved (soil case KL 4.21 vs random 0.30)
 - [ ] Orchestrator ignores difficulty in goal: always generates "easy" regardless of "hard difficulty" in prompt
-- [ ] `apply_semantics` always fails first call: LLM sends empty `node_renames`, then retries correctly (wastes 1 API call)
+- [x] `apply_semantics` always fails first call: LLM sends empty `node_renames`, then retries correctly (wastes 1 API call)
+  > Fixed: prompt clarifies identity mappings + code auto-completes when empty/partial
 - [ ] Agent variable selection suboptimal: doesn't pick most informative variables (different order than teacher)
 - [ ] NBO trivial tasks: at 6-8 nodes, NBO is non-trivial 88-48% of the time. At 10-12 nodes improves to 52-53%. Fix in `_next_best_observation_task`: check `max(ig_ranking.values()) > 0`, resample with less evidence if not. Cap retries.
 - [ ] Hypothesis near-indistinguishable: batch sweep confirmed this is worst at es=0.9 (43% distinguishable) and best at es=0.7 (87%). The "prior" distractor becomes identical to posterior when evidence confirms prior strongly. Fix: filter by min KL > 0.05 or replace reversed distractor with Dirichlet sample.
@@ -71,12 +73,14 @@
 > Analisis detallado de caso_arenamiento con segunda opinion de AI externa.
 > Estos NO son bugs — son limitaciones de diseno que necesitan evolucion.
 
-- [ ] **Budget wording**: dice "N observaciones" pero el sistema ya tiene costos variados. Deberia decir "presupuesto de investigacion: N unidades" o similar. No "observaciones".
+- [x] **Budget wording**: dice "N observaciones" pero el sistema ya tiene costos variados. Deberia decir "presupuesto de investigacion: N unidades" o similar. No "observaciones".
+  > Fixed: "research budget of N units" en agent prompts, task_gen, problem_builder
 - [ ] **Acciones siguen siendo "Measure X"**: la narrativa mejoro pero las acciones siguen siendo 1 nodo = 1 accion. Necesitan ser acciones de investigacion reales (Slice B de Rich Actions).
 - [ ] **Primary question vs caso narrativo**: el caso habla de causalidad pero la primary question es infer_target (prediccion). Falta que el orchestrator alinee la primary question con el objetivo real de la investigacion.
 - [ ] **Titulo duplicado**: scenario_title vs case_plan.title son distintos y compiten. Unificar.
 - [ ] **Estructura investigativa del case**: hoy el case es (titulo, historia, tareas). Deberia ser (objetivo, hipotesis rivales, incertidumbres criticas, evidencia disponible/faltante, decisiones operativas). Esto es el gran salto cualitativo pendiente.
-- [ ] **Validacion de consistencia**: falta check automatico de que la pregunta visible menciona los mismos nodos/intervenciones que la task formal. Deberia ser parte de QualitySuite o de generate_from_plan.
+- [x] **Validacion de consistencia**: falta check automatico de que la pregunta visible menciona los mismos nodos/intervenciones que la task formal. Deberia ser parte de QualitySuite o de generate_from_plan.
+  > Fixed: `_check_question_answer_consistency()` en generate_from_plan. WARNING por ahora (deuda: error en modo strict).
 
 ## v2 — Composicion controlada + research cases (Etapa 2)
 

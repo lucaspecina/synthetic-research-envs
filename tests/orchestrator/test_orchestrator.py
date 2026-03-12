@@ -171,8 +171,8 @@ def test_dispatch_apply_semantics():
     assert "hidden_cause" not in node_names
 
 
-def test_dispatch_apply_semantics_empty_renames():
-    """apply_semantics rejects empty node_renames with an error."""
+def test_dispatch_apply_semantics_empty_renames_autocompletes():
+    """apply_semantics auto-completes identity mappings when node_renames is empty."""
     orch = Orchestrator(client=MagicMock())
     result = OrchestratorResult()
 
@@ -193,8 +193,9 @@ def test_dispatch_apply_semantics_empty_renames():
         },
         result,
     )
-    assert "error" in output
-    assert "node_renames is empty" in output["error"]
+    # Should succeed (auto-completed), not error
+    assert "error" not in output
+    assert output["nodes_renamed"] > 0
 
 
 def test_dispatch_apply_semantics_unknown_world():

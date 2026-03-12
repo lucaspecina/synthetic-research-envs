@@ -382,26 +382,17 @@ class Orchestrator:
         node_descriptions: dict[str, str] = args.get("node_descriptions", {})
         edge_descriptions: dict[str, str] = args.get("edge_descriptions", {})
 
-        # Guard: warn if no renames provided
+        # Auto-complete identity mappings if node_renames is empty or partial.
+        # This avoids the common LLM failure where it omits node_renames
+        # when nodes already have semantic names from dag_construct.
         world_node_names = {n.name for n in world.nodes}
         if not node_renames:
-            return {
-                "error": (
-                    "node_renames is empty. You MUST provide a mapping for every node. "
-                    f"Current nodes: {sorted(world_node_names)}. "
-                    "Call apply_semantics again with node_renames populated."
-                ),
-            }
+            node_renames = {n: n for n in world_node_names}
 
         missing = world_node_names - set(node_renames.keys())
         if missing:
-            return {
-                "error": (
-                    f"node_renames is missing entries for: {sorted(missing)}. "
-                    "You must rename ALL nodes. "
-                    "Call apply_semantics again with the complete mapping."
-                ),
-            }
+            for m in missing:
+                node_renames[m] = m
 
         world = self._rename_world_nodes(world, node_renames, node_descriptions, edge_descriptions)
 

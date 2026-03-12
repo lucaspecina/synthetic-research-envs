@@ -206,7 +206,7 @@ class ProblemBuilder:
         return (
             f"Estimate the probability distribution over '{target_node.name}' "
             f"(possible states: {states_str}). "
-            f"You have a budget of observations to refine your estimate."
+            f"You have a research budget to investigate and refine your estimate."
         )
 
 

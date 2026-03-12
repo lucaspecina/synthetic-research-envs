@@ -33,7 +33,7 @@ _OBSERVE_TOOL = {
         "name": "observe",
         "description": (
             "Request a measurement of a variable. Returns the observed "
-            "state. Costs 1 budget point per observation."
+            "state. Each measurement costs budget points (see action list)."
         ),
         "parameters": {
             "type": "object",
@@ -69,8 +69,10 @@ def _distribution_submit_tool(states: list[str]) -> dict:
         "function": {
             "name": "submit",
             "description": (
-                "Submit your final probability distribution. "
-                "You MUST include the 'distribution' key."
+                "Submit your final probability distribution over the target states. "
+                "IMPORTANT: pass a 'distribution' object (NOT flat keys). "
+                f'Correct: {{"distribution": {{{example_parts}}}}}. '
+                f"Wrong: {{{example_parts}}}."
             ),
             "parameters": {
                 "type": "object",
@@ -79,8 +81,7 @@ def _distribution_submit_tool(states: list[str]) -> dict:
                         "type": "object",
                         "description": (
                             f"Probability distribution. Keys: {', '.join(states)}. "
-                            f"Values must sum to 1.0. "
-                            f"Example: {{{example_parts}}}"
+                            f"Values must sum to 1.0."
                         ),
                         "additionalProperties": {"type": "number"},
                     },
@@ -384,10 +385,11 @@ You are investigating a SPECIFIC NEW CASE. You do not know the actual values \
 of any variable for this case yet. The historical data above shows general \
 patterns, but the current case may differ.
 
-You have a budget of **{problem.budget}** measurement(s). Each measurement \
-reveals the TRUE VALUE of a variable for the current case. Use measurements \
-strategically to narrow down your estimate of the target.
+You have a research budget of **{problem.budget}** units. Each measurement \
+reveals the TRUE VALUE of a variable for the current case, but costs budget \
+units (see the action list below — costs may vary).
 
+### Available measurements
 {actions_section}
 ## Research Question
 
@@ -400,13 +402,13 @@ Your target variable is **{target_node}** with possible states: \
 
 1. Study the historical data to understand correlations between variables.
 2. Use the `observe` tool to measure variables FOR THE CURRENT CASE. Each \
-observation reveals the true state and costs 1 budget point.
+measurement costs budget units (check the action list above for costs).
 3. After each observation, update your beliefs about the target.
 {submit_instruction}
 
 **Strategy tip**: The historical data shows correlations. Observing variables \
 that are strongly correlated with the target will help you predict it better. \
-Use your budget wisely.
+Use your budget wisely — some measurements cost more than others.
 
 You MUST eventually call `submit` with your answer. Do not stop without submitting."""
 

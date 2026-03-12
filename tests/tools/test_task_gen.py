@@ -1761,3 +1761,88 @@ def test_hint_partial_should_condition_keeps_auto_question(world):
     task = tasks[0]
     # Question should NOT be overridden (partial hints)
     assert task.question != custom_text
+
+
+# --- Consistency check tests ---
+
+
+def test_consistency_check_warns_on_mismatch(world, caplog):
+    """Consistency check warns when question doesn't mention answer nodes."""
+    import logging
+
+    task = Task(
+        id="test-mismatch",
+        world_id=world.id,
+        type=TaskType.CAUSAL_EFFECT,
+        target_node="target_outcome",
+        available_evidence=["indicator_1"],
+        question="What happens if we change the weather?",
+        correct_answer={"high": 0.7, "low": 0.3},
+        scoring_method="kl_divergence",
+        intervention={"soil_acidity": "do(high)"},
+    )
+    with caplog.at_level(logging.WARNING, logger="sreg.tools.task_gen"):
+        TaskGenTool._check_question_answer_consistency(task, TaskType.CAUSAL_EFFECT)
+    assert "soil_acidity" in caplog.text
+    assert "consistency" in caplog.text.lower()
+
+
+def test_consistency_check_no_warning_when_matching(world, caplog):
+    """No warning when question mentions the relevant nodes."""
+    import logging
+
+    task = Task(
+        id="test-match",
+        world_id=world.id,
+        type=TaskType.CAUSAL_EFFECT,
+        target_node="target_outcome",
+        available_evidence=["indicator_1"],
+        question="What happens if we intervene on soil_acidity?",
+        correct_answer={"high": 0.7, "low": 0.3},
+        scoring_method="kl_divergence",
+        intervention={"soil_acidity": "do(high)"},
+    )
+    with caplog.at_level(logging.WARNING, logger="sreg.tools.task_gen"):
+        TaskGenTool._check_question_answer_consistency(task, TaskType.CAUSAL_EFFECT)
+    assert caplog.text == ""
+
+
+def test_consistency_check_skips_safe_types(world, caplog):
+    """Safe types (infer_target, etc.) don't trigger consistency check."""
+    import logging
+
+    task = Task(
+        id="test-safe",
+        world_id=world.id,
+        type=TaskType.INFER_TARGET,
+        target_node="target_outcome",
+        available_evidence=["indicator_1"],
+        question="What is the distribution?",
+        correct_answer={"high": 0.5, "low": 0.5},
+        scoring_method="kl_divergence",
+    )
+    with caplog.at_level(logging.WARNING, logger="sreg.tools.task_gen"):
+        TaskGenTool._check_question_answer_consistency(task, TaskType.INFER_TARGET)
+    assert caplog.text == ""
+
+
+def test_consistency_check_compare_interventions(world, caplog):
+    """compare_interventions checks node names from answer keys."""
+    import logging
+
+    task = Task(
+        id="test-compare",
+        world_id=world.id,
+        type=TaskType.COMPARE_INTERVENTIONS,
+        target_node="target_outcome",
+        available_evidence=["indicator_1"],
+        question="Which intervention is better for yield?",
+        correct_answer={"fertilizer:high": 0.8, "irrigation:high": 0.6},
+        scoring_method="compare_effect_size",
+    )
+    with caplog.at_level(logging.WARNING, logger="sreg.tools.task_gen"):
+        TaskGenTool._check_question_answer_consistency(
+            task, TaskType.COMPARE_INTERVENTIONS
+        )
+    # "fertilizer" and "irrigation" are NOT in the question
+    assert "fertilizer" in caplog.text or "irrigation" in caplog.text

@@ -22,7 +22,10 @@ need precise control.
 2. **Validate** by calling `world_check`. If it fails, adjust and retry (max 3).
 3. **Apply semantics** by calling `apply_semantics`. Rename ALL nodes to realistic \
 scientific variable names, write the scenario narrative, domain, and theoretical \
-context. You MUST provide `node_renames` with a mapping for EVERY node in the world.
+context. You MUST provide `node_renames` with a mapping for EVERY node. \
+Even if nodes already have semantic names (from dag_construct), pass identity \
+mappings like `{"water_temperature": "water_temperature", ...}`. NEVER omit \
+`node_renames` or pass it empty — the call WILL fail.
 4. **Design the research case** by calling `design_case`. This is the most \
 important step — design evaluation questions that a real researcher would ask \
 given this scenario. See "Evaluation types" below for guidance on choosing \

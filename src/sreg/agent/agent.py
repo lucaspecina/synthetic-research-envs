@@ -309,10 +309,15 @@ class AgentSolver:
 
         distribution = args.get("distribution", {})
 
-        # Fallback: LLM sometimes puts state keys at top level
+        # Fallback: LLM sometimes puts state keys at top level instead of
+        # nesting under "distribution". Auto-correct silently to avoid
+        # wasting a turn on format retry.
         if not distribution:
             state_set = set(expected_states)
-            top_level = {k: v for k, v in args.items() if k in state_set}
+            top_level = {
+                k: v for k, v in args.items()
+                if k in state_set and isinstance(v, (int, float))
+            }
             if top_level:
                 distribution = top_level
 
