@@ -198,9 +198,13 @@ class TaskGenTool:
         uniform_p = 1.0 / len(states)
         hypotheses["C"] = {s: round(uniform_p, 4) for s in states}
 
-        # Hypothesis D: reversed posterior (high becomes low)
-        reversed_vals = list(reversed(list(true_posterior.values())))
-        hypotheses["D"] = {s: round(v, 4) for s, v in zip(states, reversed_vals)}
+        # Hypothesis D: Dirichlet-sampled distractor.
+        # The old "reversed posterior" approach produced near-identical
+        # distributions when the posterior was symmetric (e.g. [0.08, 0.83, 0.08]
+        # reversed = [0.08, 0.83, 0.08]). A random Dirichlet sample is a
+        # genuinely different distribution that's always distinguishable.
+        dirichlet_vals = rng.dirichlet([1.0] * len(states))
+        hypotheses["D"] = {s: round(v, 4) for s, v in zip(states, dirichlet_vals)}
 
         # Shuffle hypothesis labels so the correct one isn't always A
         labels = list(hypotheses.keys())
@@ -223,6 +227,16 @@ class TaskGenTool:
         for label, dist in shuffled_hypotheses.items():
             kl = verifier.kl_divergence(dist, true_posterior)
             kl_scores[label] = round(kl, 6)
+
+        # Check distinguishability: all distractors must have KL > 0.05
+        # If any distractor is too close to the correct answer, log a warning.
+        distractor_kls = [kl for kl in kl_scores.values() if kl > 1e-9]
+        if distractor_kls and min(distractor_kls) < 0.05:
+            logger.warning(
+                "hypothesis_selection: min distractor KL=%.4f < 0.05 "
+                "(near-indistinguishable hypotheses) for world %s",
+                min(distractor_kls), world.id,
+            )
 
         # Build question text
         evidence_desc = ", ".join(f"{k}={v}" for k, v in given_evidence.items())

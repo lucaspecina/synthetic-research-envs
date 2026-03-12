@@ -138,9 +138,24 @@ class TestClassifyFailure:
         )
         assert fm == "FORMAT_RETRY"
 
-    def test_nbo_zero_obs_correct(self):
+    def test_nbo_zero_obs_is_not_failure(self):
+        """NBO with 0 observations and correct answer is expected behavior."""
         fm = classify_failure_mode(
             TaskType.NEXT_BEST_OBSERVATION, True, 1.0, 0, 0, None
+        )
+        assert fm is None  # Not a failure — immediate answer is valid for NBO
+
+    def test_should_condition_zero_obs_is_not_failure(self):
+        """should_condition with 0 observations and correct answer is expected."""
+        fm = classify_failure_mode(
+            TaskType.SHOULD_CONDITION, True, 1.0, 0, 0, None
+        )
+        assert fm is None  # Not a failure — theoretical question
+
+    def test_other_type_zero_obs_still_flagged(self):
+        """Other types with 0 observations and correct answer stay ZERO_OBS_CORRECT."""
+        fm = classify_failure_mode(
+            TaskType.COMPARE_INTERVENTIONS, True, 1.0, 0, 0, None
         )
         assert fm == "ZERO_OBS_CORRECT"
 

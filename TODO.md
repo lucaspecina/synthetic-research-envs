@@ -36,7 +36,8 @@
   > Fixed: prompt clarifies identity mappings + code auto-completes when empty/partial
 - [ ] Agent variable selection suboptimal: doesn't pick most informative variables (different order than teacher)
 - [ ] NBO trivial tasks: at 6-8 nodes, NBO is non-trivial 88-48% of the time. At 10-12 nodes improves to 52-53%. Fix in `_next_best_observation_task`: check `max(ig_ranking.values()) > 0`, resample with less evidence if not. Cap retries.
-- [ ] Hypothesis near-indistinguishable: batch sweep confirmed this is worst at es=0.9 (43% distinguishable) and best at es=0.7 (87%). The "prior" distractor becomes identical to posterior when evidence confirms prior strongly. Fix: filter by min KL > 0.05 or replace reversed distractor with Dirichlet sample.
+- [x] Hypothesis near-indistinguishable: batch sweep confirmed this is worst at es=0.9 (43% distinguishable) and best at es=0.7 (87%). The "prior" distractor becomes identical to posterior when evidence confirms prior strongly. Fix: filter by min KL > 0.05 or replace reversed distractor with Dirichlet sample.
+  > Fixed: replaced reversed posterior with Dirichlet-sampled distractor + KL < 0.05 warning
 - [-] preferential_attachment: 0% WorldCheck pass across all configs. Eliminated as active generator. (See batch sweep findings in WORLD_DESIGN.md.)
 
 ### BUG CRITICO: generate_from_plan sobreescribe question pero no answer (2026-03-10)

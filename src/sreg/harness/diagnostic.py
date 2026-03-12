@@ -109,6 +109,14 @@ def classify_failure_mode(
     if score is None:
         return "NO_SCORE"
 
+    # Types where zero observations is expected behavior (not a failure).
+    # NBO asks "what would you observe first?" — answering immediately is correct.
+    # should_condition asks a theoretical causal question — may not require observations.
+    _IMMEDIATE_ANSWER_OK = {
+        TaskType.NEXT_BEST_OBSERVATION,
+        TaskType.SHOULD_CONDITION,
+    }
+
     # Type-specific classification
     if task_type in _DISTRIBUTION_TYPES:
         if score > 2.0:
@@ -119,6 +127,8 @@ def classify_failure_mode(
         if score == 0.0:
             return "INCORRECT"
         if budget_used == 0 and score >= 0.99:
+            if task_type in _IMMEDIATE_ANSWER_OK:
+                return None  # Not a failure — expected for these types
             return "ZERO_OBS_CORRECT"
 
     if format_errors > 0 and submitted:

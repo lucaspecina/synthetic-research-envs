@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 2026-03-12 — DIAG.4: ZERO_OBS reclassification + Dirichlet distractor fix
+- **ZERO_OBS reclassification**: NBO and should_condition with 0 observations and correct
+  answer no longer flagged as failures (return `None` instead of "ZERO_OBS_CORRECT").
+  These types have valid immediate-answer behavior.
+- **Hypothesis D distractor**: Replaced reversed posterior (identical when symmetric) with
+  Dirichlet-sampled random distribution. Added KL < 0.05 distinguishability warning.
+- **Codex review**: identified deuda — explicit label instead of None, resample on low KL,
+  test distractor generation quality. Logged for future iteration.
+- 724 tests (3 new/replaced).
+
 ### 2026-03-12 — P0 cleanup: submit format, budget wording, apply_semantics, consistency check
 - **Agent submit format**: Tool description now shows correct vs wrong format explicitly.
   Auto-correction in code: flat keys are silently normalized instead of rejected.
