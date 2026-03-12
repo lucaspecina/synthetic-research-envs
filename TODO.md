@@ -78,7 +78,7 @@
   > Fixed: "research budget of N units" en agent prompts, task_gen, problem_builder
 - [x] **compare_interventions semantic inversion**: question said "increasing X" but answer key was "X:weak". Fixed: auto-generated question (with exact states) no longer overridden by orchestrator's narrative.
 - [x] **hypothesis_selection framing**: agent reasoned narratively instead of comparing distributions. Fixed: prompt now always shows distributions + explicit instruction to compare numbers.
-- [ ] **Acciones siguen siendo "Measure X"**: la narrativa mejoro pero las acciones siguen siendo 1 nodo = 1 accion. Necesitan ser acciones de investigacion reales (Slice B de Rich Actions).
+- [x] **Acciones siguen siendo "Measure X"**: MVP-1 cambia la interfaz a `research_action(action_id)` con catalogo tipado. Las acciones aun son observe-only, pero la interfaz esta lista para Slice B.
 - [ ] **Primary question vs caso narrativo**: el caso habla de causalidad pero la primary question es infer_target (prediccion). Falta que el orchestrator alinee la primary question con el objetivo real de la investigacion.
 - [ ] **Titulo duplicado**: scenario_title vs case_plan.title son distintos y compiten. Unificar.
 - [ ] **Estructura investigativa del case**: hoy el case es (titulo, historia, tareas). Deberia ser (objetivo, hipotesis rivales, incertidumbres criticas, evidencia disponible/faltante, decisiones operativas). Esto es el gran salto cualitativo pendiente.
@@ -404,10 +404,10 @@
 > propio entorno empieza a mostrar si tiene sentido para RL y entrenamiento
 > de agentes cientificos.
 >
-> **Estado actual del solver**: observe/submit con soporte multi-tipo en el
+> **Estado actual del solver**: research_action/submit con soporte multi-tipo en el
 > harness (submit + prompt + scoring para los 9 eval types). Trayectorias
-> inspeccionables (S.1). Observe todavia simple (nodo unico, costo 1).
-> Pendiente: S.2 diagnostico, S.4 rich actions.
+> inspeccionables (S.1). MVP-1: agente selecciona acciones por ID del catalogo
+> (multi-nodo, costos variados). Pendiente: S.4 intervenciones (Slice B).
 >
 > **Rol del solver v2**: diagnostico, no competitivo. Correr casos E2E,
 > elegir acciones, razonar con budget, responder preguntas, y dejarnos
@@ -457,9 +457,14 @@
   - [x] Prompt no mezcla correct_answer.keys() con "possible states" para tipos no distribucionales
   - [x] _submit_distribution() valida contra estados de la task (no solo problem.target_states)
   - Limitacion conocida: observe sigue siendo nodo unico / costo 1 (Rich Actions S.4 pendiente)
-- [ ] **S.4**: Agent con acciones ricas
-  - [ ] Soportar action_id (acciones multi-nodo, costos variados)
-  - [ ] Soportar intervenciones como acciones del agente
+- [~] **S.4**: Agent con acciones ricas
+  - [x] MVP-1: `observe(variable)` → `research_action(action_id)` — agente selecciona del catalogo por ID
+  - [x] AvailableAction.id + ProblemBuilder genera IDs explicitos + EpisodeGenTool usa IDs
+  - [x] Guard en EpisodeRunner: rechaza action_type != observe (preparacion Slice B)
+  - [x] Budget tracking corregido (budget_total - remaining, no += 1)
+  - [x] Prompt generico ("actions return findings" no "measurements reveal values")
+  - [x] Removido coaching de hypothesis_selection (SREG presenta, no guia)
+  - [ ] Soportar intervenciones como acciones del agente (Slice B)
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec

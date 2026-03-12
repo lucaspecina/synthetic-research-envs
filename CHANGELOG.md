@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### 2026-03-12 — S.4 MVP-1: observe(variable) -> research_action(action_id)
+- **Agent interface redesign**: Agent now selects from an action catalog by ID instead of
+  requesting individual variables. Tool renamed `observe` -> `research_action(action_id)`.
+  Aligns with PROJECT.md vision of typed research actions.
+- **AvailableAction.id**: New field with auto-generation from nodes. ProblemBuilder generates
+  explicit IDs (`measure_X`, `survey_X_Y`). EpisodeGenTool uses AvailableAction.id for ActionDefs.
+- **Action catalog in prompt**: Actions displayed with ID, type label (Measurement/Experiment/
+  Data request/Consultation), cost, and description.
+- **Budget tracking fix**: Corrected from `+= 1` to `budget_total - remaining` (accounts for
+  variable costs in rich actions).
+- **EpisodeRunner guard**: Rejects non-observe action types until Slice B implementation.
+- **Prompt cleanup**: Removed hypothesis_selection coaching ("Compare the NUMBERS...").
+  SREG presents information, does not coach the agent on how to reason.
+- **Generic prompt language**: "actions return findings" instead of "measurements reveal values".
+- **Legacy backward compat**: `observe(variable)` still works via `_handle_observe`.
+- **Codex review**: No P0 bugs. Deuda: ID uniqueness validation, legacy observe divergence.
+- 732 tests (7 new + 1 guard).
+
 ### 2026-03-12 — Qualitative analysis fixes: compare_interventions + hypothesis_selection
 - **compare_interventions semantic inversion fix**: Auto-generated question (which contains
   the exact intervention states from correct_answer) is no longer overridden by the

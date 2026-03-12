@@ -93,6 +93,7 @@ class ProblemBuilder:
             label = node.name.replace("_", " ")
             actions.append(
                 AvailableAction(
+                    id=f"measure_{node.name}",
                     node=node.name,
                     description=f"Measure {label}",
                     cost=1,
@@ -153,6 +154,7 @@ class ProblemBuilder:
             cost = 2 if node.name in target_parents else 1
             actions.append(
                 AvailableAction(
+                    id=f"measure_{node.name}",
                     action_type=ResearchActionType.OBSERVE,
                     node=node.name,
                     description=f"Measure {label}",
@@ -166,6 +168,7 @@ class ProblemBuilder:
             labels = [n.replace("_", " ") for n in compound_list]
             actions.append(
                 AvailableAction(
+                    id=f"survey_{'_'.join(compound_list[:2])}",
                     action_type=ResearchActionType.OBSERVE,
                     nodes=compound_list,
                     description=f"Field survey: measure {', '.join(labels)}",

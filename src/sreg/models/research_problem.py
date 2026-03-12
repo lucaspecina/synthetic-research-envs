@@ -23,6 +23,10 @@ class AvailableAction(BaseModel):
     Use ``nodes`` for multi-node; ``node`` is kept as backward-compatible alias.
     """
 
+    id: str = Field(
+        default="",
+        description="Unique action identifier visible to the agent",
+    )
     action_type: ResearchActionType = Field(
         default=ResearchActionType.OBSERVE,
         description="Type of research action",
@@ -44,13 +48,16 @@ class AvailableAction(BaseModel):
 
     @model_validator(mode="after")
     def sync_node_and_nodes(self) -> AvailableAction:
-        """Keep node and nodes in sync for backward compatibility."""
+        """Keep node/nodes in sync and auto-generate id if not provided."""
         if self.node and not self.nodes:
             self.nodes = [self.node]
         elif self.nodes and not self.node:
             self.node = self.nodes[0]
         elif not self.node and not self.nodes:
             raise ValueError("Either 'node' or 'nodes' must be provided")
+        # Auto-generate id from nodes if not provided
+        if not self.id:
+            self.id = f"act_{self.nodes[0]}"
         return self
 
 

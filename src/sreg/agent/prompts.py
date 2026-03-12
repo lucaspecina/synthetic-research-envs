@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sreg.models.research_problem import ResearchProblem
+from sreg.models.research_problem import ResearchActionType, ResearchProblem
 from sreg.models.task import Task, TaskType
 
 # ---------------------------------------------------------------------------
@@ -27,25 +27,35 @@ CHOICE_TYPES = {
 # Submit tool generation (dynamic per task type)
 # ---------------------------------------------------------------------------
 
-_OBSERVE_TOOL = {
+_RESEARCH_ACTION_TOOL = {
     "type": "function",
     "function": {
-        "name": "observe",
+        "name": "research_action",
         "description": (
-            "Request a measurement of a variable. Returns the observed "
-            "state. Each measurement costs budget points (see action list)."
+            "Execute a research action from the available list. "
+            "Each action has a cost in budget units and returns findings."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "variable": {
+                "action_id": {
                     "type": "string",
-                    "description": "Name of the variable to observe",
+                    "description": "ID of the action to execute (from the available actions list)",
                 },
             },
-            "required": ["variable"],
+            "required": ["action_id"],
         },
     },
+}
+
+# Kept for backward compatibility with legacy tests
+_OBSERVE_TOOL = _RESEARCH_ACTION_TOOL
+
+_ACTION_KIND_LABELS = {
+    ResearchActionType.OBSERVE: "Measurement",
+    ResearchActionType.INTERVENE: "Experiment",
+    ResearchActionType.REQUEST_DATASET: "Data request",
+    ResearchActionType.CONSULT: "Consultation",
 }
 
 _CONFIDENCE_PROP = {
@@ -234,8 +244,8 @@ def build_submit_tool(
 def build_agent_tools(
     task: Task | None = None, target_states: list[str] | None = None
 ) -> list[dict]:
-    """Build the full tool list for the agent (observe + submit)."""
-    return [_OBSERVE_TOOL, build_submit_tool(task, target_states)]
+    """Build the full tool list for the agent (research_action + submit)."""
+    return [_RESEARCH_ACTION_TOOL, build_submit_tool(task, target_states)]
 
 
 # Legacy constant for backward compat
@@ -265,10 +275,7 @@ def _submit_instruction(task: Task | None, problem: ResearchProblem) -> str:
         labels = sorted(task.hypotheses.keys())
         return (
             f"4. When ready, use the `submit` tool with your `choice` "
-            f"({', '.join(labels)}). Pick the hypothesis whose PROBABILITY "
-            f"DISTRIBUTION best matches the evidence you gathered. Compare "
-            f"the numbers in each hypothesis against what the data suggests — "
-            f"do not just pick the most plausible-sounding narrative."
+            f"({', '.join(labels)})."
         )
     elif task.type == TaskType.COMPARE_INTERVENTIONS:
         return (
@@ -338,10 +345,13 @@ def build_agent_system_prompt(
             for obs in asset.data[:10]:
                 data_section += f"- {obs.get('observation', obs)}\n"
 
-    # Format available actions
+    # Format available actions with IDs
     actions_section = ""
     for action in problem.available_actions:
-        actions_section += f"- **{action.node}**: {action.description} (cost: {action.cost})\n"
+        kind = _ACTION_KIND_LABELS.get(action.action_type, "Action")
+        actions_section += (
+            f"- **{action.id}** ({kind}, cost: {action.cost}): {action.description}\n"
+        )
 
     # Format target states
     states_str = ", ".join(problem.target_states)
@@ -364,9 +374,7 @@ def build_agent_system_prompt(
             hyp_lines.append(f"  {label}: {dist_str}")
         hypotheses_section = (
             "\n\n## Candidate Hypotheses\n"
-            "Each hypothesis is a probability distribution over the target variable. "
-            "Your job is to determine which distribution best matches the evidence "
-            "you gather. Compare the NUMBERS, not just the narrative.\n\n"
+            "Each hypothesis is a probability distribution over the target variable.\n\n"
             + "\n".join(hyp_lines)
         )
 
@@ -404,11 +412,11 @@ You are investigating a SPECIFIC NEW CASE. You do not know the actual values \
 of any variable for this case yet. The historical data above shows general \
 patterns, but the current case may differ.
 
-You have a research budget of **{problem.budget}** units. Each measurement \
-reveals the TRUE VALUE of a variable for the current case, but costs budget \
+You have a research budget of **{problem.budget}** units. Each action \
+returns findings about the current case, but costs budget \
 units (see the action list below — costs may vary).
 
-### Available measurements
+### Available Research Actions
 {actions_section}
 ## Research Question
 
@@ -421,14 +429,13 @@ Your target variable is **{target_node}** with possible states: \
 ## Instructions
 
 1. Study the historical data to understand correlations between variables.
-2. Use the `observe` tool to measure variables FOR THE CURRENT CASE. Each \
-measurement costs budget units (check the action list above for costs).
-3. After each observation, update your beliefs about the target.
+2. Use the `research_action` tool to execute actions from the list above. \
+Each action costs budget units and returns findings about the current case.
+3. After each action, update your beliefs about the target.
 {submit_instruction}
 
-**Strategy tip**: The historical data shows correlations. Observing variables \
-that are strongly correlated with the target will help you predict it better. \
-Use your budget wisely — some measurements cost more than others.
+**Strategy tip**: Use your budget wisely — some actions cost more than others. \
+Choose actions that will help you answer the research question.
 
 You MUST eventually call `submit` with your answer. Do not stop without submitting."""
 

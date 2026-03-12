@@ -68,7 +68,7 @@ def _make_task(task_type, correct_answer, **kwargs):
 
 def test_agent_tool_definitions_complete():
     names = {t["function"]["name"] for t in AGENT_TOOL_DEFINITIONS}
-    assert "observe" in names
+    assert "research_action" in names
     assert "submit" in names
 
 
@@ -181,10 +181,10 @@ def test_submit_tool_causal_effect_is_distribution():
     assert "distribution" in props
 
 
-def test_build_agent_tools_returns_observe_and_submit():
+def test_build_agent_tools_returns_research_action_and_submit():
     tools = build_agent_tools()
     names = {t["function"]["name"] for t in tools}
-    assert names == {"observe", "submit"}
+    assert names == {"research_action", "submit"}
 
 
 # --- System prompt with task ---
@@ -530,6 +530,161 @@ def test_score_not_identifiable():
     runner = _make_runner(world)
     score = agent._score_result(result, task, problem, runner)
     assert score.functional_score == 1.0
+
+
+# --- research_action dispatch ---
+
+
+def test_dispatch_research_action():
+    """research_action dispatches via action_id and returns findings."""
+    world = _make_world()
+    problem = _make_problem(world)
+    agent = AgentSolver(client=MagicMock())
+    result = AgentResult()
+    result.budget_total = problem.budget
+
+    # Build episode WITH available_actions so action_defs exist
+    from sreg.env.episode import EpisodeRunner
+    from sreg.solver.exact_bayes import ExactBayesSolver
+    from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
+
+    solver = ExactBayesSolver(world)
+    true_state = solver.sample_state(seed=0)
+    episode = EpisodeGenTool().generate(
+        world,
+        EpisodeGenConfig(budget=problem.budget, seed=0),
+        available_actions=problem.available_actions,
+    )
+    runner = EpisodeRunner(world, episode, true_state)
+
+    action_id = problem.available_actions[0].id
+    output = agent._dispatch_tool(
+        "research_action", {"action_id": action_id}, runner, problem, result
+    )
+
+    assert "findings" in output
+    assert "remaining_budget" in output
+    assert output["remaining_budget"] < problem.budget
+    assert len(result.observations) >= 1
+    assert result.budget_used > 0
+
+
+def test_dispatch_research_action_invalid_id():
+    """research_action with unknown action_id returns error."""
+    world = _make_world()
+    problem = _make_problem(world)
+    agent = AgentSolver(client=MagicMock())
+    result = AgentResult()
+
+    from sreg.env.episode import EpisodeRunner
+    from sreg.solver.exact_bayes import ExactBayesSolver
+    from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
+
+    solver = ExactBayesSolver(world)
+    true_state = solver.sample_state(seed=0)
+    episode = EpisodeGenTool().generate(
+        world,
+        EpisodeGenConfig(budget=problem.budget, seed=0),
+        available_actions=problem.available_actions,
+    )
+    runner = EpisodeRunner(world, episode, true_state)
+
+    output = agent._dispatch_tool(
+        "research_action", {"action_id": "nonexistent"}, runner, problem, result
+    )
+    assert "error" in output
+
+
+def test_dispatch_research_action_already_used():
+    """research_action with already-used action_id returns error."""
+    world = _make_world()
+    problem = _make_problem(world)
+    agent = AgentSolver(client=MagicMock())
+    result = AgentResult()
+    result.budget_total = problem.budget
+
+    from sreg.env.episode import EpisodeRunner
+    from sreg.solver.exact_bayes import ExactBayesSolver
+    from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
+
+    solver = ExactBayesSolver(world)
+    true_state = solver.sample_state(seed=0)
+    episode = EpisodeGenTool().generate(
+        world,
+        EpisodeGenConfig(budget=problem.budget, seed=0),
+        available_actions=problem.available_actions,
+    )
+    runner = EpisodeRunner(world, episode, true_state)
+
+    action_id = problem.available_actions[0].id
+    # First call succeeds
+    agent._dispatch_tool(
+        "research_action", {"action_id": action_id}, runner, problem, result
+    )
+    # Second call returns error
+    output = agent._dispatch_tool(
+        "research_action", {"action_id": action_id}, runner, problem, result
+    )
+    assert "error" in output
+    assert "already" in output["error"].lower()
+
+
+def test_available_action_has_stable_id():
+    """AvailableAction auto-generates id from nodes when not provided."""
+    from sreg.models.research_problem import AvailableAction
+
+    aa = AvailableAction(node="water_temp", description="Measure water temp", cost=1)
+    assert aa.id == "act_water_temp"
+
+    aa2 = AvailableAction(
+        id="custom_id", node="water_temp", description="Measure", cost=1
+    )
+    assert aa2.id == "custom_id"
+
+
+def test_problem_builder_generates_action_ids():
+    """ProblemBuilder generates meaningful action IDs."""
+    world = _make_world()
+    problem = _make_problem(world)
+    for action in problem.available_actions:
+        assert action.id
+        assert action.id.startswith("measure_")
+
+
+def test_agent_research_action_then_submit():
+    """Full mocked loop: agent uses research_action, then submits."""
+    world = _make_world()
+    problem = _make_problem(world)
+    client = MagicMock()
+
+    action_id = problem.available_actions[0].id
+    target_states = problem.target_states
+    dist = {s: 1.0 / len(target_states) for s in target_states}
+
+    resp1 = _make_mock_response(
+        tool_calls=[
+            _make_tool_call("call_1", "research_action", {"action_id": action_id})
+        ],
+        finish_reason="tool_calls",
+    )
+    resp2 = _make_mock_response(
+        tool_calls=[
+            _make_tool_call(
+                "call_2", "submit", {"distribution": dist, "confidence": 0.6}
+            )
+        ],
+        finish_reason="tool_calls",
+    )
+
+    client.chat.completions.create.side_effect = [resp1, resp2]
+
+    agent = AgentSolver(client=client, max_iterations=10)
+    result = agent.solve(world, problem, seed=0)
+
+    assert result.submitted_answer is not None
+    assert result.budget_used >= 1
+    assert result.score is not None
+    assert len(result.observations) >= 1
 
 
 # --- Full agent loop (mocked LLM) ---

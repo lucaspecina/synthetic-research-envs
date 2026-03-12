@@ -355,3 +355,27 @@ def test_compound_observe_node_already_observed(world, true_state):
 
     with pytest.raises(ValueError, match="already been observed"):
         runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
+
+
+def test_compound_observe_rejects_non_observe_action_type(world, true_state):
+    """Runner rejects action_defs with non-observe action_type (guard for Slice B)."""
+    episode = Episode(
+        id="guard-test",
+        world_id=world.id,
+        budget=5,
+        initial_evidence=[],
+        available_nodes=[n.name for n in world.nodes if n.type == NodeType.OBSERVABLE],
+        node_costs={},
+        action_defs=[
+            ActionDef(
+                id="experiment_1",
+                action_type="intervene",
+                nodes=[world.nodes[1].name],
+                cost=2,
+            ),
+        ],
+        steps=[],
+    )
+    runner = EpisodeRunner(world, episode, true_state)
+    with pytest.raises(ValueError, match="not yet supported"):
+        runner.step(Action(type=ActionType.OBSERVE, action_id="experiment_1"))

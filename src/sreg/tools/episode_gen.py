@@ -75,7 +75,7 @@ class EpisodeGenTool:
                 if not action_nodes:
                     continue
 
-                action_id = (
+                action_id = aa.id if aa.id else (
                     f"act_{action_nodes[0]}"
                     if len(action_nodes) == 1
                     else f"act_{'_'.join(action_nodes[:2])}"

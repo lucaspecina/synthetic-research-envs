@@ -104,6 +104,13 @@ class EpisodeRunner:
         """Handle multi-node observe via action_id (rich mode)."""
         action_def = self._action_map[action.action_id]
 
+        # Guard: only observe actions are supported until Slice B
+        if action_def.action_type not in ("observe", ""):
+            raise ValueError(
+                f"Action type '{action_def.action_type}' is not yet supported. "
+                f"Only observation actions can be executed currently."
+            )
+
         if action.action_id in self._used_action_ids:
             raise ValueError(f"Action '{action.action_id}' has already been used")
 

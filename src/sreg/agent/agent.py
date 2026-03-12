@@ -110,7 +110,9 @@ class AgentSolver:
 
         ep_tool = EpisodeGenTool()
         episode = ep_tool.generate(
-            world, EpisodeGenConfig(budget=problem.budget, seed=seed)
+            world,
+            EpisodeGenConfig(budget=problem.budget, seed=seed),
+            available_actions=problem.available_actions,
         )
         runner = EpisodeRunner(world, episode, true_state)
 
@@ -181,7 +183,7 @@ class AgentSolver:
                 if on_step:
                     if "error" in tool_result:
                         on_step("error", {"tool": fn_name, "error": tool_result["error"]})
-                    elif fn_name == "observe":
+                    elif fn_name in ("research_action", "observe"):
                         on_step("observe", tool_result)
                     elif fn_name == "submit":
                         on_step("submit", tool_result)
@@ -222,7 +224,10 @@ class AgentSolver:
     ) -> dict:
         """Execute an agent tool call."""
         try:
-            if name == "observe":
+            if name == "research_action":
+                return self._handle_research_action(args, runner, problem, result)
+            elif name == "observe":
+                # Legacy backward compat
                 return self._handle_observe(args, runner, problem, result)
             elif name == "submit":
                 return self._handle_submit(args, runner, problem, result, task)
@@ -232,6 +237,70 @@ class AgentSolver:
             logger.error(f"Agent tool {name} failed: {e}")
             return {"error": str(e)}
 
+    def _handle_research_action(
+        self,
+        args: dict,
+        runner: EpisodeRunner,
+        problem: ResearchProblem,
+        result: AgentResult,
+    ) -> dict:
+        """Handle a research_action tool call (action_id-based dispatch)."""
+        action_id = args.get("action_id", "")
+
+        # Validate action_id exists in episode action_defs
+        action_map = {ad.id: ad for ad in runner.episode.action_defs}
+        if action_id not in action_map:
+            available = [ad.id for ad in runner.episode.action_defs]
+            return {
+                "error": (
+                    f"Unknown action '{action_id}'. "
+                    f"Available actions: {available}"
+                ),
+            }
+
+        action_def = action_map[action_id]
+
+        # Check budget
+        if action_def.cost > runner.budget_remaining:
+            return {
+                "error": (
+                    f"Insufficient budget: '{action_id}' costs {action_def.cost}, "
+                    f"you have {runner.budget_remaining} remaining. "
+                    f"You must submit your answer now."
+                ),
+            }
+
+        # Check not already used
+        if action_id in runner._used_action_ids:
+            return {"error": f"Action '{action_id}' has already been executed."}
+
+        # Find the matching AvailableAction for its description
+        aa_desc = action_id
+        for aa in problem.available_actions:
+            if aa.id == action_id:
+                aa_desc = aa.description
+                break
+
+        action = Action(type=ActionType.OBSERVE, action_id=action_id)
+        step_result = runner.step(action)
+
+        # Collect all observations
+        all_obs = [step_result.observation]
+        if step_result.extra_observations:
+            all_obs.extend(step_result.extra_observations)
+        result.observations.extend(all_obs)
+        result.budget_used = result.budget_total - step_result.remaining_budget
+
+        # Build result with description
+        findings = ", ".join(f"{o.node} = {o.state}" for o in all_obs)
+
+        return {
+            "action": aa_desc,
+            "findings": findings,
+            "remaining_budget": step_result.remaining_budget,
+            "message": f"Result of '{aa_desc}': {findings}",
+        }
+
     def _handle_observe(
         self,
         args: dict,
@@ -239,7 +308,7 @@ class AgentSolver:
         problem: ResearchProblem,
         result: AgentResult,
     ) -> dict:
-        """Handle an observe tool call."""
+        """Handle an observe tool call (legacy backward compat)."""
         variable = args.get("variable", "")
 
         # Check if variable is available
@@ -263,7 +332,7 @@ class AgentSolver:
 
         obs = step_result.observation
         result.observations.append(obs)
-        result.budget_used += 1
+        result.budget_used = result.budget_total - step_result.remaining_budget
 
         return {
             "variable": obs.node,
