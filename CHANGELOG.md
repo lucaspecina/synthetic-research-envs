@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### 2026-03-12 — Fix P0: generate_from_plan question/answer mismatch + Codex collab workflow
+- **P0 bug fix**: `generate_from_plan` now supports node hints (`intervention_node`,
+  `desired_state`, `compare_nodes`, `condition_variable`) on `EvalQuestionPlan` and
+  `TaskSpec`. Generators respect hints when valid, fall back to random when not.
+  `_hints_honored()` verifies per-type that hints were actually used before allowing
+  question text override. Prevents question/answer mismatch for 5 eval types.
+- **Codex collaboration workflow**: Codex (OpenAI) as critical second opinion via MCP.
+  Mandatory for code review, recommended for strategy/architecture. Claude leads,
+  Codex advises. Flexible guidelines, not rigid checklist.
+- 705 tests (9 new for node hints).
+
 ### 2026-03-11 — Rename benchmark to diagnostic + transfer benchmark concept + external benchmarks doc
 - **Terminology change**: "benchmark" -> "diagnostic" for the internal environment quality
   control pipeline. Reserved "benchmark" for the real test: transfer experiment on external

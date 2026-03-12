@@ -59,7 +59,9 @@
 > - El task generator extrae los nodos del question_text (fragil)
 > - Se genera la pregunta Y la respuesta a partir del plan, no por separado
 
-- [ ] **P0**: Fix generate_from_plan mismatch (pregunta vs respuesta desalineadas)
+- [x] **P0**: Fix generate_from_plan mismatch (pregunta vs respuesta desalineadas)
+  > Fixed: node hints on EvalQuestionPlan + TaskSpec, _hints_honored() per-type verification.
+  > Deuda: best_intervention hint check uses string match (fragile). Ideal: store desired_state on Task.
 
 ### Problemas de diseno del case (hallazgos E2E 2026-03-10)
 > Analisis detallado de caso_arenamiento con segunda opinion de AI externa.
