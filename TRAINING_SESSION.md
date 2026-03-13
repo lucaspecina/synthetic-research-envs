@@ -80,11 +80,12 @@ These were researched and agreed with the user + Codex:
 - Codex consulted on architecture — produced concrete integration spec
 - 10 failure modes identified for testing
 
-### Implementation — Phase 1 COMPLETE
-- T1.1-T1.9 ALL COMPLETE: types, validators, adapters, rubric, prompts, tools, env, integration test (116 tests)
-- `SregEnv(vf.StatefulToolEnv)` fully functional
-- Full rollout simulation passing: dataset → setup → observe → submit → scoring
-- Codex review applied: 3 bugs fixed (budget exhaustion, max_turns labeling, trace consistency)
+### Implementation — Phase 1 COMPLETE (148 tests)
+- T1.1-T1.10 ALL COMPLETE: types, validators, adapters, rubric, prompts, tools, env, integration test, python_exec
+- `SregEnv(vf.StatefulToolEnv)` fully functional with 3 tools: research_action, submit, python_exec
+- Full rollout simulation passing: dataset → setup → observe → python_exec → submit → scoring
+- python_exec: persistent interpreter (exec + namespace), AST import whitelist, restricted builtins, timeout, truncation
+- Codex reviews: Phase 1 bugs fixed + python_exec sandbox limitations documented (soft sandbox, not Docker)
 - **Next: Phase 2 (dataset generation) or Phase 3 (dry run with real model)**
 - See `TODO_TRAINING.md` for full task breakdown
 

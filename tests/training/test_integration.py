@@ -148,7 +148,7 @@ class TestFullRolloutSimulation:
         wrong_dist = {s: 0.0 for s in states}
         min_state = min(correct, key=correct.get)
         wrong_dist[min_state] = 1.0
-        result = asyncio.get_event_loop().run_until_complete(
+        asyncio.get_event_loop().run_until_complete(
             submit(distribution=json.dumps(wrong_dist), state=state)
         )
         assert state["submitted"] is True
@@ -264,7 +264,7 @@ class TestFullRolloutSimulation:
         state["eval_type"] = "should_condition"
         state["correct_answer"] = "yes"
 
-        result = asyncio.get_event_loop().run_until_complete(
+        asyncio.get_event_loop().run_until_complete(
             submit(choice="yes", state=state)
         )
         assert state["submitted"] is True

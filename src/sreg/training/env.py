@@ -24,7 +24,12 @@ from sreg.env.episode import EpisodeRunner  # noqa: E402
 from sreg.models.episode import Episode, Observation  # noqa: E402
 from sreg.models.world import World  # noqa: E402
 from sreg.training.rubric import score_submission  # noqa: E402
-from sreg.training.tools import research_action, submit  # noqa: E402
+from sreg.training.tools import (  # noqa: E402
+    _make_safe_builtins,
+    python_exec,
+    research_action,
+    submit,
+)
 from sreg.training.types import SubmitPayload  # noqa: E402
 
 
@@ -64,6 +69,10 @@ def _invalid_actions_metric(state: dict, **kwargs: Any) -> float:
     return float(state.get("invalid_action_count", 0))
 
 
+def _python_exec_metric(state: dict, **kwargs: Any) -> float:
+    return float(state.get("python_exec_count", 0))
+
+
 def _build_rubric() -> vf.Rubric:
     rubric = vf.Rubric(
         funcs=[_terminal_reward],
@@ -72,7 +81,74 @@ def _build_rubric() -> vf.Rubric:
     rubric.add_metric(_submitted_metric)
     rubric.add_metric(_turns_metric)
     rubric.add_metric(_invalid_actions_metric)
+    rubric.add_metric(_python_exec_metric)
     return rubric
+
+
+def _build_python_namespace(
+    initial_evidence: list | None = None,
+    data_assets: list[dict] | None = None,
+) -> dict:
+    """Build the Python exec namespace for an episode.
+
+    Pre-loads safe libraries and any available data. The agent CANNOT
+    access the world model, true_state, or correct_answer from here.
+    """
+    import collections  # noqa: E402
+    import functools  # noqa: E402
+    import itertools  # noqa: E402
+    import math  # noqa: E402
+    import re  # noqa: E402
+    import statistics  # noqa: E402
+
+    import numpy as np  # noqa: E402
+    import pandas as pd  # noqa: E402
+
+    namespace: dict = {
+        "__name__": "__main__",
+        "__builtins__": _make_safe_builtins(),
+        # Libraries
+        "np": np,
+        "numpy": np,
+        "pd": pd,
+        "pandas": pd,
+        "math": math,
+        "statistics": statistics,
+        "json": json,
+        "collections": collections,
+        "itertools": itertools,
+        "functools": functools,
+        "re": re,
+    }
+
+    # Try to import scipy (optional — may not be installed)
+    try:
+        import scipy  # noqa: E402
+
+        namespace["scipy"] = scipy
+    except ImportError:
+        pass
+
+    # Initial observations
+    observations: dict[str, str] = {}
+    if initial_evidence:
+        for obs in initial_evidence:
+            node = obs.node if hasattr(obs, "node") else obs.get("node", "")
+            state_val = obs.state if hasattr(obs, "state") else obs.get("state", "")
+            if node:
+                observations[node] = state_val
+    namespace["observations"] = observations
+
+    # Data assets as DataFrames
+    if data_assets:
+        for i, asset in enumerate(data_assets):
+            data = asset.get("data", []) if isinstance(asset, dict) else []
+            if data:
+                df = pd.DataFrame(data)
+                var_name = "df" if i == 0 else f"df_{i}"
+                namespace[var_name] = df
+
+    return namespace
 
 
 class SregEnv(vf.StatefulToolEnv):
@@ -109,6 +185,7 @@ class SregEnv(vf.StatefulToolEnv):
         )
         self.add_tool(research_action, args_to_skip=["runner", "state"])
         self.add_tool(submit, args_to_skip=["runner", "state"])
+        self.add_tool(python_exec, args_to_skip=["state"])
 
     async def setup_state(self, state: vf.State) -> vf.State:
         state = await super().setup_state(state)
@@ -134,6 +211,13 @@ class SregEnv(vf.StatefulToolEnv):
         state["invalid_action_count"] = 0
         state["budget_used"] = 0
         state["tool_trace"] = []
+        state["python_exec_count"] = 0
+
+        # Python exec namespace (persistent per episode, like a notebook)
+        state["python_namespace"] = _build_python_namespace(
+            initial_evidence=runner.episode.initial_evidence,
+            data_assets=info.get("data_assets"),
+        )
         return state
 
     def update_tool_args(
@@ -144,11 +228,11 @@ class SregEnv(vf.StatefulToolEnv):
         state: vf.State,
         **kwargs: Any,
     ) -> dict:
-        return {
-            **tool_args,
-            "runner": state.get("runner"),
-            "state": state,
-        }
+        updated = {**tool_args, "state": state}
+        # Only inject runner for tools that need it
+        if tool_name in ("research_action", "submit"):
+            updated["runner"] = state.get("runner")
+        return updated
 
     async def is_completed(self, state: vf.State, **kwargs: Any) -> bool:
         # Note: budget exhaustion is NOT a stop condition. The agent can always

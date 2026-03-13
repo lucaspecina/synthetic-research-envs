@@ -13,8 +13,9 @@
 - [x] **T1.5**: `rubric.py` — reward dispatch table (9 eval types) + metrics
 - [x] **T1.6**: `env.py` — `SregEnv` class with setup_state, update_tool_args, stop conditions
 - [x] **T1.7**: `prompts.py` — render ResearchProblem as agent prompt
-- [x] **T1.8**: Unit tests for all of the above (116 tests, no GPU)
+- [x] **T1.8**: Unit tests for all of the above (148 tests, no GPU)
 - [x] **T1.9**: Integration test — full rollout simulation (dataset → setup → observe → submit → score)
+- [x] **T1.10**: `python_exec` tool — persistent Python interpreter (exec + namespace, sandbox, 32 tests)
 
 ## Phase 2: Dataset generation (TRAIN.1)
 
@@ -52,7 +53,7 @@
 | Risk | Status | Mitigation |
 |------|--------|------------|
 | verifiers API unstable (v0.1.x) | Active | Pin version, integration tests |
-| python_exec not implemented (TOOL.2) | Blocked | Phase 1 uses research_action + submit only |
+| python_exec sandbox is soft (not Docker) | Accepted | Soft sandbox sufficient for non-adversarial training. Docker = future hardening |
 | EpisodeRunner API mismatch with tool functions | Resolved | Adapter layer handles translation |
 | Parallel tool calls in verifiers | To handle | Reject or serialize in env |
 | Model doesn't learn SREG tool format | Phase 4 | SFT warm-start with teacher trajectories |
@@ -63,5 +64,5 @@
 |-------------|-----------|--------|
 | Stable EpisodeRunner API | Session A (main) | Available (Slice B complete) |
 | Phase -1 contracts | Session A (main) | Done (commit 43da50c) |
-| python_exec sandbox (TOOL.2) | Session A (main) | Not started — we skip for Phase 1 |
+| python_exec sandbox (TOOL.2) | Session C | Done — soft sandbox (exec + namespace) |
 | SRC generation via orchestrator | Session A (main) | Available |

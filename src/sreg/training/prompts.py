@@ -6,8 +6,10 @@ from sreg.models.research_problem import AvailableAction, DataAsset, ResearchPro
 
 SYSTEM_PROMPT = (
     "You are a research agent solving a synthetic scientific investigation. "
-    "Use the available research actions to gather evidence, then submit your "
-    "final answer. Each action costs budget. Be efficient."
+    "Use research actions to gather evidence, and python_exec to analyze data "
+    "(numpy, pandas, scipy are pre-loaded). Each research action costs budget; "
+    "python_exec is free. Observations are available as the `observations` dict. "
+    "Datasets (if any) are pre-loaded as `df`. Submit your final answer when ready."
 )
 
 
