@@ -1,0 +1,948 @@
+#!/usr/bin/env python3
+"""Generate a Synthetic Research Case (SRC) — the official SREG entry point.
+
+Creates a complete SRC via the LLM orchestrator and exports all artifacts.
+
+Usage:
+    python scripts/generate_src.py --goal "marine ecology, 8 nodes" --output experiments/reef/
+    python scripts/generate_src.py --seed-file research_seed.md --output experiments/case1/
+    python scripts/generate_src.py --goal "football analytics" --output experiments/football/ --inspect
+
+Outputs (always):
+    <output>/src.json        Full SRC (world, problem, tasks, metadata)
+
+Outputs (with --inspect):
+    <output>/briefing.md     What the agent sees (narrative + questions)
+    <output>/dataset.csv     Full dataset
+    <output>/answer_key.md   Ground truth BN + quick guide + correct answers
+    <output>/dag.png         Causal DAG visualization
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import itertools
+import json
+import logging
+import os
+import sys
+import textwrap
+from datetime import datetime
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+# ---------------------------------------------------------------------------
+# Terminal display helpers
+# ---------------------------------------------------------------------------
+
+def _c(code: str, text: str) -> str:
+    if not sys.stdout.isatty():
+        return str(text)
+    return f"{code}{text}\033[0m"
+
+
+def _safe(text: str) -> str:
+    enc = getattr(sys.stdout, "encoding", "utf-8") or "utf-8"
+    return text.encode(enc, errors="replace").decode(enc)
+
+
+B = "\033[1m"
+DIM = "\033[2m"
+RED = "\033[91m"
+GRN = "\033[92m"
+YLW = "\033[93m"
+BLU = "\033[94m"
+MAG = "\033[95m"
+CYN = "\033[96m"
+
+
+def _print(text: str = "") -> None:
+    _safe_text = _safe(text) if text else ""
+    print(_safe_text)
+
+
+# ---------------------------------------------------------------------------
+# 1. Generate: run orchestrator
+# ---------------------------------------------------------------------------
+
+def generate(goal: str, model: str | None = None, verbose: bool = False):
+    """Run the orchestrator and return the result."""
+    from sreg.orchestrator.orchestrator import Orchestrator
+
+    _print(_c(B + BLU, "=== Generating SRC ==="))
+    _print(f"  {_c(DIM, 'Model:')} {model or os.environ.get('AZURE_MODEL', 'gpt-4o')}")
+    goal_preview = goal[:120] + "..." if len(goal) > 120 else goal
+    _print(f"  {_c(DIM, 'Goal:')} {goal_preview}")
+    _print()
+
+    o = Orchestrator(model=model) if model else Orchestrator()
+
+    # Intercept tool calls for display
+    original_dispatch = o._dispatch_tool
+    steps = []
+
+    def patched_dispatch(name, fn_args, result):
+        tool_result = original_dispatch(name, fn_args, result)
+        steps.append((name, fn_args, tool_result))
+
+        if "error" in tool_result:
+            _print(f"  {_c(RED, 'x')} {name} -> {_c(RED, 'ERROR')}")
+            if verbose:
+                _print(f"    {str(tool_result['error'])[:120]}")
+        else:
+            _print(f"  {_c(GRN, 'v')} {name} -> OK")
+            if name == "apply_semantics":
+                title = tool_result.get("scenario_title", "")
+                _print(f"    {_c(MAG, _safe(title))}")
+
+        return tool_result
+
+    o._dispatch_tool = patched_dispatch
+    result = o.run(goal)
+
+    _print()
+    if result.world and result.problem:
+        n_nodes = len(result.world.nodes)
+        n_tasks = len(result.task) if isinstance(result.task, list) else 0
+        title = result.world.scenario_title or "?"
+        _print(f"  {_c(GRN, 'OK')} {_c(B, _safe(title))}")
+        _print(f"  {n_nodes} nodes, {n_tasks} tasks, {len(steps)} tool calls")
+    else:
+        _print(f"  {_c(RED, 'FAIL')} Orchestrator did not complete")
+
+    return result, steps
+
+
+# ---------------------------------------------------------------------------
+# 2. Export: save all artifacts
+# ---------------------------------------------------------------------------
+
+def export_json(result, steps, goal: str, model: str, output_dir: str) -> str:
+    """Export the full SRC as JSON. Returns the path."""
+    from sreg.models.world import World
+
+    export: dict = {
+        "metadata": {
+            "timestamp": datetime.now().isoformat(),
+            "goal": goal,
+            "model": model,
+        },
+        "process": {
+            "tools_called": [
+                {"tool": name, "args": args, "result": tr}
+                for name, args, tr in steps
+            ],
+        },
+    }
+
+    if result.world:
+        export["world"] = result.world.model_dump(mode="json")
+
+    if result.task and isinstance(result.task, list):
+        export["tasks"] = [t.model_dump(mode="json") for t in result.task]
+
+    if result.problem:
+        export["problem"] = result.problem.model_dump(mode="json")
+
+    path = os.path.join(output_dir, "src.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(export, f, indent=2, ensure_ascii=False, default=str)
+
+    return path
+
+
+def export_csv(result, output_dir: str) -> str | None:
+    """Export the tabular dataset as CSV."""
+    if not result.problem:
+        return None
+
+    for asset in result.problem.data_assets:
+        if asset.format == "tabular" and asset.data:
+            headers = list(asset.data[0].keys())
+            path = os.path.join(output_dir, "dataset.csv")
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=headers)
+                w.writeheader()
+                w.writerows(asset.data)
+            return path
+    return None
+
+
+def export_briefing(result, output_dir: str) -> str | None:
+    """Export what the agent sees: narrative + questions + actions."""
+    if not result.problem:
+        return None
+
+    problem = result.problem
+    tasks = result.task if isinstance(result.task, list) else []
+
+    lines = []
+    lines.append(f"# Research Case: {problem.title}")
+    lines.append("")
+    lines.append("## Background")
+    lines.append("")
+    lines.append(problem.description or "")
+    lines.append("")
+
+    if problem.theoretical_context:
+        lines.append("## Theoretical Context")
+        lines.append("")
+        lines.append(problem.theoretical_context)
+        lines.append("")
+
+    if tasks:
+        lines.append("## Research Questions")
+        lines.append("")
+        for i, t in enumerate(tasks, 1):
+            lines.append(f"### Question {i} ({t.type})")
+            lines.append("")
+            lines.append(t.question)
+            lines.append("")
+            lines.append(f"Target variable: {t.target_node}")
+            lines.append("")
+    else:
+        lines.append("## Research Question")
+        lines.append("")
+        lines.append(problem.research_question or "")
+        lines.append("")
+
+    lines.append("## Available Research Actions")
+    lines.append("")
+    lines.append(f"Budget: {problem.budget} units")
+    lines.append("")
+    for a in problem.available_actions:
+        atype = a.action_type or "observe"
+        desc = a.description or ""
+        iv = a.intervention_values
+        line = f"- ({atype}, cost {a.cost}): {desc}"
+        if iv:
+            line += f" [sets: {dict(iv)}]"
+        lines.append(line)
+    lines.append("")
+
+    lines.append("## Dataset")
+    lines.append("")
+    lines.append("The dataset is provided as a separate CSV file: dataset.csv")
+    lines.append("")
+    if problem.data_assets:
+        asset = problem.data_assets[0]
+        lines.append(asset.description or "")
+        if asset.data:
+            headers = [k for k in asset.data[0].keys() if k != "sample_id"]
+            lines.append(f"Variables: {', '.join(headers)}")
+    lines.append("")
+
+    path = os.path.join(output_dir, "briefing.md")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return path
+
+
+def export_answer_key(result, output_dir: str) -> str | None:
+    """Export BN truth + quick guide + correct answers."""
+    if not result.world or not result.problem:
+        return None
+
+    from sreg.solver.exact_bayes import ExactBayesSolver
+
+    import networkx as nx
+
+    world = result.world
+    tasks = result.task if isinstance(result.task, list) else []
+    solver = ExactBayesSolver(world)
+
+    target = next(n for n in world.nodes if n.type == "target")
+    latents = [n for n in world.nodes if n.type == "latent"]
+
+    dag = nx.DiGraph()
+    for n in world.nodes:
+        dag.add_node(n.name)
+    for e in world.edges:
+        dag.add_edge(e.from_node, e.to_node)
+
+    lines = []
+
+    # --- Header ---
+    lines.append(f"# Answer Key: {world.scenario_title or world.id}")
+    lines.append("")
+
+    # --- Mermaid diagram ---
+    lines.append("## Causal DAG")
+    lines.append("")
+    lines.append("```mermaid")
+    lines.append("graph TD")
+    for n in world.nodes:
+        label = n.name.replace("_", " ")
+        if n.type == "latent":
+            lines.append(f'    {n.name}(["{label}"]):::latent')
+        elif n.type == "target":
+            lines.append(f'    {n.name}{{{{"{label}"}}}}:::target')
+        else:
+            lines.append(f'    {n.name}["{label}"]:::observable')
+    lines.append("")
+    for e in world.edges:
+        lines.append(f"    {e.from_node} --> {e.to_node}")
+    lines.append("")
+    lines.append("    classDef latent fill:#FF6B6B,stroke:#333,color:#000,stroke-width:2px")
+    lines.append("    classDef observable fill:#51CF66,stroke:#333,color:#000")
+    lines.append("    classDef target fill:#FFD43B,stroke:#333,color:#000,stroke-width:3px")
+    lines.append("```")
+    lines.append("")
+
+    # --- Quick guide ---
+    tname = target.name.replace("_", " ")
+    lines.append("## Quick Guide")
+    lines.append("")
+    lines.append(f"Predicting **{tname}** ({', '.join(target.states)}).")
+    lines.append("")
+
+    # Hidden variables
+    if latents:
+        lines.append("### Hidden (latent) variables")
+        lines.append("")
+        for n in latents:
+            children = list(dag.successors(n.name))
+            cstr = ", ".join(c.replace("_", " ") for c in children)
+            lines.append(
+                f"- **{n.name.replace('_', ' ')}** ({', '.join(n.states)})"
+                f" -- cannot be measured. Affects: {cstr}"
+            )
+        lines.append("")
+
+    # Information gain ranking
+    lines.append("### Variable importance for predicting " + tname)
+    lines.append("")
+    ig_scores = {}
+    for n in world.nodes:
+        if n.type == "latent" or n.name == target.name:
+            continue
+        try:
+            ig = solver.information_gain(target.name, {}, n.name)
+            ig_scores[n.name] = ig
+        except Exception:
+            ig_scores[n.name] = 0.0
+
+    sorted_ig = sorted(ig_scores.items(), key=lambda x: -x[1])
+    max_ig = max(ig_scores.values()) if ig_scores else 1
+
+    for rank, (name, ig) in enumerate(sorted_ig, 1):
+        label = name.replace("_", " ")
+        bars = int((ig / max_ig) * 20) if max_ig > 0 else 0
+        bar_str = "#" * bars + "." * (20 - bars)
+        if ig > max_ig * 0.6:
+            strength = "STRONG"
+        elif ig > max_ig * 0.2:
+            strength = "moderate"
+        else:
+            strength = "weak"
+        lines.append(f"{rank}. **{label}**: {ig:.4f} bits [{bar_str}] -- {strength}")
+    lines.append("")
+
+    # Causal relationships
+    lines.append("### Causal relationships")
+    lines.append("")
+    for e in world.edges:
+        pn, cn = e.from_node, e.to_node
+        pl = pn.replace("_", " ")
+        cl = cn.replace("_", " ")
+        pnode = next(n for n in world.nodes if n.name == pn)
+        cnode = next(n for n in world.nodes if n.name == cn)
+
+        effects = []
+        for state in pnode.states:
+            try:
+                post = solver.posterior(cn, {pn: state})
+                effects.append((state, post))
+            except Exception:
+                pass
+
+        if len(effects) < 2:
+            continue
+
+        max_shift = 0
+        for cs in cnode.states:
+            vals = [d.get(cs, 0) for _, d in effects]
+            diff = max(vals) - min(vals)
+            if diff > max_shift:
+                max_shift = diff
+
+        if max_shift > 0.3:
+            sw = "STRONG"
+        elif max_shift > 0.1:
+            sw = "Moderate"
+        else:
+            sw = "Weak"
+
+        lines.append(f"**{pl} --> {cl}** ({sw}, {max_shift:.0%} max shift)")
+        for state, post in effects:
+            dist_str = ", ".join(
+                f"{cs}={post.get(cs, 0):.0%}" for cs in cnode.states
+            )
+            lines.append(f"  - When {pl} = {state}: [{dist_str}]")
+        lines.append("")
+
+    # Baseline
+    prior = solver.posterior(target.name, {})
+    lines.append("### Baseline (no evidence)")
+    lines.append("")
+    for s in target.states:
+        lines.append(f"- {s}: {prior[s]:.1%}")
+    lines.append("")
+
+    # --- Formal BN specification ---
+    lines.append("---")
+    lines.append("")
+    lines.append("## Formal BN Specification")
+    lines.append("")
+
+    lines.append("### Nodes")
+    lines.append("")
+    for n in world.nodes:
+        lines.append(f"- **{n.name}** ({n.type}): [{', '.join(n.states)}]")
+    lines.append("")
+
+    lines.append("### Edges")
+    lines.append("")
+    for e in world.edges:
+        mech = f" -- {e.mechanism}" if e.mechanism else ""
+        lines.append(f"- {e.from_node} -> {e.to_node}{mech}")
+    lines.append("")
+
+    lines.append("### CPDs")
+    lines.append("")
+    for cpd in world.cpds:
+        lines.append(f"#### {cpd.node}")
+        states = cpd.state_names[cpd.node]
+        if not cpd.parents:
+            lines.append("(root node)")
+            lines.append(f"| State | P |")
+            lines.append(f"| --- | --- |")
+            for i, s in enumerate(states):
+                lines.append(f"| {s} | {cpd.table[i][0]:.4f} |")
+        else:
+            lines.append(f"Parents: {', '.join(cpd.parents)}")
+            parent_states_list = [cpd.state_names[p] for p in cpd.parents]
+            combos = list(itertools.product(*parent_states_list))
+            header = " | ".join(cpd.parents) + " | " + " | ".join(
+                f"P({s})" for s in states
+            )
+            lines.append(f"| {header} |")
+            sep = " | ".join(["---"] * (len(cpd.parents) + len(states)))
+            lines.append(f"| {sep} |")
+            for col_idx, combo in enumerate(combos):
+                vals = [f"{cpd.table[row][col_idx]:.3f}" for row in range(len(states))]
+                row_str = " | ".join(combo) + " | " + " | ".join(vals)
+                lines.append(f"| {row_str} |")
+        lines.append("")
+
+    # --- Correct answers ---
+    if tasks:
+        lines.append("## Correct Answers")
+        lines.append("")
+        for i, t in enumerate(tasks, 1):
+            lines.append(f"### Question {i}: {t.type}")
+            lines.append("")
+            lines.append(f"**Question:** {t.question}")
+            lines.append("")
+            lines.append(f"**Target:** {t.target_node}")
+            lines.append("")
+
+            if isinstance(t.correct_answer, dict):
+                lines.append("**Correct answer:**")
+                lines.append("")
+                for k, v in sorted(t.correct_answer.items()):
+                    if isinstance(v, float):
+                        lines.append(f"- {k}: {v:.6f}")
+                    else:
+                        lines.append(f"- {k}: {v}")
+            else:
+                lines.append(f"**Correct answer:** {t.correct_answer}")
+            lines.append("")
+
+    path = os.path.join(output_dir, "answer_key.md")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return path
+
+
+def export_dag_png(result, output_dir: str) -> str | None:
+    """Export DAG visualization as PNG."""
+    if not result.world:
+        return None
+
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        import networkx as nx
+    except ImportError:
+        return None
+
+    world = result.world
+
+    G = nx.DiGraph()
+    node_types = {}
+    node_states = {}
+    for n in world.nodes:
+        G.add_node(n.name)
+        node_types[n.name] = str(n.type)
+        node_states[n.name] = n.states
+    for e in world.edges:
+        G.add_edge(e.from_node, e.to_node)
+
+    # Layered layout via topological sort
+    layers = {}
+    for node in nx.topological_sort(G):
+        preds = list(G.predecessors(node))
+        if not preds:
+            layers[node] = 0
+        else:
+            layers[node] = max(layers[p] for p in preds) + 1
+
+    layer_groups: dict[int, list[str]] = {}
+    for node, layer in layers.items():
+        layer_groups.setdefault(layer, []).append(node)
+
+    max_layer = max(layer_groups.keys()) if layer_groups else 0
+    pos = {}
+    for layer, layer_nodes in layer_groups.items():
+        n = len(layer_nodes)
+        for i, node in enumerate(layer_nodes):
+            x = (i - (n - 1) / 2) * 3.5
+            y = (max_layer - layer) * 2.8
+            pos[node] = (x, y)
+
+    color_map = {"latent": "#FF6B6B", "observable": "#69DB7C", "target": "#FFD43B"}
+
+    fig, ax = plt.subplots(1, 1, figsize=(16, 12))
+    ax.set_facecolor("#16213e")
+    fig.set_facecolor("#16213e")
+
+    nx.draw_networkx_edges(
+        G, pos, ax=ax, edge_color="#8899aa", arrows=True, arrowsize=25,
+        arrowstyle="-|>", connectionstyle="arc3,rad=0.08", width=2,
+        min_source_margin=45, min_target_margin=45,
+    )
+
+    for name in G.nodes():
+        x, y = pos[name]
+        ntype = node_types[name]
+        color = color_map.get(ntype, "#aaa")
+        size = 1.1 if ntype == "target" else 0.9
+
+        circle = plt.Circle(
+            (x, y), size, facecolor=color, edgecolor="white", linewidth=2.5, zorder=3,
+        )
+        ax.add_patch(circle)
+
+        label = textwrap.fill(name.replace("_", " "), width=12)
+        ax.text(
+            x, y + 0.15, label, ha="center", va="center",
+            fontsize=9, fontweight="bold", color="#1a1a2e", zorder=4,
+        )
+
+        states_str = ", ".join(node_states[name])
+        if len(states_str) > 25:
+            states_str = textwrap.fill(states_str, width=20)
+        ax.text(
+            x, y - 0.45, states_str, ha="center", va="center",
+            fontsize=6, color="#333", style="italic", zorder=4,
+        )
+
+    legend_elements = [
+        mpatches.Patch(facecolor="#FF6B6B", edgecolor="white", label="Latent (hidden)"),
+        mpatches.Patch(facecolor="#69DB7C", edgecolor="white", label="Observable"),
+        mpatches.Patch(facecolor="#FFD43B", edgecolor="white", label="Target"),
+    ]
+    ax.legend(
+        handles=legend_elements, loc="upper left", fontsize=11,
+        facecolor="#1a1a2e", edgecolor="#555", labelcolor="white", framealpha=0.9,
+    )
+
+    title = world.scenario_title or "Causal DAG"
+    ax.set_title(
+        f"Causal DAG: {title}", fontsize=15, fontweight="bold", color="white", pad=20,
+    )
+
+    ax.set_aspect("equal")
+    ax.axis("off")
+    all_x = [p[0] for p in pos.values()]
+    all_y = [p[1] for p in pos.values()]
+    margin = 2
+    ax.set_xlim(min(all_x) - margin, max(all_x) + margin)
+    ax.set_ylim(min(all_y) - margin, max(all_y) + margin)
+
+    plt.tight_layout()
+    path = os.path.join(output_dir, "dag.png")
+    plt.savefig(path, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close()
+    return path
+
+
+# ---------------------------------------------------------------------------
+# 3. Solve: run agent + teacher on each task
+# ---------------------------------------------------------------------------
+
+def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | None:
+    """Run agent + teacher on each task. Returns (evaluation_path, trajectory_path)."""
+    if not result.world or not result.problem:
+        return None
+
+    from sreg.agent.agent import AgentSolver
+    from sreg.solver.exact_bayes import ExactBayesSolver
+    from sreg.tools.verifier import VerifierTool
+
+    world = result.world
+    problem = result.problem
+    tasks = result.task if isinstance(result.task, list) else []
+    if not tasks:
+        _print(f"  {_c(YLW, '!')} No tasks to solve")
+        return None
+
+    solver = ExactBayesSolver(world)
+    agent = AgentSolver(max_iterations=15)
+    verifier = VerifierTool()
+
+    eval_lines = []
+    traj_lines = []
+
+    eval_lines.append(f"# Evaluation: {world.scenario_title or world.id}")
+    eval_lines.append("")
+    eval_lines.append(f"Seed: {seed}")
+    eval_lines.append("")
+
+    traj_lines.append(f"# Agent Trajectory: {world.scenario_title or world.id}")
+    traj_lines.append("")
+
+    # Summary table header
+    eval_lines.append("## Summary")
+    eval_lines.append("")
+    eval_lines.append("| # | Type | Agent Score | Verdict | Agent Answer (summary) |")
+    eval_lines.append("| --- | --- | --- | --- | --- |")
+
+    task_details = []
+
+    for i, task in enumerate(tasks, 1):
+        _print(f"  {_c(CYN, f'[{i}/{len(tasks)}]')} Solving {task.type}...")
+
+        # --- Collect agent trajectory ---
+        thinking_log = []
+        action_log = []
+
+        def on_step(event_type, data):
+            if event_type == "thinking":
+                thinking_log.append(data["content"])
+            elif event_type == "observe":
+                if "variable" in data:
+                    action_log.append(
+                        f"Observe: {data['variable']} = {data['observed_state']} "
+                        f"(budget left: {data.get('remaining_budget', '?')})"
+                    )
+                else:
+                    action_log.append(
+                        f"Action: {data.get('action', '?')} -> {data.get('findings', '?')} "
+                        f"(budget left: {data.get('remaining_budget', '?')})"
+                    )
+            elif event_type == "submit":
+                dist = data.get("distribution", data.get("choice", data))
+                action_log.append(f"Submit: {dist}")
+            elif event_type == "error":
+                action_log.append(f"ERROR: {data.get('error', '?')}")
+
+        agent_result = agent.solve(
+            world, problem, seed=seed, task=task, on_step=on_step,
+        )
+
+        # --- Agent score ---
+        agent_score = None
+        agent_answer_summary = "no answer"
+        if agent_result.submitted_answer is not None:
+            agent_score = agent_result.score
+            ans = agent_result.submitted_answer
+            if isinstance(ans, dict):
+                if len(str(ans)) > 60:
+                    agent_answer_summary = str(ans)[:57] + "..."
+                else:
+                    agent_answer_summary = str(ans)
+            else:
+                agent_answer_summary = str(ans)
+
+        # --- Correct answer ---
+        correct = task.correct_answer
+
+        # --- Verdict ---
+        if agent_score is None:
+            verdict = "NO SUBMIT"
+            score_str = "-"
+        else:
+            score_str = f"{agent_score.functional_score:.4f}"
+            if agent_score.functional_score < 0.1:
+                verdict = "GOOD"
+            elif agent_score.functional_score < 0.5:
+                verdict = "OK"
+            else:
+                verdict = "POOR"
+
+        # Summary row
+        eval_lines.append(
+            f"| {i} | {task.type} | {score_str} | {verdict} | {agent_answer_summary} |"
+        )
+
+        # Detailed section
+        task_details.append((i, task, agent_result, agent_score, correct, verdict))
+
+        # --- Trajectory ---
+        traj_lines.append(f"## Task {i}: {task.type}")
+        traj_lines.append("")
+        traj_lines.append(f"**Question:** {task.question}")
+        traj_lines.append("")
+        traj_lines.append(f"**Target:** {task.target_node}")
+        traj_lines.append("")
+
+        traj_lines.append("### Agent reasoning")
+        traj_lines.append("")
+        for j, thought in enumerate(thinking_log, 1):
+            # Truncate very long thoughts
+            if len(thought) > 500:
+                thought = thought[:500] + "..."
+            traj_lines.append(f"**Thought {j}:**")
+            traj_lines.append(thought)
+            traj_lines.append("")
+
+        traj_lines.append("### Agent actions")
+        traj_lines.append("")
+        for action_str in action_log:
+            traj_lines.append(f"- {action_str}")
+        traj_lines.append("")
+
+        if agent_result.reasoning:
+            traj_lines.append("### Final reasoning")
+            traj_lines.append("")
+            traj_lines.append(agent_result.reasoning)
+            traj_lines.append("")
+
+        traj_lines.append(f"### Result")
+        traj_lines.append("")
+        traj_lines.append(f"- **Agent answer:** {agent_result.submitted_answer}")
+        traj_lines.append(f"- **Correct answer:** {correct}")
+        traj_lines.append(f"- **Score:** {score_str}")
+        traj_lines.append(f"- **Verdict:** {verdict}")
+        traj_lines.append(f"- **Budget used:** {agent_result.budget_used}/{agent_result.budget_total}")
+        traj_lines.append(f"- **Observations:** {len(agent_result.observations)}")
+        if agent_result.confidence is not None:
+            traj_lines.append(f"- **Confidence:** {agent_result.confidence:.2f}")
+        traj_lines.append("")
+        traj_lines.append("---")
+        traj_lines.append("")
+
+    # Detailed evaluation sections
+    eval_lines.append("")
+    eval_lines.append("## Details")
+    eval_lines.append("")
+
+    for i, task, agent_result, agent_score, correct, verdict in task_details:
+        eval_lines.append(f"### Task {i}: {task.type}")
+        eval_lines.append("")
+        q = task.question
+        if len(q) > 200:
+            q = q[:200] + "..."
+        eval_lines.append(f"**Question:** {q}")
+        eval_lines.append("")
+
+        # Correct answer
+        eval_lines.append("**Correct answer:**")
+        if isinstance(correct, dict):
+            for k, v in sorted(correct.items()):
+                if isinstance(v, float):
+                    eval_lines.append(f"- {k}: {v:.4f}")
+                else:
+                    eval_lines.append(f"- {k}: {v}")
+        else:
+            eval_lines.append(f"- {correct}")
+        eval_lines.append("")
+
+        # Agent answer
+        eval_lines.append("**Agent answer:**")
+        ans = agent_result.submitted_answer
+        if isinstance(ans, dict):
+            for k, v in sorted(ans.items()):
+                if isinstance(v, float):
+                    eval_lines.append(f"- {k}: {v:.4f}")
+                else:
+                    eval_lines.append(f"- {k}: {v}")
+        elif ans is not None:
+            eval_lines.append(f"- {ans}")
+        else:
+            eval_lines.append("- (no answer submitted)")
+        eval_lines.append("")
+
+        eval_lines.append(f"**Score:** {verdict} ({score_str})")
+        eval_lines.append(f"**Budget:** {agent_result.budget_used}/{agent_result.budget_total}")
+        if agent_result.reasoning:
+            reasoning = agent_result.reasoning
+            if len(reasoning) > 200:
+                reasoning = reasoning[:200] + "..."
+            eval_lines.append(f"**Reasoning:** {reasoning}")
+        eval_lines.append("")
+
+    # Write files
+    eval_path = os.path.join(output_dir, "evaluation.md")
+    with open(eval_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(eval_lines))
+
+    traj_path = os.path.join(output_dir, "trajectory.md")
+    with open(traj_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(traj_lines))
+
+    return eval_path, traj_path
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def _read_seed_file(path: str) -> str | None:
+    """Read a research seed markdown file, stripping comment lines."""
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        content = f.read().strip()
+    if not content:
+        return None
+    lines = [ln for ln in content.splitlines() if not ln.strip().startswith(">")]
+    return "\n".join(lines).strip() or None
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate a Synthetic Research Case (SRC)"
+    )
+    parser.add_argument(
+        "--goal", type=str, default=None,
+        help="Research goal for the orchestrator",
+    )
+    parser.add_argument(
+        "--seed-file", type=str, default=None,
+        help="Path to research seed markdown file",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="Seed hint (appended to goal)",
+    )
+    parser.add_argument(
+        "--model", type=str, default=None,
+        help="Model name (default: AZURE_MODEL env)",
+    )
+    parser.add_argument(
+        "--output", "-o", type=str, required=True,
+        help="Output directory (created if needed)",
+    )
+    parser.add_argument(
+        "--inspect", action="store_true",
+        help="Generate full analysis package (briefing, CSV, answer key, DAG)",
+    )
+    parser.add_argument(
+        "--solve", action="store_true",
+        help="Run agent solver on each task (implies --inspect). Generates evaluation.md + trajectory.md",
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Show detailed orchestrator output",
+    )
+    args = parser.parse_args()
+
+    if not args.verbose:
+        logging.basicConfig(level=logging.WARNING)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+    else:
+        logging.basicConfig(level=logging.INFO, format="%(name)s | %(message)s")
+
+    # Build goal
+    if args.goal:
+        goal = args.goal
+    else:
+        seed_file = args.seed_file or "research_seed.md"
+        seed_content = _read_seed_file(seed_file)
+        if seed_content:
+            goal = (
+                "Generate a synthetic research case based on the following context. "
+                "Use dag_construct for the causal structure. "
+                "Design a research case with multiple evaluation types.\n\n"
+                f"--- RESEARCH SEED ---\n{seed_content}\n--- END SEED ---"
+            )
+        else:
+            goal = (
+                "Generate a research problem about marine ecology in a fictional "
+                "archipelago, medium difficulty, 8 nodes. Use dag_construct. "
+                "Design a research case with at least 3 different evaluation types."
+            )
+    if args.seed is not None:
+        goal += f" Use seed {args.seed} for reproducibility."
+
+    model = args.model or os.environ.get("AZURE_MODEL", "gpt-4o")
+
+    # Generate
+    result, steps = generate(goal, model=model, verbose=args.verbose)
+
+    if not result.world or not result.problem:
+        _print(f"\n{_c(RED + B, 'Generation failed. Aborting.')}")
+        sys.exit(1)
+
+    # --solve implies --inspect
+    do_inspect = args.inspect or args.solve
+
+    # Export
+    os.makedirs(args.output, exist_ok=True)
+
+    _print()
+    _print(_c(B + BLU, "=== Exporting ==="))
+
+    json_path = export_json(result, steps, goal, model, args.output)
+    _print(f"  {_c(GRN, 'v')} {json_path}")
+
+    if do_inspect:
+        csv_path = export_csv(result, args.output)
+        if csv_path:
+            n_rows = len(result.problem.data_assets[0].data)
+            _print(f"  {_c(GRN, 'v')} {csv_path} ({n_rows} rows)")
+
+        briefing_path = export_briefing(result, args.output)
+        if briefing_path:
+            _print(f"  {_c(GRN, 'v')} {briefing_path}")
+
+        answer_path = export_answer_key(result, args.output)
+        if answer_path:
+            _print(f"  {_c(GRN, 'v')} {answer_path}")
+
+        dag_path = export_dag_png(result, args.output)
+        if dag_path:
+            _print(f"  {_c(GRN, 'v')} {dag_path}")
+
+    if args.solve:
+        _print()
+        _print(_c(B + BLU, "=== Solving tasks ==="))
+
+        solve_seed = args.seed if args.seed is not None else 42
+        solve_result = solve_tasks(result, args.output, seed=solve_seed)
+        if solve_result:
+            eval_path, traj_path = solve_result
+            _print(f"  {_c(GRN, 'v')} {eval_path}")
+            _print(f"  {_c(GRN, 'v')} {traj_path}")
+
+    _print()
+    title = result.world.scenario_title or result.world.id
+    n_tasks = len(result.task) if isinstance(result.task, list) else 0
+    _print(f"  {_c(B, _safe(title))}")
+    _print(f"  {len(result.world.nodes)} nodes, {n_tasks} tasks")
+    _print()
+
+
+if __name__ == "__main__":
+    main()

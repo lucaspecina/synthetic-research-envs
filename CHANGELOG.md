@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### 2026-03-13 — generate_src.py: official SRC generation script
+- **`scripts/generate_src.py`**: single entry point to generate, inspect, and evaluate SRCs.
+  - `--goal` or `--seed-file` for research context
+  - `--inspect`: exports briefing.md, dataset.csv, answer_key.md (quick guide + BN + CPDs + correct answers), dag.png
+  - `--solve`: runs agent on each task, exports evaluation.md (scores) + trajectory.md (reasoning)
+  - `--solve` implies `--inspect`
+- **Answer key** includes: Mermaid DAG diagram, qualitative quick guide (variable importance via IG,
+  causal relationship strengths, baseline), formal BN specification (nodes, edges, CPDs), correct answers.
+- **DAG visualization**: matplotlib PNG with layered layout, color-coded nodes (latent=red, observable=green, target=yellow).
+- Legacy scripts marked in CLAUDE.md (test_orchestrator, test_e2e, etc.) — to be cleaned up later.
+
+### 2026-03-13 — Docs cleanup: SREG core vs agent harness separation
+- Separated SREG environment tools (research_action, submit) from agent harness (python_exec, etc.)
+- Agent harness, training pipeline, benchmarks marked as separate workstreams in TODO.md
+- Fase -1 contracts clarified as preparatory interfaces, not SREG core
+
 ### 2026-03-13 — Rich Actions Slice B: intervene actions (do-operations)
 - **ActionType.INTERVENE** + **ActionDef.effects** (`dict[str, str]`): structured
   intervention payload. AvailableAction.intervention_values in semantic layer.

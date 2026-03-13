@@ -120,16 +120,19 @@ src/sreg/
 └── display.py       # Dual-mode pretty printing (terminal ANSI + notebook HTML)
 
 scripts/
-├── demo.py                # Terminal demo: world gen + teacher solving
-├── test_orchestrator.py   # Step-by-step orchestrator run with real LLM (--seed, --export, --seed-file)
+├── generate_src.py        # THE official script to generate SRCs (--inspect, --solve)
+├── run_diagnostic.py      # DiagnosticRunner wrapper: type-aware verdicts + failure modes
+├── demo.py                # Terminal demo: world gen + teacher solving (no LLM)
 ├── view_case.py           # Inspect exported JSON cases section by section
-├── test_agent.py          # Agent vs teacher vs random baseline comparison (--save-trajectory)
 ├── view_trajectory.py     # Inspect agent trajectories and agent-vs-teacher comparisons
-├── test_e2e.py            # End-to-end: orchestrator -> agent -> score
-├── mini_benchmark.py      # Mini diagnostic: N real SRCs via orchestrator + agent + teacher
-├── batch_eval.py          # Batch eval + teacher trajectory JSONL export
-├── diagnostic_batch.py    # S.2 diagnostic: N SRCs via orchestrator, agent on all tasks, per-type metrics
-└── run_diagnostic.py      # DiagnosticRunner wrapper: type-aware verdicts + failure modes
+├── batch_sweep.py         # Systematic parameter sweep with QualitySuite v2
+├── test_orchestrator.py   # (legacy) Step-by-step orchestrator run — use generate_src.py instead
+├── test_e2e.py            # (legacy) End-to-end orchestrator + agent — use generate_src.py --solve
+├── test_agent.py          # (legacy) Agent comparison — use generate_src.py --solve
+├── mini_benchmark.py      # (legacy) Mini diagnostic — use run_diagnostic.py
+├── batch_eval.py          # (legacy) Batch eval — use run_diagnostic.py
+├── diagnostic_batch.py    # (legacy) Diagnostic batch — use run_diagnostic.py
+└── qualitative_analysis.py # (legacy) Qualitative analysis — use generate_src.py --solve
 
 experiments/                 # Diagnostic results (timestamped directories)
 └── index.md                 # Experiment registry
