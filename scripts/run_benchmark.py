@@ -37,15 +37,16 @@ def run_cladder(args: argparse.Namespace) -> None:
     from sreg.benchmarks.cladder import CLadderAdapter
     from sreg.inference.openai_client import OpenAIClient
 
-    data_path = args.data or "data/cladder-v1-balanced.json"
+    data_path = args.data or "data/cladder-v1-q-balanced.json"
     if not Path(data_path).exists():
         logger.error(f"Dataset not found: {data_path}")
         logger.info("Download CLadder dataset:")
         logger.info(
-            "  curl -L -o data/cladder-v1-balanced.json "
+            "  curl -L -o data/cladder-v1.zip "
             "https://raw.githubusercontent.com/causalNLP/cladder/main/"
-            "data/cladder-v1-balanced.json"
+            "data/cladder-v1.zip"
         )
+        logger.info("  unzip data/cladder-v1.zip -d data/")
         sys.exit(1)
 
     # Setup
@@ -109,8 +110,84 @@ def run_cladder(args: argparse.Namespace) -> None:
     print(f"  Results saved to: {output_dir}")
 
 
+def run_qrdata(args: argparse.Namespace) -> None:
+    """Run QRData benchmark."""
+    from sreg.benchmarks.qrdata import QRDataAdapter
+    from sreg.inference.openai_client import OpenAIClient
+
+    data_path = args.data or "data/QRData.json"
+    csv_dir = "data/qrdata_csvs/data"
+    if not Path(data_path).exists():
+        logger.error(f"Dataset not found: {data_path}")
+        logger.info("Download QRData dataset:")
+        logger.info(
+            "  curl -L -o data/QRData.json "
+            "https://raw.githubusercontent.com/xxxiaol/QRData/main/benchmark/QRData.json"
+        )
+        logger.info(
+            "  curl -L -o data/qrdata-csvs.zip "
+            "https://raw.githubusercontent.com/xxxiaol/QRData/main/benchmark/data.zip"
+        )
+        logger.info("  unzip data/qrdata-csvs.zip -d data/qrdata_csvs/")
+        sys.exit(1)
+
+    # Setup
+    client = OpenAIClient(model=args.model)
+    # Map generic subsets to QRData-specific ones
+    subset = args.subset
+    if subset == "dev":
+        subset = "dev"
+    adapter = QRDataAdapter(data_path=data_path, csv_dir=csv_dir)
+
+    # Load
+    logger.info(f"Loading QRData dataset (subset={subset})...")
+    examples = adapter.load(subset=subset, seed=args.seed)
+    logger.info(f"  {len(examples)} examples loaded")
+
+    # Run
+    logger.info(f"Running model={args.model}, temperature={args.temperature}...")
+    results = adapter.run(
+        client, examples, model=args.model, temperature=args.temperature
+    )
+
+    # Score
+    benchmark = adapter.score(results, model_name=args.model, seed=args.seed)
+
+    # Save
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = Path(f"experiments/benchmarks/qrdata_{timestamp}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    adapter.save_results(results, output_dir / "results.jsonl")
+
+    bench_path = output_dir / "benchmark.json"
+    bench_path.write_text(benchmark.model_dump_json(indent=2), encoding="utf-8")
+
+    # Print summary
+    print()
+    print(f"=== QRData Results ({args.model}) ===")
+    print(f"  Overall accuracy: {benchmark.metric_value:.1%}")
+    print(f"  Examples: {benchmark.num_examples}")
+    print(f"  Correct: {benchmark.num_correct}")
+    print(f"  Causal accuracy: {benchmark.summary.get('causal_accuracy', 0):.1%}")
+    print(f"  Statistical accuracy: {benchmark.summary.get('statistical_accuracy', 0):.1%}")
+    print(f"  Unparseable: {benchmark.summary.get('unparseable', 0)}")
+    print(f"  Errors: {benchmark.summary.get('errors', 0)}")
+    print()
+
+    by_type = benchmark.summary.get("by_question_type", {})
+    if by_type:
+        print("  By question type:")
+        for qtype, acc in sorted(by_type.items()):
+            print(f"    {qtype}: {acc:.1%}")
+        print()
+
+    print(f"  Results saved to: {output_dir}")
+
+
 BENCHMARKS = {
     "cladder": run_cladder,
+    "qrdata": run_qrdata,
 }
 
 
@@ -130,8 +207,8 @@ def main():
     parser.add_argument(
         "--subset", "-s",
         default="dev",
-        choices=["dev", "all"],
-        help="Dataset subset: 'dev' (100 examples) or 'all' (full dataset)",
+        choices=["dev", "all", "causal", "statistical"],
+        help="Dataset subset: 'dev', 'all', 'causal' (QRData), 'statistical' (QRData)",
     )
     parser.add_argument(
         "--data", "-d",

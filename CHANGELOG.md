@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### 2026-03-13 — BENCH.2: QRData adapter + CLadder real data fix
+- **QRData adapter** (`src/sreg/benchmarks/qrdata/adapter.py`): loads 411 questions
+  (269 causal, 142 statistical) with associated CSV data files. Prompts model with
+  CoT-style prompt including truncated data table. Scoring follows official eval.py:
+  3% relative tolerance for numerical, case-insensitive prefix match for MC.
+  Subsets: all, causal, statistical, dev.
+- **CLadder real data fix**: parser now handles actual JSON format (rung/query_type
+  directly in meta, not nested under "query"). Handles given_info as string or list.
+- **CLI updated**: `run_benchmark.py` supports `--benchmark qrdata` with subsets
+  `causal`/`statistical`.
+- **Datasets downloaded** (local, in .gitignore): CLadder (10,112 questions),
+  QRData (411 questions + 195 CSVs).
+- 43 new QRData tests. 862 tests total.
+
 ### 2026-03-13 — BENCH.1: CLadder adapter + OpenAI client + benchmark infra
 - **OpenAI adapter** (`src/sreg/inference/openai_client.py`): implements `ModelClient`
   Protocol using OpenAI SDK. Supports Azure AI Foundry (base_url) and native OpenAI.

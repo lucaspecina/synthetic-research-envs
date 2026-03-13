@@ -100,17 +100,28 @@ class CLadderAdapter:
         examples = []
         for item in raw:
             meta = item.get("meta", {})
+            # v1 balanced: rung/query_type are directly in meta (not nested under "query")
+            # Other variants may use meta.query.rung — support both
             query = meta.get("query", {})
+            rung = meta.get("rung", query.get("rung", 0))
+            query_type = meta.get("query_type", query.get("query_type", "unknown"))
+            sensical = item.get("sensical", meta.get("sensical", 1))
+
+            # given_info may be a string or list of strings
+            given_info = item.get("given_info", "")
+            if isinstance(given_info, list):
+                given_info = " ".join(given_info)
+
             examples.append(
                 CLadderExample(
                     question_id=str(item.get("question_id", item.get("ID", ""))),
                     background=item.get("background", ""),
-                    given_info=item.get("given_info", ""),
+                    given_info=given_info,
                     question=item.get("question", ""),
                     answer=item.get("answer", "").lower().strip(),
-                    rung=int(query.get("rung", 0)),
-                    query_type=query.get("query_type", "unknown"),
-                    sensical=int(item.get("sensical", 1)),
+                    rung=int(rung),
+                    query_type=str(query_type),
+                    sensical=int(sensical),
                 )
             )
 

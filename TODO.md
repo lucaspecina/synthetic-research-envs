@@ -296,12 +296,18 @@
   - [x] OpenAIClient: ModelClient adapter for OpenAI SDK (Azure + native)
   - [x] CLI script: `scripts/run_benchmark.py --benchmark cladder --model X --subset dev`
   - [x] 53 tests (12 OpenAI client + 41 CLadder adapter)
-  - [ ] Descargar dataset real (cladder-v1-balanced.json)
+  - [x] Descargar dataset real (cladder-v1-q-balanced.json, 10112 preguntas)
+  - [x] Fix parser para formato real del JSON (rung/query_type en meta directamente)
+  - [ ] Correr GPT base (BEFORE) en dev subset y guardar resultados
   - [ ] Correr Qwen3-8B base (BEFORE) y guardar resultados
-- [ ] **BENCH.2**: Montar QRData como benchmark externo
-  - Descargar dataset (GitHub: xxxiaol/QRData)
-  - Script para evaluar (Q&A con datos tabulares -> accuracy)
-  - Separar subset causal vs estadistico
+- [~] **BENCH.2**: Montar QRData como benchmark externo
+  - [x] QRDataAdapter: load JSON + CSVs, prompt with data table, numeric tolerance (3%) + MC exact match
+  - [x] Subsets: all/causal/statistical/dev. 269 causal + 142 statistical
+  - [x] CLI: `scripts/run_benchmark.py --benchmark qrdata --model X --subset causal`
+  - [x] 43 tests
+  - [x] Descargar dataset real (QRData.json + 195 CSVs)
+  - [ ] Correr GPT base (BEFORE) en dev subset y guardar resultados
+  - [ ] Correr Qwen3-8B base (BEFORE) y guardar resultados
 - [ ] **BENCH.3**: Export de training data desde SREG
   - Generar N SRCs en formato consumible por verifiers/prime-rl
   - Teacher trajectories como SFT data (con tool use: research_action + python_exec)

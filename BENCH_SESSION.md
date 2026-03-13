@@ -54,6 +54,9 @@ src/sreg/
     cladder/
       __init__.py
       adapter.py              # CLadderAdapter: load, prompt, score
+    qrdata/
+      __init__.py
+      adapter.py              # QRDataAdapter: load, prompt, score (numeric + MC)
     discoverybench/           # (pendiente)
     scigym/                   # (futuro)
 
@@ -61,10 +64,11 @@ tests/
   inference/
     test_openai_client.py     # 12 tests
   benchmarks/
-    test_cladder.py           # 28 tests
+    test_cladder.py           # 41 tests
+    test_qrdata.py            # 43 tests
 
 scripts/
-  run_benchmark.py            # CLI: --benchmark cladder --model qwen3-8b
+  run_benchmark.py            # CLI: --benchmark cladder|qrdata --model X --subset dev|all|causal
 ```
 
 ## Estado actual
@@ -72,17 +76,17 @@ scripts/
 ### Hecho
 - [x] Investigacion: SOTA en frameworks de eval + como ejecutan CLadder/DiscoveryBench/SciGym
 - [x] OpenAI adapter para ModelClient (openai_client.py)
-- [x] CLadder adapter (load, run, score, save_results)
-- [x] Tests unitarios (40 nuevos, 806 total)
-- [x] Script run_benchmark.py
-- [ ] Fix issues de Codex review (error tracking, parser robusto, max_tokens)
+- [x] CLadder adapter (load, run, score, save_results) + Codex fixes (error tracking, parser robusto, max_tokens)
+- [x] QRData adapter (load, run, score con tolerancia 3% + MC prefix match, subsets causal/statistical)
+- [x] Tests unitarios (96 de benchmarks, 862 total)
+- [x] Script run_benchmark.py (CLadder + QRData)
+- [x] Datasets descargados (CLadder 10K + QRData 411 + 195 CSVs)
 
 ### Pendiente
-- [ ] Descargar dataset CLadder y correr primer benchmark real
+- [ ] Correr GPT BEFORE scores en CLadder dev + QRData dev
+- [ ] Correr Qwen3-8B BEFORE scores (cuando haya acceso)
 - [ ] DiscoveryBench adapter (HMS scorer, code execution)
 - [ ] SciGym adapter (futuro, requiere Linux/Docker por stack SBML)
-- [ ] Scores BEFORE: Qwen3-8B + GPT en CLadder
-- [ ] Scores BEFORE: Qwen3-8B + GPT en DiscoveryBench
 
 ## Benchmarks elegidos
 

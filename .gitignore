@@ -1,3 +1,6 @@
+# Benchmark datasets (download locally, don't commit)
+data/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
