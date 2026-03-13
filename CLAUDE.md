@@ -121,18 +121,11 @@ src/sreg/
 
 scripts/
 ├── generate_src.py        # THE official script to generate SRCs (--inspect, --solve)
-├── run_diagnostic.py      # DiagnosticRunner wrapper: type-aware verdicts + failure modes
+├── run_diagnostic.py      # DiagnosticRunner wrapper: N SRCs + per-type metrics + failure modes
 ├── demo.py                # Terminal demo: world gen + teacher solving (no LLM)
 ├── view_case.py           # Inspect exported JSON cases section by section
 ├── view_trajectory.py     # Inspect agent trajectories and agent-vs-teacher comparisons
-├── batch_sweep.py         # Systematic parameter sweep with QualitySuite v2
-├── test_orchestrator.py   # (legacy) Step-by-step orchestrator run — use generate_src.py instead
-├── test_e2e.py            # (legacy) End-to-end orchestrator + agent — use generate_src.py --solve
-├── test_agent.py          # (legacy) Agent comparison — use generate_src.py --solve
-├── mini_benchmark.py      # (legacy) Mini diagnostic — use run_diagnostic.py
-├── batch_eval.py          # (legacy) Batch eval — use run_diagnostic.py
-├── diagnostic_batch.py    # (legacy) Diagnostic batch — use run_diagnostic.py
-└── qualitative_analysis.py # (legacy) Qualitative analysis — use generate_src.py --solve
+└── batch_sweep.py         # Systematic parameter sweep with QualitySuite v2
 
 experiments/                 # Diagnostic results (timestamped directories)
 └── index.md                 # Experiment registry
