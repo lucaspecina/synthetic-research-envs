@@ -6,11 +6,11 @@
 
 > Build `SregEnv(vf.StatefulToolEnv)` that wraps SREG for verifiers.
 
-- [ ] **T1.1**: Package skeleton — `src/sreg/training/` with `__init__.py`, types, adapters
-- [ ] **T1.2**: `adapters.py` — translate between verifiers tool args and SREG Action/StepResult models
-- [ ] **T1.3**: `validators.py` — submit payload validation by eval_type
-- [ ] **T1.4**: `tools.py` — `research_action()` and `submit()` as async tool functions
-- [ ] **T1.5**: `rubric.py` — reward dispatch table (9 eval types) + metrics
+- [x] **T1.1**: Package skeleton — `src/sreg/training/` with `__init__.py`, types, adapters
+- [x] **T1.2**: `adapters.py` — translate between verifiers tool args and SREG Action/StepResult models
+- [x] **T1.3**: `validators.py` — submit payload validation by eval_type
+- [ ] **T1.4**: `tools.py` — `research_action()` and `submit()` as async tool functions (needs verifiers)
+- [x] **T1.5**: `rubric.py` — reward dispatch table (9 eval types) + metrics
 - [ ] **T1.6**: `env.py` — `SregEnv` class with setup_state, update_tool_args, stop conditions
 - [ ] **T1.7**: `prompts.py` — render ResearchProblem as agent prompt
 - [ ] **T1.8**: Unit tests for all of the above (no GPU, mock model)

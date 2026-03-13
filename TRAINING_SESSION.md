@@ -80,8 +80,11 @@ These were researched and agreed with the user + Codex:
 - Codex consulted on architecture — produced concrete integration spec
 - 10 failure modes identified for testing
 
-### Implementation (NOT STARTED)
-- See `TODO_TRAINING.md` for task breakdown
+### Implementation (IN PROGRESS)
+- T1.1-T1.3, T1.5 COMPLETE: types, validators, adapters, rubric, prompts (70 tests)
+- T1.4 pending: async tool functions (needs `pip install verifiers`)
+- T1.6 pending: SregEnv class (needs verifiers)
+- See `TODO_TRAINING.md` for full task breakdown
 
 ## Key files to understand (read-only references)
 
