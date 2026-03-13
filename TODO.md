@@ -177,144 +177,42 @@
   > Falta escalar a 20-30 SRCs y analizar patrones mas profundamente.
 - [ ] **DIAG.5**: Consolidar scripts sueltos (deprecar diagnostic_batch.py, absorber test_e2e.py)
 
-### Decisiones estrategicas — RL training pipeline (2026-03-12)
-> **Estas decisiones deben tomarse ANTES de implementar benchmarks o training.**
-> Definen la base sobre la que se construye todo: que modelo, que tools, que framework.
+### SREG environment tools (interfaz del ambiente — implementadas)
+> Estas son las tools que SREG expone como ambiente. Son parte de SREG core.
+> El agente (cualquier policy) interactua con el ambiente a traves de estas.
+
+- [x] **`research_action(action_id)`** — observar, intervenir, pedir datos. Implementado (MVP-1 + Slice B).
+- [x] **`submit(answer)`** — entregar respuesta. Multi-formato (distribucion, choice, set, si/no).
+
+#### Agent harness, training y benchmarks (SEPARADO — otra branch)
+> **IMPORTANTE: Esto NO es parte de SREG core.**
+> SREG = el ambiente (genera SRCs, computa rewards). Lo que el agente hace
+> internamente (correr Python, tener scratchpad, etc.) es asunto del agente/policy,
+> no del ambiente. El harness se desarrolla por separado para probar y entrenar
+> policies contra los ambientes de SREG.
 >
-> **Consenso Claude + Codex (2026-03-12):**
-> - Harness primero, benchmarks despues (benchmark debe usar las mismas tools que training)
-> - Contratos compartidos antes de paralelizar trabajo (Fase -1)
-> - SFT warm-start ANTES de RL (un 8B no descubre buen tool-use por exploracion pura)
-> - Code execution si, pero restringido (no notebook general, no shell, no red)
-
-#### Modelo
-- **Training target**: Qwen3-8B (open-weight, buen tool-use, cabe en H100 con LoRA)
-- **Desarrollo/pruebas**: Qwen3-0.5B o similar (cabe en NVIDIA RTX 4000 de la maquina Windows)
-- **Criterio**: mismo modelo en dev y prod, solo cambia tamaño
-
-#### Hardware
-- **Desarrollo**: NVIDIA RTX 4000 (maquina Windows actual) — Qwen-0.5B para probar harness
-- **Training real**: 1-2x H100 NVL 94GB en Azure ML (ver skill azure-ml-connect)
-- **Estimacion de costo**: ~$30-200 USD por run con QLoRA GRPO en spot instances
-
-#### Framework de RL
-- **Elegido**: verifiers + prime-rl (Prime Intellect)
-- **Algoritmo**: GRPO (async CISPO)
-- **Por que**: multi-turn first-class, funciona en 1-2 GPUs, MIT license, comunidad activa
-- **Referencia**: `docs/references/RL_frameworks_research_claude.md`
-- **Alternativa descartada**: veRL (requiere 4+ GPUs, mas complejo)
-
-#### Agent Toolset (DEFINIR ANTES DE TODO — Fase -1)
-> **Principio**: el agente tiene las mismas tools en training, diagnostico y benchmarks.
-> Si el benchmark no usa las mismas affordances que el training, mides cosas distintas.
+> Investigacion de referencia: `docs/references/agent_harness_research_gpt.md`
+> Conclusiones clave: jupyter_client local (stateful por episodio), model-agnostic,
+> research log estructurado para contexto. Ver doc para detalles.
 >
-> **Consenso Claude + Codex: 3 tools core + 2 helpers deterministas.**
+> **Todo lo de abajo se trabaja en branches separadas, no en main.**
 
-- [ ] **TOOL.1**: `research_action(action_id)` — ya implementado (MVP-1). Observar, intervenir, pedir datos.
-- [ ] **TOOL.2**: `python_exec(code)` — **INVESTIGAR e implementar**
-  - Ejecucion de Python stateful por episodio (como un notebook)
-  - El modelo analiza datos: correlaciones, estadisticos, subsets, etc.
-  - **Sandbox restringido**: sin red, sin shell, sin pip install, sin filesystem arbitrario
-  - Librerias preinstaladas y fijas: numpy, pandas, scipy, statsmodels, networkx
-  - Limites duros: timeout (2-5s), memoria (512MB-2GB), output (4-8KB), lineas (<120)
-  - Max tool calls por episodio (3-8)
-  - **Opciones de implementacion a investigar**:
-    - Jupyter kernel embebido (Kernel Gateway) — mas probado
-    - ipybox (Docker + IPython stateful) — buena referencia de diseño
-    - E2B (code interpreter SDK) — mas "producto", self-hostable
-    - Subprocess simple con exec() — para desarrollo local en RTX 4000
-  - **Riesgo**: reward hacking (modelo busca canales laterales, lee seeds/respuestas)
-  - **Riesgo**: loops infinitos, "debugging theater" (ejecuta cosas irrelevantes)
-  - **Mitigacion**: penalizacion por tool call, por error, por timeout. Curriculum.
-- [ ] **TOOL.3**: `submit(answer)` — ya implementado. Multi-formato.
-- [ ] **TOOL.4**: `get_schema()` — helper determinista. Columnas, tipos, cardinalidades.
-- [ ] **TOOL.5**: `describe_data()` — helper determinista. N filas, faltantes, resumen basico.
-- **NO agregar por ahora**: web search, shell, file write, package install, plotting visual
-
-#### Reward design para RL
-> **Consenso Codex**: reward final dominante + costos por accion + penalizaciones.
-- Reward principal: exactitud causal (KL divergence, accuracy segun tipo)
-- Penalizacion pequeña por cada tool call (incentivar eficiencia)
-- Penalizacion mayor por errores de ejecucion / timeout
-- Penalizacion por acciones invalidas
-- **Pregunta abierta**: reward por paso vs solo terminal vs mixto
-- **Pregunta abierta**: bonus por usar python_exec cuando mejora exactitud
-
-#### Training pipeline
-> **Orden critico** (consenso con Codex):
-> 1. SFT warm-start con teacher trajectories (el modelo debe saber el formato)
-> 2. RL con GRPO sobre SRCs (verifiers MultiTurnEnv)
-> 3. Curriculum: primero tareas faciles (1 tool call), despues multi-step
-
-- [ ] **TRAIN.1**: Generar SFT dataset de teacher trajectories con tool use
-- [ ] **TRAIN.2**: SFT warm-start en Qwen3-8B (tasa de exito base >= 20%)
-- [ ] **TRAIN.3**: SREG como MultiTurnEnv para verifiers (reset/step/reward)
-- [ ] **TRAIN.4**: Primer RL run con GRPO en H100
-- [ ] **TRAIN.5**: Curriculum de dificultad (nodos, budget, tipos de pregunta)
+- [ ] **Agent harness**: python_exec, get_schema, describe_data — tools internas del agente
+- [ ] **Reward design**: reward final + costos por accion + penalizaciones
+- [ ] **Training pipeline** (TRAIN.1-5): SFT warm-start, GRPO, MultiTurnEnv, curriculum
+- [ ] **Transfer benchmarks** (BENCH.1-5): CLadder, QRData, export, BEFORE/AFTER protocol
+- Investigacion: `docs/references/agent_harness_research_gpt.md`, `docs/EXTERNAL_BENCHMARKS.md`
+- Decisiones de modelo/hardware/framework: ver git history (commit Fase -1)
 
 #### Trabajo en paralelo (estrategia de branches)
-> **Consenso Codex (2026-03-12):** no paralelizar implementacion sin congelar contratos.
-> Fase -1 (contratos compartidos) va ANTES de abrir branches paralelas.
->
 > **Contratos Fase -1 — COMPLETADOS (2026-03-13):**
-> - [x] Schema de accion/observacion: `EnvAction`, `EnvObservation`, `EnvStepResult`
-> - [x] Agent toolset: `AgentTool`, `AgentToolset`, `RESEARCH_ACTION/PYTHON_EXEC/SUBMIT`
-> - [x] Protocolo de modelo: `ModelClient` Protocol, `ChatResponse`, `Message`, `ToolSpec`
-> - [x] Formato de benchmark: `BenchmarkResult`, `BenchmarkComparison` (con reproducibility metadata)
-> - [x] Code execution: `CodeExecConfig`, `CodeExecResult` (interfaz, implementacion TBD)
-> - [x] Environment protocol: `SREGEnvironment` Protocol (reset/step para verifiers)
-> - [ ] Reglas de seeding y determinismo (pendiente, a definir con implementacion)
+> Contratos preparatorios en `src/sreg/models/` (agent_tools, code_exec,
+> env_protocol, benchmark, inference). Son interfaces para trabajo futuro
+> de harness/training/benchmarks — NO son parte de SREG core.
 >
-> **Plan de branches (despues de Fase -1):**
-> - `feature/slice-b` (Fase 0): intervenciones + E2E validation — modifica core
-> - `feature/benchmark-suite` (Fase 1): adapters CLadder, QRData — codigo nuevo, parallelizable
-> - `feature/rl-env` (Fase 2A): scaffold MultiTurnEnv + contract tests + fake backend — parallelizable
-> - Fase 2B (integracion real): despues de mergear Fase 0
->
-> **Dependencia oculta** (Codex): Fase 1 y Fase 2 comparten abstraccion de
-> "correr un modelo y obtener un score" — diseñar interfaz comun en Fase -1.
-
-### Benchmark de transferencia — la prueba real de SREG
-> **El verdadero benchmark de SREG no es el diagnostico de entornos.**
-> El diagnostico valida que el generador produce entornos de calidad, pero no
-> prueba que entrenar con ellos mejore a una policy.
->
-> La prueba real es: tomar una policy, evaluarla en benchmarks externos,
-> entrenarla con entornos SREG, y volver a evaluarla. El delta es la evidencia.
->
-> Si mejora en SREG pero no afuera = sobreajuste al generador.
-> Si mejora en ambos = transferencia real de habilidad cientifica.
->
-> Ver `docs/EXTERNAL_BENCHMARKS.md` para el analisis completo de benchmarks
-> externos, suite recomendada, y protocolo BEFORE/AFTER.
->
-> **IMPORTANTE**: los benchmarks deben usar la MISMA toolset que el training
-> (research_action + python_exec + submit). Si no, medimos cosas distintas.
-
-- [ ] **BENCH.1**: Montar CLadder como benchmark externo
-  - Descargar dataset (HuggingFace: causalnlp/CLadder)
-  - Script para evaluar cualquier modelo (API call -> yes/no -> accuracy)
-  - Separar por rung (asociacion/intervencion/contrafactual) y variante (commonsense/nonsense)
-  - Correr Qwen3-8B base (BEFORE) y guardar resultados
-- [ ] **BENCH.2**: Montar QRData como benchmark externo
-  - Descargar dataset (GitHub: xxxiaol/QRData)
-  - Script para evaluar (Q&A con datos tabulares -> accuracy)
-  - Separar subset causal vs estadistico
-- [ ] **BENCH.3**: Export de training data desde SREG
-  - Generar N SRCs en formato consumible por verifiers/prime-rl
-  - Teacher trajectories como SFT data (con tool use: research_action + python_exec)
-  - Reward function exportable como Rubric de verifiers
-- [ ] **BENCH.4**: Primer experimento de transferencia
-  - Modelo: Qwen3-8B
-  - BEFORE: CLadder + QRData con misma toolset
-  - TRAIN: SFT + GRPO con SRCs de SREG en H100
-  - AFTER: mismos benchmarks, mismos splits
-  - Comparar deltas con significancia estadistica
-- [ ] **BENCH.5**: Experimento RL completo
-  - RL con rewards de SREG (ademas de SFT)
-  - Comparar SFT-only vs SFT+RL
-  - Control negativo: entrenamiento placebo (datos no relacionados)
-  - Ablacion: CLadder q-nonsense vs q-commonsense (¿causal o semantico?)
+> **Branches:**
+> - `feature/slice-b` (Fase 0): intervenciones — COMPLETADO, mergeado a main
+> - Agent harness, benchmarks y training: branches separadas, trabajo futuro
 
 ### Enriquecimiento del case (SIGUIENTE FOCO — actualizado 2026-03-09)
 > **Diagnostico de alineacion con PROJECT.md**: el nucleo formal (BN, generacion,
@@ -418,13 +316,11 @@
 >   dentro del case, no solo mas flexibles tecnicamente. Slice B debe apuntar a que
 >   el orchestrator diseñe acciones con sentido narrativo, no solo formal.
 
-##### Slice B: intervenciones como acciones + orchestrator (DESPUES)
-> El agente puede INTERVENIR (do-operation) como accion del episodio.
-> El orchestrator diseña acciones como parte del ResearchCase.
-> Las acciones deben sentirse naturales dentro del case, no solo
-> tecnicamente flexibles.
+##### Slice B: intervenciones + orchestrator diseña acciones
+> Intervenciones implementadas (do-operations, sampling intervencional,
+> conflict guards). Pendiente: que el orchestrator diseñe las acciones.
 
-- [ ] Acciones de intervencion: do-operations como acciones del agente (costo alto, info alta)
+- [x] Acciones de intervencion: do-operations como acciones del agente (costo alto, info alta)
 - [ ] `ActionPlan` model: el orchestrator propone acciones tipadas como parte del CasePlan
 - [ ] Costos y agrupaciones diseñados por el orchestrator segun el research case (reemplaza heuristicas de Slice A)
 - [ ] Validacion de coherencia: cada accion ayuda a al menos 1 pregunta, no regala respuestas
@@ -603,4 +499,3 @@
 - [ ] Synthetic document artifacts (papers, reports, notes)
 - [ ] Approximate inference teacher (larger worlds)
 - [ ] Curriculum over world complexity
-- [ ] Export formal de entornos para integracion con verifiers/prime-rl (MultiTurnEnv, Rubric)

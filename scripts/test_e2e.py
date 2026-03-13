@@ -269,11 +269,17 @@ def _agent_callback(event_type: str, data: dict) -> None:
         label = _c(_C.DIM, f"[iter {iteration}]")
         _safe_print(f"  {label} {_c(_C.WHITE, content)}")
     elif event_type == "observe":
+        # Support both legacy (variable/observed_state) and rich (action/findings) formats
+        if "variable" in data:
+            label = data["variable"]
+            value = data["observed_state"]
+        else:
+            label = data.get("action", "?")
+            value = data.get("findings", "?")
         _safe_print(
-            f"  {_c(_C.CYAN, '>>>')} observe "
-            f"{_c(_C.BOLD, data['variable'])} = "
-            f"{_c(_C.YELLOW, data['observed_state'])}  "
-            f"(budget restante: {data['remaining_budget']})"
+            f"  {_c(_C.CYAN, '>>>')} {_safe(str(label))} = "
+            f"{_c(_C.YELLOW, _safe(str(value)))}  "
+            f"(budget restante: {data.get('remaining_budget', '?')})"
         )
     elif event_type == "submit":
         dist = data.get("distribution", {})

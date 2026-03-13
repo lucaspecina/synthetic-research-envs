@@ -76,7 +76,8 @@ Every training environment has two layers:
 
 v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness.
 v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation with node hints) + 9 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives) + Rich Actions Slice A (ResearchActionType, multi-node, varied costs, IG/cost teacher) + S.4 MVP-1: agent uses `research_action(action_id)` with typed action catalog (observe-only, guard for Slice B) + Agent trajectory inspection (extract, compare, export) + Multi-type agent harness (submit + prompt + scoring for 9 eval types) + DiagnosticRunner with per-type baseline scoring + 15-SRC diagnostic (57 tasks, 9/9 types). 766 tests. Ola 1 COMPLETE. Rich Actions Slice A COMPLETE. Rich Actions Slice B COMPLETE (intervene actions: do-operations, interventional sampling, conflict guards, type validation). Agent Solver S.1-S.3 COMPLETE. S.4 MVP-1 COMPLETE. DIAG.1 COMPLETE. P0 question/answer mismatch FIXED (hints end-to-end). P0 cleanup DONE (submit format, budget wording, apply_semantics, consistency check). Fase -1 shared contracts COMPLETE (inference protocol, benchmark format, code exec, env protocol, agent toolset).
-**Next: E2E validation with interventions + LLM, python_exec sandbox (TOOL.2), scale diagnostic to 20-30 SRCs, transfer benchmark infrastructure (BENCH.1-5).** See TODO.md and WORLD_DESIGN.md.
+**Next: E2E validation with interventions + LLM, scale diagnostic to 20-30 SRCs, orchestrator improvements (Eje A+B).** See TODO.md and WORLD_DESIGN.md.
+**Separate workstreams (NOT part of SREG core):** agent harness (python_exec, code execution), RL training pipeline, transfer benchmarks. These are tracked in TODO.md under dedicated sections and will be developed in separate branches. Research docs in `docs/references/`.
 
 ## Environment setup
 
@@ -107,7 +108,7 @@ Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`
 
 ```
 src/sreg/
-├── models/          # Pydantic data contracts (world, episode, task, teacher, score, dag_spec, agent_tools, benchmark, code_exec, env_protocol)
+├── models/          # Pydantic data contracts (world, episode, task, teacher, score, dag_spec, agent_tools, benchmark, code_exec, env_protocol — note: agent_tools/code_exec/env_protocol are preparatory contracts for future agent harness work, not SREG core)
 ├── inference/       # Provider-agnostic LLM protocol (ModelClient, ChatResponse, ToolSpec)
 ├── world/           # World model, templates (incl. custom), cpd_gen, pgmpy utils
 ├── solver/          # Teacher solver (exact Bayesian inference)
