@@ -1,5 +1,8 @@
 # SREG — Claude Code Project Configuration
 
+## Worktree session
+**This is worktree `rl-env-verifiers`.** Read `TRAINING_SESSION.md` for your role, scope, and priorities. Read `TODO_TRAINING.md` for your task list. You are Session C — RL training integration with verifiers. Do NOT follow the general `TODO.md` — your work is defined in `TODO_TRAINING.md`.
+
 ## START HERE — Read these docs first
 
 Before doing anything, understand the project by reading these docs in order:
