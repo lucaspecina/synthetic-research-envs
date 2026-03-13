@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### 2026-03-13 — Rich Actions Slice B: intervene actions (do-operations)
+- **ActionType.INTERVENE** + **ActionDef.effects** (`dict[str, str]`): structured
+  intervention payload. AvailableAction.intervention_values in semantic layer.
+- **EpisodeRunner refactor**: `_handle_rich_action()` dispatches observe/intervene.
+  `_execute_intervene()` fixes nodes to specified states, tracks in `_interventions`
+  (separate from `_evidence`). `_get_node_value()` samples descendants from
+  interventional distribution P(Y | do(X=x), evidence) via pgmpy CausalInference.
+- **Post-intervention consistency**: `_invalidate_descendants()` removes stale
+  evidence. `true_posterior()` and `_handle_query()` use `causal_query` when
+  interventions are active. Monotonic RNG counter for correct sampling.
+- **Conflict guards**: cannot observe+intervene same node, cannot intervene twice,
+  action type mismatch validation (Action.type vs ActionDef.action_type).
+- **ProblemBuilder**: `_build_intervene_actions()` for observable target parents.
+  One action per (node, state) pair. Cost 3, capped at 4 actions.
+- **Agent solver**: maps ActionDef.action_type to ActionType for clean traces.
+- **Prompts**: explains Measurements vs Experiments (do-operations).
+- **Codex review**: 3 findings fixed (type mismatch validation, RNG reseeding,
+  _invalidate_descendants limitation documented).
+- 11 new tests. 766 tests total.
+
 ### 2026-03-13 — Fase -1: Shared contracts for parallel development
 - **Inference protocol** (`src/sreg/inference/`): Provider-agnostic LLM interface.
   `ModelClient` Protocol, `Message`, `ChatResponse`, `ToolSpec`, `ToolCall`, `Usage`.

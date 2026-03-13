@@ -86,6 +86,7 @@ class EpisodeGenTool:
                         action_type=str(aa.action_type),
                         nodes=action_nodes,
                         cost=aa.cost,
+                        effects=dict(aa.intervention_values) if aa.intervention_values else {},
                     )
                 )
                 # Also populate node_costs for backward compat

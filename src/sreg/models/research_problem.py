@@ -40,6 +40,12 @@ class AvailableAction(BaseModel):
     )
     cost: int = Field(ge=1)
 
+    # For INTERVENE actions: maps node -> state to set
+    intervention_values: dict[str, str] = Field(
+        default_factory=dict,
+        description="For intervene: node -> state, e.g. {'water_temp': 'high'}",
+    )
+
     # Backward-compat: single-node alias (= nodes[0] when len==1)
     node: str | None = Field(
         default=None,

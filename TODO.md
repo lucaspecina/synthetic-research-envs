@@ -554,14 +554,20 @@
   - [x] Prompt no mezcla correct_answer.keys() con "possible states" para tipos no distribucionales
   - [x] _submit_distribution() valida contra estados de la task (no solo problem.target_states)
   - Limitacion conocida: observe sigue siendo nodo unico / costo 1 (Rich Actions S.4 pendiente)
-- [~] **S.4**: Agent con acciones ricas
+- [x] **S.4**: Agent con acciones ricas
   - [x] MVP-1: `observe(variable)` → `research_action(action_id)` — agente selecciona del catalogo por ID
   - [x] AvailableAction.id + ProblemBuilder genera IDs explicitos + EpisodeGenTool usa IDs
   - [x] Guard en EpisodeRunner: rechaza action_type != observe (preparacion Slice B)
   - [x] Budget tracking corregido (budget_total - remaining, no += 1)
   - [x] Prompt generico ("actions return findings" no "measurements reveal values")
   - [x] Removido coaching de hypothesis_selection (SREG presenta, no guia)
-  - [ ] Soportar intervenciones como acciones del agente (Slice B)
+  - [x] **Slice B**: intervenciones como acciones del agente (do-operations)
+    - ActionType.INTERVENE + ActionDef.effects para payload estructurado
+    - EpisodeRunner: _handle_rich_action, _execute_intervene, sampling intervencional
+    - Conflict guards: no observe+intervene mismo nodo, type mismatch validation
+    - ProblemBuilder: _build_intervene_actions para causas directas del target
+    - Agent: mapea action_def.action_type a ActionType. Prompts explican experiments
+    - Deuda: teacher no recomienda intervenciones (Slice C), cap de 4 acciones hardcoded
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec

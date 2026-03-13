@@ -431,6 +431,11 @@ Your target variable is **{target_node}** with possible states: \
 1. Study the historical data to understand correlations between variables.
 2. Use the `research_action` tool to execute actions from the list above. \
 Each action costs budget units and returns findings about the current case.
+   - **Measurements** passively observe a variable's current value.
+   - **Experiments** actively set a variable to a specific value \
+(a do-operation). This can reveal causal relationships that \
+observations alone cannot. Note: experimenting on a variable \
+may change the values of its downstream effects.
 3. After each action, update your beliefs about the target.
 {submit_instruction}
 

@@ -281,7 +281,13 @@ class AgentSolver:
                 aa_desc = aa.description
                 break
 
-        action = Action(type=ActionType.OBSERVE, action_id=action_id)
+        # Map semantic action type to interaction type
+        if action_def.action_type == "intervene":
+            action_type = ActionType.INTERVENE
+        else:
+            action_type = ActionType.OBSERVE
+
+        action = Action(type=action_type, action_id=action_id)
         step_result = runner.step(action)
 
         # Collect all observations

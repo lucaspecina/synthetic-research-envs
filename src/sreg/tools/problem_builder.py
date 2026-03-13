@@ -104,12 +104,18 @@ class ProblemBuilder:
     def _build_rich_actions(self, world: World) -> list[AvailableAction]:
         """Create rich actions with varied costs, types, and multi-node groupings.
 
-        Strategy:
+        Strategy for observations:
         - Nodes adjacent to target get cost 2 (specialized measurement)
         - Other individual nodes get cost 1 (basic measurement)
         - Sibling nodes (same parent) are grouped into a compound action
           with cost = number of nodes (no discount — the value is convenience)
         - At most 1 compound action to keep things manageable
+
+        Strategy for interventions:
+        - Only target parents (direct causes) can be intervened on
+        - One action per (node, state) pair — agent picks which state to set
+        - Intervention cost is 3 (more expensive than observation)
+        - At most 4 intervention actions to avoid prompt explosion
         """
         # Build DAG for structure analysis
         dag = nx.DiGraph()
@@ -146,7 +152,7 @@ class ProblemBuilder:
 
         actions: list[AvailableAction] = []
 
-        # Individual actions for non-compound nodes
+        # Individual observe actions for non-compound nodes
         for node in obs_nodes:
             if node.name in compound_nodes:
                 continue
@@ -162,7 +168,7 @@ class ProblemBuilder:
                 )
             )
 
-        # Compound action for sibling group
+        # Compound observe action for sibling group
         if compound_nodes:
             compound_list = sorted(compound_nodes)
             labels = [n.replace("_", " ") for n in compound_list]
@@ -175,6 +181,55 @@ class ProblemBuilder:
                     cost=len(compound_list),
                 )
             )
+
+        # Intervention actions — only target parents that are observable
+        intervene_actions = self._build_intervene_actions(world, target_name, target_parents)
+        actions.extend(intervene_actions)
+
+        return actions
+
+    def _build_intervene_actions(
+        self,
+        world: World,
+        target_name: str,
+        target_parents: set[str],
+    ) -> list[AvailableAction]:
+        """Generate intervention actions for target parent nodes.
+
+        Only observable target parents get interventions (one per state).
+        Capped at 4 total intervention actions to avoid prompt explosion.
+        """
+        actions: list[AvailableAction] = []
+        node_map = {n.name: n for n in world.nodes}
+        max_intervene_actions = 4
+
+        for parent_name in sorted(target_parents):
+            parent_node = node_map.get(parent_name)
+            if parent_node is None:
+                continue
+            # Only observable nodes can be intervened on
+            if parent_node.type != NodeType.OBSERVABLE:
+                continue
+            # Don't generate intervention on target itself
+            if parent_name == target_name:
+                continue
+
+            label = parent_name.replace("_", " ")
+            for state in parent_node.states:
+                if len(actions) >= max_intervene_actions:
+                    break
+                actions.append(
+                    AvailableAction(
+                        id=f"set_{parent_name}_{state}",
+                        action_type=ResearchActionType.INTERVENE,
+                        node=parent_name,
+                        intervention_values={parent_name: state},
+                        description=f"Experiment: set {label} to {state}",
+                        cost=3,
+                    )
+                )
+            if len(actions) >= max_intervene_actions:
+                break
 
         return actions
 

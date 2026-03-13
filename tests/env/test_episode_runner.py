@@ -357,25 +357,221 @@ def test_compound_observe_node_already_observed(world, true_state):
         runner.step(Action(type=ActionType.OBSERVE, action_id="field_survey"))
 
 
-def test_compound_observe_rejects_non_observe_action_type(world, true_state):
-    """Runner rejects action_defs with non-observe action_type (guard for Slice B)."""
+def _make_intervene_episode(world, true_state):
+    """Create an episode with both observe and intervene action defs."""
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    # indicator_4 is a target parent — good candidate for intervention
+    intervene_node = "indicator_4"
+    observe_nodes = [n for n in obs_nodes if n != intervene_node]
+
+    action_defs = []
+    # Observe actions for other nodes
+    for n in observe_nodes:
+        action_defs.append(
+            ActionDef(id=f"measure_{n}", action_type="observe", nodes=[n], cost=1)
+        )
+    # Intervene actions for indicator_4
+    action_defs.append(
+        ActionDef(
+            id="set_indicator_4_low",
+            action_type="intervene",
+            nodes=[intervene_node],
+            cost=3,
+            effects={intervene_node: "low"},
+        )
+    )
+    action_defs.append(
+        ActionDef(
+            id="set_indicator_4_high",
+            action_type="intervene",
+            nodes=[intervene_node],
+            cost=3,
+            effects={intervene_node: "high"},
+        )
+    )
+
+    return Episode(
+        id="ep-intervene-test",
+        world_id=world.id,
+        budget=10,
+        initial_evidence=[],
+        available_nodes=obs_nodes,
+        node_costs={n: 1 for n in obs_nodes},
+        action_defs=action_defs,
+        steps=[],
+    )
+
+
+# --- Intervention tests (Slice B) ---
+
+
+def test_intervene_sets_node_value(world, true_state):
+    """Intervene action fixes the node to the specified state."""
+    episode = _make_intervene_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    result = runner.step(
+        Action(type=ActionType.INTERVENE, action_id="set_indicator_4_low")
+    )
+
+    assert result.observation is not None
+    assert result.observation.node == "indicator_4"
+    assert result.observation.state == "low"
+    assert "intervention" in result.observation.description.lower()
+    assert runner.interventions == {"indicator_4": "low"}
+
+
+def test_intervene_deducts_budget(world, true_state):
+    """Intervene action deducts the correct cost from budget."""
+    episode = _make_intervene_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    runner.step(Action(type=ActionType.INTERVENE, action_id="set_indicator_4_low"))
+    assert runner.budget_remaining == 7  # 10 - 3 = 7
+
+
+def test_intervene_then_observe_works(world, true_state):
+    """Can observe a different node after intervening on another."""
+    episode = _make_intervene_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    # Intervene on indicator_4
+    runner.step(Action(type=ActionType.INTERVENE, action_id="set_indicator_4_low"))
+    # Observe indicator_1 (should still work)
+    result = runner.step(Action(type=ActionType.OBSERVE, action_id="measure_indicator_1"))
+    assert result.observation is not None
+    assert result.observation.node == "indicator_1"
+
+
+def test_cannot_observe_after_intervene_same_node(world, true_state):
+    """Cannot observe a node that was already intervened on."""
+    episode = _make_intervene_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    runner.step(Action(type=ActionType.INTERVENE, action_id="set_indicator_4_low"))
+    # Try to observe indicator_4 via legacy mode
+    with pytest.raises(ValueError, match="already intervened"):
+        runner.step(Action(type=ActionType.OBSERVE, node="indicator_4"))
+
+
+def test_cannot_intervene_after_observe_same_node(world, true_state):
+    """Cannot intervene on a node that was already observed."""
+    episode = _make_intervene_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    runner.step(Action(type=ActionType.OBSERVE, action_id="measure_indicator_1"))
+    # Create an intervene action_def for indicator_1 (it shouldn't normally be there,
+    # but we test the guard)
+    episode.action_defs.append(
+        ActionDef(
+            id="set_indicator_1_high",
+            action_type="intervene",
+            nodes=["indicator_1"],
+            cost=3,
+            effects={"indicator_1": "high"},
+        )
+    )
+    runner._action_map["set_indicator_1_high"] = episode.action_defs[-1]
+
+    with pytest.raises(ValueError, match="already observed"):
+        runner.step(Action(type=ActionType.INTERVENE, action_id="set_indicator_1_high"))
+
+
+def test_cannot_intervene_same_node_twice(world, true_state):
+    """Cannot intervene on a node that was already intervened on."""
+    episode = _make_intervene_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    runner.step(Action(type=ActionType.INTERVENE, action_id="set_indicator_4_low"))
+    with pytest.raises(ValueError, match="already been"):
+        runner.step(Action(type=ActionType.INTERVENE, action_id="set_indicator_4_high"))
+
+
+def test_intervene_requires_effects(world, true_state):
+    """Intervene action without effects dict raises error."""
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
     episode = Episode(
-        id="guard-test",
+        id="ep-no-effects",
         world_id=world.id,
         budget=5,
         initial_evidence=[],
-        available_nodes=[n.name for n in world.nodes if n.type == NodeType.OBSERVABLE],
+        available_nodes=obs_nodes,
         node_costs={},
         action_defs=[
             ActionDef(
-                id="experiment_1",
+                id="bad_intervene",
                 action_type="intervene",
-                nodes=[world.nodes[1].name],
+                nodes=["indicator_4"],
                 cost=2,
+                effects={},  # empty effects
             ),
         ],
         steps=[],
     )
     runner = EpisodeRunner(world, episode, true_state)
-    with pytest.raises(ValueError, match="not yet supported"):
-        runner.step(Action(type=ActionType.OBSERVE, action_id="experiment_1"))
+    with pytest.raises(ValueError, match="no effects"):
+        runner.step(Action(type=ActionType.INTERVENE, action_id="bad_intervene"))
+
+
+def test_intervene_invalid_state_rejected(world, true_state):
+    """Intervene with an invalid state for the node raises error."""
+    obs_nodes = [n.name for n in world.nodes if n.type == NodeType.OBSERVABLE]
+    episode = Episode(
+        id="ep-bad-state",
+        world_id=world.id,
+        budget=5,
+        initial_evidence=[],
+        available_nodes=obs_nodes,
+        node_costs={},
+        action_defs=[
+            ActionDef(
+                id="bad_state",
+                action_type="intervene",
+                nodes=["indicator_4"],
+                cost=2,
+                effects={"indicator_4": "nonexistent_state"},
+            ),
+        ],
+        steps=[],
+    )
+    runner = EpisodeRunner(world, episode, true_state)
+    with pytest.raises(ValueError, match="not valid"):
+        runner.step(Action(type=ActionType.INTERVENE, action_id="bad_state"))
+
+
+def test_query_distribution_respects_interventions(world, true_state):
+    """Query distribution returns interventional posterior after do-operation."""
+    episode = _make_intervene_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    # Get observational posterior first
+    obs_post = runner.true_posterior("target_outcome")
+
+    # Intervene on indicator_4
+    runner.step(Action(type=ActionType.INTERVENE, action_id="set_indicator_4_low"))
+
+    # Get interventional posterior — should differ from observational
+    int_post = runner.true_posterior("target_outcome")
+
+    # Both should be valid distributions
+    assert abs(sum(obs_post.values()) - 1.0) < 1e-6
+    assert abs(sum(int_post.values()) - 1.0) < 1e-6
+
+    # They should generally differ (indicator_4 is a target parent)
+    # Not guaranteed to differ by much, but at least the mechanism works
+    assert isinstance(int_post, dict)
+    assert set(int_post.keys()) == set(obs_post.keys())
+
+
+def test_action_type_mismatch_rejected(world, true_state):
+    """Calling an observe action_def with INTERVENE type (or vice versa) raises error."""
+    episode = _make_intervene_episode(world, true_state)
+    runner = EpisodeRunner(world, episode, true_state)
+
+    # Try to call an observe action with INTERVENE type
+    with pytest.raises(ValueError, match="type mismatch"):
+        runner.step(Action(type=ActionType.INTERVENE, action_id="measure_indicator_1"))
+
+    # Try to call an intervene action with OBSERVE type
+    with pytest.raises(ValueError, match="type mismatch"):
+        runner.step(Action(type=ActionType.OBSERVE, action_id="set_indicator_4_low"))

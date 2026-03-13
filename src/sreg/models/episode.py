@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 
 class ActionType(StrEnum):
     OBSERVE = "observe"
+    INTERVENE = "intervene"
     SUBMIT = "submit"
     QUERY_DISTRIBUTION = "query_distribution"
 
@@ -25,8 +26,12 @@ class ActionDef(BaseModel):
         default="observe",
         description="Type: 'observe', 'intervene', 'request_dataset'",
     )
-    nodes: list[str] = Field(min_length=1, description="Nodes revealed by this action")
+    nodes: list[str] = Field(min_length=1, description="Nodes revealed or affected by this action")
     cost: int = Field(ge=1, description="Budget cost of this action")
+    effects: dict[str, str] = Field(
+        default_factory=dict,
+        description="For intervene actions: node -> state to set, e.g. {'water_temp': 'high'}",
+    )
 
 
 class Action(BaseModel):
@@ -54,7 +59,7 @@ class Action(BaseModel):
 
     @model_validator(mode="after")
     def validate_action_fields(self) -> Action:
-        if self.type in (ActionType.OBSERVE, ActionType.QUERY_DISTRIBUTION):
+        if self.type in (ActionType.OBSERVE, ActionType.INTERVENE, ActionType.QUERY_DISTRIBUTION):
             if self.node is None and self.action_id is None:
                 raise ValueError(
                     f"Action '{self.type}' requires a 'node' or 'action_id'"
