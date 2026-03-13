@@ -1,0 +1,109 @@
+# Session B — Benchmark Suite
+
+> **LEE ESTO PRIMERO si estas en el worktree `benchmark-suite`.**
+> Este documento define tu rol, scope, y prioridades. No sigas el TODO.md
+> general — ahi estan las tareas del generador (Session A). Tu trabajo es otro.
+
+## Tu rol
+
+Sos la **Session B**: investigacion y construccion de la infraestructura de
+benchmarks externos para evaluacion de transferencia (BEFORE/AFTER).
+
+Tu objetivo: obtener los **scores BEFORE** de modelos (Qwen3-8B, GPT) en
+benchmarks externos, para despues comparar con los scores AFTER de entrenar
+en SREG.
+
+## Sesiones paralelas (NO tocar su territorio)
+
+| Session | Worktree | Foco | Territorio |
+|---------|----------|------|------------|
+| **A** | `main` | Generador de entornos (intervenciones, E2E, orchestrator) | `src/sreg/world/`, `tools/`, `orchestrator/`, `agent/`, `harness/` |
+| **B (vos)** | `benchmark-suite` | Benchmarks externos + evaluacion de transferencia | `src/sreg/benchmarks/`, `src/sreg/inference/openai_client.py` |
+| **C** | `rl-env-verifiers` | Integracion SREG con verifiers/prime-rl para RL training | `src/sreg/training/` |
+
+## Que HACER
+
+1. **Adapters de benchmarks externos**: CLadder, DiscoveryBench, SciGym
+2. **OpenAI adapter** para `ModelClient` protocol (conecta con Azure/OpenAI/vLLM)
+3. **Scripts para correr benchmarks**: `scripts/run_benchmark.py`
+4. **Guardar resultados** con `BenchmarkResult` (metadata de reproducibilidad)
+5. Scope basico: pregunta -> modelo -> respuesta -> score. Sin harness agentivo sofisticado.
+
+## Que NO tocar
+
+### Contratos Fase -1 (interfaz estable, compartida entre sesiones)
+- `src/sreg/inference/protocol.py` — ModelClient Protocol
+- `src/sreg/models/benchmark.py` — BenchmarkResult, BenchmarkComparison
+- `src/sreg/models/code_exec.py` — CodeExecConfig, CodeExecResult
+- `src/sreg/models/env_protocol.py` — SREGEnvironment Protocol
+- `src/sreg/models/agent_tools.py` — AgentTool, AgentToolset
+
+### Territorio de otras sesiones
+- `src/sreg/world/`, `src/sreg/tools/`, `src/sreg/orchestrator/` — Session A
+- `src/sreg/training/` — Session C
+- `src/sreg/agent/`, `src/sreg/harness/` — Session A
+
+## Archivos de esta session
+
+```
+src/sreg/
+  inference/
+    openai_client.py          # ModelClient -> OpenAI SDK adapter
+  benchmarks/
+    __init__.py
+    cladder/
+      __init__.py
+      adapter.py              # CLadderAdapter: load, prompt, score
+    discoverybench/           # (pendiente)
+    scigym/                   # (futuro)
+
+tests/
+  inference/
+    test_openai_client.py     # 12 tests
+  benchmarks/
+    test_cladder.py           # 28 tests
+
+scripts/
+  run_benchmark.py            # CLI: --benchmark cladder --model qwen3-8b
+```
+
+## Estado actual
+
+### Hecho
+- [x] Investigacion: SOTA en frameworks de eval + como ejecutan CLadder/DiscoveryBench/SciGym
+- [x] OpenAI adapter para ModelClient (openai_client.py)
+- [x] CLadder adapter (load, run, score, save_results)
+- [x] Tests unitarios (40 nuevos, 806 total)
+- [x] Script run_benchmark.py
+- [ ] Fix issues de Codex review (error tracking, parser robusto, max_tokens)
+
+### Pendiente
+- [ ] Descargar dataset CLadder y correr primer benchmark real
+- [ ] DiscoveryBench adapter (HMS scorer, code execution)
+- [ ] SciGym adapter (futuro, requiere Linux/Docker por stack SBML)
+- [ ] Scores BEFORE: Qwen3-8B + GPT en CLadder
+- [ ] Scores BEFORE: Qwen3-8B + GPT en DiscoveryBench
+
+## Benchmarks elegidos
+
+| Benchmark | Tipo | Scoring | Prioridad |
+|-----------|------|---------|-----------|
+| **CLadder** | 10K preguntas yes/no sobre causalidad (3 rungs de Pearl) | Determinista (accuracy) | **1 — arranca aca** |
+| **DiscoveryBench** | Hipotesis desde datos tabulares (CSVs) | LLM-judge (HMS, no determinista) | 2 |
+| **SciGym** | Ciclo experimental multi-turn (biologia, SBML) | Determinista (GED, STE) | 3 (futuro) |
+
+## Decisiones de diseno
+
+- **Runner propio minimo**, no inspect_ai ni lm-eval-harness. SREG ya tiene ModelClient + BenchmarkResult.
+- **Sin harness agentivo**: scope basico = pregunta -> modelo -> respuesta -> score.
+- **Subsampling determinista**: dev subset (100 ejemplos) para iterar rapido, full dataset para eval.
+- **Per-example JSONL**: guardar cada resultado individual, no solo agregados.
+- **Pinnear versiones de dataset**: reproducibilidad total.
+
+## Reglas de trabajo
+
+1. Lee CLAUDE.md para convenciones de codigo, git, y testing
+2. Workflow: codigo+tests -> Codex review -> presentar al usuario -> user aprueba -> docs+commit
+3. **NUNCA commitear sin aprobacion del usuario**
+4. Comunicar en espanol, amigable y detallado
+5. Consultar Codex como second opinion para decisiones importantes

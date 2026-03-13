@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+### 2026-03-13 — BENCH.1: CLadder adapter + OpenAI client + benchmark infra
+- **OpenAI adapter** (`src/sreg/inference/openai_client.py`): implements `ModelClient`
+  Protocol using OpenAI SDK. Supports Azure AI Foundry (base_url) and native OpenAI.
+  Normalizes responses to `ChatResponse`, handles tool calls and usage parsing.
+- **CLadder adapter** (`src/sreg/benchmarks/cladder/adapter.py`): loads CLadder dataset
+  (10K causal yes/no questions), prompts model, parses answers, computes accuracy by
+  rung (1/2/3), query_type (ate, backdoor, nde, etc.), and sensical variant
+  (commonsense/anti/nonsense). Deterministic dev subset (100 examples) for fast iteration.
+  Per-example JSONL output + `BenchmarkResult` with full reproducibility metadata.
+- **Error integrity** (Codex review fix): API errors tracked separately from model
+  answers (`CLadderResult.error` field). Score reports `errors` vs `unparseable` vs
+  `answered` counts. Aborts after 5 consecutive API errors instead of silently
+  recording infrastructure failures as wrong answers.
+- **Robust parser** (Codex review fix): handles markdown formatting (`**Yes**`, `# No`),
+  "Answer: Yes/No" patterns, and "The answer is yes/no" patterns.
+- **max_tokens=256** (Codex review fix): limits output on yes/no benchmark.
+- **CLI script** (`scripts/run_benchmark.py`): `--benchmark cladder --model X --subset dev`.
+  Saves results + benchmark JSON to `experiments/benchmarks/`.
+- **BENCH_SESSION.md**: worktree session document defining Session B role and scope.
+- 53 new tests (12 OpenAI client + 41 CLadder adapter). 819 tests total.
+
 ### 2026-03-13 — Rich Actions Slice B: intervene actions (do-operations)
 - **ActionType.INTERVENE** + **ActionDef.effects** (`dict[str, str]`): structured
   intervention payload. AvailableAction.intervention_values in semantic layer.

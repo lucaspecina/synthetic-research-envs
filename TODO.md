@@ -291,11 +291,13 @@
 > **IMPORTANTE**: los benchmarks deben usar la MISMA toolset que el training
 > (research_action + python_exec + submit). Si no, medimos cosas distintas.
 
-- [ ] **BENCH.1**: Montar CLadder como benchmark externo
-  - Descargar dataset (HuggingFace: causalnlp/CLadder)
-  - Script para evaluar cualquier modelo (API call -> yes/no -> accuracy)
-  - Separar por rung (asociacion/intervencion/contrafactual) y variante (commonsense/nonsense)
-  - Correr Qwen3-8B base (BEFORE) y guardar resultados
+- [~] **BENCH.1**: Montar CLadder como benchmark externo
+  - [x] CLadderAdapter: load JSON, prompt model, parse yes/no, score by rung/query_type/sensical
+  - [x] OpenAIClient: ModelClient adapter for OpenAI SDK (Azure + native)
+  - [x] CLI script: `scripts/run_benchmark.py --benchmark cladder --model X --subset dev`
+  - [x] 53 tests (12 OpenAI client + 41 CLadder adapter)
+  - [ ] Descargar dataset real (cladder-v1-balanced.json)
+  - [ ] Correr Qwen3-8B base (BEFORE) y guardar resultados
 - [ ] **BENCH.2**: Montar QRData como benchmark externo
   - Descargar dataset (GitHub: xxxiaol/QRData)
   - Script para evaluar (Q&A con datos tabulares -> accuracy)
