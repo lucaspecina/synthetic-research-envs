@@ -256,13 +256,14 @@
 > **Consenso Codex (2026-03-12):** no paralelizar implementacion sin congelar contratos.
 > Fase -1 (contratos compartidos) va ANTES de abrir branches paralelas.
 >
-> **Contratos a definir en Fase -1 (PR chica a main):**
-> - Schema de accion (research_action + intervenciones + python_exec)
-> - Schema de observacion/resultado
-> - Protocolo comun de modelo (interfaz para API y vLLM local)
-> - Formato de resultado de benchmark
-> - Reglas de seeding y determinismo
-> - Schema de reward/info para RL
+> **Contratos Fase -1 — COMPLETADOS (2026-03-13):**
+> - [x] Schema de accion/observacion: `EnvAction`, `EnvObservation`, `EnvStepResult`
+> - [x] Agent toolset: `AgentTool`, `AgentToolset`, `RESEARCH_ACTION/PYTHON_EXEC/SUBMIT`
+> - [x] Protocolo de modelo: `ModelClient` Protocol, `ChatResponse`, `Message`, `ToolSpec`
+> - [x] Formato de benchmark: `BenchmarkResult`, `BenchmarkComparison` (con reproducibility metadata)
+> - [x] Code execution: `CodeExecConfig`, `CodeExecResult` (interfaz, implementacion TBD)
+> - [x] Environment protocol: `SREGEnvironment` Protocol (reset/step para verifiers)
+> - [ ] Reglas de seeding y determinismo (pendiente, a definir con implementacion)
 >
 > **Plan de branches (despues de Fase -1):**
 > - `feature/slice-b` (Fase 0): intervenciones + E2E validation — modifica core

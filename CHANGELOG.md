@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### 2026-03-13 — Fase -1: Shared contracts for parallel development
+- **Inference protocol** (`src/sreg/inference/`): Provider-agnostic LLM interface.
+  `ModelClient` Protocol, `Message`, `ChatResponse`, `ToolSpec`, `ToolCall`, `Usage`.
+  StrEnum roles/finish reasons. Supports OpenAI API and vLLM local.
+- **Benchmark format** (`src/sreg/models/benchmark.py`): `BenchmarkResult` with
+  reproducibility metadata (seed, prompt/code/dataset versions, toolset version).
+  `BenchmarkComparison` for BEFORE/AFTER transfer evaluation.
+- **Code execution contract** (`src/sreg/models/code_exec.py`): `CodeExecConfig`
+  (timeout, memory, allowed imports) and `CodeExecResult` (status, stdout/stderr,
+  truncation flags). Implementation TBD.
+- **Environment protocol** (`src/sreg/models/env_protocol.py`): `SREGEnvironment`
+  Protocol (reset/step), `EnvAction`, `EnvObservation`, `EnvStepResult`.
+  Gymnasium-inspired interface for verifiers MultiTurnEnv integration.
+- **Agent toolset** (`src/sreg/models/agent_tools.py`): `AgentTool`, `AgentToolset`,
+  canonical tool definitions (RESEARCH_ACTION, PYTHON_EXEC, SUBMIT).
+  Same tools for training, diagnostic, and benchmarks.
+- 25 new contract tests. 757 tests total.
+- **Codex review**: 4 findings (1 P0 fixed: `model_config` -> `inference_config`
+  to avoid Pydantic v2 reserved name conflict).
+
 ### 2026-03-12 — S.4 MVP-1: observe(variable) -> research_action(action_id)
 - **Agent interface redesign**: Agent now selects from an action catalog by ID instead of
   requesting individual variables. Tool renamed `observe` -> `research_action(action_id)`.

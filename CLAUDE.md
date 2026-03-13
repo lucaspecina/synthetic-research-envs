@@ -75,7 +75,7 @@ Every training environment has two layers:
 ### Current state
 
 v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness.
-v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation with node hints) + 9 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives) + Rich Actions Slice A (ResearchActionType, multi-node, varied costs, IG/cost teacher) + S.4 MVP-1: agent uses `research_action(action_id)` with typed action catalog (observe-only, guard for Slice B) + Agent trajectory inspection (extract, compare, export) + Multi-type agent harness (submit + prompt + scoring for 9 eval types) + DiagnosticRunner with per-type baseline scoring + 15-SRC diagnostic (57 tasks, 9/9 types). 732 tests. Ola 1 COMPLETE. Rich Actions Slice A COMPLETE. Agent Solver S.1-S.3 COMPLETE. S.4 MVP-1 COMPLETE. DIAG.1 COMPLETE. P0 question/answer mismatch FIXED (hints end-to-end). P0 cleanup DONE (submit format, budget wording, apply_semantics, consistency check).
+v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation with node hints) + 9 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives) + Rich Actions Slice A (ResearchActionType, multi-node, varied costs, IG/cost teacher) + S.4 MVP-1: agent uses `research_action(action_id)` with typed action catalog (observe-only, guard for Slice B) + Agent trajectory inspection (extract, compare, export) + Multi-type agent harness (submit + prompt + scoring for 9 eval types) + DiagnosticRunner with per-type baseline scoring + 15-SRC diagnostic (57 tasks, 9/9 types). 757 tests. Ola 1 COMPLETE. Rich Actions Slice A COMPLETE. Agent Solver S.1-S.3 COMPLETE. S.4 MVP-1 COMPLETE. DIAG.1 COMPLETE. P0 question/answer mismatch FIXED (hints end-to-end). P0 cleanup DONE (submit format, budget wording, apply_semantics, consistency check). Fase -1 shared contracts COMPLETE (inference protocol, benchmark format, code exec, env protocol, agent toolset).
 **Next: Rich Actions Slice B (S.4 intervene actions), scale diagnostic to 20-30 SRCs, transfer benchmark infrastructure (BENCH.1-5).** See TODO.md and WORLD_DESIGN.md.
 
 ## Environment setup
@@ -107,7 +107,8 @@ Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`
 
 ```
 src/sreg/
-├── models/          # Pydantic data contracts (world, episode, task, teacher, score, dag_spec)
+├── models/          # Pydantic data contracts (world, episode, task, teacher, score, dag_spec, agent_tools, benchmark, code_exec, env_protocol)
+├── inference/       # Provider-agnostic LLM protocol (ModelClient, ChatResponse, ToolSpec)
 ├── world/           # World model, templates (incl. custom), cpd_gen, pgmpy utils
 ├── solver/          # Teacher solver (exact Bayesian inference)
 ├── tools/           # WorldGen, WorldCheck, EpisodeGen, TaskGen, Verifier
