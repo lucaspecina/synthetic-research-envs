@@ -9,12 +9,12 @@
 - [x] **T1.1**: Package skeleton — `src/sreg/training/` with `__init__.py`, types, adapters
 - [x] **T1.2**: `adapters.py` — translate between verifiers tool args and SREG Action/StepResult models
 - [x] **T1.3**: `validators.py` — submit payload validation by eval_type
-- [ ] **T1.4**: `tools.py` — `research_action()` and `submit()` as async tool functions (needs verifiers)
+- [x] **T1.4**: `tools.py` — `research_action()` and `submit()` as async tool functions
 - [x] **T1.5**: `rubric.py` — reward dispatch table (9 eval types) + metrics
-- [ ] **T1.6**: `env.py` — `SregEnv` class with setup_state, update_tool_args, stop conditions
-- [ ] **T1.7**: `prompts.py` — render ResearchProblem as agent prompt
-- [ ] **T1.8**: Unit tests for all of the above (no GPU, mock model)
-- [ ] **T1.9**: Integration test — create SregEnv with a real SRC, verify rollout mechanics
+- [x] **T1.6**: `env.py` — `SregEnv` class with setup_state, update_tool_args, stop conditions
+- [x] **T1.7**: `prompts.py` — render ResearchProblem as agent prompt
+- [x] **T1.8**: Unit tests for all of the above (116 tests, no GPU)
+- [x] **T1.9**: Integration test — full rollout simulation (dataset → setup → observe → submit → score)
 
 ## Phase 2: Dataset generation (TRAIN.1)
 
@@ -53,7 +53,7 @@
 |------|--------|------------|
 | verifiers API unstable (v0.1.x) | Active | Pin version, integration tests |
 | python_exec not implemented (TOOL.2) | Blocked | Phase 1 uses research_action + submit only |
-| EpisodeRunner API mismatch with tool functions | To verify | Adapter layer handles translation |
+| EpisodeRunner API mismatch with tool functions | Resolved | Adapter layer handles translation |
 | Parallel tool calls in verifiers | To handle | Reject or serialize in env |
 | Model doesn't learn SREG tool format | Phase 4 | SFT warm-start with teacher trajectories |
 

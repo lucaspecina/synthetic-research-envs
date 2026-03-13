@@ -56,7 +56,7 @@ These were researched and agreed with the user + Codex:
 
 ### Submit tool design
 - `choice: str | None` — for hypothesis_selection, NBO, best_intervention, compare_interventions, should_condition
-- `distribution: dict[str, float] | None` — for infer_target, causal_effect, infer_latent_cause
+- `distribution: str | None` — JSON string for infer_target, causal_effect, infer_latent_cause (str not dict due to openai-agents strict schema limitation)
 - `adjustment_set: list[str] | None` — for adjustment_set
 - Exactly one field must be populated per eval_type
 
@@ -80,10 +80,12 @@ These were researched and agreed with the user + Codex:
 - Codex consulted on architecture — produced concrete integration spec
 - 10 failure modes identified for testing
 
-### Implementation (IN PROGRESS)
-- T1.1-T1.3, T1.5 COMPLETE: types, validators, adapters, rubric, prompts (70 tests)
-- T1.4 pending: async tool functions (needs `pip install verifiers`)
-- T1.6 pending: SregEnv class (needs verifiers)
+### Implementation — Phase 1 COMPLETE
+- T1.1-T1.9 ALL COMPLETE: types, validators, adapters, rubric, prompts, tools, env, integration test (116 tests)
+- `SregEnv(vf.StatefulToolEnv)` fully functional
+- Full rollout simulation passing: dataset → setup → observe → submit → scoring
+- Codex review applied: 3 bugs fixed (budget exhaustion, max_turns labeling, trace consistency)
+- **Next: Phase 2 (dataset generation) or Phase 3 (dry run with real model)**
 - See `TODO_TRAINING.md` for full task breakdown
 
 ## Key files to understand (read-only references)
