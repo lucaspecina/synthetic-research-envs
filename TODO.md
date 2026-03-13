@@ -298,7 +298,8 @@
   - [x] 53 tests (12 OpenAI client + 41 CLadder adapter)
   - [x] Descargar dataset real (cladder-v1-q-balanced.json, 10112 preguntas)
   - [x] Fix parser para formato real del JSON (rung/query_type en meta directamente)
-  - [ ] Correr GPT base (BEFORE) en dev subset y guardar resultados
+  - [x] Correr GPT base (BEFORE) en dev subset y guardar resultados
+    > gpt-5.2-chat: 78% overall (rung1=100%, rung2=70%, rung3=67.5%). 2026-03-13.
   - [ ] Correr Qwen3-8B base (BEFORE) y guardar resultados
 - [~] **BENCH.2**: Montar QRData como benchmark externo
   - [x] QRDataAdapter: load JSON + CSVs, prompt with data table, numeric tolerance (3%) + MC exact match
@@ -306,7 +307,8 @@
   - [x] CLI: `scripts/run_benchmark.py --benchmark qrdata --model X --subset causal`
   - [x] 43 tests
   - [x] Descargar dataset real (QRData.json + 195 CSVs)
-  - [ ] Correr GPT base (BEFORE) en dev subset y guardar resultados
+  - [x] Correr GPT base (BEFORE) en dev subset y guardar resultados
+    > gpt-5.2-chat: 38% overall (causal=43.8%, stat=27.8%, MC=48.5%, num=17.6%). 2026-03-13.
   - [ ] Correr Qwen3-8B base (BEFORE) y guardar resultados
 - [ ] **BENCH.3**: Export de training data desde SREG
   - Generar N SRCs en formato consumible por verifiers/prime-rl

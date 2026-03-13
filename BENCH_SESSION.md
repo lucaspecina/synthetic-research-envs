@@ -75,15 +75,18 @@ scripts/
 
 ### Hecho
 - [x] Investigacion: SOTA en frameworks de eval + como ejecutan CLadder/DiscoveryBench/SciGym
-- [x] OpenAI adapter para ModelClient (openai_client.py)
+- [x] OpenAI adapter para ModelClient (openai_client.py) + reasoning model compat (gpt-5.2-chat)
 - [x] CLadder adapter (load, run, score, save_results) + Codex fixes (error tracking, parser robusto, max_tokens)
 - [x] QRData adapter (load, run, score con tolerancia 3% + MC prefix match, subsets causal/statistical)
 - [x] Tests unitarios (96 de benchmarks, 862 total)
 - [x] Script run_benchmark.py (CLadder + QRData)
 - [x] Datasets descargados (CLadder 10K + QRData 411 + 195 CSVs)
+- [x] **BEFORE scores con gpt-5.2-chat** (2026-03-13)
+  - CLadder dev (100): **78%** (rung1=100%, rung2=70%, rung3=67.5%)
+  - QRData dev (50): **38%** (causal=43.8%, stat=27.8%)
+  - Resultados en `docs/BENCHMARK_RESULTS.md` y `experiments/benchmarks/`
 
 ### Pendiente
-- [ ] Correr GPT BEFORE scores en CLadder dev + QRData dev
 - [ ] Correr Qwen3-8B BEFORE scores (cuando haya acceso)
 - [ ] DiscoveryBench adapter (HMS scorer, code execution)
 - [ ] SciGym adapter (futuro, requiere Linux/Docker por stack SBML)

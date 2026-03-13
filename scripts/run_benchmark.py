@@ -12,10 +12,15 @@ Results are saved to experiments/benchmarks/<benchmark>_<timestamp>/
 from __future__ import annotations
 
 import argparse
+import io
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+
+# Windows cp1252 can't handle Unicode from model responses — force UTF-8
+if sys.stdout.encoding != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -51,6 +56,7 @@ def run_cladder(args: argparse.Namespace) -> None:
 
     # Setup
     client = OpenAIClient(model=args.model)
+    model_name = args.model or client.default_model
     adapter = CLadderAdapter(data_path=data_path)
 
     # Load
@@ -59,13 +65,13 @@ def run_cladder(args: argparse.Namespace) -> None:
     logger.info(f"  {len(examples)} examples loaded")
 
     # Run
-    logger.info(f"Running model={args.model}, temperature={args.temperature}...")
+    logger.info(f"Running model={model_name}, temperature={args.temperature}...")
     results = adapter.run(
         client, examples, model=args.model, temperature=args.temperature
     )
 
     # Score
-    benchmark = adapter.score(results, model_name=args.model, seed=args.seed)
+    benchmark = adapter.score(results, model_name=model_name, seed=args.seed)
 
     # Save
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -133,10 +139,8 @@ def run_qrdata(args: argparse.Namespace) -> None:
 
     # Setup
     client = OpenAIClient(model=args.model)
-    # Map generic subsets to QRData-specific ones
+    model_name = args.model or client.default_model
     subset = args.subset
-    if subset == "dev":
-        subset = "dev"
     adapter = QRDataAdapter(data_path=data_path, csv_dir=csv_dir)
 
     # Load
@@ -145,13 +149,13 @@ def run_qrdata(args: argparse.Namespace) -> None:
     logger.info(f"  {len(examples)} examples loaded")
 
     # Run
-    logger.info(f"Running model={args.model}, temperature={args.temperature}...")
+    logger.info(f"Running model={model_name}, temperature={args.temperature}...")
     results = adapter.run(
         client, examples, model=args.model, temperature=args.temperature
     )
 
     # Score
-    benchmark = adapter.score(results, model_name=args.model, seed=args.seed)
+    benchmark = adapter.score(results, model_name=model_name, seed=args.seed)
 
     # Save
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

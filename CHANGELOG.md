@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-13 — BEFORE scores: gpt-5.2-chat on CLadder + QRData
+- **First BEFORE scores** obtained for transfer benchmark baseline.
+  - CLadder dev (100 examples): **78% accuracy**. Rung1=100%, Rung2=70%, Rung3=67.5%.
+  - QRData dev (50 examples): **38% accuracy**. Causal=43.8%, Statistical=27.8%.
+- **OpenAI client**: reasoning model compatibility (gpt-5.2-chat, o-series).
+  Auto-detects models that reject `temperature` and `max_tokens`, omits unsupported
+  params after first request. Uses `max_completion_tokens` instead of `max_tokens`.
+- **run_benchmark.py**: fixes model name resolution (was `None`), Windows UTF-8 output.
+- **Results documented** in `docs/BENCHMARK_RESULTS.md` with full methodology.
+- Raw data in `experiments/benchmarks/cladder_20260313_165322/` and
+  `experiments/benchmarks/qrdata_20260313_170007/`.
+
 ### 2026-03-13 — BENCH.2: QRData adapter + CLadder real data fix
 - **QRData adapter** (`src/sreg/benchmarks/qrdata/adapter.py`): loads 411 questions
   (269 causal, 142 statistical) with associated CSV data files. Prompts model with

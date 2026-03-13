@@ -61,6 +61,10 @@ class OpenAIClient:
             kwargs["base_url"] = resolved_url
 
         self._client = OpenAI(**kwargs)
+        # Track whether this model rejects temperature (reasoning models).
+        # Reasoning models also mishandle max_completion_tokens (it caps
+        # thinking + output combined), so we skip it too.
+        self._is_reasoning_model = False
 
     def chat(
         self,
@@ -77,14 +81,25 @@ class OpenAIClient:
             "model": model or self.default_model,
             "messages": api_messages,
         }
-        if temperature is not None:
+        if temperature is not None and not self._is_reasoning_model:
             kwargs["temperature"] = temperature
-        if max_tokens is not None:
-            kwargs["max_tokens"] = max_tokens
+        if max_tokens is not None and not self._is_reasoning_model:
+            kwargs["max_completion_tokens"] = max_tokens
         if tools:
             kwargs["tools"] = [_toolspec_to_dict(t) for t in tools]
 
-        response = self._client.chat.completions.create(**kwargs)
+        try:
+            response = self._client.chat.completions.create(**kwargs)
+        except Exception as e:
+            err_msg = str(e).lower()
+            # Reasoning models (o-series, gpt-5+) don't support temperature != 1
+            if "unsupported" in err_msg and ("temperature" in err_msg or "max_tokens" in err_msg):
+                self._is_reasoning_model = True
+                kwargs.pop("temperature", None)
+                kwargs.pop("max_completion_tokens", None)
+                response = self._client.chat.completions.create(**kwargs)
+            else:
+                raise
         return _parse_response(response)
 
 
