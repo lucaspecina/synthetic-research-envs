@@ -317,7 +317,8 @@
   - [x] 39 tests (HMS + adapter)
   - [x] Dataset: train split (25 examples with gold). Test split held-out (no gold).
   - [x] Mini-test: 5 examples, mean HMS=0.227 (paper best ~25%)
-  - [ ] Correr GPT BEFORE en full train (25) y guardar resultados
+  - [x] Correr GPT BEFORE en full train (25) y guardar resultados
+    > gpt-5.2-chat: 0.299 HMS (biology=0.427, sociology=0.213, economics=0.215). 2026-03-13.
   - [ ] Correr Qwen3-8B BEFORE y guardar resultados
 - [ ] **BENCH.4**: Export de training data desde SREG
   - Generar N SRCs en formato consumible por verifiers/prime-rl

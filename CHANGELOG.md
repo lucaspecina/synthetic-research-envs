@@ -5,7 +5,7 @@
 
 ## [Unreleased]
 
-### 2026-03-13 — BENCH.3: DiscoveryBench adapter + HMS scorer
+### 2026-03-13 — BENCH.3: DiscoveryBench adapter + HMS scorer + BEFORE score
 - **DiscoveryBench adapter** (`src/sreg/benchmarks/discoverybench/adapter.py`): loads
   DiscoveryBench dataset (CSV from HuggingFace), prompts model with domain + dataset
   description + columns + research question, collects predicted hypotheses.
@@ -17,7 +17,10 @@
 - **CLI**: `scripts/run_benchmark.py --benchmark discoverybench`.
 - 39 tests (HMS parsing, decomposition, context matching, variable F1, relationship
   accuracy, full pipeline, adapter load/run/score/save).
-- Mini-test: 5 examples, mean HMS=0.227 (paper best ~25%).
+- **BEFORE score**: gpt-5.2-chat on full train (25 examples): **0.299 HMS** (29.9%).
+  Biology=0.427, sociology=0.213, economics=0.215. Paper best ~24.5% (Reflexion+GPT-4o).
+- **Validated all 3 benchmarks against published literature** — results are consistent.
+  See `docs/BENCHMARK_RESULTS.md` for full comparison tables.
 
 ### 2026-03-13 — BEFORE scores: gpt-5.2-chat on CLadder + QRData
 - **First BEFORE scores** obtained for transfer benchmark baseline.

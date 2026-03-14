@@ -88,11 +88,11 @@ scripts/
 - [x] **DiscoveryBench adapter** (2026-03-13)
   - HMS scorer via LLM judge (decompose + context match + variable F1 + relationship acc)
   - Train split only (25 examples with gold). Test split held-out.
-  - Mini-test: 5 examples, mean HMS=0.227 (paper best ~25%)
+  - Full train (25 examples): **0.299 HMS** (biology=0.427, econ=0.215, socio=0.213)
   - 39 tests
+- [x] **Validacion vs literatura** — los 3 benchmarks son consistentes con scores publicados
 
 ### Pendiente
-- [ ] Correr DiscoveryBench BEFORE en full train (25 examples) con gpt-5.2-chat
 - [ ] Correr Qwen3-8B BEFORE scores (cuando haya acceso)
 - [ ] SciGym adapter (futuro, requiere Linux/Docker por stack SBML)
 
