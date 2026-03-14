@@ -486,24 +486,21 @@ out = solver.optimal_action("target_outcome", evidence={}, available=["branch_1"
 print(f"Observar: {out.recommended_action.node}, IG: {out.information_gain:.4f}")
 ```
 
-### Batch evaluation (N problemas, agente vs teacher)
-```bash
-# Evaluar 10 problemas con fork_collider
-python scripts/batch_eval.py --template fork_collider --problems 10 --nodes 7
-
-# Exportar trayectorias del teacher como JSONL
-python scripts/batch_eval.py --export-trajectories output.jsonl --problems 20
-```
-
-### Pipeline completo (con LLM)
+### Generar un SRC completo (con LLM)
 ```bash
 # Necesita: AZURE_INFERENCE_CREDENTIAL, AZURE_FOUNDRY_BASE_URL en .env
 
-# Orchestrator genera mundo con semántica, agent lo resuelve
-python scripts/test_e2e.py
+# Generar SRC basico
+python scripts/generate_src.py --goal "marine ecology, 8 nodes" -o experiments/reef/
 
-# Agent vs teacher vs random en un mundo
-python scripts/test_agent.py
+# Con inspeccion completa (briefing, CSV, answer key, DAG)
+python scripts/generate_src.py --goal "football analytics" -o experiments/football/ --inspect
+
+# Con evaluacion del agente
+python scripts/generate_src.py --goal "epidemiology" -o experiments/epi/ --solve --seed 42
+
+# Desde research_seed.md
+python scripts/generate_src.py -o experiments/case/ --inspect
 ```
 
 ---
@@ -721,7 +718,7 @@ SREG tiene tres niveles de aseguramiento de calidad (ver PROJECT.md para detalle
 - **15-SRC diagnostic** (`experiments/bench_20260311_15srcs/`): 14/15 completados, 57 tasks,
   9/9 tipos ejercitados. Hallazgos: causal_effect/compare_interventions beat baseline 71%.
   hypothesis_selection PEOR que azar (17%). NBO sospechoso (100% ZERO_OBS).
-- **S.2 diagnostic pipeline** (`scripts/diagnostic_batch.py`): N SRCs via orchestrator real.
+- **S.2 diagnostic pipeline** (`scripts/run_diagnostic.py`): N SRCs via orchestrator real.
 - `quality.py` (QualitySuite v2) solo cubre metricas estructurales del motor formal (3/9 eval
   types, sin LLM). Pendiente: metrica prior_delta, escalar diagnostico a 20-30 SRCs.
 
@@ -729,7 +726,7 @@ SREG tiene tres niveles de aseguramiento de calidad (ver PROJECT.md para detalle
 
 ## Test coverage
 
-- **732 tests** en todos los modulos
+- **766 tests** en todos los modulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` -> `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

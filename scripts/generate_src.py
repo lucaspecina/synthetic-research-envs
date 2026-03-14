@@ -591,13 +591,12 @@ def export_dag_png(result, output_dir: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | None:
-    """Run agent + teacher on each task. Returns (evaluation_path, trajectory_path)."""
+    """Run agent on each task. Export evaluation.md + trajectory.json."""
     if not result.world or not result.problem:
         return None
 
     from sreg.agent.agent import AgentSolver
-    from sreg.solver.exact_bayes import ExactBayesSolver
-    from sreg.tools.verifier import VerifierTool
+    from sreg.harness.agent_trajectory import extract_agent_trajectory
 
     world = result.world
     problem = result.problem
@@ -606,25 +605,20 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
         _print(f"  {_c(YLW, '!')} No tasks to solve")
         return None
 
-    solver = ExactBayesSolver(world)
     agent = AgentSolver(max_iterations=15)
-    verifier = VerifierTool()
 
     eval_lines = []
-    traj_lines = []
+    all_trajectories = []
 
     eval_lines.append(f"# Evaluation: {world.scenario_title or world.id}")
     eval_lines.append("")
     eval_lines.append(f"Seed: {seed}")
     eval_lines.append("")
 
-    traj_lines.append(f"# Agent Trajectory: {world.scenario_title or world.id}")
-    traj_lines.append("")
-
-    # Summary table header
+    # Summary table
     eval_lines.append("## Summary")
     eval_lines.append("")
-    eval_lines.append("| # | Type | Agent Score | Verdict | Agent Answer (summary) |")
+    eval_lines.append("| # | Type | Score | Verdict | Agent Answer |")
     eval_lines.append("| --- | --- | --- | --- | --- |")
 
     task_details = []
@@ -632,52 +626,17 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
     for i, task in enumerate(tasks, 1):
         _print(f"  {_c(CYN, f'[{i}/{len(tasks)}]')} Solving {task.type}...")
 
-        # --- Collect agent trajectory ---
-        thinking_log = []
-        action_log = []
+        agent_result = agent.solve(world, problem, seed=seed, task=task)
 
-        def on_step(event_type, data):
-            if event_type == "thinking":
-                thinking_log.append(data["content"])
-            elif event_type == "observe":
-                if "variable" in data:
-                    action_log.append(
-                        f"Observe: {data['variable']} = {data['observed_state']} "
-                        f"(budget left: {data.get('remaining_budget', '?')})"
-                    )
-                else:
-                    action_log.append(
-                        f"Action: {data.get('action', '?')} -> {data.get('findings', '?')} "
-                        f"(budget left: {data.get('remaining_budget', '?')})"
-                    )
-            elif event_type == "submit":
-                dist = data.get("distribution", data.get("choice", data))
-                action_log.append(f"Submit: {dist}")
-            elif event_type == "error":
-                action_log.append(f"ERROR: {data.get('error', '?')}")
-
-        agent_result = agent.solve(
-            world, problem, seed=seed, task=task, on_step=on_step,
+        # Extract structured trajectory
+        traj = extract_agent_trajectory(
+            agent_result, problem, world_id=world.id, seed=seed,
         )
+        traj.task_type = str(task.type)
+        all_trajectories.append(traj)
 
-        # --- Agent score ---
-        agent_score = None
-        agent_answer_summary = "no answer"
-        if agent_result.submitted_answer is not None:
-            agent_score = agent_result.score
-            ans = agent_result.submitted_answer
-            if isinstance(ans, dict):
-                if len(str(ans)) > 60:
-                    agent_answer_summary = str(ans)[:57] + "..."
-                else:
-                    agent_answer_summary = str(ans)
-            else:
-                agent_answer_summary = str(ans)
-
-        # --- Correct answer ---
-        correct = task.correct_answer
-
-        # --- Verdict ---
+        # Score and verdict
+        agent_score = agent_result.score
         if agent_score is None:
             verdict = "NO SUBMIT"
             score_str = "-"
@@ -690,64 +649,23 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
             else:
                 verdict = "POOR"
 
-        # Summary row
+        ans = agent_result.submitted_answer
+        ans_summary = "no answer"
+        if ans is not None:
+            ans_str = str(ans)
+            ans_summary = ans_str[:57] + "..." if len(ans_str) > 60 else ans_str
+
         eval_lines.append(
-            f"| {i} | {task.type} | {score_str} | {verdict} | {agent_answer_summary} |"
+            f"| {i} | {task.type} | {score_str} | {verdict} | {ans_summary} |"
         )
+        task_details.append((i, task, agent_result, agent_score, verdict, score_str))
 
-        # Detailed section
-        task_details.append((i, task, agent_result, agent_score, correct, verdict))
-
-        # --- Trajectory ---
-        traj_lines.append(f"## Task {i}: {task.type}")
-        traj_lines.append("")
-        traj_lines.append(f"**Question:** {task.question}")
-        traj_lines.append("")
-        traj_lines.append(f"**Target:** {task.target_node}")
-        traj_lines.append("")
-
-        traj_lines.append("### Agent reasoning")
-        traj_lines.append("")
-        for j, thought in enumerate(thinking_log, 1):
-            # Truncate very long thoughts
-            if len(thought) > 500:
-                thought = thought[:500] + "..."
-            traj_lines.append(f"**Thought {j}:**")
-            traj_lines.append(thought)
-            traj_lines.append("")
-
-        traj_lines.append("### Agent actions")
-        traj_lines.append("")
-        for action_str in action_log:
-            traj_lines.append(f"- {action_str}")
-        traj_lines.append("")
-
-        if agent_result.reasoning:
-            traj_lines.append("### Final reasoning")
-            traj_lines.append("")
-            traj_lines.append(agent_result.reasoning)
-            traj_lines.append("")
-
-        traj_lines.append(f"### Result")
-        traj_lines.append("")
-        traj_lines.append(f"- **Agent answer:** {agent_result.submitted_answer}")
-        traj_lines.append(f"- **Correct answer:** {correct}")
-        traj_lines.append(f"- **Score:** {score_str}")
-        traj_lines.append(f"- **Verdict:** {verdict}")
-        traj_lines.append(f"- **Budget used:** {agent_result.budget_used}/{agent_result.budget_total}")
-        traj_lines.append(f"- **Observations:** {len(agent_result.observations)}")
-        if agent_result.confidence is not None:
-            traj_lines.append(f"- **Confidence:** {agent_result.confidence:.2f}")
-        traj_lines.append("")
-        traj_lines.append("---")
-        traj_lines.append("")
-
-    # Detailed evaluation sections
+    # Detailed evaluation
     eval_lines.append("")
     eval_lines.append("## Details")
     eval_lines.append("")
 
-    for i, task, agent_result, agent_score, correct, verdict in task_details:
+    for i, task, agent_result, agent_score, verdict, score_str in task_details:
         eval_lines.append(f"### Task {i}: {task.type}")
         eval_lines.append("")
         q = task.question
@@ -756,27 +674,20 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
         eval_lines.append(f"**Question:** {q}")
         eval_lines.append("")
 
-        # Correct answer
+        correct = task.correct_answer
         eval_lines.append("**Correct answer:**")
         if isinstance(correct, dict):
             for k, v in sorted(correct.items()):
-                if isinstance(v, float):
-                    eval_lines.append(f"- {k}: {v:.4f}")
-                else:
-                    eval_lines.append(f"- {k}: {v}")
+                eval_lines.append(f"- {k}: {v:.4f}" if isinstance(v, float) else f"- {k}: {v}")
         else:
             eval_lines.append(f"- {correct}")
         eval_lines.append("")
 
-        # Agent answer
         eval_lines.append("**Agent answer:**")
         ans = agent_result.submitted_answer
         if isinstance(ans, dict):
             for k, v in sorted(ans.items()):
-                if isinstance(v, float):
-                    eval_lines.append(f"- {k}: {v:.4f}")
-                else:
-                    eval_lines.append(f"- {k}: {v}")
+                eval_lines.append(f"- {k}: {v:.4f}" if isinstance(v, float) else f"- {k}: {v}")
         elif ans is not None:
             eval_lines.append(f"- {ans}")
         else:
@@ -787,21 +698,94 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
         eval_lines.append(f"**Budget:** {agent_result.budget_used}/{agent_result.budget_total}")
         if agent_result.reasoning:
             reasoning = agent_result.reasoning
-            if len(reasoning) > 200:
-                reasoning = reasoning[:200] + "..."
+            if len(reasoning) > 300:
+                reasoning = reasoning[:300] + "..."
             eval_lines.append(f"**Reasoning:** {reasoning}")
         eval_lines.append("")
 
-    # Write files
+    # Write evaluation
     eval_path = os.path.join(output_dir, "evaluation.md")
     with open(eval_path, "w", encoding="utf-8") as f:
         f.write("\n".join(eval_lines))
 
-    traj_path = os.path.join(output_dir, "trajectory.md")
-    with open(traj_path, "w", encoding="utf-8") as f:
+    # Write trajectories as JSONL (structured, for tools)
+    jsonl_path = os.path.join(output_dir, "trajectories.jsonl")
+    with open(jsonl_path, "w", encoding="utf-8") as f:
+        for traj in all_trajectories:
+            f.write(traj.model_dump_json() + "\n")
+
+    # Write trajectory.md (human-readable)
+    traj_lines = []
+    traj_lines.append(f"# Agent Trajectory: {world.scenario_title or world.id}")
+    traj_lines.append("")
+    traj_lines.append(f"Seed: {seed}")
+    traj_lines.append("")
+
+    for idx, (traj, (i, task, agent_result, agent_score, verdict, score_str)) in enumerate(
+        zip(all_trajectories, task_details)
+    ):
+        traj_lines.append(f"## Task {i}: {task.type}")
+        traj_lines.append("")
+        q = task.question
+        if len(q) > 300:
+            q = q[:300] + "..."
+        traj_lines.append(f"**Question:** {q}")
+        traj_lines.append("")
+        traj_lines.append(f"**Target:** {traj.target_node}")
+        traj_lines.append("")
+
+        traj_lines.append("### Step by step")
+        traj_lines.append("")
+        for step in traj.steps:
+            if step.thinking:
+                thought = step.thinking
+                if len(thought) > 500:
+                    thought = thought[:500] + "..."
+                traj_lines.append(f"**Thinking:** {thought}")
+                traj_lines.append("")
+
+            if step.tool_call and not step.is_submit:
+                if step.error:
+                    traj_lines.append(f"- **{step.tool_call}** -> ERROR: {step.error}")
+                elif step.observation:
+                    traj_lines.append(f"- **{step.tool_call}** -> {step.observation}")
+                else:
+                    args_str = json.dumps(step.tool_args or {}, ensure_ascii=False)
+                    if len(args_str) > 100:
+                        args_str = args_str[:100] + "..."
+                    traj_lines.append(f"- **{step.tool_call}**({args_str})")
+
+            if step.is_submit:
+                traj_lines.append(f"- **submit** -> {traj.submitted_answer}")
+
+        traj_lines.append("")
+
+        if traj.reasoning:
+            reasoning = traj.reasoning
+            if len(reasoning) > 500:
+                reasoning = reasoning[:500] + "..."
+            traj_lines.append(f"### Final reasoning")
+            traj_lines.append("")
+            traj_lines.append(reasoning)
+            traj_lines.append("")
+
+        traj_lines.append("### Result")
+        traj_lines.append("")
+        traj_lines.append(f"- **Agent answer:** {traj.submitted_answer}")
+        traj_lines.append(f"- **Correct answer:** {task.correct_answer}")
+        traj_lines.append(f"- **Score:** {score_str} ({verdict})")
+        traj_lines.append(f"- **Budget:** {traj.budget_used}/{traj.budget}")
+        if traj.confidence is not None:
+            traj_lines.append(f"- **Confidence:** {traj.confidence:.2f}")
+        traj_lines.append("")
+        traj_lines.append("---")
+        traj_lines.append("")
+
+    traj_md_path = os.path.join(output_dir, "trajectory.md")
+    with open(traj_md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(traj_lines))
 
-    return eval_path, traj_path
+    return eval_path, traj_md_path
 
 
 # ---------------------------------------------------------------------------
@@ -932,9 +916,11 @@ def main():
         solve_seed = args.seed if args.seed is not None else 42
         solve_result = solve_tasks(result, args.output, seed=solve_seed)
         if solve_result:
-            eval_path, traj_path = solve_result
+            eval_path, traj_md_path = solve_result
+            jsonl_path = os.path.join(args.output, "trajectories.jsonl")
             _print(f"  {_c(GRN, 'v')} {eval_path}")
-            _print(f"  {_c(GRN, 'v')} {traj_path}")
+            _print(f"  {_c(GRN, 'v')} {traj_md_path}")
+            _print(f"  {_c(GRN, 'v')} {jsonl_path} (structured)")
 
     _print()
     title = result.world.scenario_title or result.world.id

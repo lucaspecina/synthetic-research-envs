@@ -221,6 +221,48 @@ with the system. If it falls behind, we're designing the product blind.
 - Commit messages: imperative mood, concise
 - Push works from the assistant. Always ask user before pushing.
 
+## Parallel sessions with worktrees
+
+Multiple Claude Code sessions on the same repo MUST use worktrees (`claude --worktree <name>`)
+to avoid file conflicts. Each worktree gets its own working directory and branch.
+
+### Detecting if you're in a worktree
+
+At the START of every conversation, check:
+```bash
+git rev-parse --git-dir   # If contains "worktrees/", you're in a worktree
+git branch --show-current # Branch name tells you which session you are
+git worktree list         # See all active sessions
+```
+
+If you detect you're in a worktree (branch starts with `worktree-`):
+1. Read the corresponding `*_SESSION.md` file for your scope and priorities
+2. Do NOT follow the general TODO.md — your tasks are in your session doc
+3. Announce to the user: "Estoy en el worktree [name], branch [branch]"
+
+If you're on main: you're the primary session. You can see worktree status with `git worktree list`.
+
+### Rules
+
+1. **Each session owns specific files.** Define scope upfront. Do NOT touch other sessions' files.
+2. **Shared docs are danger zones.** Worktree sessions should NOT heavily edit CLAUDE.md, TODO.md, etc.
+   The main session consolidates doc changes when merging.
+3. **Phase -1 contracts are read-only** for worktree sessions.
+4. **Merging back to main:** Do NOT blind-merge. Main session reviews each worktree:
+   - New files (modules, tests): cherry-pick cleanly
+   - Modified shared files (docs): merge manually on main
+   - Run tests after each integration
+5. **Session docs:** Each worktree creates a `*_SESSION.md` describing its scope and progress.
+
+### Current worktrees
+
+| Worktree | Branch | Scope | Status |
+|----------|--------|-------|--------|
+| `benchmark-suite` | `worktree-benchmark-suite` | External benchmarks (CLadder, QRData) | 3 commits, BENCH.1-2 done |
+| `rl-env-verifiers` | `worktree-rl-env-verifiers` | RL training integration (SregEnv, python_exec) | 4 commits, Phase 1 done |
+
+See `dev-workflow` skill for the full worktree protocol.
+
 ## Codex collaboration — critical second opinion
 
 **ONLY when Codex MCP (`mcp__codex__codex`) is available.** If not connected, skip entirely.

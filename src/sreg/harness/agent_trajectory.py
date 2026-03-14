@@ -119,6 +119,10 @@ def extract_agent_trajectory(
                 var = tc_result.get("variable", fn_args.get("variable", "?"))
                 state = tc_result.get("observed_state", "?")
                 observation = f"{var} = {state}"
+            elif fn_name == "research_action":
+                action = tc_result.get("action", fn_args.get("action_id", "?"))
+                findings = tc_result.get("findings", "?")
+                observation = f"{action} -> {findings}"
             elif fn_name == "submit":
                 is_submit = True
 

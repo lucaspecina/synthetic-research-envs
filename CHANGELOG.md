@@ -14,7 +14,7 @@
 - **Answer key** includes: Mermaid DAG diagram, qualitative quick guide (variable importance via IG,
   causal relationship strengths, baseline), formal BN specification (nodes, edges, CPDs), correct answers.
 - **DAG visualization**: matplotlib PNG with layered layout, color-coded nodes (latent=red, observable=green, target=yellow).
-- Legacy scripts marked in CLAUDE.md (test_orchestrator, test_e2e, etc.) — to be cleaned up later.
+- 7 legacy scripts removed (test_orchestrator, test_e2e, test_agent, mini_benchmark, diagnostic_batch, batch_eval, qualitative_analysis). 13 scripts -> 6.
 
 ### 2026-03-13 — Docs cleanup: SREG core vs agent harness separation
 - Separated SREG environment tools (research_action, submit) from agent harness (python_exec, etc.)

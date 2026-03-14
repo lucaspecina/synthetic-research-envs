@@ -12,7 +12,7 @@
 - [x] LLM Orchestrator (world generation via tool calling)
 - [x] Semantic layer (names, narrative, data presentation, ResearchProblem)
 - [x] LLM Agent solver (observe/submit loop, comparison with teacher/random)
-- [x] End-to-end pipeline: orchestrator -> agent -> score (scripts/test_e2e.py)
+- [x] End-to-end pipeline: orchestrator -> agent -> score (now: scripts/generate_src.py --solve)
 - [x] Teacher trajectory export as JSONL (problem, actions, observations, posteriors)
 - [x] Batch evaluation: generate N problems programmatically, run agent + teacher, collect metrics
 - [x] Summary report: agent vs teacher vs random across difficulty levels
@@ -145,8 +145,8 @@
 >
 > Ver PROJECT.md "Aseguramiento de calidad" y CLAUDE.md "Quality assurance".
 >
-> Los scripts sueltos (test_e2e.py, test_agent.py, batch_eval.py, diagnostic_batch.py)
-> se consolidan en el diagnostico. Solo se mantienen como utilidades: demo.py, view_trajectory.py.
+> Scripts consolidados: `generate_src.py` (generar + inspeccionar + evaluar SRCs)
+> y `run_diagnostic.py` (N SRCs + metricas). Legacy scripts eliminados.
 
 - [x] **DIAG.1**: Implementar DiagnosticRunner (sistema real E2E con LLM)
   - [x] Mini diagnostic: 3 SRCs reales (scripts/mini_benchmark.py)
@@ -175,7 +175,9 @@
   > Hallazgos: causal_effect y compare_interventions beats baseline 71%.
   > hypothesis_selection PEOR que azar (17%). NBO sospechoso (100% sin observar).
   > Falta escalar a 20-30 SRCs y analizar patrones mas profundamente.
-- [ ] **DIAG.5**: Consolidar scripts sueltos (deprecar diagnostic_batch.py, absorber test_e2e.py)
+- [x] **DIAG.5**: Consolidar scripts sueltos
+  > Done: 7 legacy scripts eliminados. `generate_src.py` reemplaza test_orchestrator/test_e2e/test_agent.
+  > `run_diagnostic.py` reemplaza mini_benchmark/diagnostic_batch/batch_eval. 13 scripts -> 6.
 
 ### SREG environment tools (interfaz del ambiente — implementadas)
 > Estas son las tools que SREG expone como ambiente. Son parte de SREG core.
