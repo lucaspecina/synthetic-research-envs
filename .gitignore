@@ -1,6 +1,9 @@
 # Benchmark datasets (download locally, don't commit)
 data/benchmarks/
 
+# PDF seeds (too large for git, download locally)
+seeds/*.pdf
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

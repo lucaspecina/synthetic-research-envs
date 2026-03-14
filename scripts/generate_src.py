@@ -6,6 +6,7 @@ Creates a complete SRC via the LLM orchestrator and exports all artifacts.
 Usage:
     python scripts/generate_src.py --goal "marine ecology, 8 nodes" --output experiments/reef/
     python scripts/generate_src.py --seed-file research_seed.md --output experiments/case1/
+    python scripts/generate_src.py --seed-file seeds/paper.pdf --output experiments/from_paper/
     python scripts/generate_src.py --goal "football analytics" --output experiments/football/ --inspect
 
 Outputs (always):
@@ -1028,9 +1029,31 @@ def solve_tasks(
 # ---------------------------------------------------------------------------
 
 def _read_seed_file(path: str) -> str | None:
-    """Read a research seed markdown file, stripping comment lines."""
+    """Read a research seed file (markdown or PDF), stripping comment lines."""
     if not os.path.isfile(path):
         return None
+
+    # PDF support
+    if path.lower().endswith(".pdf"):
+        try:
+            import pymupdf
+        except ImportError:
+            _print(f"  {_c(RED, 'x')} pymupdf not installed. Run: pip install pymupdf")
+            return None
+        doc = pymupdf.open(path)
+        pages = []
+        for page in doc:
+            pages.append(page.get_text())
+        content = "\n\n".join(pages).strip()
+        doc.close()
+        if not content:
+            return None
+        # Truncate to ~15000 chars to fit in LLM context
+        if len(content) > 15000:
+            content = content[:15000] + "\n\n[... paper truncated for context ...]"
+        return content
+
+    # Markdown / text
     with open(path, encoding="utf-8") as f:
         content = f.read().strip()
     if not content:
@@ -1049,7 +1072,7 @@ def main():
     )
     parser.add_argument(
         "--seed-file", type=str, default=None,
-        help="Path to research seed markdown file",
+        help="Path to research seed file (markdown or PDF)",
     )
     parser.add_argument(
         "--seed", type=int, default=None,
@@ -1106,9 +1129,33 @@ def main():
         seed_content = _read_seed_file(seed_file)
         if seed_content:
             goal = (
-                "Generate a synthetic research case based on the following context. "
-                "Use dag_construct for the causal structure. "
-                "Design a research case with multiple evaluation types.\n\n"
+                "You are reading a real research case (a scientific paper, business case, "
+                "operational problem, or dataset description). Your job is to create a "
+                "SYNTHETIC research case INSPIRED by it — NOT a replica.\n\n"
+                "Extract and MATCH these dimensions from the seed:\n\n"
+                "1. DOMAIN AND PROBLEM: What is being studied? Why does it matter? "
+                "Create a fictional setting in a SIMILAR domain.\n\n"
+                "2. SCALE — THIS IS CRITICAL: Count how many distinct variables/factors "
+                "are mentioned in the seed. Your synthetic case MUST have a COMPARABLE "
+                "number of nodes. If the seed mentions 15-20 variables, create 12-18 nodes. "
+                "If it mentions 8-10, create 8-10. Do NOT simplify to fewer nodes than "
+                "the seed implies. More variables = richer, more realistic case.\n\n"
+                "3. CAUSAL STRUCTURE: Identify confounders, mediators, colliders, and "
+                "latent variables in the seed. Your DAG should have SIMILAR structural "
+                "patterns (not necessarily the same edges, but the same types of "
+                "causal complexity).\n\n"
+                "4. RESEARCH QUESTIONS — THIS DRIVES THE TASKS: What types of questions "
+                "do the researchers ask? Causal effects? What to control for? Latent causes? "
+                "Best interventions? Your design_case questions must be of the SAME TYPES.\n\n"
+                "5. SIGNAL DIFFICULTY: Are the effects strong and obvious, or subtle and "
+                "hard to detect? Set edge_strength accordingly (0.4-0.5 for subtle, "
+                "0.6-0.8 for strong).\n\n"
+                "6. RESEARCH ACTIONS: What can the researcher DO? Can they only observe, "
+                "or also intervene/experiment? Match the action types.\n\n"
+                "7. DATA CHARACTERISTICS: Multiple data sources? Missing values? "
+                "Request rich data format in build_problem if the seed implies complex data.\n\n"
+                "Use dag_construct. Create variable names that sound scientific and "
+                "domain-appropriate (NOT generic like 'variable_1').\n\n"
                 f"--- RESEARCH SEED ---\n{seed_content}\n--- END SEED ---"
             )
         else:

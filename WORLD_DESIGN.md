@@ -27,6 +27,7 @@ a la seccion que necesites:
 | **Los dos contratos centrales** | MechanismSpec + DAGSpec |
 | **Mecanismos rivales** | Nucleo de la investigacion real |
 | **Fundamentos de razonamiento causal** | Pearl (escalera de causalidad), McElreath (4 elemental confounds), principio de diseno de tasks |
+| **Dimensiones de un caso real** | 17 dimensiones que hacen a una investigacion real, estado en SREG, prioridades |
 | **Diseno de Research Cases** | TaskBundle → ResearchCase, rol del orchestrator, CasePlan |
 | **Catalogo de evaluaciones cientificas** | 31 eval types en 6 familias (A-F), mapa de implementacion por olas, soporte pgmpy |
 | **Paper-seeded cases** | Flujo: paper real → caso sintetico |
@@ -1453,6 +1454,105 @@ el catalogo de eval types y (b) que el orchestrator genere buenos
 question_text dentro de CasePlans convincentes.
 
 ---
+
+## Dimensiones de inspiracion desde papers reales (research 2026-03-14)
+
+> **Principio fundamental**: un paper INSPIRA el SRC, no lo replica. SREG
+> toma la problematica y el tipo de investigacion del paper, pero construye
+> un mundo NUEVO que conoce perfectamente (BN exacta con reward signal).
+>
+> Estas son las dimensiones que el orchestrator debe EXTRAER de un paper
+> real para crear un caso sintetico creible. No son dimensiones teoricas
+> de "que es investigacion" — son cosas PRACTICAS que el sistema lee
+> de un paper y usa para disenar el SRC.
+>
+> Fuentes: analisis de paper real (Pedersen et al. 2022, asma infantil
+> y contaminacion del aire, 1M+ sujetos) + Codex (2026-03-14)
+
+### Las 8 dimensiones de inspiracion
+
+**1. Dominio y problematica**: de que trata la investigacion, por que importa.
+   - Ejemplo paper danes: "contaminacion del aire durante el embarazo aumenta
+     el riesgo de asma infantil — pero cuanto? y por que mecanismo?"
+   - Que inspira en SREG: el contexto narrativo, los stakes, el dominio ficticio.
+
+**2. Escala y complejidad**: cuantas variables, cuantas relaciones, cuantos
+   factores tiene que manejar el investigador a la vez.
+   - Ejemplo: 13 contaminantes, 20+ covariables, 4 tipos de outcome, 3 cohortes.
+   - Que inspira: cantidad de nodos en el DAG, cantidad de tasks, budget.
+
+**3. Estructura causal que se intuye**: confounders, mediadores, colliders,
+   variables latentes. El paper a veces muestra un DAG, a veces se deduce.
+   - Ejemplo: SES confunde la relacion contaminacion-asma. Tabaquismo materno
+     confunde tambien. Prenatal care es mediador. Hay posibles colliders.
+   - Que inspira: la topologia del BN, tipos de nodos, relaciones entre variables.
+
+**4. Tipo de datos y sus problemas**: de donde vienen los datos, como se
+   recolectaron, que problemas tienen. Esto es CLAVE — los datos reales
+   son sucios, incompletos, y con sesgos.
+   - Ejemplo: 3 fuentes (registro nacional, cohorte con encuestas, cohorte
+     clinica). 7% excluido por faltantes. Definiciones de asma inconsistentes.
+     Attrition diferencial (los mas pobres abandonan mas).
+   - Que inspira: tipo de datasets, datos faltantes, multiples fuentes,
+     narrativas de recoleccion.
+
+**5. Tipo de trabajo**: que HACEN los investigadores — no solo que modelo
+   usan, sino como abordan el problema.
+   - Ejemplo: ajustan progresivamente (modelos 1-5 con mas covariables),
+     hacen two-pollutant models, estratifican por sexo, usan splines para
+     no-linealidad, comparan definiciones de asma.
+   - Que inspira: el tipo de eval types, la complejidad de las preguntas,
+     las acciones disponibles.
+
+**6. Tipo de preguntas que se hacen**: las preguntas REALES de la investigacion,
+   que mapean a nuestros eval types.
+   - Ejemplo: "hay efecto causal de PM2.5 sobre asma?" (causal_effect).
+     "que variables ajustar?" (adjustment_set). "el efecto es lineal?"
+     "varia por sexo?" (futuro: heterogeneidad). "PM2.5 o NO2 importa mas?"
+     (compare_interventions).
+   - Que inspira: DIRECTAMENTE las tasks del SRC. Esta es quizas la
+     dimension mas importante — queremos que las preguntas del SRC sean
+     del MISMO TIPO que las de la investigacion real.
+
+**7. Senal vs ruido**: que tan fuerte o sutil es el efecto que buscan.
+   - Ejemplo: HR 1.06 por IQR — efecto real pero chico. Solo detectable
+     con 1M de sujetos. A nivel individual, casi indistinguible del azar.
+   - Que inspira: edge_strength, dificultad del caso, si el agente puede
+     o no detectar el efecto con los datos disponibles.
+
+**8. Que puede hacer el investigador**: que acciones de investigacion tiene
+   disponibles y cuales no.
+   - Ejemplo: pueden medir mas contaminantes, estratificar por subgrupo,
+     pedir biomarcadores. NO pueden hacer un RCT (no se puede asignar
+     contaminacion aleatoriamente). Pueden hacer analisis de sensibilidad.
+   - Que inspira: las research_actions del SRC, observe vs intervene,
+     costos, restricciones.
+
+### Ejemplo aplicado: del paper danes al SRC
+
+| Dimension | Paper real | SRC inspirado |
+|---|---|---|
+| Dominio | Epidemiologia perinatal, Dinamarca | Estacion de investigacion en archipielago ficticio |
+| Escala | 13 contaminantes, 20+ covariables | 8-12 nodos, 5 tasks |
+| Estructura causal | SES confunde, tabaquismo confunde, prenatal care media | DAG con confounders + mediador + collider |
+| Datos | 3 fuentes, 7% missing, definiciones inconsistentes | Multi-dataset, % faltantes, narrativa de fuente |
+| Tipo de trabajo | Ajuste progresivo, two-pollutant models, sensibilidad | Preguntas que requieren analisis similar |
+| Preguntas | Efecto causal? Que ajustar? Lineal? Subgrupos? | causal_effect, adjustment_set, should_condition |
+| Senal | HR 1.06, sutil | edge_strength moderado, caso no trivial |
+| Acciones | Medir contaminantes, estratificar, NO experimentar | observe (costo variable), intervene limitado |
+
+### Que puede SREG hacer hoy vs futuro
+
+| Dimension | Hoy | Proximo | Futuro |
+|---|---|---|---|
+| 1. Dominio | OK narrativa + contexto | — | — |
+| 2. Escala | OK DAGSpec configurable | — | — |
+| 3. Estructura causal | OK todos los tipos | — | — |
+| 4. Datos y problemas | OK basico (multi-dataset, % missing) | Proveniencia, MNAR | Sesgo de seleccion |
+| 5. Tipo de trabajo | OK parcial (9 eval types) | Mas eval types | Ambiguedad analitica |
+| 6. Preguntas | OK 9 eval types | Ola 2 (simpson, mediacion) | Ola 3 |
+| 7. Senal vs ruido | OK parcial (edge_strength) | CPDs con direccion | Control fino |
+| 8. Acciones | OK observe + intervene | Costos realistas | request_dataset, consult |
 
 ## Diseno de Research Cases — del TaskBundle al ResearchCase (analisis 2026-03-09)
 

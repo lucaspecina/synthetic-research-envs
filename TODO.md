@@ -606,35 +606,44 @@
 - [ ] **TRAIN.5**: Agregar verifiers como dependencia opcional en pyproject.toml
 
 #### Paper-seeded SRCs (A.5 expandido)
-> **Concepto**: a partir de un paper cientifico real, crear un SRC inspirado
-> en el. No es una replica fiel (no conocemos la BN real del mundo), sino una
-> version sintetica que captura:
-> - La problematica general del paper
-> - Las research questions que el paper responde
-> - Las subtasks implicitas (identificar causas, comparar intervenciones, etc.)
-> - El nivel de complejidad (cantidad de variables, tipos de relaciones)
-> - El tipo de datos disponibles
+> **Principio fundamental**: un paper/caso INSPIRA el SRC, no lo replica.
+> El seed puede ser cualquier cosa: paper cientifico, caso de negocio,
+> descripcion de un problema operativo, contexto de un dataset.
+> El orchestrator extrae las 8 dimensiones de inspiracion y crea un
+> mundo NUEVO que conoce perfectamente (BN exacta con reward signal).
 >
-> El orchestrator lee el paper (o un resumen), extrae la estructura del problema,
-> y diseña un SRC que se siente como una mini-version de esa investigacion.
-> La BN subyacente es sintetica pero las preguntas y la narrativa son realistas.
+> **8 dimensiones de inspiracion** (documentadas en PROJECT.md y WORLD_DESIGN.md):
+> 1. Dominio y problematica
+> 2. Escala y complejidad (CRITICO: igualar # variables del seed)
+> 3. Estructura causal (confounders, mediadores, colliders, latentes)
+> 4. Tipo de datos y sus problemas
+> 5. Tipo de trabajo (que hacen los investigadores)
+> 6. Tipo de preguntas (mapea a eval types) — LA MAS IMPORTANTE
+> 7. Senal vs ruido
+> 8. Acciones de investigacion disponibles
 >
-> Esto es el salto cualitativo mas grande: pasar de "genera algo sobre ecologia"
-> a "genera un caso inspirado en este paper de Nature sobre acidificacion oceanica".
+> Ver WORLD_DESIGN.md "Dimensiones de inspiracion desde papers reales"
+> para el desarrollo completo con ejemplo del paper danes de asma infantil.
 
-- [ ] **PS.1**: Definir formato de paper seed
-  - Que informacion extraer del paper: abstract, hipotesis, variables, conclusiones
-  - Formato del seed file (markdown estructurado vs texto libre)
-  - Probar con research_seed.md actual (Vaca Muerta) como primer caso
-- [ ] **PS.2**: Orchestrator extrae estructura del paper
-  - LLM lee el seed y propone: nodos, relaciones causales, tipos de evaluacion
-  - Mapeo paper → DAGSpec: variables reales → nodos sinteticos con nombres semi-reales
-  - Las conclusiones del paper → research questions del SRC
+- [x] **PS.1**: Paper-seeded SRC funcional (PDF + markdown)
+  - `generate_src.py --seed-file paper.pdf` funciona end-to-end
+  - PDF parsing via pymupdf (texto extraido, truncado a 15K chars)
+  - Prompt mejorado con las 8 dimensiones de inspiracion explicitas
+  - Dimension 2 (escala) enfatizada: "MUST have COMPARABLE number of nodes"
+  - Probado: Vaca Muerta 10→15 nodos (+50%), agricultura PDF 10 nodos, smoking 7 nodos
+  - Seeds: `seeds/smoking_birthweight.md`, `seeds/conservation_agriculture.pdf`
+  - Seed puede ser cualquier cosa (paper, caso de negocio, problema operativo)
+- [ ] **PS.2**: Inspiration Report — comparar seed vs SRC por dimension
+  - LLM extrae InspirationProfile del seed (8 dimensiones, estructurado)
+  - LLM extrae InspirationProfile del SRC generado
+  - Comparacion programatica (escala, # nodos) + LLM-judge con rubricas (cualitativo)
+  - Reporte: score por dimension, evidencia, mismatches
 - [ ] **PS.3**: Validar con 3-5 papers de distintos dominios
   - Ecologia, epidemiologia, ingenieria, ciencias sociales, economia
-  - Comparar: ¿el SRC generado se siente como esa investigacion?
-  - ¿Las preguntas son las que un investigador real se haria?
+  - Comparar con Inspiration Report: que dimensiones se capturan bien vs mal
 - [ ] **PS.4**: Crear coleccion de paper seeds
+  - 10-20 papers/casos seleccionados de distintos dominios
+  - Cada uno como seed file en `seeds/`
   - 10-20 papers seleccionados que representen problemas causales interesantes
   - Cada uno como un seed file en `seeds/` o similar
   - Documentar: paper original, que se extrajo, que SRC genero

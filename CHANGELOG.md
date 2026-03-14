@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-14 — Paper-seeded SRCs (PS.1) + inspiration dimensions
+- **PDF seed support**: `generate_src.py --seed-file paper.pdf` extracts text
+  via pymupdf and feeds it to the orchestrator. Any seed format works (paper,
+  business case, operational problem, markdown, PDF).
+- **8 inspiration dimensions** documented in PROJECT.md and WORLD_DESIGN.md:
+  domain, scale, causal structure, data types, type of work, research questions,
+  signal/noise, available actions.
+- **Scale matching**: prompt emphasizes matching seed's variable count.
+  Vaca Muerta improved from 10 to 15 nodes (+50% coverage).
+- **E2E tested**: PDF (Nature agriculture paper), markdown (Vaca Muerta, smoking).
+- **seeds/ directory** for paper seeds.
+
 ### 2026-03-14 — Tool-calling engine + benchmarks with tools (INF.2, BENCH.2-3)
 - **Shared tool-calling engine** (`agent/engine.py`): reusable multi-turn tool loop
   with python_exec + think. Used by solver and benchmarks. Codex-reviewed.

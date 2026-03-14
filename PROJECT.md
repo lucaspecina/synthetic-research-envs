@@ -216,10 +216,28 @@ real case seed → orchestrator diseña el research case
               → tools construyen el mundo formal que lo soporta
 ```
 
-El orchestrator puede partir de un paper o investigación real y extraer:
-fenómeno, variables, hipótesis, evidencia, preguntas, subtasks, y tipo
-de validación. Con eso diseña un caso sintético nuevo. Y recién ahí los
-tools construyen el BN formal que hace ese caso verificable.
+El orchestrator puede partir de un paper o investigación real y extraer
+las **dimensiones de inspiración** — todo lo que hace que esa investigación
+sea interesante y realista. Con eso diseña un caso sintético NUEVO
+(no una copia del paper). Y recién ahí los tools construyen el BN formal
+que hace ese caso verificable.
+
+**Dimensiones de inspiración** (qué extrae el orchestrator de un paper real):
+
+1. **Dominio y problemática**: de qué trata, por qué importa
+2. **Escala y complejidad**: cuántas variables, cuántas relaciones, cuántos factores en juego
+3. **Estructura causal que se intuye**: confounders, mediadores, colliders, latentes
+4. **Tipo de datos y sus problemas**: observacional vs experimental, múltiples fuentes,
+   datos faltantes, definiciones inconsistentes, sesgos de selección
+5. **Tipo de trabajo**: qué hacen los investigadores — ajustan covariables, estratifican,
+   hacen sensibilidad, comparan modelos, buscan umbrales
+6. **Tipo de preguntas**: ¿hay efecto causal? ¿qué ajustar? ¿varía por subgrupo?
+   ¿cuál es la causa latente? → mapea a eval types de SREG
+7. **Señal vs ruido**: efectos fuertes o sutiles, muestras grandes o chicas
+8. **Qué puede hacer el investigador**: qué más podría medir, experimentar, solicitar
+
+**Principio fundamental**: el paper INSPIRA, no se replica. SREG toma la problemática
+y el tipo de investigación, pero construye un mundo NUEVO que conoce perfectamente.
 
 **Las tasks, subtasks y evaluaciones están ligadas al research case,
 no solo al DAG subyacente.** El DAG sigue siendo clave como estructura

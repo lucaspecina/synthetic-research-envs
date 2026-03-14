@@ -76,8 +76,8 @@ Every training environment has two layers:
 
 v0+v1 complete (Etapa 1): 3 template families + 3 task types + multi-task bundles + formal engine + semantic layer + agent solver + eval harness.
 v2 in progress: DAGSpec + cpd_gen + CustomTemplate + WorldCheck + 4 DAG generators + LLM orchestrator tools (dag_generate + dag_construct + design_case) + CasePlan (plan-driven task generation with node hints) + 9 eval types (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause) + QualitySuite v2 (A+B multi-rollout+C) + dataset-rich evidence (multi-dataset, missing data, narratives) + Rich Actions Slice A (ResearchActionType, multi-node, varied costs, IG/cost teacher) + S.4 MVP-1: agent uses `research_action(action_id)` with typed action catalog (observe-only, guard for Slice B) + Agent trajectory inspection (extract, compare, export) + Multi-type agent harness (submit + prompt + scoring for 9 eval types) + DiagnosticRunner with per-type baseline scoring + 15-SRC diagnostic (57 tasks, 9/9 types). 766 tests. Ola 1 COMPLETE. Rich Actions Slice A COMPLETE. Rich Actions Slice B COMPLETE (intervene actions: do-operations, interventional sampling, conflict guards, type validation). Agent Solver S.1-S.4 COMPLETE. S.5 Agent Solver v3: python_exec tool (persistent interpreter with sandboxed pandas/numpy/scipy, dataset pre-loaded as df) + unified case solving (all tasks in single episode, shared budget/observations, submit per question). DIAG.1 COMPLETE. P0 question/answer mismatch FIXED (hints end-to-end). P0 cleanup DONE (submit format, budget wording, apply_semantics, consistency check). Fase -1 shared contracts COMPLETE (inference protocol, benchmark format, code exec, env protocol, agent toolset).
-**Next: Merge worktree work (benchmarks + training), Paper-seeded SRCs (PS.1-PS.4), scale diagnostic to 20-30 SRCs, Eje A+B.** See TODO.md.
-**Separate workstreams (NOT part of SREG core):** RL training pipeline, transfer benchmarks. These are tracked in TODO.md under dedicated sections and will be developed in separate branches. Research docs in `docs/references/`.
+Worktree integration COMPLETE: benchmarks (CLadder, QRData, DiscoveryBench) + training (SregEnv/verifiers) + unified python_exec. Inference infrastructure COMPLETE: 3 backends (Azure, vLLM, transformers) + tool-calling engine + ToolEnrichedClient for benchmarks with tools. PS.1 COMPLETE: PDF seed support + 8 inspiration dimensions + scale matching. 1101 tests.
+**Next: PS.2 Inspiration Report (seed vs SRC comparison), PS.3-4 paper collection, CPDs con direccion realista.** See TODO.md.
 
 ## Environment setup
 
@@ -108,25 +108,30 @@ Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`
 
 ```
 src/sreg/
-├── models/          # Pydantic data contracts (world, episode, task, teacher, score, dag_spec, agent_tools, benchmark, code_exec, env_protocol — note: agent_tools/code_exec/env_protocol are preparatory contracts for future agent harness work, not SREG core)
-├── inference/       # Provider-agnostic LLM protocol (ModelClient, ChatResponse, ToolSpec)
+├── models/          # Pydantic data contracts (world, episode, task, teacher, score, dag_spec, agent_tools, benchmark, code_exec, env_protocol)
+├── inference/       # Provider-agnostic LLM protocol (ModelClient, OpenAIClient, ToolEnrichedClient)
 ├── world/           # World model, templates (incl. custom), cpd_gen, pgmpy utils
 ├── solver/          # Teacher solver (exact Bayesian inference)
 ├── tools/           # WorldGen, WorldCheck, EpisodeGen, TaskGen, Verifier
 ├── env/             # EpisodeRunner (step-by-step environment interface)
 ├── orchestrator/    # LLM orchestrator loop (system prompt, tool definitions)
-├── agent/           # LLM agent solver (python_exec, solve_case, multi-task)
+├── agent/           # LLM agent solver (python_exec, engine, transformers_backend, solve_case)
+├── benchmarks/      # External benchmark adapters (CLadder, QRData, DiscoveryBench)
+├── training/        # RL training adapter (SregEnv/verifiers, rubric, dataset gen)
 ├── harness/         # DiagnosticRunner, teacher/agent trajectory, comparison, batch eval
 └── display.py       # Dual-mode pretty printing (terminal ANSI + notebook HTML)
 
 scripts/
-├── generate_src.py        # THE official script to generate SRCs (--inspect, --solve)
+├── generate_src.py        # THE official script to generate SRCs (--inspect, --solve, PDF seeds)
+├── run_benchmark.py       # External benchmarks (CLadder, QRData, DiscoveryBench) with --with-tools
 ├── run_diagnostic.py      # DiagnosticRunner wrapper: N SRCs + per-type metrics + failure modes
+├── serve_model.sh         # vLLM setup + serve Qwen/other models
 ├── demo.py                # Terminal demo: world gen + teacher solving (no LLM)
 ├── view_case.py           # Inspect exported JSON cases section by section
 ├── view_trajectory.py     # Inspect agent trajectories and agent-vs-teacher comparisons
 └── batch_sweep.py         # Systematic parameter sweep with QualitySuite v2
 
+seeds/                       # Paper seeds (PDF, markdown) for paper-seeded SRC generation
 experiments/                 # Diagnostic results (timestamped directories)
 └── index.md                 # Experiment registry
 
@@ -135,8 +140,8 @@ notebooks/
 
 tests/               # Mirrors src/ structure
 
-research_seed.md             # Optional: research context for orchestrator (read automatically)
-WORLD_DESIGN.md              # Research doc: toy worlds → realistic worlds (strategy, references, open questions)
+research_seed.md             # Default research seed (read automatically if no --seed-file)
+WORLD_DESIGN.md              # Research doc: dimensions, strategies, references, open questions
 EVAL_DESIGN.md               # Evaluation strategy: metrics, experimental designs, infrastructure
 
 docs/
