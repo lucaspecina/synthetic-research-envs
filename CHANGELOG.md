@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 2026-03-14 — Tool-calling engine + benchmarks with tools (INF.2, BENCH.2-3)
+- **Shared tool-calling engine** (`agent/engine.py`): reusable multi-turn tool loop
+  with python_exec + think. Used by solver and benchmarks. Codex-reviewed.
+- **Transformers backend** (`agent/transformers_backend.py`): HuggingFace local
+  inference with Hermes tool-call parsing. Separated from engine per Codex advice.
+- **ToolEnrichedClient** (`inference/tool_client.py`): wraps any ModelClient,
+  adds python_exec + think transparently. Benchmark adapters don't change.
+- **run_benchmark.py**: `--with-tools` (python_exec + think), `--base-url`,
+  `--api-key` for vLLM or custom backends. 1101 tests.
+
 ### 2026-03-14 — Integrate benchmarks + training from worktrees (BENCH.1, TRAIN.1-4)
 - **Benchmarks integrated**: CLadder, QRData, DiscoveryBench adapters from worktree
   benchmark-suite. OpenAIClient (ModelClient protocol). run_benchmark.py script.

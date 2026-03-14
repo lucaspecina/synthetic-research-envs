@@ -409,7 +409,7 @@ pip install -e ".[dev]"
 
 ### Correr tests
 ```bash
-pytest tests/ -v                          # Todos (1086 tests)
+pytest tests/ -v                          # Todos (1101 tests)
 pytest tests/tools/test_task_gen.py -v    # Solo task generation
 pytest tests/tools/test_fork_collider.py  # Solo fork_collider template
 ```
@@ -727,7 +727,7 @@ SREG tiene tres niveles de aseguramiento de calidad (ver PROJECT.md para detalle
 
 ## Test coverage
 
-- **1086 tests** en todos los modulos
+- **1101 tests** en todos los modulos
 - Tests espejean la estructura de src: `src/sreg/tools/X.py` -> `tests/tools/test_X.py`
 - Validaciones clave:
   - 100 mundos validados por template (todos pasan)

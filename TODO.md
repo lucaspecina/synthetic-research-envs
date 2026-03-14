@@ -531,12 +531,10 @@
   - AgentSolver ya aceptaba `client: OpenAI | None` — se conecto a generate_src.py
   - Nuevos flags: `--solver-model`, `--solver-base-url`, `--solver-api-key`
   - Azure y vLLM son el mismo SDK con distinta URL
-- [ ] **INF.2**: Backend transformers (modelos locales sin servidor)
-  - Para cuando vLLM no esta disponible (Windows sin WSL, sin GPU server)
-  - Cargar modelo con HuggingFace transformers (AutoModelForCausalLM)
-  - Parsear tool calls en formato Hermes (`<tool_call>...</tool_call>`)
-  - Wrapper que exponga la misma interfaz que OpenAI client
-  - Fuente: `dry_run.py` del worktree rl-env-verifiers tiene esto implementado
+- [x] **INF.2**: Backend transformers (modelos locales sin servidor)
+  - `agent/transformers_backend.py`: load, generate, Hermes parsing
+  - Separado del engine principal (sugerencia Codex: backends divergen)
+  - Fuente: `dry_run.py` del worktree rl-env-verifiers
 - [x] **INF.3**: serve_model.sh — levantar modelos locales con vLLM
   - Traido del worktree rl-env-verifiers. Qwen default, Hermes tool parser.
   - Setup: `bash scripts/serve_model.sh --setup` + `bash scripts/serve_model.sh`
@@ -578,14 +576,12 @@
 - [x] **BENCH.1**: Traer adaptadores (CLadder, QRData, DiscoveryBench)
   - `src/sreg/benchmarks/` — adaptadores + tests + OpenAIClient
   - `scripts/run_benchmark.py` + `docs/BENCHMARK_RESULTS.md`
-- [ ] **BENCH.2**: Benchmark solver con tools del solver
-  - El agente de benchmarks tiene python_exec y think (tools propias)
-  - NO tiene research_action/submit (no hay SRC)
+- [x] **BENCH.2**: Benchmark solver con tools del solver
+  - `ToolEnrichedClient`: wraps ModelClient, adds python_exec + think transparently
+  - `run_benchmark.py --with-tools`: opt-in, resultados separados de text-only
   - Especialmente util para QRData (datos tabulares → python_exec)
-  - Reutiliza el mismo engine: AgentSolver con subset de tools
-- [ ] **BENCH.3**: Script run_benchmark.py con --backend
-  - Mismo patron que generate_src.py: --backend azure|vllm|transformers
-  - Poder correr benchmarks con Qwen local, no solo con Azure GPT
+- [x] **BENCH.3**: run_benchmark.py con --base-url y --api-key
+  - Poder correr benchmarks con vLLM local o cualquier backend OpenAI-compatible
 - [ ] **BENCH.3**: Traer docs/BENCHMARK_RESULTS.md con BEFORE scores
 
 #### Integrar training con verifiers

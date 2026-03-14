@@ -37,10 +37,34 @@ logging.basicConfig(
 logger = logging.getLogger("run_benchmark")
 
 
+def _make_client(args: argparse.Namespace):
+    """Build the appropriate ModelClient based on CLI flags."""
+    from sreg.inference.openai_client import OpenAIClient
+
+    kwargs = {}
+    if args.model:
+        kwargs["model"] = args.model
+    if args.base_url:
+        kwargs["base_url"] = args.base_url
+    if args.api_key:
+        api_key = args.api_key
+        if api_key.lower() == "none":
+            api_key = "not-needed"
+        kwargs["api_key"] = api_key
+
+    base_client = OpenAIClient(**kwargs)
+
+    if args.with_tools:
+        from sreg.inference.tool_client import ToolEnrichedClient
+        logger.info("Tools enabled: python_exec + think")
+        return ToolEnrichedClient(base_client)
+
+    return base_client
+
+
 def run_cladder(args: argparse.Namespace) -> None:
     """Run CLadder benchmark."""
     from sreg.benchmarks.cladder import CLadderAdapter
-    from sreg.inference.openai_client import OpenAIClient
 
     data_path = args.data or "data/cladder-v1-q-balanced.json"
     if not Path(data_path).exists():
@@ -55,8 +79,8 @@ def run_cladder(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     # Setup
-    client = OpenAIClient(model=args.model)
-    model_name = args.model or client.default_model
+    client = _make_client(args)
+    model_name = args.model or "gpt-4o"
     adapter = CLadderAdapter(data_path=data_path)
 
     # Load
@@ -119,7 +143,6 @@ def run_cladder(args: argparse.Namespace) -> None:
 def run_qrdata(args: argparse.Namespace) -> None:
     """Run QRData benchmark."""
     from sreg.benchmarks.qrdata import QRDataAdapter
-    from sreg.inference.openai_client import OpenAIClient
 
     data_path = args.data or "data/QRData.json"
     csv_dir = "data/qrdata_csvs/data"
@@ -138,8 +161,8 @@ def run_qrdata(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     # Setup
-    client = OpenAIClient(model=args.model)
-    model_name = args.model or client.default_model
+    client = _make_client(args)
+    model_name = args.model or "gpt-4o"
     subset = args.subset
     adapter = QRDataAdapter(data_path=data_path, csv_dir=csv_dir)
 
@@ -192,7 +215,6 @@ def run_qrdata(args: argparse.Namespace) -> None:
 def run_discoverybench(args: argparse.Namespace) -> None:
     """Run DiscoveryBench benchmark."""
     from sreg.benchmarks.discoverybench import DiscoveryBenchAdapter
-    from sreg.inference.openai_client import OpenAIClient
 
     # Train split has gold hypotheses; test split does not (held-out).
     data_path = args.data or "data/discoverybench_train.csv"
@@ -207,8 +229,8 @@ def run_discoverybench(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     # Setup
-    client = OpenAIClient(model=args.model)
-    model_name = args.model or client.default_model
+    client = _make_client(args)
+    model_name = args.model or "gpt-4o"
     adapter = DiscoveryBenchAdapter(data_path=data_path)
 
     # Load
@@ -307,6 +329,26 @@ def main():
         type=float,
         default=0.0,
         help="Sampling temperature (default: 0.0 for deterministic)",
+    )
+    parser.add_argument(
+        "--with-tools",
+        action="store_true",
+        help="Give the model python_exec + think tools (solver capabilities). "
+             "Especially useful for QRData where data analysis improves scores.",
+    )
+    parser.add_argument(
+        "--base-url",
+        type=str,
+        default=None,
+        help="Base URL for LLM backend (default: AZURE_FOUNDRY_BASE_URL). "
+             "Use http://localhost:8000/v1 for vLLM.",
+    )
+    parser.add_argument(
+        "--api-key",
+        type=str,
+        default=None,
+        help="API key for LLM backend (default: AZURE_INFERENCE_CREDENTIAL). "
+             "Use 'none' for vLLM.",
     )
     args = parser.parse_args()
 
