@@ -78,17 +78,22 @@ scripts/
 - [x] OpenAI adapter para ModelClient (openai_client.py) + reasoning model compat (gpt-5.2-chat)
 - [x] CLadder adapter (load, run, score, save_results) + Codex fixes (error tracking, parser robusto, max_tokens)
 - [x] QRData adapter (load, run, score con tolerancia 3% + MC prefix match, subsets causal/statistical)
-- [x] Tests unitarios (96 de benchmarks, 862 total)
-- [x] Script run_benchmark.py (CLadder + QRData)
-- [x] Datasets descargados (CLadder 10K + QRData 411 + 195 CSVs)
+- [x] Tests unitarios (135 de benchmarks, 901 total)
+- [x] Script run_benchmark.py (CLadder + QRData + DiscoveryBench)
+- [x] Datasets descargados (CLadder 10K + QRData 411 + 195 CSVs + DiscoveryBench 25 train)
 - [x] **BEFORE scores con gpt-5.2-chat** (2026-03-13)
   - CLadder dev (100): **78%** (rung1=100%, rung2=70%, rung3=67.5%)
   - QRData dev (50): **38%** (causal=43.8%, stat=27.8%)
   - Resultados en `docs/BENCHMARK_RESULTS.md` y `experiments/benchmarks/`
+- [x] **DiscoveryBench adapter** (2026-03-13)
+  - HMS scorer via LLM judge (decompose + context match + variable F1 + relationship acc)
+  - Train split only (25 examples with gold). Test split held-out.
+  - Mini-test: 5 examples, mean HMS=0.227 (paper best ~25%)
+  - 39 tests
 
 ### Pendiente
+- [ ] Correr DiscoveryBench BEFORE en full train (25 examples) con gpt-5.2-chat
 - [ ] Correr Qwen3-8B BEFORE scores (cuando haya acceso)
-- [ ] DiscoveryBench adapter (HMS scorer, code execution)
 - [ ] SciGym adapter (futuro, requiere Linux/Docker por stack SBML)
 
 ## Benchmarks elegidos

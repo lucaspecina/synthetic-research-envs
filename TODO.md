@@ -310,17 +310,26 @@
   - [x] Correr GPT base (BEFORE) en dev subset y guardar resultados
     > gpt-5.2-chat: 38% overall (causal=43.8%, stat=27.8%, MC=48.5%, num=17.6%). 2026-03-13.
   - [ ] Correr Qwen3-8B base (BEFORE) y guardar resultados
-- [ ] **BENCH.3**: Export de training data desde SREG
+- [x] **BENCH.3**: Montar DiscoveryBench como benchmark externo
+  - [x] HMS scorer (Hypothesis Matching Score) via LLM judge
+  - [x] DiscoveryBenchAdapter: load CSV (HuggingFace), run, score with HMS, save JSONL
+  - [x] CLI: `scripts/run_benchmark.py --benchmark discoverybench`
+  - [x] 39 tests (HMS + adapter)
+  - [x] Dataset: train split (25 examples with gold). Test split held-out (no gold).
+  - [x] Mini-test: 5 examples, mean HMS=0.227 (paper best ~25%)
+  - [ ] Correr GPT BEFORE en full train (25) y guardar resultados
+  - [ ] Correr Qwen3-8B BEFORE y guardar resultados
+- [ ] **BENCH.4**: Export de training data desde SREG
   - Generar N SRCs en formato consumible por verifiers/prime-rl
   - Teacher trajectories como SFT data (con tool use: research_action + python_exec)
   - Reward function exportable como Rubric de verifiers
-- [ ] **BENCH.4**: Primer experimento de transferencia
+- [ ] **BENCH.5**: Primer experimento de transferencia
   - Modelo: Qwen3-8B
   - BEFORE: CLadder + QRData con misma toolset
   - TRAIN: SFT + GRPO con SRCs de SREG en H100
   - AFTER: mismos benchmarks, mismos splits
   - Comparar deltas con significancia estadistica
-- [ ] **BENCH.5**: Experimento RL completo
+- [ ] **BENCH.6**: Experimento RL completo
   - RL con rewards de SREG (ademas de SFT)
   - Comparar SFT-only vs SFT+RL
   - Control negativo: entrenamiento placebo (datos no relacionados)

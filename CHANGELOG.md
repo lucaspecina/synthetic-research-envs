@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### 2026-03-13 — BENCH.3: DiscoveryBench adapter + HMS scorer
+- **DiscoveryBench adapter** (`src/sreg/benchmarks/discoverybench/adapter.py`): loads
+  DiscoveryBench dataset (CSV from HuggingFace), prompts model with domain + dataset
+  description + columns + research question, collects predicted hypotheses.
+  Train split (25 examples with gold hypotheses). Test split held-out (no gold).
+- **HMS scorer** (`src/sreg/benchmarks/discoverybench/hms.py`): Hypothesis Matching
+  Score via LLM judge. Decomposes hypotheses into sub-hypotheses (context, variables,
+  relationship), matches contexts, scores variable F1 and relationship accuracy.
+  Non-deterministic (requires LLM calls for scoring).
+- **CLI**: `scripts/run_benchmark.py --benchmark discoverybench`.
+- 39 tests (HMS parsing, decomposition, context matching, variable F1, relationship
+  accuracy, full pipeline, adapter load/run/score/save).
+- Mini-test: 5 examples, mean HMS=0.227 (paper best ~25%).
+
 ### 2026-03-13 — BEFORE scores: gpt-5.2-chat on CLadder + QRData
 - **First BEFORE scores** obtained for transfer benchmark baseline.
   - CLadder dev (100 examples): **78% accuracy**. Rung1=100%, Rung2=70%, Rung3=67.5%.
