@@ -48,6 +48,29 @@ _RESEARCH_ACTION_TOOL = {
     },
 }
 
+_THINK_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "think",
+        "description": (
+            "Record your reasoning, hypotheses, or analysis. Use this to explain "
+            "what you've learned from the data, what you plan to do next, or why "
+            "you're making a particular decision. This is free and has no effect "
+            "on the environment — it just records your thought process."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "reasoning": {
+                    "type": "string",
+                    "description": "Your reasoning, analysis, or plan",
+                },
+            },
+            "required": ["reasoning"],
+        },
+    },
+}
+
 _PYTHON_EXEC_TOOL = {
     "type": "function",
     "function": {
@@ -532,7 +555,7 @@ _MULTI_SUBMIT_TOOL = {
 
 def build_case_tools() -> list[dict]:
     """Build tool list for multi-task case mode."""
-    return [_RESEARCH_ACTION_TOOL, _PYTHON_EXEC_TOOL, _MULTI_SUBMIT_TOOL]
+    return [_THINK_TOOL, _RESEARCH_ACTION_TOOL, _PYTHON_EXEC_TOOL, _MULTI_SUBMIT_TOOL]
 
 
 def _format_question(i: int, task: Task, problem: ResearchProblem) -> str:
@@ -626,9 +649,11 @@ def build_case_system_prompt(
         questions_section += "\n" + _format_question(i, task, problem) + "\n"
 
     return f"""\
-You are a research scientist investigating a NEW CASE. You have historical \
-reference data, the ability to run measurements, and a Python interpreter \
-for data analysis.
+You are a research scientist investigating a new case. You have been given \
+a historical dataset, the ability to run measurements and experiments on \
+the current case, and a Python interpreter for data analysis. \
+The full dataset is pre-loaded as `df` (pandas DataFrame) in the Python \
+interpreter — it has ALL rows, not just the preview shown below.
 
 ## Research Problem: {problem.title}
 
@@ -656,34 +681,29 @@ You must answer ALL of the following questions about this case. \
 Investigate systematically — evidence gathered for one question \
 may help answer others.
 {questions_section}
-## How to investigate
+## Tools available
 
-Follow this process:
+- **`think(reasoning)`** — Record your reasoning, hypotheses, or analysis plan. \
+FREE. Use this to explain what you learned and what you plan to do next.
+- **`python_exec(code)`** — Run Python code. FREE, no budget cost. \
+The full dataset is in `df`. Observations you collect are in `observations` dict. \
+Libraries available: pandas (pd), numpy (np), scipy, math, statistics, json.
+- **`research_action(action_id)`** — Measure or experiment on the current case. \
+Costs budget. Returns findings about THIS specific case.
+- **`submit(question=N, ...)`** — Submit your answer for a question. \
+You must call this for EVERY question (one call per question).
 
-**Phase 1 — Analyze historical data** (use `python_exec`, FREE)
-- Compute base rates, conditional frequencies, correlations
-- Identify which variables are most predictive of the target
-- Look for patterns that distinguish different outcomes
-- Formulate initial hypotheses
+## Notes
 
-**Phase 2 — Gather evidence from the current case** (use `research_action`, costs budget)
-- Measure the variables that your analysis identified as most informative
-- After each measurement, use `python_exec` to filter the historical data \
-to cases matching the current observations — this gives you conditional estimates
-- Consider using experiments (do-operations) for causal questions
-
-**Phase 3 — Integrate and answer** (use `submit` tool calls)
-- Combine historical patterns with current case evidence
-- For each question, reason about what the evidence means
-- Submit answers using the `submit` tool (one call per question)
-
-**IMPORTANT rules:**
-- You MUST gather evidence from the current case before answering. \
-Answers based only on historical data without measuring the current case are unreliable.
-- You MUST use the `submit` TOOL (function call) for each answer. \
-Do NOT write answers as text — they will not be recorded.
-- Spend your budget wisely. Measure variables that help answer MULTIPLE questions.
-- Use `python_exec` liberally — it is free. Re-analyze after each measurement."""
+- The dataset preview above shows only 10 rows. Use `python_exec` with `df` \
+to access and analyze ALL {len(problem.data_assets[0].data) if problem.data_assets and problem.data_assets[0].data else 80} rows.
+- `python_exec` is free and unlimited. Use it to compute statistics, \
+filter data, test hypotheses — whatever you need.
+- Research actions cost budget. Choose wisely based on what your analysis reveals.
+- After measuring variables, use `python_exec` to filter `df` to matching \
+cases and compute conditional probabilities.
+- You MUST use the `submit` tool for each answer. Answers written as text \
+are not recorded."""
 
 
 __all__ = [

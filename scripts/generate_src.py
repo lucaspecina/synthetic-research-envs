@@ -734,7 +734,12 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
                 except (json.JSONDecodeError, TypeError):
                     fn_args = {"raw": fn_args_raw}
 
-                if fn_name == "python_exec" and "code" in fn_args:
+                if fn_name == "think":
+                    reasoning = fn_args.get("reasoning", "")
+                    traj_lines.append(f"**[AGENT THINKS]**")
+                    traj_lines.append("")
+                    traj_lines.append(f"> {reasoning}")
+                elif fn_name == "python_exec" and "code" in fn_args:
                     traj_lines.append(f"**[AGENT CALLS]** `python_exec`")
                     traj_lines.append("```python")
                     traj_lines.append(fn_args["code"])
@@ -761,7 +766,9 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
             except (json.JSONDecodeError, TypeError):
                 content = {"raw": content_raw}
 
-            if isinstance(content, dict) and "output" in content and len(content) == 1:
+            if isinstance(content, dict) and content.get("status") == "noted":
+                pass  # think tool response — reasoning already shown above
+            elif isinstance(content, dict) and "output" in content and len(content) == 1:
                 output = content["output"]
                 if len(output) > 800:
                     output = output[:800] + "\n... (truncated)"
@@ -804,6 +811,194 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
     traj_md_path = os.path.join(output_dir, "trajectory.md")
     with open(traj_md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(traj_lines))
+
+    # Build full_case.md — everything in one place
+    full_lines = []
+    full_lines.append(f"# Full Case Report: {world.scenario_title or world.id}")
+    full_lines.append("")
+    full_lines.append(f"Seed: {seed}")
+    full_lines.append(f"Budget: {case_result.budget_used}/{case_result.budget_total}")
+    full_lines.append(f"Tasks: {len(tasks)}")
+    full_lines.append("")
+
+    # Part 1: What the solver received
+    full_lines.append("---")
+    full_lines.append("")
+    full_lines.append("# Part 1: What the solver received")
+    full_lines.append("")
+
+    # System prompt
+    from sreg.agent.prompts import build_case_system_prompt as _build_prompt
+    system_prompt = _build_prompt(problem, tasks)
+    full_lines.append("## System prompt")
+    full_lines.append("")
+    full_lines.append("```")
+    full_lines.append(system_prompt)
+    full_lines.append("```")
+    full_lines.append("")
+
+    # Dataset summary
+    full_lines.append("## Dataset available as `df`")
+    full_lines.append("")
+    for asset in problem.data_assets:
+        if asset.format == "tabular" and asset.data:
+            headers = [k for k in asset.data[0].keys() if k != "sample_id"]
+            full_lines.append(f"- **{len(asset.data)} rows**, {len(headers)} variables")
+            full_lines.append(f"- Columns: {', '.join(headers)}")
+            full_lines.append(f"- Pre-loaded in python_exec as `df` (pandas DataFrame)")
+            full_lines.append(f"- The solver sees only 10 rows in the prompt but `df` has all {len(asset.data)}")
+    full_lines.append("")
+
+    # Part 2: What the solver did
+    full_lines.append("---")
+    full_lines.append("")
+    full_lines.append("# Part 2: What the solver did")
+    full_lines.append("")
+
+    for msg in case_result.messages:
+        role = msg.get("role", "?")
+
+        if role == "system":
+            full_lines.append("> *(system prompt — shown above)*")
+            full_lines.append("")
+
+        elif role == "user":
+            content = msg.get("content", "")
+            full_lines.append(f"> **[USER]** {content}")
+            full_lines.append("")
+
+        elif role == "assistant":
+            content = msg.get("content")
+            tool_calls = msg.get("tool_calls", [])
+
+            if content:
+                full_lines.append("**[SOLVER THINKS]**")
+                full_lines.append("")
+                full_lines.append(content)
+                full_lines.append("")
+
+            for tc in tool_calls:
+                fn = tc.get("function", {})
+                fn_name = fn.get("name", "?")
+                fn_args_raw = fn.get("arguments", "{}")
+                try:
+                    fn_args = json.loads(fn_args_raw)
+                except (json.JSONDecodeError, TypeError):
+                    fn_args = {"raw": fn_args_raw}
+
+                if fn_name == "think":
+                    reasoning = fn_args.get("reasoning", "")
+                    full_lines.append("**[SOLVER REASONS]**")
+                    full_lines.append("")
+                    full_lines.append(f"> {reasoning}")
+                elif fn_name == "python_exec" and "code" in fn_args:
+                    full_lines.append("**[SOLVER RUNS CODE]**")
+                    full_lines.append("```python")
+                    full_lines.append(fn_args["code"])
+                    full_lines.append("```")
+                elif fn_name == "submit":
+                    full_lines.append("**[SOLVER SUBMITS]**")
+                    full_lines.append("```json")
+                    full_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
+                    full_lines.append("```")
+                elif fn_name == "research_action":
+                    action_id = fn_args.get("action_id", "?")
+                    full_lines.append(f"**[SOLVER MEASURES]** `{action_id}`")
+                else:
+                    full_lines.append(f"**[SOLVER CALLS]** `{fn_name}`")
+                    full_lines.append("```json")
+                    full_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
+                    full_lines.append("```")
+                full_lines.append("")
+
+        elif role == "tool":
+            content_raw = msg.get("content", "{}")
+            try:
+                content = json.loads(content_raw)
+            except (json.JSONDecodeError, TypeError):
+                content = {"raw": content_raw}
+
+            if isinstance(content, dict) and content.get("status") == "noted":
+                pass  # think tool response — reasoning already shown above
+            elif isinstance(content, dict) and "output" in content and len(content) == 1:
+                output = content["output"]
+                if len(output) > 1200:
+                    output = output[:1200] + "\n... (truncated)"
+                full_lines.append("**[CODE OUTPUT]**")
+                full_lines.append("```")
+                full_lines.append(output)
+                full_lines.append("```")
+            elif isinstance(content, dict) and "findings" in content:
+                findings = content["findings"]
+                budget = content.get("remaining_budget", "?")
+                full_lines.append(f"**[FINDING]** {findings} *(budget left: {budget})*")
+            elif isinstance(content, dict) and content.get("status") == "submitted":
+                q = content.get("question", "?")
+                msg_text = content.get("message", "")
+                full_lines.append(f"**[RECORDED Q{q}]** {msg_text}")
+            elif isinstance(content, dict) and "error" in content:
+                full_lines.append(f"**[ERROR]** {content['error']}")
+            else:
+                content_str = json.dumps(content, indent=2, ensure_ascii=False)
+                if len(content_str) > 500:
+                    content_str = content_str[:500] + "\n... (truncated)"
+                full_lines.append("```json")
+                full_lines.append(content_str)
+                full_lines.append("```")
+            full_lines.append("")
+
+    # Part 3: Evaluation
+    full_lines.append("---")
+    full_lines.append("")
+    full_lines.append("# Part 3: How the solver did (evaluation)")
+    full_lines.append("")
+
+    full_lines.append("| # | Type | Score | Verdict | Agent Answer | Correct Answer |")
+    full_lines.append("| --- | --- | --- | --- | --- | --- |")
+
+    for i, task, tr, verdict, score_str in task_details:
+        ans = tr.submitted_answer if tr else None
+        ans_str = str(ans)[:40] if ans else "-"
+        correct_str = str(task.correct_answer)[:40]
+        full_lines.append(f"| {i} | {task.type} | {score_str} | {verdict} | {ans_str} | {correct_str} |")
+    full_lines.append("")
+
+    for i, task, tr, verdict, score_str in task_details:
+        full_lines.append(f"### Question {i}: {task.type} — {verdict}")
+        full_lines.append("")
+        q = task.question
+        if len(q) > 300:
+            q = q[:300] + "..."
+        full_lines.append(f"**Question:** {q}")
+        full_lines.append("")
+
+        full_lines.append("**Correct answer:**")
+        correct = task.correct_answer
+        if isinstance(correct, dict):
+            for k, v in sorted(correct.items()):
+                full_lines.append(f"- {k}: {v:.4f}" if isinstance(v, float) else f"- {k}: {v}")
+        else:
+            full_lines.append(f"- {correct}")
+        full_lines.append("")
+
+        full_lines.append("**Solver answer:**")
+        ans = tr.submitted_answer if tr else None
+        if isinstance(ans, dict):
+            for k, v in sorted(ans.items()):
+                full_lines.append(f"- {k}: {v:.4f}" if isinstance(v, float) else f"- {k}: {v}")
+        elif ans is not None:
+            full_lines.append(f"- {ans}")
+        else:
+            full_lines.append("- *(no answer)*")
+        full_lines.append("")
+
+        if tr and tr.reasoning:
+            full_lines.append(f"**Solver reasoning:** {tr.reasoning}")
+            full_lines.append("")
+
+    full_path = os.path.join(output_dir, "full_case.md")
+    with open(full_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(full_lines))
 
     return eval_path, traj_md_path
 
@@ -940,6 +1135,9 @@ def main():
             jsonl_path = os.path.join(args.output, "trajectories.jsonl")
             _print(f"  {_c(GRN, 'v')} {eval_path}")
             _print(f"  {_c(GRN, 'v')} {traj_md_path}")
+            full_path = os.path.join(args.output, "full_case.md")
+            if os.path.exists(full_path):
+                _print(f"  {_c(GRN, 'v')} {full_path} (complete report)")
             _print(f"  {_c(GRN, 'v')} {jsonl_path} (structured)")
 
     _print()

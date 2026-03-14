@@ -246,7 +246,9 @@ class AgentSolver:
     ) -> dict:
         """Execute an agent tool call."""
         try:
-            if name == "research_action":
+            if name == "think":
+                return {"status": "noted", "reasoning": args.get("reasoning", "")}
+            elif name == "research_action":
                 tool_result = self._handle_research_action(args, runner, problem, result)
                 # Sync observations into python namespace
                 self._python_namespace["observations"] = dict(runner.evidence)
@@ -780,7 +782,9 @@ class AgentSolver:
     ) -> dict:
         """Dispatch tool calls in multi-task case mode."""
         try:
-            if name == "research_action":
+            if name == "think":
+                return {"status": "noted", "reasoning": args.get("reasoning", "")}
+            elif name == "research_action":
                 # Reuse single-task handler but with a dummy AgentResult
                 dummy = AgentResult()
                 dummy.budget_total = problem.budget
