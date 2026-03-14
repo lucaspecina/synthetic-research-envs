@@ -591,12 +591,11 @@ def export_dag_png(result, output_dir: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | None:
-    """Run agent on each task. Export evaluation.md + trajectory.json."""
+    """Run agent on the full case (all tasks together). Export evaluation + trajectory."""
     if not result.world or not result.problem:
         return None
 
     from sreg.agent.agent import AgentSolver
-    from sreg.harness.agent_trajectory import extract_agent_trajectory
 
     world = result.world
     problem = result.problem
@@ -605,68 +604,56 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
         _print(f"  {_c(YLW, '!')} No tasks to solve")
         return None
 
-    agent = AgentSolver(max_iterations=15)
+    _print(f"  Solving {len(tasks)} tasks in a single episode...")
 
+    agent = AgentSolver(max_iterations=25)
+    case_result = agent.solve_case(world, problem, tasks, seed=seed)
+
+    # Build evaluation.md
     eval_lines = []
-    all_trajectories = []
-
     eval_lines.append(f"# Evaluation: {world.scenario_title or world.id}")
     eval_lines.append("")
     eval_lines.append(f"Seed: {seed}")
+    eval_lines.append(f"Budget: {case_result.budget_used}/{case_result.budget_total}")
     eval_lines.append("")
 
-    # Summary table
     eval_lines.append("## Summary")
     eval_lines.append("")
     eval_lines.append("| # | Type | Score | Verdict | Agent Answer |")
     eval_lines.append("| --- | --- | --- | --- | --- |")
 
     task_details = []
-
     for i, task in enumerate(tasks, 1):
-        _print(f"  {_c(CYN, f'[{i}/{len(tasks)}]')} Solving {task.type}...")
+        tr = case_result.task_results.get(i)
+        if tr is None or tr.submitted_answer is None:
+            eval_lines.append(f"| {i} | {task.type} | - | NO SUBMIT | - |")
+            task_details.append((i, task, tr, "NO SUBMIT", "-"))
+            continue
 
-        agent_result = agent.solve(world, problem, seed=seed, task=task)
-
-        # Extract structured trajectory
-        traj = extract_agent_trajectory(
-            agent_result, problem, world_id=world.id, seed=seed,
-        )
-        traj.task_type = str(task.type)
-        all_trajectories.append(traj)
-
-        # Score and verdict
-        agent_score = agent_result.score
-        if agent_score is None:
-            verdict = "NO SUBMIT"
-            score_str = "-"
+        score = tr.score
+        if score is None:
+            verdict, score_str = "NO SCORE", "-"
         else:
-            score_str = f"{agent_score.functional_score:.4f}"
-            if agent_score.functional_score < 0.1:
+            score_str = f"{score.functional_score:.4f}"
+            if score.functional_score < 0.1:
                 verdict = "GOOD"
-            elif agent_score.functional_score < 0.5:
+            elif score.functional_score < 0.5:
                 verdict = "OK"
             else:
                 verdict = "POOR"
 
-        ans = agent_result.submitted_answer
-        ans_summary = "no answer"
-        if ans is not None:
-            ans_str = str(ans)
-            ans_summary = ans_str[:57] + "..." if len(ans_str) > 60 else ans_str
-
-        eval_lines.append(
-            f"| {i} | {task.type} | {score_str} | {verdict} | {ans_summary} |"
-        )
-        task_details.append((i, task, agent_result, agent_score, verdict, score_str))
+        ans = tr.submitted_answer
+        ans_str = str(ans)
+        ans_summary = ans_str[:57] + "..." if len(ans_str) > 60 else ans_str
+        eval_lines.append(f"| {i} | {task.type} | {score_str} | {verdict} | {ans_summary} |")
+        task_details.append((i, task, tr, verdict, score_str))
 
     # Detailed evaluation
     eval_lines.append("")
     eval_lines.append("## Details")
     eval_lines.append("")
-
-    for i, task, agent_result, agent_score, verdict, score_str in task_details:
-        eval_lines.append(f"### Task {i}: {task.type}")
+    for i, task, tr, verdict, score_str in task_details:
+        eval_lines.append(f"### Question {i}: {task.type}")
         eval_lines.append("")
         q = task.question
         if len(q) > 200:
@@ -684,7 +671,7 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
         eval_lines.append("")
 
         eval_lines.append("**Agent answer:**")
-        ans = agent_result.submitted_answer
+        ans = tr.submitted_answer if tr else None
         if isinstance(ans, dict):
             for k, v in sorted(ans.items()):
                 eval_lines.append(f"- {k}: {v:.4f}" if isinstance(v, float) else f"- {k}: {v}")
@@ -695,152 +682,123 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
         eval_lines.append("")
 
         eval_lines.append(f"**Score:** {verdict} ({score_str})")
-        eval_lines.append(f"**Budget:** {agent_result.budget_used}/{agent_result.budget_total}")
-        if agent_result.reasoning:
-            reasoning = agent_result.reasoning
-            if len(reasoning) > 300:
-                reasoning = reasoning[:300] + "..."
+        if tr and tr.reasoning:
+            reasoning = tr.reasoning[:300] + "..." if len(tr.reasoning) > 300 else tr.reasoning
             eval_lines.append(f"**Reasoning:** {reasoning}")
         eval_lines.append("")
 
-    # Write evaluation
     eval_path = os.path.join(output_dir, "evaluation.md")
     with open(eval_path, "w", encoding="utf-8") as f:
         f.write("\n".join(eval_lines))
 
-    # Write trajectories as JSONL (structured, for tools)
-    jsonl_path = os.path.join(output_dir, "trajectories.jsonl")
-    with open(jsonl_path, "w", encoding="utf-8") as f:
-        for traj in all_trajectories:
-            f.write(traj.model_dump_json() + "\n")
-
-    # Write trajectory.md (human-readable, raw detail)
+    # Build trajectory.md — single conversation for the whole case
     traj_lines = []
     traj_lines.append(f"# Agent Trajectory: {world.scenario_title or world.id}")
     traj_lines.append("")
     traj_lines.append(f"Seed: {seed}")
+    traj_lines.append(f"Budget: {case_result.budget_used}/{case_result.budget_total}")
+    traj_lines.append(f"Tasks: {len(tasks)}")
+    traj_lines.append("")
+    traj_lines.append("## Full conversation")
     traj_lines.append("")
 
-    for idx, (traj, (i, task, agent_result, agent_score, verdict, score_str)) in enumerate(
-        zip(all_trajectories, task_details)
-    ):
-        traj_lines.append(f"## Task {i}: {task.type} ({verdict})")
-        traj_lines.append("")
-        traj_lines.append(f"**Question:** {task.question}")
-        traj_lines.append("")
-        traj_lines.append(f"**Target:** {traj.target_node} ({', '.join(traj.target_states)})")
-        traj_lines.append(f"**Budget:** {traj.budget} units")
-        traj_lines.append("")
+    for msg in case_result.messages:
+        role = msg.get("role", "?")
 
-        # Raw conversation from agent messages
-        traj_lines.append("### Full conversation")
-        traj_lines.append("")
+        if role == "system":
+            content = msg.get("content", "")
+            traj_lines.append(f"> **[SYSTEM]** ({len(content)} chars)")
+            traj_lines.append("")
 
-        for msg in agent_result.messages:
-            role = msg.get("role", "?")
+        elif role == "user":
+            content = msg.get("content", "")
+            traj_lines.append(f"> **[USER]** {content}")
+            traj_lines.append("")
 
-            if role == "system":
-                # Skip system prompt (too long), just note it
-                content = msg.get("content", "")
-                traj_lines.append(f"> **[SYSTEM]** ({len(content)} chars, includes research problem + data)")
+        elif role == "assistant":
+            content = msg.get("content")
+            tool_calls = msg.get("tool_calls", [])
+
+            if content:
+                traj_lines.append(f"**[AGENT THINKS]**")
+                traj_lines.append("")
+                traj_lines.append(content)
                 traj_lines.append("")
 
-            elif role == "user":
-                content = msg.get("content", "")
-                traj_lines.append(f"> **[USER]** {content}")
-                traj_lines.append("")
-
-            elif role == "assistant":
-                content = msg.get("content")
-                tool_calls = msg.get("tool_calls", [])
-
-                if content:
-                    traj_lines.append(f"**[AGENT THINKS]**")
-                    traj_lines.append("")
-                    traj_lines.append(content)
-                    traj_lines.append("")
-
-                for tc in tool_calls:
-                    fn = tc.get("function", {})
-                    fn_name = fn.get("name", "?")
-                    fn_args_raw = fn.get("arguments", "{}")
-                    try:
-                        fn_args = json.loads(fn_args_raw)
-                    except (json.JSONDecodeError, TypeError):
-                        fn_args = {"raw": fn_args_raw}
-
-                    if fn_name == "python_exec" and "code" in fn_args:
-                        # Show code as proper Python, not JSON
-                        traj_lines.append(f"**[AGENT CALLS]** `python_exec`")
-                        traj_lines.append("```python")
-                        traj_lines.append(fn_args["code"])
-                        traj_lines.append("```")
-                    elif fn_name == "submit":
-                        # Show submit args cleanly
-                        traj_lines.append(f"**[AGENT CALLS]** `submit`")
-                        traj_lines.append("```json")
-                        traj_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
-                        traj_lines.append("```")
-                    elif fn_name == "research_action":
-                        action_id = fn_args.get("action_id", "?")
-                        traj_lines.append(f"**[AGENT CALLS]** `research_action` -> `{action_id}`")
-                    else:
-                        traj_lines.append(f"**[AGENT CALLS]** `{fn_name}`")
-                        traj_lines.append("```json")
-                        traj_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
-                        traj_lines.append("```")
-                    traj_lines.append("")
-
-            elif role == "tool":
-                content_raw = msg.get("content", "{}")
+            for tc in tool_calls:
+                fn = tc.get("function", {})
+                fn_name = fn.get("name", "?")
+                fn_args_raw = fn.get("arguments", "{}")
                 try:
-                    content = json.loads(content_raw)
+                    fn_args = json.loads(fn_args_raw)
                 except (json.JSONDecodeError, TypeError):
-                    content = {"raw": content_raw}
+                    fn_args = {"raw": fn_args_raw}
 
-                # python_exec output: show as plain text
-                if isinstance(content, dict) and "output" in content and len(content) == 1:
-                    output = content["output"]
-                    if len(output) > 800:
-                        output = output[:800] + "\n... (truncated)"
-                    traj_lines.append(f"**[OUTPUT]**")
+                if fn_name == "python_exec" and "code" in fn_args:
+                    traj_lines.append(f"**[AGENT CALLS]** `python_exec`")
+                    traj_lines.append("```python")
+                    traj_lines.append(fn_args["code"])
                     traj_lines.append("```")
-                    traj_lines.append(output)
-                    traj_lines.append("```")
-                # research_action findings: show concisely
-                elif isinstance(content, dict) and "findings" in content:
-                    findings = content["findings"]
-                    budget = content.get("remaining_budget", "?")
-                    traj_lines.append(f"**[RESULT]** {findings} (budget left: {budget})")
-                # submit confirmation
-                elif isinstance(content, dict) and content.get("status") == "submitted":
-                    traj_lines.append(f"**[SUBMITTED]**")
-                # errors
-                elif isinstance(content, dict) and "error" in content:
-                    traj_lines.append(f"**[ERROR]** {content['error']}")
-                # fallback
-                else:
-                    content_str = json.dumps(content, indent=2, ensure_ascii=False)
-                    if len(content_str) > 500:
-                        content_str = content_str[:500] + "\n... (truncated)"
+                elif fn_name == "submit":
+                    traj_lines.append(f"**[AGENT CALLS]** `submit`")
                     traj_lines.append("```json")
-                    traj_lines.append(content_str)
+                    traj_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
+                    traj_lines.append("```")
+                elif fn_name == "research_action":
+                    action_id = fn_args.get("action_id", "?")
+                    traj_lines.append(f"**[AGENT CALLS]** `research_action` -> `{action_id}`")
+                else:
+                    traj_lines.append(f"**[AGENT CALLS]** `{fn_name}`")
+                    traj_lines.append("```json")
+                    traj_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
                     traj_lines.append("```")
                 traj_lines.append("")
 
-        # Final summary
-        traj_lines.append("### Result")
-        traj_lines.append("")
-        traj_lines.append(f"- **Agent answer:** {traj.submitted_answer}")
-        traj_lines.append(f"- **Correct answer:** {task.correct_answer}")
-        traj_lines.append(f"- **Score:** {score_str} ({verdict})")
-        traj_lines.append(f"- **Budget used:** {traj.budget_used}/{traj.budget}")
-        if traj.confidence is not None:
-            traj_lines.append(f"- **Confidence:** {traj.confidence:.2f}")
-        if traj.reasoning:
-            traj_lines.append(f"- **Final reasoning:** {traj.reasoning}")
-        traj_lines.append("")
-        traj_lines.append("---")
+        elif role == "tool":
+            content_raw = msg.get("content", "{}")
+            try:
+                content = json.loads(content_raw)
+            except (json.JSONDecodeError, TypeError):
+                content = {"raw": content_raw}
+
+            if isinstance(content, dict) and "output" in content and len(content) == 1:
+                output = content["output"]
+                if len(output) > 800:
+                    output = output[:800] + "\n... (truncated)"
+                traj_lines.append(f"**[OUTPUT]**")
+                traj_lines.append("```")
+                traj_lines.append(output)
+                traj_lines.append("```")
+            elif isinstance(content, dict) and "findings" in content:
+                findings = content["findings"]
+                budget = content.get("remaining_budget", "?")
+                traj_lines.append(f"**[RESULT]** {findings} (budget left: {budget})")
+            elif isinstance(content, dict) and content.get("status") == "submitted":
+                q = content.get("question", "?")
+                msg_text = content.get("message", "")
+                traj_lines.append(f"**[SUBMITTED Q{q}]** {msg_text}")
+            elif isinstance(content, dict) and "error" in content:
+                traj_lines.append(f"**[ERROR]** {content['error']}")
+            else:
+                content_str = json.dumps(content, indent=2, ensure_ascii=False)
+                if len(content_str) > 500:
+                    content_str = content_str[:500] + "\n... (truncated)"
+                traj_lines.append("```json")
+                traj_lines.append(content_str)
+                traj_lines.append("```")
+            traj_lines.append("")
+
+    # Per-question results at the end
+    traj_lines.append("## Results per question")
+    traj_lines.append("")
+    for i, task, tr, verdict, score_str in task_details:
+        ans = tr.submitted_answer if tr else None
+        traj_lines.append(f"### Question {i}: {task.type} ({verdict})")
+        traj_lines.append(f"- **Agent:** {ans}")
+        traj_lines.append(f"- **Correct:** {task.correct_answer}")
+        traj_lines.append(f"- **Score:** {score_str}")
+        if tr and tr.reasoning:
+            traj_lines.append(f"- **Reasoning:** {tr.reasoning}")
         traj_lines.append("")
 
     traj_md_path = os.path.join(output_dir, "trajectory.md")

@@ -18,6 +18,8 @@ from sreg.agent.prompts import (
     DISTRIBUTION_TYPES,
     build_agent_system_prompt,
     build_agent_tools,
+    build_case_system_prompt,
+    build_case_tools,
 )
 from sreg.agent.python_exec import execute_code, make_python_namespace
 from sreg.env.episode import EpisodeRunner
@@ -34,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class AgentResult:
-    """Result of an agent solving a research problem."""
+    """Result of an agent solving a single task."""
 
     def __init__(self):
         self.submitted_answer: Any = None  # dict, str, list — depends on task type
@@ -46,6 +48,17 @@ class AgentResult:
         self.budget_total: int = 0
         self.messages: list[dict] = []
         self.task_type: TaskType | None = None
+
+
+class CaseResult:
+    """Result of an agent solving an entire research case (multiple tasks)."""
+
+    def __init__(self):
+        self.task_results: dict[int, AgentResult] = {}  # question_number -> result
+        self.observations: list[Observation] = []
+        self.budget_used: int = 0
+        self.budget_total: int = 0
+        self.messages: list[dict] = []
 
 
 class AgentSolver:
@@ -609,4 +622,275 @@ class AgentSolver:
         )
 
 
-__all__ = ["AgentResult", "AgentSolver"]
+    def solve_case(
+        self,
+        world: World,
+        problem: ResearchProblem,
+        tasks: list[Task],
+        seed: int = 0,
+        on_step: Callable[[str, dict], None] | None = None,
+    ) -> CaseResult:
+        """Run the agent on a full research case with multiple tasks.
+
+        All tasks share the same episode, budget, and observations.
+        The agent receives all questions at once and submits answers
+        per question using submit(question=N, ...).
+        """
+        case_result = CaseResult()
+        case_result.budget_total = problem.budget
+
+        # Initialize per-task results
+        for i in range(len(tasks)):
+            case_result.task_results[i + 1] = AgentResult()
+            case_result.task_results[i + 1].budget_total = problem.budget
+            case_result.task_results[i + 1].task_type = tasks[i].type
+
+        # Set up environment (one episode for all tasks)
+        solver = ExactBayesSolver(world)
+        true_state = solver.sample_state(seed=seed)
+
+        ep_tool = EpisodeGenTool()
+        episode = ep_tool.generate(
+            world,
+            EpisodeGenConfig(budget=problem.budget, seed=seed),
+            available_actions=problem.available_actions,
+        )
+        runner = EpisodeRunner(world, episode, true_state)
+
+        # Python namespace with dataset
+        self._python_namespace = make_python_namespace(
+            data_assets=problem.data_assets,
+            observations={},
+        )
+
+        # Build unified prompt and tools
+        system_prompt = build_case_system_prompt(problem, tasks)
+        tools = build_case_tools()
+
+        messages: list[dict] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": "Please investigate this case and answer all questions."},
+        ]
+
+        n_submitted = 0
+
+        for iteration in range(self.max_iterations):
+            logger.info(f"Case solver iteration {iteration + 1}")
+
+            response = self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=tools,
+            )
+
+            choice = response.choices[0]
+            message = choice.message
+
+            # Add assistant message to history
+            msg_dict: dict[str, Any] = {"role": "assistant"}
+            if message.content:
+                msg_dict["content"] = message.content
+            if message.tool_calls:
+                msg_dict["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in message.tool_calls
+                ]
+            messages.append(msg_dict)
+
+            if on_step and message.content:
+                on_step("thinking", {"content": message.content, "iteration": iteration + 1})
+
+            if not message.tool_calls:
+                # Agent responded with text but no tool calls.
+                # If there are unanswered questions, nudge it to use submit tool.
+                if n_submitted < len(tasks):
+                    unanswered = [
+                        i for i in range(1, len(tasks) + 1)
+                        if case_result.task_results[i].submitted_answer is None
+                    ]
+                    nudge = (
+                        f"You have {len(unanswered)} unanswered question(s): "
+                        f"{unanswered}. You MUST use the `submit` tool (function call) "
+                        f"for each one. Do NOT write answers as text — use the tool."
+                    )
+                    messages.append({"role": "user", "content": nudge})
+                    continue
+                break
+
+            for tool_call in message.tool_calls:
+                fn_name = tool_call.function.name
+                fn_args = json.loads(tool_call.function.arguments)
+                logger.info(f"Case solver tool call: {fn_name}({fn_args})")
+
+                tool_result = self._dispatch_case_tool(
+                    fn_name, fn_args, runner, problem, tasks, case_result,
+                )
+
+                if on_step:
+                    if "error" in tool_result:
+                        on_step("error", {"tool": fn_name, "error": tool_result["error"]})
+                    elif fn_name in ("research_action", "observe"):
+                        on_step("observe", tool_result)
+                    elif fn_name == "python_exec":
+                        on_step("python_exec", {"output": tool_result.get("output", "")})
+                    elif fn_name == "submit":
+                        on_step("submit", tool_result)
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(tool_result, default=str),
+                })
+
+                if fn_name == "submit" and "error" not in tool_result:
+                    n_submitted += 1
+
+            # Stop when all questions answered
+            if n_submitted >= len(tasks):
+                break
+
+        case_result.messages = messages
+        case_result.budget_used = problem.budget - runner.budget_remaining
+        case_result.observations = list(runner.evidence.items())
+
+        # Score each submitted task
+        for q_num, task in enumerate(tasks, 1):
+            tr = case_result.task_results[q_num]
+            tr.budget_used = case_result.budget_used
+            if tr.submitted_answer is not None:
+                tr.score = self._score_result(tr, task, problem, runner)
+
+        return case_result
+
+    def _dispatch_case_tool(
+        self,
+        name: str,
+        args: dict,
+        runner: EpisodeRunner,
+        problem: ResearchProblem,
+        tasks: list[Task],
+        case_result: CaseResult,
+    ) -> dict:
+        """Dispatch tool calls in multi-task case mode."""
+        try:
+            if name == "research_action":
+                # Reuse single-task handler but with a dummy AgentResult
+                dummy = AgentResult()
+                dummy.budget_total = problem.budget
+                tool_result = self._handle_research_action(args, runner, problem, dummy)
+                self._python_namespace["observations"] = dict(runner.evidence)
+                return tool_result
+            elif name == "python_exec":
+                return self._handle_python_exec(args)
+            elif name == "submit":
+                return self._handle_case_submit(args, tasks, case_result)
+            else:
+                return {"error": f"Unknown tool: {name}"}
+        except Exception as e:
+            logger.error(f"Case tool {name} failed: {e}")
+            return {"error": str(e)}
+
+    def _handle_case_submit(
+        self,
+        args: dict,
+        tasks: list[Task],
+        case_result: CaseResult,
+    ) -> dict:
+        """Handle submit in multi-task mode — routes by question number."""
+        q_num = args.get("question")
+        if q_num is None:
+            return {"error": "You must provide 'question' (the question number, e.g. 1)."}
+
+        if not isinstance(q_num, int) or q_num < 1 or q_num > len(tasks):
+            return {
+                "error": f"Invalid question number {q_num}. Must be 1-{len(tasks)}."
+            }
+
+        task = tasks[q_num - 1]
+        tr = case_result.task_results[q_num]
+
+        if tr.submitted_answer is not None:
+            return {"error": f"Question {q_num} was already answered."}
+
+        task_type = task.type
+
+        # Extract the answer based on task type
+        if task_type in DISTRIBUTION_TYPES:
+            distribution = args.get("distribution", {})
+            if not distribution:
+                # Fallback: check top-level keys
+                if task.correct_answer:
+                    state_set = set(task.correct_answer.keys())
+                    top_level = {
+                        k: v for k, v in args.items()
+                        if k in state_set and isinstance(v, (int, float))
+                    }
+                    if top_level:
+                        distribution = top_level
+            if not distribution:
+                states = list(task.correct_answer.keys()) if task.correct_answer else []
+                return {
+                    "error": (
+                        f"Question {q_num} needs a distribution. "
+                        f"Keys: {', '.join(states)}"
+                    ),
+                }
+            total = sum(distribution.values())
+            if total > 0:
+                distribution = {k: v / total for k, v in distribution.items()}
+            tr.submitted_answer = distribution
+
+        elif task_type in CHOICE_TYPES or task_type == TaskType.NEXT_BEST_OBSERVATION:
+            choice = args.get("choice", "")
+            if not choice:
+                return {"error": f"Question {q_num} needs a 'choice'."}
+            tr.submitted_answer = choice.strip()
+
+        elif task_type == TaskType.BEST_INTERVENTION:
+            node = args.get("node", "")
+            state = args.get("state", "")
+            if not node or not state:
+                return {"error": f"Question {q_num} needs 'node' and 'state'."}
+            tr.submitted_answer = {"node": node.strip(), "state": state.strip()}
+
+        elif task_type == TaskType.ADJUSTMENT_SET:
+            variables = args.get("variables")
+            if variables is None:
+                return {"error": f"Question {q_num} needs 'variables' (list)."}
+            tr.submitted_answer = sorted(variables)
+
+        else:
+            # Fallback to distribution
+            distribution = args.get("distribution", {})
+            if distribution:
+                total = sum(distribution.values())
+                if total > 0:
+                    distribution = {k: v / total for k, v in distribution.items()}
+                tr.submitted_answer = distribution
+            else:
+                return {"error": f"Could not parse answer for question {q_num}."}
+
+        tr.confidence = args.get("confidence")
+        tr.reasoning = args.get("reasoning")
+
+        answered = sum(1 for r in case_result.task_results.values() if r.submitted_answer is not None)
+        remaining = len(case_result.task_results) - answered
+
+        return {
+            "status": "submitted",
+            "question": q_num,
+            "message": (
+                f"Answer for question {q_num} recorded. "
+                f"{remaining} question(s) remaining."
+            ),
+        }
+
+
+__all__ = ["AgentResult", "AgentSolver", "CaseResult"]

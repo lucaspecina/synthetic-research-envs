@@ -524,8 +524,9 @@ python scripts/generate_src.py -o experiments/case/ --inspect
 | **Semantic tools** | `src/sreg/tools/problem_builder.py` | Renombra nodos, genera narrativa, empaqueta como ResearchProblem |
 | **Data sampler** | `src/sreg/tools/data_sampler.py` | Samplea datos de la BN: multi-dataset (primary+secondary), missing data, narrativas |
 | **Orchestrator** | `src/sreg/orchestrator/` | Loop LLM con function calling (genera mundos con semántica + diseña research cases via design_case) |
-| **Agent solver** | `src/sreg/agent/` | Agente LLM que recibe un problema y lo resuelve. **Harness multi-tipo: submit + prompt + scoring para los 9 eval types. S.2 diagnostic pipeline validado en E2E real. S.4 MVP-1: `research_action(action_id)` con catalogo tipado (multi-nodo, costos variados). Observe-only por ahora, guard para Slice B (intervenciones).** |
-| **Agent trajectory** | `src/sreg/harness/agent_trajectory.py` | Extrae trayectorias estructuradas del agente (post-hoc desde messages). Export JSONL. |
+| **Agent solver** | `src/sreg/agent/` | Agente LLM que investiga un caso. **S.5: `python_exec` (persistent interpreter, df pre-loaded, FREE) + `solve_case()` (all tasks in single episode, shared budget/observations, submit per question). Prompt: 3-phase investigation (analyze data -> gather evidence -> submit).** 9 eval types soportados. |
+| **Agent python_exec** | `src/sreg/agent/python_exec.py` | Interprete Python persistente para el agente. Sandboxed (import whitelist, restricted builtins). Pre-carga pandas, numpy, scipy. Dataset como `df`, observations como dict. |
+| **Agent trajectory** | `src/sreg/harness/agent_trajectory.py` | Extrae trayectorias estructuradas del agente (post-hoc desde messages). Soporta research_action + python_exec + submit. Export JSONL. |
 | **Trajectory comparison** | `src/sreg/harness/comparison.py` | Comparacion lado a lado agent vs teacher. Verdict: EXCELLENT/GOOD/FAIR/POOR/NO_SUBMIT. |
 | **DiagnosticRunner** | `src/sreg/harness/diagnostic.py` | Diagnostico de entornos E2E: orchestrator -> agent en cada task -> verdicts type-aware + failure modes por tipo + **baseline scoring por eval type**. Marcado PARTIAL. Importable. |
 | **Batch eval** | `src/sreg/harness/eval.py` | Evalúa N problemas: agente vs teacher vs random, métricas agregadas |

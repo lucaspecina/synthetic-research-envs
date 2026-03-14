@@ -480,22 +480,22 @@
   > Traemos esa logica al AgentSolver de diagnostico.
   >
   > **Plan en 2 pasos:**
-  - [ ] **S.5.1**: Agregar `python_exec` al AgentSolver
-    - Traer logica de `src/sreg/training/tools.py` (exec con namespace persistente)
-    - Pre-cargar dataset como `df` (pandas DataFrame) en el namespace
-    - Pre-cargar observaciones como `observations` dict (sincronizado por step)
-    - Sandbox: import whitelist (numpy, pandas, scipy, math, statistics, json,
-      collections, itertools, functools, re), builtins restringidos, timeout
-    - Registrar como tool del agente: `python_exec(code) -> output`
-    - `python_exec` es GRATIS (no cuesta budget, solo research_action cuesta)
-    - Actualizar prompt: "usa python_exec para analizar datos, es gratis"
-  - [ ] **S.5.2**: Unificar tasks en un solo episodio
-    - El agente recibe TODAS las preguntas del caso juntas
-    - Un solo episodio, un solo budget compartido
-    - Observaciones compartidas entre preguntas
-    - Submit por pregunta (submit(task_id, answer))
-    - Lo que investiga para una pregunta le sirve para las demas
-    - Actualizar `generate_src.py --solve` para el nuevo modo
+  - [x] **S.5.1**: Agregar `python_exec` al AgentSolver
+    - `src/sreg/agent/python_exec.py`: persistent exec() namespace, sandboxed
+    - Pre-loaded: pandas (df), numpy, scipy, math, statistics, json
+    - Observations dict synced after each research_action
+    - Import whitelist, restricted builtins, code length limit, output truncation
+    - FREE tool (no budget cost). Prompt instructs: "analyze data FIRST"
+  - [x] **S.5.2**: Unificar tasks en un solo episodio
+    - `AgentSolver.solve_case(world, problem, tasks)`: all tasks in one episode
+    - `CaseResult`: per-question results from shared investigation
+    - `build_case_system_prompt()`: all questions presented together
+    - `submit(question=N, ...)`: per-question submission with flexible format
+    - Nudge mechanism: if agent writes answers as text, system reminds to use tool
+    - `generate_src.py --solve` uses unified mode
+    - Prompt structured in 3 phases: analyze data → gather evidence → submit
+  - Deuda S.5: agent reasoning depth varies by model (some skip research_actions),
+    NBO scoring needs review, teacher comparison not implemented for case mode
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec

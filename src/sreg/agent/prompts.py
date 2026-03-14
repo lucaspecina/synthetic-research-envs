@@ -473,11 +473,226 @@ Use your budget wisely — some actions cost more than others.
 You MUST eventually call `submit` with your answer. Do not stop without submitting."""
 
 
+# ---------------------------------------------------------------------------
+# Multi-task (unified case) prompt + tools
+# ---------------------------------------------------------------------------
+
+_MULTI_SUBMIT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "submit",
+        "description": (
+            "Submit your answer to ONE of the research questions. "
+            "Call this once per question. You MUST include 'question' (the question number). "
+            "Then provide exactly ONE of: 'distribution' (JSON string mapping states to "
+            "probabilities), 'choice' (a single option), or 'variables' (list of variable names)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "integer",
+                    "description": "Question number (1, 2, 3, ...)",
+                },
+                "distribution": {
+                    "type": "object",
+                    "description": (
+                        "Probability distribution over target states. "
+                        "Keys are state names, values are probabilities summing to 1.0."
+                    ),
+                    "additionalProperties": {"type": "number"},
+                },
+                "choice": {
+                    "type": "string",
+                    "description": (
+                        "Single choice answer (e.g. 'A', 'B', 'yes', 'no', a variable name)"
+                    ),
+                },
+                "variables": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of variable names (for adjustment set questions)",
+                },
+                "node": {
+                    "type": "string",
+                    "description": "Variable to intervene on (for best_intervention)",
+                },
+                "state": {
+                    "type": "string",
+                    "description": "Value to set the variable to (for best_intervention)",
+                },
+                "confidence": _CONFIDENCE_PROP,
+                "reasoning": _REASONING_PROP,
+            },
+            "required": ["question"],
+        },
+    },
+}
+
+
+def build_case_tools() -> list[dict]:
+    """Build tool list for multi-task case mode."""
+    return [_RESEARCH_ACTION_TOOL, _PYTHON_EXEC_TOOL, _MULTI_SUBMIT_TOOL]
+
+
+def _format_question(i: int, task: Task, problem: ResearchProblem) -> str:
+    """Format a single question for the multi-task prompt."""
+    lines = []
+    lines.append(f"### Question {i}")
+    lines.append("")
+    lines.append(task.question)
+    lines.append("")
+
+    target_node = task.target_node
+    if task.type in DISTRIBUTION_TYPES and task.correct_answer:
+        states = list(task.correct_answer.keys())
+        lines.append(f"Target: **{target_node}** (states: {', '.join(states)})")
+        lines.append(f"Answer format: `submit(question={i}, distribution={{...}})`")
+    elif task.type == TaskType.HYPOTHESIS_SELECTION:
+        labels = sorted(task.hypotheses.keys()) if task.hypotheses else []
+        lines.append(f"Options: {', '.join(labels)}")
+        lines.append(f"Answer format: `submit(question={i}, choice=\"...\")`")
+        if task.hypotheses:
+            for label, dist in sorted(task.hypotheses.items()):
+                dist_str = ", ".join(f"{s}={p:.2f}" for s, p in dist.items())
+                lines.append(f"  {label}: {dist_str}")
+    elif task.type == TaskType.COMPARE_INTERVENTIONS:
+        lines.append(f"Answer format: `submit(question={i}, choice=\"A\" or \"B\")`")
+    elif task.type == TaskType.SHOULD_CONDITION:
+        lines.append(f"Answer format: `submit(question={i}, choice=\"yes\" or \"no\")`")
+    elif task.type == TaskType.BEST_INTERVENTION:
+        lines.append(
+            f"Answer format: `submit(question={i}, node=\"...\", state=\"...\")`"
+        )
+    elif task.type == TaskType.ADJUSTMENT_SET:
+        lines.append(
+            f"Answer format: `submit(question={i}, variables=[...])`"
+        )
+    elif task.type == TaskType.NEXT_BEST_OBSERVATION:
+        if task.correct_answer:
+            options = list(task.correct_answer.keys())
+            lines.append(f"Options: {', '.join(options)}")
+        lines.append(f"Answer format: `submit(question={i}, choice=\"...\")`")
+    else:
+        lines.append(f"Target: **{target_node}**")
+
+    return "\n".join(lines)
+
+
+def build_case_system_prompt(
+    problem: ResearchProblem, tasks: list[Task],
+) -> str:
+    """Build system prompt for multi-task case mode (all questions at once)."""
+    # Data section (same as single-task)
+    data_section = ""
+    for asset in problem.data_assets:
+        data_section += f"\n### {asset.name}\n{asset.description}\n"
+        if asset.source:
+            data_section += f"Source: {asset.source}\n"
+        if asset.format == "tabular" and asset.data:
+            headers = list(asset.data[0].keys())
+            data_section += f"Columns: {', '.join(headers)}\n"
+            data_section += f"Total rows: {asset.num_rows or len(asset.data)}\n\n"
+            max_rows = min(10, len(asset.data))
+            data_section += " | ".join(headers) + "\n"
+            data_section += " | ".join(["---"] * len(headers)) + "\n"
+            for row in asset.data[:max_rows]:
+                data_section += " | ".join(str(row.get(h, "")) for h in headers) + "\n"
+            if len(asset.data) > max_rows:
+                data_section += f"... ({len(asset.data) - max_rows} more rows)\n"
+        elif asset.format == "narrative" and asset.data:
+            for obs in asset.data[:10]:
+                src = obs.get("source", "unknown")
+                data_section += f"- [{src}] {obs.get('observation', obs)}\n"
+        elif asset.format == "observations" and asset.data:
+            for obs in asset.data[:10]:
+                data_section += f"- {obs.get('observation', obs)}\n"
+
+    # Actions section
+    actions_section = ""
+    for action in problem.available_actions:
+        kind = _ACTION_KIND_LABELS.get(action.action_type, "Action")
+        actions_section += (
+            f"- **{action.id}** ({kind}, cost: {action.cost}): {action.description}\n"
+        )
+
+    theoretical = ""
+    if problem.theoretical_context:
+        theoretical = f"\n## Theoretical Context\n{problem.theoretical_context}\n"
+
+    # Questions section
+    questions_section = ""
+    for i, task in enumerate(tasks, 1):
+        questions_section += "\n" + _format_question(i, task, problem) + "\n"
+
+    return f"""\
+You are a research scientist investigating a NEW CASE. You have historical \
+reference data, the ability to run measurements, and a Python interpreter \
+for data analysis.
+
+## Research Problem: {problem.title}
+
+{problem.description}
+{theoretical}
+## Historical Reference Data
+
+The following is HISTORICAL data from previous cases. It shows patterns and \
+correlations, but it is NOT data about the current case.
+{data_section}
+## Measurements on the Current Case
+
+You are investigating a SPECIFIC NEW CASE. You do not know the actual values \
+of any variable for this case yet. The historical data shows general patterns, \
+but this case may be different.
+
+You have a research budget of **{problem.budget}** units. Each research action \
+costs budget units. `python_exec` is FREE (use it as much as you want).
+
+### Available Research Actions
+{actions_section}
+## Research Questions
+
+You must answer ALL of the following questions about this case. \
+Investigate systematically — evidence gathered for one question \
+may help answer others.
+{questions_section}
+## How to investigate
+
+Follow this process:
+
+**Phase 1 — Analyze historical data** (use `python_exec`, FREE)
+- Compute base rates, conditional frequencies, correlations
+- Identify which variables are most predictive of the target
+- Look for patterns that distinguish different outcomes
+- Formulate initial hypotheses
+
+**Phase 2 — Gather evidence from the current case** (use `research_action`, costs budget)
+- Measure the variables that your analysis identified as most informative
+- After each measurement, use `python_exec` to filter the historical data \
+to cases matching the current observations — this gives you conditional estimates
+- Consider using experiments (do-operations) for causal questions
+
+**Phase 3 — Integrate and answer** (use `submit` tool calls)
+- Combine historical patterns with current case evidence
+- For each question, reason about what the evidence means
+- Submit answers using the `submit` tool (one call per question)
+
+**IMPORTANT rules:**
+- You MUST gather evidence from the current case before answering. \
+Answers based only on historical data without measuring the current case are unreliable.
+- You MUST use the `submit` TOOL (function call) for each answer. \
+Do NOT write answers as text — they will not be recorded.
+- Spend your budget wisely. Measure variables that help answer MULTIPLE questions.
+- Use `python_exec` liberally — it is free. Re-analyze after each measurement."""
+
+
 __all__ = [
     "AGENT_TOOL_DEFINITIONS",
     "CHOICE_TYPES",
     "DISTRIBUTION_TYPES",
     "build_agent_system_prompt",
     "build_agent_tools",
+    "build_case_system_prompt",
+    "build_case_tools",
     "build_submit_tool",
 ]

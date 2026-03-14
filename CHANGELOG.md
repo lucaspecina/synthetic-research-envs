@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### 2026-03-14 — S.5: Agent Solver v3 — python_exec + unified case solving
+- **`src/sreg/agent/python_exec.py`** (NEW): persistent Python interpreter for the agent.
+  Sandboxed exec() with namespace persistence (like Jupyter). Pre-loads numpy, pandas,
+  scipy. Dataset available as `df`. Observations synced as `observations` dict.
+  Import whitelist, restricted builtins, code/output limits. FREE (no budget cost).
+- **`AgentSolver.solve_case()`** (NEW): solves all tasks in a single episode.
+  Shared budget, shared observations. Agent receives all questions at once.
+  `submit(question=N, ...)` per question. Nudge mechanism if agent writes text
+  instead of tool calls.
+- **`CaseResult`** (NEW): holds per-question AgentResults from unified solving.
+- **`build_case_system_prompt()`** + **`build_case_tools()`**: multi-task prompt
+  with 3-phase investigation structure (analyze data → gather evidence → submit).
+  Multi-format submit tool (distribution, choice, variables, node+state).
+- **`generate_src.py --solve`**: now uses unified `solve_case()`. Single episode
+  for all tasks. Trajectory shows full conversation with python code blocks.
+- **Trajectory rendering**: python code as ```python blocks, research_action results
+  concise, submit as formatted JSON, environment outputs as plain text.
+- **`agent_trajectory.py`**: handles research_action and python_exec tool calls.
+
 ### 2026-03-13 — generate_src.py: official SRC generation script
 - **`scripts/generate_src.py`**: single entry point to generate, inspect, and evaluate SRCs.
   - `--goal` or `--seed-file` for research context
