@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-14 — Integrate benchmarks + training from worktrees (BENCH.1, TRAIN.1-4)
+- **Benchmarks integrated**: CLadder, QRData, DiscoveryBench adapters from worktree
+  benchmark-suite. OpenAIClient (ModelClient protocol). run_benchmark.py script.
+  BEFORE scores documented (GPT-5.2: CLadder 78%, QRData 38%, DiscoveryBench 0.299).
+- **Training module integrated**: SregEnv (verifiers adapter over EpisodeRunner),
+  adapters, types, validators, rubric, dataset generation, prompts. From worktree
+  rl-env-verifiers.
+- **python_exec unified**: training/tools.py now imports from agent/python_exec.py
+  (single kernel). _build_python_namespace delegates to make_python_namespace.
+  Identical semantics between diagnostic and training paths.
+- 783 -> 1086 tests.
+
 ### 2026-03-14 — Unified inference infrastructure (INF.1, INF.3, PYEX.1)
 - **Configurable solver backend**: `generate_src.py` now accepts `--solver-model`,
   `--solver-base-url`, `--solver-api-key` flags. Supports Azure, vLLM, or any

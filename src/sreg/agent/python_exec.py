@@ -84,8 +84,8 @@ def make_python_namespace(
         df_count = 0
         for asset in data_assets:
             data = asset.data if hasattr(asset, "data") else asset.get("data", [])
-            fmt = asset.format if hasattr(asset, "format") else asset.get("format", "")
-            if fmt == "tabular" and data:
+            fmt = asset.format if hasattr(asset, "format") else asset.get("format", "tabular")
+            if fmt in ("tabular", "") and data:
                 df = _pd.DataFrame(data)
                 var_name = "df" if df_count == 0 else f"df_{df_count}"
                 namespace[var_name] = df

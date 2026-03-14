@@ -575,10 +575,9 @@
 > BEFORE scores existentes (sin python_exec): GPT-5.2 CLadder 78%,
 > QRData 38%, DiscoveryBench 0.299 HMS.
 
-- [ ] **BENCH.1**: Traer adaptadores (CLadder, QRData, DiscoveryBench)
-  - `src/sreg/benchmarks/` — adaptadores + tests
-  - Adaptar para usar el backend de INF.1 (no su propio OpenAIClient)
-  - Agregar data/ a .gitignore (datasets se bajan localmente)
+- [x] **BENCH.1**: Traer adaptadores (CLadder, QRData, DiscoveryBench)
+  - `src/sreg/benchmarks/` — adaptadores + tests + OpenAIClient
+  - `scripts/run_benchmark.py` + `docs/BENCHMARK_RESULTS.md`
 - [ ] **BENCH.2**: Benchmark solver con tools del solver
   - El agente de benchmarks tiene python_exec y think (tools propias)
   - NO tiene research_action/submit (no hay SRC)
@@ -599,24 +598,16 @@
 > verifiers resuelve scaffolding que no queremos reinventar: tool calling
 > orchestration, state management, rollout control. Lo usamos.
 
-- [ ] **TRAIN.1**: Traer SregEnv + adaptadores
-  - `src/sreg/training/env.py` — adaptador sobre EpisodeRunner
-  - `src/sreg/training/adapters.py` — traduccion action_id <-> Action
-  - `src/sreg/training/types.py`, `validators.py` — SubmitPayload bridge
-  - Verificar que SregEnv importa EpisodeRunner (no lo reimplementa)
-- [ ] **TRAIN.2**: Unificar python_exec
-  - `training/tools.py` tiene python_exec duplicado
-  - Cambiar para que importe desde `agent/python_exec.py` (despues de PYEX.1-2)
-  - Wrapper async si verifiers lo necesita, pero kernel compartido
-- [ ] **TRAIN.3**: Traer rubric (reward wrapper)
-  - `src/sreg/training/rubric.py` — mapea KL -> [0,1] reward
-  - Verificar que usa VerifierTool internamente (BN = fuente de verdad)
-- [ ] **TRAIN.4**: Traer dataset generation
-  - `src/sreg/training/dataset.py` — genera SRCs programaticamente para training
-  - Usa nuestros WorldGenTool, TaskGenTool, ProblemBuilder — no reinventa
-- [ ] **TRAIN.5**: Agregar verifiers como dependencia opcional
-  - En pyproject.toml: `verifiers` como extra (`pip install sreg[training]`)
-  - _compat.py para Windows (mock fcntl)
+- [x] **TRAIN.1**: Traer SregEnv + adaptadores
+  - `src/sreg/training/` — env, adapters, types, validators, rubric, dataset, prompts
+  - SregEnv es adaptador fino sobre EpisodeRunner (verificado)
+- [x] **TRAIN.2**: Unificar python_exec
+  - `training/tools.py` ahora importa `execute_code` desde `agent/python_exec.py`
+  - Un solo kernel, wrapper async con tracking de state para verifiers
+  - `_build_python_namespace` en env.py delega a `make_python_namespace`
+- [x] **TRAIN.3**: Rubric usa VerifierTool (BN = fuente de verdad)
+- [x] **TRAIN.4**: Dataset generation usa WorldGenTool/TaskGenTool/ProblemBuilder
+- [ ] **TRAIN.5**: Agregar verifiers como dependencia opcional en pyproject.toml
 
 #### Paper-seeded SRCs (A.5 expandido)
 > **Concepto**: a partir de un paper cientifico real, crear un SRC inspirado
