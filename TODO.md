@@ -503,22 +503,125 @@
 
 ### Proximas prioridades (2026-03-14)
 
-#### Mergear worktrees
-> Las sesiones paralelas en worktrees (benchmark-suite y rl-env-verifiers)
-> hicieron trabajo util que necesita integrarse a main.
-> NO hacer merge ciego — revisar cada branch, cherry-pick archivos nuevos,
-> adaptar lo que toca archivos existentes. Ver CLAUDE.md "Parallel sessions".
+#### Infraestructura de inferencia unificada
+> **Principio**: un solo engine de inferencia con tres backends, reutilizable
+> para solver de diagnostico, benchmarks externos y training futuro.
+>
+> **Tres backends** (el usuario elige cual usar):
+> 1. **Azure API** — lo actual. `OpenAI(base_url=azure_url)`. Para GPT-5.2, etc.
+> 2. **vLLM** — modelos locales con GPU. `OpenAI(base_url=localhost:8000)`. OpenAI-compatible.
+> 3. **transformers** — fallback sin servidor (Windows sin WSL). HuggingFace local, parsing Hermes.
+>
+> Azure y vLLM usan la misma SDK (OpenAI), solo cambia base_url.
+> Transformers es diferente (carga modelo local, parsea tool calls Hermes).
+>
+> **Alcance**: solo para el SOLVER (diagnostico, benchmarks). El orchestrator
+> (que diseña los SRCs) sigue usando Azure — necesita modelos potentes.
+>
+> **Fuentes**: worktree `benchmark-suite` (OpenAIClient, adaptadores),
+> worktree `rl-env-verifiers` (vLLM serve, transformers backend, SregEnv).
+> NO es merge ciego — revisamos cada pieza y la adaptamos a main.
+>
+> **IMPORTANTE**: todo lo de S.5 se mantiene intacto (unified solving,
+> todas las tasks juntas, think tool, python_exec, prompts actuales).
+> Los cambios de infraestructura son POR DEBAJO del solver, no cambian
+> su comportamiento ni sus capacidades.
 
-- [ ] **MERGE.1**: Integrar worktree `benchmark-suite` (3 commits)
-  - CLadder adapter, QRData adapter, OpenAI client, run_benchmark.py
-  - Resultados BEFORE: GPT-5.2 CLadder 78%, QRData 38%
-  - Archivos nuevos: `src/sreg/benchmarks/`, `src/sreg/inference/openai_client.py`, tests
-  - Archivos a adaptar: .gitignore (data/), docs (BENCH.1-2 progress)
-- [ ] **MERGE.2**: Integrar worktree `rl-env-verifiers` (4 commits)
-  - SregEnv (verifiers adapter), training tools, rubric, types, validators
-  - python_exec ya integrado en S.5.1 (adaptado). Revisar si hay mejoras.
-  - Archivos nuevos: `src/sreg/training/`, tests
-  - Cuidado: depende de verifiers library (pip install)
+- [ ] **INF.1**: Backend configurable en AgentSolver
+  - Hoy AgentSolver hardcodea `OpenAI(base_url=AZURE_URL)` en el constructor
+  - Cambiar para aceptar un `OpenAI` client ya configurado (inyeccion)
+  - Asi el caller decide: Azure, vLLM local, o lo que sea
+  - Azure y vLLM son el mismo SDK con distinta URL — trivial
+- [ ] **INF.2**: Backend transformers (modelos locales sin servidor)
+  - Para cuando vLLM no esta disponible (Windows sin WSL, sin GPU server)
+  - Cargar modelo con HuggingFace transformers (AutoModelForCausalLM)
+  - Parsear tool calls en formato Hermes (`<tool_call>...</tool_call>`)
+  - Wrapper que exponga la misma interfaz que OpenAI client
+  - Fuente: `dry_run.py` del worktree rl-env-verifiers tiene esto implementado
+- [ ] **INF.3**: serve_model.sh — levantar modelos locales con vLLM
+  - Traer script del worktree rl-env-verifiers
+  - Setup vLLM + servir Qwen (u otro modelo) en OpenAI-compatible API
+  - Documentar: como levantar, como conectar con generate_src.py --solve
+- [ ] **INF.4**: generate_src.py acepta --backend (azure|vllm|transformers)
+  - --backend azure: usa Azure (default, como hoy)
+  - --backend vllm --model Qwen/Qwen2.5-7B: usa vLLM local
+  - --backend transformers --model Qwen/Qwen2.5-0.5B: usa HuggingFace local
+
+#### Consolidar python_exec
+> Nuestro `agent/python_exec.py` fue adaptado del worktree. El worktree
+> tiene mejoras que deberiamos incorporar: timeout real con asyncio,
+> tracking (exec_count, tool_trace). Tiene que haber UNO SOLO — si los
+> semantics difieren entre diagnostico y training, no estamos evaluando
+> en el mismo ambiente.
+
+- [ ] **PYEX.1**: Agregar timeout real a `agent/python_exec.py`
+  - Hoy declara TIMEOUT_SECONDS pero no lo implementa
+  - El worktree usa `asyncio.wait_for` — traer esa logica
+  - Facade sync para generate_src.py, facade async para training
+- [ ] **PYEX.2**: Agregar tracking (exec_count, truncation flag)
+  - El worktree trackea invocaciones y errores — util para diagnostico
+  - Integrar en execute_code() sin romper la interfaz actual
+
+#### Integrar benchmarks externos
+> Los adaptadores de CLadder, QRData, DiscoveryBench del worktree
+> benchmark-suite estan bien hechos y son independientes. Los traemos
+> adaptados para usar el mismo backend de inferencia que el solver.
+>
+> **Principio clave**: el agente que corre benchmarks tiene las MISMAS
+> capacidades que nuestro solver de SREG. Hay dos tipos de tools:
+> 1. **Tools del solver** (capacidades propias): python_exec, think — las tiene SIEMPRE
+> 2. **Tools del ambiente SREG**: research_action, submit — solo en SRCs
+>
+> En benchmarks el agente NO tiene research_action/submit (no hay SRC),
+> pero SI tiene python_exec y think. Esto es critico para QRData donde
+> hay datos tabulares que analizar — sin python_exec el score es mucho
+> mas bajo (38% text-only vs ~58% publicado con code execution).
+>
+> BEFORE scores existentes (sin python_exec): GPT-5.2 CLadder 78%,
+> QRData 38%, DiscoveryBench 0.299 HMS.
+
+- [ ] **BENCH.1**: Traer adaptadores (CLadder, QRData, DiscoveryBench)
+  - `src/sreg/benchmarks/` — adaptadores + tests
+  - Adaptar para usar el backend de INF.1 (no su propio OpenAIClient)
+  - Agregar data/ a .gitignore (datasets se bajan localmente)
+- [ ] **BENCH.2**: Benchmark solver con tools del solver
+  - El agente de benchmarks tiene python_exec y think (tools propias)
+  - NO tiene research_action/submit (no hay SRC)
+  - Especialmente util para QRData (datos tabulares → python_exec)
+  - Reutiliza el mismo engine: AgentSolver con subset de tools
+- [ ] **BENCH.3**: Script run_benchmark.py con --backend
+  - Mismo patron que generate_src.py: --backend azure|vllm|transformers
+  - Poder correr benchmarks con Qwen local, no solo con Azure GPT
+- [ ] **BENCH.3**: Traer docs/BENCHMARK_RESULTS.md con BEFORE scores
+
+#### Integrar training con verifiers
+> El worktree rl-env-verifiers construyo SregEnv como adaptador fino
+> sobre nuestro runtime (EpisodeRunner, VerifierTool). Esta bien hecho:
+> no reinventa logica de SREG, solo la adapta al framework verifiers.
+> El reward exacto viene de la BN via VerifierTool — verifiers no
+> introduce su propia fuente de verdad.
+>
+> verifiers resuelve scaffolding que no queremos reinventar: tool calling
+> orchestration, state management, rollout control. Lo usamos.
+
+- [ ] **TRAIN.1**: Traer SregEnv + adaptadores
+  - `src/sreg/training/env.py` — adaptador sobre EpisodeRunner
+  - `src/sreg/training/adapters.py` — traduccion action_id <-> Action
+  - `src/sreg/training/types.py`, `validators.py` — SubmitPayload bridge
+  - Verificar que SregEnv importa EpisodeRunner (no lo reimplementa)
+- [ ] **TRAIN.2**: Unificar python_exec
+  - `training/tools.py` tiene python_exec duplicado
+  - Cambiar para que importe desde `agent/python_exec.py` (despues de PYEX.1-2)
+  - Wrapper async si verifiers lo necesita, pero kernel compartido
+- [ ] **TRAIN.3**: Traer rubric (reward wrapper)
+  - `src/sreg/training/rubric.py` — mapea KL -> [0,1] reward
+  - Verificar que usa VerifierTool internamente (BN = fuente de verdad)
+- [ ] **TRAIN.4**: Traer dataset generation
+  - `src/sreg/training/dataset.py` — genera SRCs programaticamente para training
+  - Usa nuestros WorldGenTool, TaskGenTool, ProblemBuilder — no reinventa
+- [ ] **TRAIN.5**: Agregar verifiers como dependencia opcional
+  - En pyproject.toml: `verifiers` como extra (`pip install sreg[training]`)
+  - _compat.py para Windows (mock fcntl)
 
 #### Paper-seeded SRCs (A.5 expandido)
 > **Concepto**: a partir de un paper cientifico real, crear un SRC inspirado

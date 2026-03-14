@@ -184,7 +184,7 @@ def test_submit_tool_causal_effect_is_distribution():
 def test_build_agent_tools_returns_research_action_and_submit():
     tools = build_agent_tools()
     names = {t["function"]["name"] for t in tools}
-    assert names == {"research_action", "submit"}
+    assert names == {"research_action", "submit", "python_exec"}
 
 
 # --- System prompt with task ---

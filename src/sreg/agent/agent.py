@@ -93,6 +93,7 @@ class AgentSolver:
                 base_url=os.environ.get("AZURE_FOUNDRY_BASE_URL", ""),
                 api_key=os.environ.get("AZURE_INFERENCE_CREDENTIAL", ""),
             )
+        self._python_namespace: dict = {}
 
     def solve(
         self,
