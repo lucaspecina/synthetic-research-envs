@@ -633,11 +633,16 @@
   - Probado: Vaca Muerta 10→15 nodos (+50%), agricultura PDF 10 nodos, smoking 7 nodos
   - Seeds: `seeds/smoking_birthweight.md`, `seeds/conservation_agriculture.pdf`
   - Seed puede ser cualquier cosa (paper, caso de negocio, problema operativo)
-- [ ] **PS.2**: Inspiration Report — comparar seed vs SRC por dimension
-  - LLM extrae InspirationProfile del seed (8 dimensiones, estructurado)
-  - LLM extrae InspirationProfile del SRC generado
-  - Comparacion programatica (escala, # nodos) + LLM-judge con rubricas (cualitativo)
-  - Reporte: score por dimension, evidencia, mismatches
+- [x] **PS.2**: Inspiration Report — comparar seed vs SRC por dimension
+  - `harness/inspiration_report.py`: InspirationProfile + comparacion + reporte
+  - LLM extrae perfil del seed (8 dimensiones, JSON estructurado)
+  - SRC perfil extraido programaticamente (nodos, edges, task types, causal features)
+  - Comparacion: escala (ratio nodos), causal features (overlap), question types (normalizado)
+  - Normalizacion de question types (feature_importance->NBO, prediction->infer_target, etc.)
+  - Pesos: Research Questions (2.5x) y Scale (2x) pesan mas
+  - `generate_src.py --report`: genera inspiration_report.md
+  - Probado: Vaca Muerta 50% (scale 75%, questions 77%, domain 75%)
+  - Deuda: Data Problems y Research Actions no se extraen del SRC aun
 - [ ] **PS.3**: Validar con 3-5 papers de distintos dominios
   - Ecologia, epidemiologia, ingenieria, ciencias sociales, economia
   - Comparar con Inspiration Report: que dimensiones se capturan bien vs mal

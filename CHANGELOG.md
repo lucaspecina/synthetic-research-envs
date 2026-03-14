@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+### 2026-03-14 — Inspiration Report (PS.2)
+- **`harness/inspiration_report.py`**: compares seed vs SRC on 8 dimensions
+  with structured profiles, programmatic scoring, and markdown report.
+- **LLM seed extraction**: extracts InspirationProfile (variables, causal
+  features, question types, data problems) from seed text via LLM.
+- **SRC extraction**: programmatic profile from world nodes, edges, task types,
+  causal structure detection (colliders, confounders, mediators).
+- **Question type normalization**: maps LLM-extracted types (prediction,
+  feature_importance) to SREG eval types (infer_target, next_best_observation).
+- **Weighted scoring**: Research Questions (2.5x) and Scale (2x) weigh most.
+- **`generate_src.py --report`**: generates inspiration_report.md alongside SRC.
+- Vaca Muerta test: 50% overall (scale 75%, questions 77%, domain 75%).
+
 ### 2026-03-14 — Paper-seeded SRCs (PS.1) + inspiration dimensions
 - **PDF seed support**: `generate_src.py --seed-file paper.pdf` extracts text
   via pymupdf and feeds it to the orchestrator. Any seed format works (paper,

@@ -1095,6 +1095,10 @@ def main():
         help="Run agent solver on each task (implies --inspect). Generates evaluation.md + trajectory.md",
     )
     parser.add_argument(
+        "--report", action="store_true",
+        help="Generate Inspiration Report comparing seed vs SRC (requires --seed-file)",
+    )
+    parser.add_argument(
         "--verbose", "-v", action="store_true",
         help="Show detailed orchestrator output",
     )
@@ -1205,6 +1209,37 @@ def main():
         dag_path = export_dag_png(result, args.output)
         if dag_path:
             _print(f"  {_c(GRN, 'v')} {dag_path}")
+
+    # Inspiration Report
+    if args.report and seed_content:
+        _print()
+        _print(_c(B + BLU, "=== Inspiration Report ==="))
+
+        from sreg.harness.inspiration_report import generate_report
+
+        tasks = result.task if isinstance(result.task, list) else []
+        report = generate_report(seed_content, result.world, tasks)
+
+        report_path = os.path.join(args.output, "inspiration_report.md")
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(report.to_markdown())
+        _print(f"  {_c(GRN, 'v')} {report_path}")
+
+        # Print summary
+        label = "EXCELLENT" if report.overall_score >= 0.75 else (
+            "PARTIAL" if report.overall_score >= 0.5 else "WEAK"
+        )
+        _print(f"  Overall: {report.overall_score:.0%} ({label})")
+        for d in report.dimensions:
+            icon = _c(GRN, 'v') if d.score >= 0.75 else (
+                _c(YLW, '~') if d.score >= 0.5 else _c(RED, 'x')
+            )
+            _print(f"    {icon} {d.name}: {d.score:.0%} {d.label}")
+        if report.critical_failures:
+            for cf in report.critical_failures:
+                _print(f"    {_c(RED, '!')} {cf}")
+    elif args.report and not seed_content:
+        _print(f"  {_c(YLW, '!')} --report requires --seed-file")
 
     if args.solve:
         _print()
