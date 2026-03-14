@@ -79,6 +79,7 @@ class InspirationReport:
     overall_score: float = 0.0
     critical_failures: list[str] = field(default_factory=list)
     narrative_comparison: str = ""  # LLM-written qualitative comparison
+    manifest: dict | None = None  # Orchestrator's self-reported intent
 
     def to_markdown(self) -> str:
         """Render as human-readable markdown — narrative and friendly."""
@@ -141,6 +142,54 @@ class InspirationReport:
                         if i <= len(self.src_profile.question_types) else "?"
                     )
                     lines.append(f"{i}. ({qt}) {q}")
+                lines.append("")
+
+        # ---- Orchestrator's intent (manifest) ----
+        if self.manifest:
+            lines.append("## What the orchestrator intended")
+            lines.append("")
+            m = self.manifest
+            if m.get("seed_understanding"):
+                lines.append(f"**Understanding of the seed:** {m['seed_understanding']}")
+                lines.append("")
+            if m.get("intended_scale"):
+                s = m["intended_scale"]
+                lines.append(
+                    f"**Scale intent:** seed ~{s.get('seed_vars_estimate', '?')} vars "
+                    f"-> target {s.get('target_src_nodes', '?')} nodes. "
+                    f"{s.get('rationale', '')}"
+                )
+                lines.append("")
+            if m.get("preserved_elements"):
+                lines.append("**Preserved from seed:**")
+                for p in m["preserved_elements"]:
+                    lines.append(
+                        f"- {p.get('seed_element', '?')} -> "
+                        f"{p.get('src_element', '?')} ({p.get('dimension', '')})"
+                    )
+                lines.append("")
+            if m.get("simplified_elements"):
+                lines.append("**Simplified/dropped:**")
+                for s in m["simplified_elements"]:
+                    lines.append(
+                        f"- {s.get('seed_element', '?')}: {s.get('why_dropped', '?')}"
+                    )
+                lines.append("")
+            if m.get("intended_causal_patterns"):
+                lines.append("**Intended causal patterns:**")
+                for p in m["intended_causal_patterns"]:
+                    lines.append(f"- {p}")
+                lines.append("")
+            if m.get("question_mapping"):
+                lines.append("**Question mapping (seed -> SRC):**")
+                for q in m["question_mapping"]:
+                    lines.append(
+                        f"- \"{q.get('seed_question', '?')}\" -> "
+                        f"{q.get('src_eval_type', '?')} ({q.get('rationale', '')})"
+                    )
+                lines.append("")
+            if m.get("intentional_changes"):
+                lines.append(f"**Intentional changes:** {m['intentional_changes']}")
                 lines.append("")
 
         # ---- Qualitative narrative comparison ----
@@ -852,11 +901,12 @@ def generate_report(
     tasks: list,
     client: OpenAI | None = None,
     model: str | None = None,
+    manifest: dict | None = None,
 ) -> InspirationReport:
     """Generate a full Inspiration Report comparing seed vs SRC.
 
-    If client/model provided, uses LLM to extract seed profile.
-    Otherwise, creates a minimal seed profile (less accurate).
+    If manifest is provided (from orchestrator's emit_inspiration_manifest),
+    it's included in the report as the orchestrator's self-reported intent.
     """
     import os
 
@@ -882,6 +932,9 @@ def generate_report(
 
     # Compare
     report = compare_profiles(seed_profile, src_profile)
+
+    # Attach manifest if available
+    report.manifest = manifest
 
     # Generate qualitative narrative comparison
     _llm_client = client or _client

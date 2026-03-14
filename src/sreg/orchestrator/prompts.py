@@ -30,11 +30,15 @@ mappings like `{"water_temperature": "water_temperature", ...}`. NEVER omit \
 important step — design evaluation questions that a real researcher would ask \
 given this scenario. See "Evaluation types" below for guidance on choosing \
 the right eval_type for each question.
-5. **Build the problem** by calling `build_problem`. This samples data from the \
+5. **Inspiration manifest** (ONLY when generating from a research seed/paper): \
+call `emit_inspiration_manifest` to record what you understood from the seed, \
+what you preserved, what you simplified, and how seed questions map to eval types. \
+Skip this step if the goal is a free-form topic (not a seed).
+6. **Build the problem** by calling `build_problem`. This samples data from the \
 Bayesian network and produces the final research problem. It automatically uses \
 the research case you designed in step 4 (the primary question text becomes the \
 visible research question, and actions get realistic costs).
-6. Return a final JSON summary.
+7. Return a final JSON summary.
 
 ## Evaluation types — when to use each one
 
@@ -798,6 +802,92 @@ TOOL_DEFINITIONS = [
                     },
                 },
                 "required": ["world_id", "budget", "data_format"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "emit_inspiration_manifest",
+            "description": (
+                "ONLY call this when generating from a research seed (paper, case, "
+                "problem description). Call AFTER design_case and BEFORE build_problem. "
+                "Explain what you understood from the seed and what you intended to "
+                "preserve, simplify, or change. This is NOT called for free-form goals."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "seed_understanding": {
+                        "type": "string",
+                        "description": (
+                            "2-3 sentences: what is the seed fundamentally about? "
+                            "What is the core research challenge?"
+                        ),
+                    },
+                    "intended_scale": {
+                        "type": "object",
+                        "description": "How many variables from the seed you targeted",
+                        "properties": {
+                            "seed_vars_estimate": {"type": "integer"},
+                            "target_src_nodes": {"type": "integer"},
+                            "rationale": {"type": "string"},
+                        },
+                    },
+                    "preserved_elements": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "seed_element": {"type": "string"},
+                                "src_element": {"type": "string"},
+                                "dimension": {"type": "string"},
+                            },
+                        },
+                        "description": (
+                            "Key elements preserved from seed. Each entry: what from "
+                            "the seed, what in the SRC, which dimension (domain, scale, "
+                            "causal_structure, questions, etc.)"
+                        ),
+                    },
+                    "simplified_elements": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "seed_element": {"type": "string"},
+                                "why_dropped": {"type": "string"},
+                            },
+                        },
+                        "description": "Elements from the seed that were simplified or dropped",
+                    },
+                    "intended_causal_patterns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Causal patterns you intended to include. E.g. "
+                            "'confounder: geologic zone affects both operations and outcome', "
+                            "'latent: geomechanical susceptibility is unobservable'"
+                        ),
+                    },
+                    "question_mapping": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "seed_question": {"type": "string"},
+                                "src_eval_type": {"type": "string"},
+                                "rationale": {"type": "string"},
+                            },
+                        },
+                        "description": "How seed research questions map to SRC eval types",
+                    },
+                    "intentional_changes": {
+                        "type": "string",
+                        "description": "What you changed on purpose from the seed and why",
+                    },
+                },
+                "required": ["seed_understanding", "preserved_elements", "question_mapping"],
             },
         },
     },

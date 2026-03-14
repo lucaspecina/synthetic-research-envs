@@ -45,6 +45,7 @@ class OrchestratorResult:
         self.attempts: int = 0
         self.validation_passed: bool = False
         self.messages: list[dict] = []
+        self.inspiration_manifest: dict | None = None
 
 
 class Orchestrator:
@@ -171,6 +172,8 @@ class Orchestrator:
                 return self._handle_apply_semantics(args, result)
             elif name == "design_case":
                 return self._handle_design_case(args, result)
+            elif name == "emit_inspiration_manifest":
+                return self._handle_inspiration_manifest(args, result)
             elif name == "build_problem":
                 return self._handle_build_problem(args, result)
             else:
@@ -570,6 +573,17 @@ class Orchestrator:
             "shared_budget": plan.shared_budget,
             "tasks_generated": len(tasks),
             "next_step": "Now call build_problem to sample data and produce the final problem.",
+        }
+
+    def _handle_inspiration_manifest(
+        self, args: dict, result: OrchestratorResult
+    ) -> dict:
+        """Store the orchestrator's self-reported inspiration manifest."""
+        result.inspiration_manifest = args
+        logger.info("Inspiration manifest received")
+        return {
+            "status": "manifest_recorded",
+            "message": "Your inspiration manifest has been recorded. Proceed with build_problem.",
         }
 
     def _handle_build_problem(self, args: dict, result: OrchestratorResult) -> dict:

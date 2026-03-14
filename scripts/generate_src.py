@@ -1218,7 +1218,16 @@ def main():
         from sreg.harness.inspiration_report import generate_report
 
         tasks = result.task if isinstance(result.task, list) else []
-        report = generate_report(seed_content, result.world, tasks)
+        manifest = result.inspiration_manifest
+        report = generate_report(seed_content, result.world, tasks, manifest=manifest)
+
+        # Export manifest if available
+        if manifest:
+            import json as _json
+            manifest_path = os.path.join(args.output, "inspiration_manifest.json")
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                _json.dump(manifest, f, indent=2, ensure_ascii=False)
+            _print(f"  {_c(GRN, 'v')} {manifest_path}")
 
         report_path = os.path.join(args.output, "inspiration_report.md")
         with open(report_path, "w", encoding="utf-8") as f:
