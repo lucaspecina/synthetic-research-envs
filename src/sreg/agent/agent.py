@@ -345,8 +345,8 @@ class AgentSolver:
         if not code:
             return {"error": "No code provided."}
 
-        output = execute_code(code, self._python_namespace)
-        return {"output": output}
+        result = execute_code(code, self._python_namespace)
+        return {"output": result.output}
 
     def _handle_observe(
         self,

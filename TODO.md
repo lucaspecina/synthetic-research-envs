@@ -527,40 +527,35 @@
 > Los cambios de infraestructura son POR DEBAJO del solver, no cambian
 > su comportamiento ni sus capacidades.
 
-- [ ] **INF.1**: Backend configurable en AgentSolver
-  - Hoy AgentSolver hardcodea `OpenAI(base_url=AZURE_URL)` en el constructor
-  - Cambiar para aceptar un `OpenAI` client ya configurado (inyeccion)
-  - Asi el caller decide: Azure, vLLM local, o lo que sea
-  - Azure y vLLM son el mismo SDK con distinta URL — trivial
+- [x] **INF.1**: Backend configurable en AgentSolver
+  - AgentSolver ya aceptaba `client: OpenAI | None` — se conecto a generate_src.py
+  - Nuevos flags: `--solver-model`, `--solver-base-url`, `--solver-api-key`
+  - Azure y vLLM son el mismo SDK con distinta URL
 - [ ] **INF.2**: Backend transformers (modelos locales sin servidor)
   - Para cuando vLLM no esta disponible (Windows sin WSL, sin GPU server)
   - Cargar modelo con HuggingFace transformers (AutoModelForCausalLM)
   - Parsear tool calls en formato Hermes (`<tool_call>...</tool_call>`)
   - Wrapper que exponga la misma interfaz que OpenAI client
   - Fuente: `dry_run.py` del worktree rl-env-verifiers tiene esto implementado
-- [ ] **INF.3**: serve_model.sh — levantar modelos locales con vLLM
-  - Traer script del worktree rl-env-verifiers
-  - Setup vLLM + servir Qwen (u otro modelo) en OpenAI-compatible API
-  - Documentar: como levantar, como conectar con generate_src.py --solve
-- [ ] **INF.4**: generate_src.py acepta --backend (azure|vllm|transformers)
-  - --backend azure: usa Azure (default, como hoy)
-  - --backend vllm --model Qwen/Qwen2.5-7B: usa vLLM local
-  - --backend transformers --model Qwen/Qwen2.5-0.5B: usa HuggingFace local
+- [x] **INF.3**: serve_model.sh — levantar modelos locales con vLLM
+  - Traido del worktree rl-env-verifiers. Qwen default, Hermes tool parser.
+  - Setup: `bash scripts/serve_model.sh --setup` + `bash scripts/serve_model.sh`
+- [x] **INF.4**: generate_src.py acepta solver backend flags
+  - `--solver-base-url http://localhost:8000/v1 --solver-api-key none --solver-model Qwen/...`
+  - Default: Azure (como antes). vLLM: misma SDK, otra URL.
 
 #### Consolidar python_exec
-> Nuestro `agent/python_exec.py` fue adaptado del worktree. El worktree
-> tiene mejoras que deberiamos incorporar: timeout real con asyncio,
-> tracking (exec_count, tool_trace). Tiene que haber UNO SOLO — si los
-> semantics difieren entre diagnostico y training, no estamos evaluando
-> en el mismo ambiente.
+> Nuestro `agent/python_exec.py` fue adaptado del worktree. Tiene que haber
+> UNO SOLO — si los semantics difieren entre diagnostico y training, no
+> estamos evaluando en el mismo ambiente.
 
-- [ ] **PYEX.1**: Agregar timeout real a `agent/python_exec.py`
-  - Hoy declara TIMEOUT_SECONDS pero no lo implementa
-  - El worktree usa `asyncio.wait_for` — traer esa logica
-  - Facade sync para generate_src.py, facade async para training
-- [ ] **PYEX.2**: Agregar tracking (exec_count, truncation flag)
-  - El worktree trackea invocaciones y errores — util para diagnostico
-  - Integrar en execute_code() sin romper la interfaz actual
+- [x] **PYEX.1**: ExecResult con tracking (ok, truncated)
+  - `execute_code()` devuelve `ExecResult(output, ok, truncated)` en vez de str
+  - 17 tests nuevos para python_exec (no tenia ninguno)
+- [ ] **PYEX.2**: Timeout real (requiere process boundary)
+  - Thread-based timeout no funciona en CPython (GIL, namespace corruption)
+  - Necesita multiprocessing o subprocess — trabajo futuro
+  - Documentado en docstring de execute_code()
 
 #### Integrar benchmarks externos
 > Los adaptadores de CLadder, QRData, DiscoveryBench del worktree

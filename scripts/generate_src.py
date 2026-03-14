@@ -590,10 +590,19 @@ def export_dag_png(result, output_dir: str) -> str | None:
 # 3. Solve: run agent + teacher on each task
 # ---------------------------------------------------------------------------
 
-def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | None:
+def solve_tasks(
+    result,
+    output_dir: str,
+    seed: int = 42,
+    solver_model: str | None = None,
+    solver_base_url: str | None = None,
+    solver_api_key: str | None = None,
+) -> tuple[str, str] | None:
     """Run agent on the full case (all tasks together). Export evaluation + trajectory."""
     if not result.world or not result.problem:
         return None
+
+    from openai import OpenAI
 
     from sreg.agent.agent import AgentSolver
 
@@ -606,7 +615,18 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
 
     _print(f"  Solving {len(tasks)} tasks in a single episode...")
 
-    agent = AgentSolver(max_iterations=25)
+    # Build solver client — configurable backend (Azure, vLLM, etc.)
+    base_url = solver_base_url or os.environ.get("AZURE_FOUNDRY_BASE_URL", "")
+    api_key = solver_api_key or os.environ.get("AZURE_INFERENCE_CREDENTIAL", "")
+    if api_key.lower() == "none":
+        api_key = "not-needed"
+    client = OpenAI(base_url=base_url, api_key=api_key)
+
+    model = solver_model or os.environ.get("AZURE_MODEL", "gpt-4o")
+    agent = AgentSolver(model=model, max_iterations=25, client=client)
+
+    if solver_base_url:
+        _print(f"  Backend: {solver_base_url} | Model: {model}")
     case_result = agent.solve_case(world, problem, tasks, seed=seed)
 
     # Build evaluation.md
@@ -1055,6 +1075,21 @@ def main():
         "--verbose", "-v", action="store_true",
         help="Show detailed orchestrator output",
     )
+    # Solver backend (for --solve): defaults to same as orchestrator (Azure)
+    parser.add_argument(
+        "--solver-model", type=str, default=None,
+        help="Model for the solver (default: same as --model)",
+    )
+    parser.add_argument(
+        "--solver-base-url", type=str, default=None,
+        help="Base URL for solver backend (default: AZURE_FOUNDRY_BASE_URL). "
+             "Use http://localhost:8000/v1 for vLLM",
+    )
+    parser.add_argument(
+        "--solver-api-key", type=str, default=None,
+        help="API key for solver backend (default: AZURE_INFERENCE_CREDENTIAL). "
+             "Use 'none' for vLLM",
+    )
     args = parser.parse_args()
 
     if not args.verbose:
@@ -1129,7 +1164,14 @@ def main():
         _print(_c(B + BLU, "=== Solving tasks ==="))
 
         solve_seed = args.seed if args.seed is not None else 42
-        solve_result = solve_tasks(result, args.output, seed=solve_seed)
+        solver_kwargs = {}
+        if args.solver_model:
+            solver_kwargs["solver_model"] = args.solver_model
+        if args.solver_base_url:
+            solver_kwargs["solver_base_url"] = args.solver_base_url
+        if args.solver_api_key:
+            solver_kwargs["solver_api_key"] = args.solver_api_key
+        solve_result = solve_tasks(result, args.output, seed=solve_seed, **solver_kwargs)
         if solve_result:
             eval_path, traj_md_path = solve_result
             jsonl_path = os.path.join(args.output, "trajectories.jsonl")

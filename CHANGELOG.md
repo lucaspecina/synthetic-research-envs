@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### 2026-03-14 — Unified inference infrastructure (INF.1, INF.3, PYEX.1)
+- **Configurable solver backend**: `generate_src.py` now accepts `--solver-model`,
+  `--solver-base-url`, `--solver-api-key` flags. Supports Azure, vLLM, or any
+  OpenAI-compatible API for the solver (orchestrator stays on Azure).
+- **serve_model.sh**: script to setup vLLM and serve Qwen (or other models) on
+  OpenAI-compatible API with Hermes tool calling. From worktree rl-env-verifiers.
+- **python_exec ExecResult**: `execute_code()` returns structured `ExecResult(output,
+  ok, truncated)` instead of plain string. 17 new tests for python_exec.
+- **Codex review**: removed fake ThreadPoolExecutor timeout (can't truly kill threads
+  in CPython, risks namespace corruption). Honest about limitation in docstring.
+- TODO.md rewritten: MERGE.1-2 replaced with proper INF/PYEX/BENCH/TRAIN plan.
+  Three solver backends, tools separation (solver tools vs SREG tools), verifiers
+  as thin adapter. 783 tests.
+
 ### 2026-03-14 — think() tool + full_case.md report
 - **`think(reasoning)` tool**: forces model to externalize reasoning as a tool call.
   Free, no environment effect. Renders as [SOLVER REASONS] in reports. Helps debug

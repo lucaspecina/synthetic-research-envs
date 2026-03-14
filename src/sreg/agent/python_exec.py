@@ -15,6 +15,7 @@ import contextlib
 import io
 import json
 import traceback
+from dataclasses import dataclass
 
 # Allowed imports (agent can use these in python_exec)
 ALLOWED_IMPORTS = frozenset({
@@ -25,6 +26,15 @@ ALLOWED_IMPORTS = frozenset({
 MAX_OUTPUT_CHARS = 8000
 MAX_CODE_CHARS = 4000
 TIMEOUT_SECONDS = 5.0
+
+
+@dataclass
+class ExecResult:
+    """Result of a python_exec call with tracking info."""
+
+    output: str
+    ok: bool
+    truncated: bool
 
 
 def make_python_namespace(
@@ -122,36 +132,26 @@ def _check_imports(code: str) -> str | None:
     return None
 
 
-def execute_code(code: str, namespace: dict) -> str:
-    """Execute Python code in the persistent namespace.
+def _exec_code(code: str, namespace: dict) -> tuple[str, str, str | None]:
+    """Execute code in namespace, return (stdout, stderr, expr_result).
 
-    Returns the output string (stdout + last expression + stderr).
-    Like a Jupyter cell: if the last statement is an expression, its
-    repr is returned as the output.
+    Uses AST split: if the last statement is an expression, eval it
+    separately and return its repr (like Jupyter's Out[N]).
     """
-    if len(code) > MAX_CODE_CHARS:
-        return f"Error: code exceeds maximum length ({MAX_CODE_CHARS} chars)."
+    stdout_buf = io.StringIO()
+    stderr_buf = io.StringIO()
+    expr_result = None
 
-    # Import guard
-    import_err = _check_imports(code)
-    if import_err:
-        return f"Error (sandbox): {import_err}"
-
-    # Parse AST
     try:
         tree = ast.parse(code)
     except SyntaxError as e:
-        return f"SyntaxError: {e}"
+        return "", f"SyntaxError: {e}", None
 
-    # Split trailing expression for auto-display (like Jupyter)
+    # Split trailing expression for auto-display
     body = tree.body
     last_expr = None
     if body and isinstance(body[-1], ast.Expr):
         last_expr = body.pop()
-
-    stdout_buf = io.StringIO()
-    stderr_buf = io.StringIO()
-    expr_result = None
 
     with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
         try:
@@ -169,11 +169,41 @@ def execute_code(code: str, namespace: dict) -> str:
         except Exception:
             stderr_buf.write(traceback.format_exc())
 
+    return stdout_buf.getvalue(), stderr_buf.getvalue(), expr_result
+
+
+def execute_code(code: str, namespace: dict) -> ExecResult:
+    """Execute Python code in the persistent namespace.
+
+    Returns ExecResult with output string, ok flag, and truncation flag.
+    Like a Jupyter cell: if the last statement is an expression, its
+    repr is returned as the output.
+
+    NOTE: no timeout enforcement. Thread-based timeouts in CPython cannot
+    truly kill running code (GIL) and can corrupt shared namespace state.
+    A real timeout requires a process boundary (future work).
+    """
+    if len(code) > MAX_CODE_CHARS:
+        return ExecResult(
+            output=f"Error: code exceeds maximum length ({MAX_CODE_CHARS} chars).",
+            ok=False,
+            truncated=False,
+        )
+
+    # Import guard
+    import_err = _check_imports(code)
+    if import_err:
+        return ExecResult(
+            output=f"Error (sandbox): {import_err}",
+            ok=False,
+            truncated=False,
+        )
+
+    # Execute directly (no timeout — see docstring)
+    stdout, stderr, expr_result = _exec_code(code, namespace)
+
     # Build output
     parts: list[str] = []
-    stdout = stdout_buf.getvalue()
-    stderr = stderr_buf.getvalue()
-
     if stdout:
         parts.append(stdout.rstrip())
     if expr_result:
@@ -184,14 +214,18 @@ def execute_code(code: str, namespace: dict) -> str:
     output = "\n".join(parts) if parts else "(no output)"
 
     # Truncate
-    if len(output) > MAX_OUTPUT_CHARS:
+    truncated = len(output) > MAX_OUTPUT_CHARS
+    if truncated:
         output = output[:MAX_OUTPUT_CHARS] + "\n... (output truncated)"
 
-    return output
+    ok = not stderr or ("Error" not in stderr and "Traceback" not in stderr)
+
+    return ExecResult(output=output, ok=ok, truncated=truncated)
 
 
 __all__ = [
     "ALLOWED_IMPORTS",
+    "ExecResult",
     "execute_code",
     "make_python_namespace",
 ]
