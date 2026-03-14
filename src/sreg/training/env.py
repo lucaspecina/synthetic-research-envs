@@ -191,6 +191,9 @@ class SregEnv(vf.StatefulToolEnv):
         state = await super().setup_state(state)
 
         info = state.get("info", {})
+        # HF Dataset stores info as JSON string (Arrow serialization)
+        if isinstance(info, str):
+            info = json.loads(info)
 
         # Deserialize world and episode
         world = World.model_validate_json(info["world_json"])

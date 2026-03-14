@@ -34,32 +34,38 @@ def render_case_prompt(problem: ResearchProblem) -> str:
             if asset.data:
                 sections.append(_render_data_preview(asset))
 
-    sections.extend([
-        "",
-        "## Available Research Actions",
-        f"Budget: {problem.budget} units",
-        "",
-    ])
+    sections.extend(
+        [
+            "",
+            "## Available Research Actions",
+            f"Budget: {problem.budget} units",
+            "",
+        ]
+    )
     for action in problem.available_actions:
         sections.append(_render_action(action))
 
-    sections.extend([
-        "",
-        "## Research Question",
-        "",
-        problem.research_question,
-        "",
-        f"Target variable: {problem.target_node}",
-        f"Possible states: {', '.join(problem.target_states)}",
-    ])
+    sections.extend(
+        [
+            "",
+            "## Research Question",
+            "",
+            problem.research_question,
+            "",
+            f"Target variable: {problem.target_node}",
+            f"Possible states: {', '.join(problem.target_states)}",
+        ]
+    )
 
     return "\n".join(sections)
 
 
 def _render_action(action: AvailableAction) -> str:
     """Render a single available action."""
-    action_type = action.action_type.value if hasattr(action.action_type, "value") else str(
-        action.action_type
+    action_type = (
+        action.action_type.value
+        if hasattr(action.action_type, "value")
+        else str(action.action_type)
     )
     parts = [f"- **{action.id}** [{action_type}, cost: {action.cost}]: {action.description}"]
     if action.intervention_values:

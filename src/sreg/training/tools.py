@@ -60,12 +60,14 @@ async def research_action(
 
     if runner.is_finished:
         state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-        state["tool_trace"].append({
-            "tool": "research_action",
-            "action_id": action_id,
-            "ok": False,
-            "error": "episode already finished",
-        })
+        state["tool_trace"].append(
+            {
+                "tool": "research_action",
+                "action_id": action_id,
+                "ok": False,
+                "error": "episode already finished",
+            }
+        )
         return "Error: episode already finished. Use submit to end."
 
     # Determine action type from action_defs
@@ -78,20 +80,24 @@ async def research_action(
         result = runner.step(action)
     except (ValueError, RuntimeError) as e:
         state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-        state["tool_trace"].append({
-            "tool": "research_action",
-            "action_id": action_id,
-            "ok": False,
-            "error": str(e),
-        })
+        state["tool_trace"].append(
+            {
+                "tool": "research_action",
+                "action_id": action_id,
+                "ok": False,
+                "error": str(e),
+            }
+        )
         return f"Error: {e}"
 
     state["budget_used"] = runner.episode.budget - runner.budget_remaining
-    state["tool_trace"].append({
-        "tool": "research_action",
-        "action_id": action_id,
-        "ok": True,
-    })
+    state["tool_trace"].append(
+        {
+            "tool": "research_action",
+            "action_id": action_id,
+            "ok": True,
+        }
+    )
 
     # Sync observations into python_exec namespace
     ns = state.get("python_namespace")
@@ -125,11 +131,13 @@ async def submit(
 
     if state.get("submitted", False):
         state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-        state["tool_trace"].append({
-            "tool": "submit",
-            "ok": False,
-            "error": "already submitted",
-        })
+        state["tool_trace"].append(
+            {
+                "tool": "submit",
+                "ok": False,
+                "error": "already submitted",
+            }
+        )
         return "Error: you already submitted an answer."
 
     # Parse distribution from JSON string if provided
@@ -139,19 +147,23 @@ async def submit(
             dist_dict = json.loads(distribution)
             if not isinstance(dist_dict, dict):
                 state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-                state["tool_trace"].append({
-                    "tool": "submit",
-                    "ok": False,
-                    "error": "distribution is not a JSON object",
-                })
+                state["tool_trace"].append(
+                    {
+                        "tool": "submit",
+                        "ok": False,
+                        "error": "distribution is not a JSON object",
+                    }
+                )
                 return "Error: distribution must be a JSON object mapping states to probabilities."
         except (json.JSONDecodeError, TypeError) as e:
             state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-            state["tool_trace"].append({
-                "tool": "submit",
-                "ok": False,
-                "error": f"invalid distribution JSON: {e}",
-            })
+            state["tool_trace"].append(
+                {
+                    "tool": "submit",
+                    "ok": False,
+                    "error": f"invalid distribution JSON: {e}",
+                }
+            )
             return f"Error: invalid distribution JSON: {e}"
 
     payload = SubmitPayload(
@@ -165,21 +177,25 @@ async def submit(
         validate_submit_payload(payload, eval_type)
     except ValueError as e:
         state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-        state["tool_trace"].append({
-            "tool": "submit",
-            "ok": False,
-            "error": str(e),
-        })
+        state["tool_trace"].append(
+            {
+                "tool": "submit",
+                "ok": False,
+                "error": str(e),
+            }
+        )
         return f"Error: {e}"
 
     # Mark as submitted — scoring happens in the rubric
     state["submitted"] = True
     state["submission_payload"] = payload.model_dump()
     state["done_reason"] = "submit"
-    state["tool_trace"].append({
-        "tool": "submit",
-        "ok": True,
-    })
+    state["tool_trace"].append(
+        {
+            "tool": "submit",
+            "ok": True,
+        }
+    )
 
     return "Answer submitted. The episode is now complete."
 
@@ -301,22 +317,26 @@ async def python_exec(
     # Code length check
     if len(code) > _EXEC_CONFIG.max_code_chars:
         state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-        state["tool_trace"].append({
-            "tool": "python_exec",
-            "ok": False,
-            "error": "code too long",
-        })
+        state["tool_trace"].append(
+            {
+                "tool": "python_exec",
+                "ok": False,
+                "error": "code too long",
+            }
+        )
         return f"Error: code exceeds maximum length ({_EXEC_CONFIG.max_code_chars} chars)."
 
     # Import guard
     import_err = _check_imports(code)
     if import_err:
         state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-        state["tool_trace"].append({
-            "tool": "python_exec",
-            "ok": False,
-            "error": f"sandbox: {import_err}",
-        })
+        state["tool_trace"].append(
+            {
+                "tool": "python_exec",
+                "ok": False,
+                "error": f"sandbox: {import_err}",
+            }
+        )
         return f"Error (sandbox): {import_err}"
 
     # Execute with timeout
@@ -327,11 +347,13 @@ async def python_exec(
         )
     except (asyncio.TimeoutError, TimeoutError):
         state["invalid_action_count"] = state.get("invalid_action_count", 0) + 1
-        state["tool_trace"].append({
-            "tool": "python_exec",
-            "ok": False,
-            "error": "timeout",
-        })
+        state["tool_trace"].append(
+            {
+                "tool": "python_exec",
+                "ok": False,
+                "error": "timeout",
+            }
+        )
         return f"Error (timeout): Code execution exceeded {_TIMEOUT_SECONDS:.0f} seconds."
 
     # Build output
@@ -350,11 +372,13 @@ async def python_exec(
     output, was_truncated = _truncate(output)
 
     ok = "Error" not in stderr and "Traceback" not in stderr
-    state["tool_trace"].append({
-        "tool": "python_exec",
-        "ok": ok,
-        "exec_count": exec_count,
-        "truncated": was_truncated,
-    })
+    state["tool_trace"].append(
+        {
+            "tool": "python_exec",
+            "ok": ok,
+            "exec_count": exec_count,
+            "truncated": was_truncated,
+        }
+    )
 
     return output

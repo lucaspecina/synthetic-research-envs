@@ -86,7 +86,22 @@ These were researched and agreed with the user + Codex:
 - Full rollout simulation passing: dataset → setup → observe → python_exec → submit → scoring
 - python_exec: persistent interpreter (exec + namespace), AST import whitelist, restricted builtins, timeout, truncation
 - Codex reviews: Phase 1 bugs fixed + python_exec sandbox limitations documented (soft sandbox, not Docker)
-- **Next: Phase 2 (dataset generation) or Phase 3 (dry run with real model)**
+
+### Implementation — Phase 2+3 COMPLETE (168 tests)
+- T2.1: `dataset.py` — programmatic SRC generation → HF Dataset (no LLM needed)
+  - `generate_src()`: WorldGenTool → ExactBayesSolver → ProblemBuilder → TaskGenTool → EpisodeGenTool
+  - `src_to_rows()`: converts one SRC into dataset rows (one per eval_type)
+  - `generate_dataset()`: generates N SRCs, returns HuggingFace Dataset
+  - 20 tests covering generation, serialization, SregEnv compatibility
+- T2.2 + T3.1: `scripts/dry_run.py` — dual-backend inference script
+  - **transformers backend**: local inference, manual rollout loop, no server needed
+  - **vLLM backend**: connects to OpenAI-compatible API via verifiers `evaluate()`
+  - Auto-detect: Linux → vLLM, Windows → transformers
+  - Tested end-to-end with Qwen2.5-0.5B-Instruct on RTX 4000 Ada (CUDA fp16)
+  - Model successfully: loaded, generated tool calls, executed research_actions, consumed budget
+- `scripts/serve_model.sh` — vLLM server setup script for Linux
+- `env.py` updated: handles JSON string `info` from HF Dataset serialization
+- **Next: Phase 4 (first RL training on H100) or remaining Phase 3 items (all 9 eval types, failure modes)**
 - See `TODO_TRAINING.md` for full task breakdown
 
 ## Key files to understand (read-only references)
