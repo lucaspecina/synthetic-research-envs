@@ -466,6 +466,36 @@
     - ProblemBuilder: _build_intervene_actions para causas directas del target
     - Agent: mapea action_def.action_type a ActionType. Prompts explican experiments
     - Deuda: teacher no recomienda intervenciones (Slice C), cap de 4 acciones hardcoded
+- [ ] **S.5**: Agent Solver v3 — investigador real (EN PROGRESO)
+  > El solver actual tiene 2 problemas criticos:
+  > 1. **No analiza datos**: solo ve filas en el prompt, no puede hacer analisis
+  >    cuantitativo (correlaciones, frecuencias condicionales, etc.)
+  > 2. **Resuelve tasks por separado**: cada task es un episodio independiente.
+  >    Un investigador real recibe un caso completo y razona sobre todas las
+  >    preguntas juntas — lo que aprende para una le sirve para otra.
+  >
+  > **Fuente**: worktree `rl-env-verifiers` (Session C) implemento un
+  > `python_exec` tool con interprete persistente, namespace pre-cargado
+  > con pandas/numpy/scipy, datasets como `df`, observaciones como `observations`.
+  > Traemos esa logica al AgentSolver de diagnostico.
+  >
+  > **Plan en 2 pasos:**
+  - [ ] **S.5.1**: Agregar `python_exec` al AgentSolver
+    - Traer logica de `src/sreg/training/tools.py` (exec con namespace persistente)
+    - Pre-cargar dataset como `df` (pandas DataFrame) en el namespace
+    - Pre-cargar observaciones como `observations` dict (sincronizado por step)
+    - Sandbox: import whitelist (numpy, pandas, scipy, math, statistics, json,
+      collections, itertools, functools, re), builtins restringidos, timeout
+    - Registrar como tool del agente: `python_exec(code) -> output`
+    - `python_exec` es GRATIS (no cuesta budget, solo research_action cuesta)
+    - Actualizar prompt: "usa python_exec para analizar datos, es gratis"
+  - [ ] **S.5.2**: Unificar tasks en un solo episodio
+    - El agente recibe TODAS las preguntas del caso juntas
+    - Un solo episodio, un solo budget compartido
+    - Observaciones compartidas entre preguntas
+    - Submit por pregunta (submit(task_id, answer))
+    - Lo que investiga para una pregunta le sirve para las demas
+    - Actualizar `generate_src.py --solve` para el nuevo modo
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec

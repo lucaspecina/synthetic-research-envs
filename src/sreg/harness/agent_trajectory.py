@@ -123,6 +123,11 @@ def extract_agent_trajectory(
                 action = tc_result.get("action", fn_args.get("action_id", "?"))
                 findings = tc_result.get("findings", "?")
                 observation = f"{action} -> {findings}"
+            elif fn_name == "python_exec":
+                output = tc_result.get("output", "")
+                if len(output) > 200:
+                    output = output[:200] + "..."
+                observation = f"python_exec -> {output}"
             elif fn_name == "submit":
                 is_submit = True
 

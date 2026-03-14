@@ -48,6 +48,30 @@ _RESEARCH_ACTION_TOOL = {
     },
 }
 
+_PYTHON_EXEC_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "python_exec",
+        "description": (
+            "Execute Python code in a persistent interpreter. Variables persist "
+            "between calls (like a Jupyter notebook). This is FREE — no budget cost. "
+            "Pre-loaded: numpy (np), pandas (pd), scipy, math, statistics, json. "
+            "The dataset is available as `df`. Observations from research_action "
+            "are in the `observations` dict. Use this to analyze data quantitatively."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "Python code to execute",
+                },
+            },
+            "required": ["code"],
+        },
+    },
+}
+
 # Kept for backward compatibility with legacy tests
 _OBSERVE_TOOL = _RESEARCH_ACTION_TOOL
 
@@ -244,8 +268,8 @@ def build_submit_tool(
 def build_agent_tools(
     task: Task | None = None, target_states: list[str] | None = None
 ) -> list[dict]:
-    """Build the full tool list for the agent (research_action + submit)."""
-    return [_RESEARCH_ACTION_TOOL, build_submit_tool(task, target_states)]
+    """Build the full tool list for the agent (research_action + python_exec + submit)."""
+    return [_RESEARCH_ACTION_TOOL, _PYTHON_EXEC_TOOL, build_submit_tool(task, target_states)]
 
 
 # Legacy constant for backward compat
@@ -428,19 +452,23 @@ Your target variable is **{target_node}** with possible states: \
 
 ## Instructions
 
-1. Study the historical data to understand correlations between variables.
-2. Use the `research_action` tool to execute actions from the list above. \
-Each action costs budget units and returns findings about the current case.
+1. Use `python_exec` to analyze the historical data quantitatively. \
+It is FREE (no budget cost). The dataset is pre-loaded as `df` (pandas DataFrame). \
+Compute frequencies, conditional distributions, correlations — whatever helps.
+2. Use the `research_action` tool to gather evidence about the CURRENT case. \
+Each action costs budget units and returns findings.
    - **Measurements** passively observe a variable's current value.
    - **Experiments** actively set a variable to a specific value \
 (a do-operation). This can reveal causal relationships that \
 observations alone cannot. Note: experimenting on a variable \
 may change the values of its downstream effects.
-3. After each action, update your beliefs about the target.
+3. Use `python_exec` again to integrate new evidence with data analysis. \
+Observations are available as the `observations` dict in the interpreter.
 {submit_instruction}
 
-**Strategy tip**: Use your budget wisely — some actions cost more than others. \
-Choose actions that will help you answer the research question.
+**Strategy tip**: Analyze the data FIRST with python_exec (free), then \
+spend your budget on the most informative research actions. \
+Use your budget wisely — some actions cost more than others.
 
 You MUST eventually call `submit` with your answer. Do not stop without submitting."""
 

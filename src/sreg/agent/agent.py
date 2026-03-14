@@ -19,6 +19,7 @@ from sreg.agent.prompts import (
     build_agent_system_prompt,
     build_agent_tools,
 )
+from sreg.agent.python_exec import execute_code, make_python_namespace
 from sreg.env.episode import EpisodeRunner
 from sreg.models.episode import Action, ActionType, Observation
 from sreg.models.research_problem import ResearchProblem
@@ -116,6 +117,12 @@ class AgentSolver:
         )
         runner = EpisodeRunner(world, episode, true_state)
 
+        # Build persistent Python namespace with dataset pre-loaded
+        self._python_namespace = make_python_namespace(
+            data_assets=problem.data_assets,
+            observations={},
+        )
+
         # Build the agent's prompt and tools (task-aware)
         system_prompt = build_agent_system_prompt(problem, task=task)
         tools = build_agent_tools(task=task, target_states=problem.target_states)
@@ -185,6 +192,8 @@ class AgentSolver:
                         on_step("error", {"tool": fn_name, "error": tool_result["error"]})
                     elif fn_name in ("research_action", "observe"):
                         on_step("observe", tool_result)
+                    elif fn_name == "python_exec":
+                        on_step("python_exec", {"output": tool_result.get("output", "")})
                     elif fn_name == "submit":
                         on_step("submit", tool_result)
 
@@ -225,10 +234,17 @@ class AgentSolver:
         """Execute an agent tool call."""
         try:
             if name == "research_action":
-                return self._handle_research_action(args, runner, problem, result)
+                tool_result = self._handle_research_action(args, runner, problem, result)
+                # Sync observations into python namespace
+                self._python_namespace["observations"] = dict(runner.evidence)
+                return tool_result
             elif name == "observe":
                 # Legacy backward compat
-                return self._handle_observe(args, runner, problem, result)
+                tool_result = self._handle_observe(args, runner, problem, result)
+                self._python_namespace["observations"] = dict(runner.evidence)
+                return tool_result
+            elif name == "python_exec":
+                return self._handle_python_exec(args)
             elif name == "submit":
                 return self._handle_submit(args, runner, problem, result, task)
             else:
@@ -306,6 +322,15 @@ class AgentSolver:
             "remaining_budget": step_result.remaining_budget,
             "message": f"Result of '{aa_desc}': {findings}",
         }
+
+    def _handle_python_exec(self, args: dict) -> dict:
+        """Handle python_exec tool call — run code in persistent namespace."""
+        code = args.get("code", "")
+        if not code:
+            return {"error": "No code provided."}
+
+        output = execute_code(code, self._python_namespace)
+        return {"output": output}
 
     def _handle_observe(
         self,

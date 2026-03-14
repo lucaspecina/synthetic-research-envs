@@ -714,7 +714,7 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
         for traj in all_trajectories:
             f.write(traj.model_dump_json() + "\n")
 
-    # Write trajectory.md (human-readable)
+    # Write trajectory.md (human-readable, raw detail)
     traj_lines = []
     traj_lines.append(f"# Agent Trajectory: {world.scenario_title or world.id}")
     traj_lines.append("")
@@ -724,59 +724,121 @@ def solve_tasks(result, output_dir: str, seed: int = 42) -> tuple[str, str] | No
     for idx, (traj, (i, task, agent_result, agent_score, verdict, score_str)) in enumerate(
         zip(all_trajectories, task_details)
     ):
-        traj_lines.append(f"## Task {i}: {task.type}")
+        traj_lines.append(f"## Task {i}: {task.type} ({verdict})")
         traj_lines.append("")
-        q = task.question
-        if len(q) > 300:
-            q = q[:300] + "..."
-        traj_lines.append(f"**Question:** {q}")
+        traj_lines.append(f"**Question:** {task.question}")
         traj_lines.append("")
-        traj_lines.append(f"**Target:** {traj.target_node}")
+        traj_lines.append(f"**Target:** {traj.target_node} ({', '.join(traj.target_states)})")
+        traj_lines.append(f"**Budget:** {traj.budget} units")
         traj_lines.append("")
 
-        traj_lines.append("### Step by step")
+        # Raw conversation from agent messages
+        traj_lines.append("### Full conversation")
         traj_lines.append("")
-        for step in traj.steps:
-            if step.thinking:
-                thought = step.thinking
-                if len(thought) > 500:
-                    thought = thought[:500] + "..."
-                traj_lines.append(f"**Thinking:** {thought}")
+
+        for msg in agent_result.messages:
+            role = msg.get("role", "?")
+
+            if role == "system":
+                # Skip system prompt (too long), just note it
+                content = msg.get("content", "")
+                traj_lines.append(f"> **[SYSTEM]** ({len(content)} chars, includes research problem + data)")
                 traj_lines.append("")
 
-            if step.tool_call and not step.is_submit:
-                if step.error:
-                    traj_lines.append(f"- **{step.tool_call}** -> ERROR: {step.error}")
-                elif step.observation:
-                    traj_lines.append(f"- **{step.tool_call}** -> {step.observation}")
+            elif role == "user":
+                content = msg.get("content", "")
+                traj_lines.append(f"> **[USER]** {content}")
+                traj_lines.append("")
+
+            elif role == "assistant":
+                content = msg.get("content")
+                tool_calls = msg.get("tool_calls", [])
+
+                if content:
+                    traj_lines.append(f"**[AGENT THINKS]**")
+                    traj_lines.append("")
+                    traj_lines.append(content)
+                    traj_lines.append("")
+
+                for tc in tool_calls:
+                    fn = tc.get("function", {})
+                    fn_name = fn.get("name", "?")
+                    fn_args_raw = fn.get("arguments", "{}")
+                    try:
+                        fn_args = json.loads(fn_args_raw)
+                    except (json.JSONDecodeError, TypeError):
+                        fn_args = {"raw": fn_args_raw}
+
+                    if fn_name == "python_exec" and "code" in fn_args:
+                        # Show code as proper Python, not JSON
+                        traj_lines.append(f"**[AGENT CALLS]** `python_exec`")
+                        traj_lines.append("```python")
+                        traj_lines.append(fn_args["code"])
+                        traj_lines.append("```")
+                    elif fn_name == "submit":
+                        # Show submit args cleanly
+                        traj_lines.append(f"**[AGENT CALLS]** `submit`")
+                        traj_lines.append("```json")
+                        traj_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
+                        traj_lines.append("```")
+                    elif fn_name == "research_action":
+                        action_id = fn_args.get("action_id", "?")
+                        traj_lines.append(f"**[AGENT CALLS]** `research_action` -> `{action_id}`")
+                    else:
+                        traj_lines.append(f"**[AGENT CALLS]** `{fn_name}`")
+                        traj_lines.append("```json")
+                        traj_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
+                        traj_lines.append("```")
+                    traj_lines.append("")
+
+            elif role == "tool":
+                content_raw = msg.get("content", "{}")
+                try:
+                    content = json.loads(content_raw)
+                except (json.JSONDecodeError, TypeError):
+                    content = {"raw": content_raw}
+
+                # python_exec output: show as plain text
+                if isinstance(content, dict) and "output" in content and len(content) == 1:
+                    output = content["output"]
+                    if len(output) > 800:
+                        output = output[:800] + "\n... (truncated)"
+                    traj_lines.append(f"**[OUTPUT]**")
+                    traj_lines.append("```")
+                    traj_lines.append(output)
+                    traj_lines.append("```")
+                # research_action findings: show concisely
+                elif isinstance(content, dict) and "findings" in content:
+                    findings = content["findings"]
+                    budget = content.get("remaining_budget", "?")
+                    traj_lines.append(f"**[RESULT]** {findings} (budget left: {budget})")
+                # submit confirmation
+                elif isinstance(content, dict) and content.get("status") == "submitted":
+                    traj_lines.append(f"**[SUBMITTED]**")
+                # errors
+                elif isinstance(content, dict) and "error" in content:
+                    traj_lines.append(f"**[ERROR]** {content['error']}")
+                # fallback
                 else:
-                    args_str = json.dumps(step.tool_args or {}, ensure_ascii=False)
-                    if len(args_str) > 100:
-                        args_str = args_str[:100] + "..."
-                    traj_lines.append(f"- **{step.tool_call}**({args_str})")
+                    content_str = json.dumps(content, indent=2, ensure_ascii=False)
+                    if len(content_str) > 500:
+                        content_str = content_str[:500] + "\n... (truncated)"
+                    traj_lines.append("```json")
+                    traj_lines.append(content_str)
+                    traj_lines.append("```")
+                traj_lines.append("")
 
-            if step.is_submit:
-                traj_lines.append(f"- **submit** -> {traj.submitted_answer}")
-
-        traj_lines.append("")
-
-        if traj.reasoning:
-            reasoning = traj.reasoning
-            if len(reasoning) > 500:
-                reasoning = reasoning[:500] + "..."
-            traj_lines.append(f"### Final reasoning")
-            traj_lines.append("")
-            traj_lines.append(reasoning)
-            traj_lines.append("")
-
+        # Final summary
         traj_lines.append("### Result")
         traj_lines.append("")
         traj_lines.append(f"- **Agent answer:** {traj.submitted_answer}")
         traj_lines.append(f"- **Correct answer:** {task.correct_answer}")
         traj_lines.append(f"- **Score:** {score_str} ({verdict})")
-        traj_lines.append(f"- **Budget:** {traj.budget_used}/{traj.budget}")
+        traj_lines.append(f"- **Budget used:** {traj.budget_used}/{traj.budget}")
         if traj.confidence is not None:
             traj_lines.append(f"- **Confidence:** {traj.confidence:.2f}")
+        if traj.reasoning:
+            traj_lines.append(f"- **Final reasoning:** {traj.reasoning}")
         traj_lines.append("")
         traj_lines.append("---")
         traj_lines.append("")
