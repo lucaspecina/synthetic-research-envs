@@ -1,7 +1,7 @@
 # SREG — Current State
 
 > Qué hace el sistema hoy, cómo funciona cada parte, y cómo ejecutarlo.
-> Actualizado: 2026-03-12
+> Actualizado: 2026-03-14
 
 ---
 
@@ -13,7 +13,7 @@ La verdad oculta es una red bayesiana — el reward es matemático, sin jueces
 humanos ni heurísticas. SREG genera los entornos y computa rewards; no entrena
 policies (eso lo hace un framework de RL externo).
 
-**Estado actual: 766 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan con node hints end-to-end (orchestrator especifica nodos, task generator los respeta, validacion en design_case). Multi-task bundles. QualitySuite v2 (capas A+B+C, multi-rollout + entropy reduction). Dataset-rich evidence (multi-dataset, missing data, narratives). Agent trajectory inspection (extract, compare, export). Harness multi-tipo (submit + prompt + scoring para los 9 eval types). DiagnosticRunner con baseline scoring por tipo. S.2 diagnostic pipeline (real multi-type E2E con orchestrator). Diagnostic 15 SRCs (57 tasks, 9/9 tipos). S.4 MVP-1: agente usa `research_action(action_id)` con catalogo tipado. Rich Actions Slice B: intervenciones (do-operations) como acciones del agente, sampling intervencional de descendientes, conflict guards observe/intervene, validacion de tipo, ProblemBuilder genera acciones intervene para causas directas del target. Fase -1 contratos preparatorios (interfaces para futuro agent harness/training, NO parte de SREG core): inference protocol, benchmark format, code execution, environment protocol, agent toolset. Pipeline completo. v1 completo + v2 en progreso. Ola 1 de eval types COMPLETA. P0 question/answer mismatch CORREGIDO. P0 cleanup: submit format auto-corregido, budget wording unificado, apply_semantics auto-completa identity mappings, consistency check entre pregunta y respuesta.**
+**Estado actual: 766 tests. 4 familias de templates (3 curadas + custom). 4 DAG generators. 3 nuevos tools de orchestrator (dag_generate + dag_construct + design_case). 9 tipos de tarea (infer_target, NBO, hypothesis_selection, causal_effect, best_intervention, adjustment_set, compare_interventions, should_condition, infer_latent_cause). CasePlan con node hints end-to-end. Rich Actions completas (observe + intervene, multi-nodo, costos variados). Agent Solver v3: python_exec (interprete persistente con df pre-loaded, FREE), solve_case (todas las tasks en un episodio, budget compartido, submit por pregunta), think() tool (razonamiento explicito). generate_src.py: script oficial con --inspect (briefing, CSV, answer key, DAG) y --solve (evaluation, trajectory, full_case report). 6 scripts (13 legacy eliminados). DiagnosticRunner con baseline scoring por tipo. 15-SRC diagnostic. Fase -1 contratos preparatorios (interfaces para futuro harness/training, NO parte de SREG core). v1 completo + v2 en progreso. Ola 1 COMPLETA. P0 CORREGIDO.**
 
 **Terminologia clave: SRC** (Synthetic Research Case) = un caso completo generado por el sistema (world + problem + tasks + data). Es la unidad de producto de SREG.
 
@@ -409,7 +409,7 @@ pip install -e ".[dev]"
 
 ### Correr tests
 ```bash
-pytest tests/ -v                          # Todos (696 tests)
+pytest tests/ -v                          # Todos (766 tests)
 pytest tests/tools/test_task_gen.py -v    # Solo task generation
 pytest tests/tools/test_fork_collider.py  # Solo fork_collider template
 ```

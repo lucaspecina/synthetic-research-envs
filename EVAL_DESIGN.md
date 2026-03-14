@@ -430,18 +430,17 @@ experiments/
 > Esta seccion se va llenando con los resultados de cada experimento.
 > Cada hallazgo referencia el experimento que lo produjo.
 
-### Hallazgos previos (pre-benchmark, del diagnostic_batch toy)
+### Hallazgos previos (pre-benchmark, de toy diagnostic — OBSOLETOS)
 
-**Nota**: estos hallazgos vienen de mundos programaticos (toy), NO del sistema
-real. Se incluyen como referencia pero deben re-validarse con el benchmark real.
+**Nota**: estos hallazgos vienen de mundos programaticos (toy) usando el script
+`diagnostic_batch.py` (eliminado). Se incluyen como referencia historica pero
+estan SUPERADOS por el diagnostico real con orchestrator (DIAG.4, 15 SRCs).
 
-- 72% submit format errors (el agente no usa el formato correcto)
-- 88% distribuciones planas (el agente no aprende de las observaciones)
-- 100% sin thinking text (el modelo no genero razonamiento visible)
-- 52% seleccion secuencial de variables (bias de orden)
-- 84% acerto el top state (pero con distribucion plana)
+- 72% submit format errors -> CORREGIDO en P0 cleanup (auto-correccion de formato)
+- 100% sin thinking text -> MITIGADO con think() tool (S.5.3)
+- 88% distribuciones planas -> MEJORADO con python_exec (S.5.1, el agente ahora analiza datos)
 
-**Pendiente**: re-evaluar con SRCs generados por el orchestrator real.
+**Hallazgos actuales**: ver DIAG.4 en TODO.md y `experiments/` para resultados reales.
 
 ---
 

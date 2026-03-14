@@ -41,7 +41,7 @@ Every task must feel like a real research question, not a DAG exercise.
 
 1. `CLAUDE.md` — START HERE. Master guide, conventions, workflow, trigger table.
 2. `PROJECT.md` — Vision and soul. Every decision must align with this.
-3. `CURRENT_STATE.md` — What works TODAY. 718 tests, 9 eval types.
+3. `CURRENT_STATE.md` — What works TODAY. 766 tests, 9 eval types.
 4. `TODO.md` — Task tracking. Priorities, known issues, done items.
 5. `CHANGELOG.md` — History.
 6. `WORLD_DESIGN.md` — Research doc for world generation (Pearl theory, eval catalog).

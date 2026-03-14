@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### 2026-03-14 — think() tool + full_case.md report
+- **`think(reasoning)` tool**: forces model to externalize reasoning as a tool call.
+  Free, no environment effect. Renders as [SOLVER REASONS] in reports. Helps debug
+  agent decision-making when models skip content tokens before tool calls.
+- **`full_case.md`** (NEW output from `--solve`): complete case report in one file.
+  Part 1: exact system prompt + dataset info (what the solver received).
+  Part 2: full conversation with code, outputs, measurements, reasoning, submits.
+  Part 3: evaluation table + per-question detail with correct vs solver answers.
+- Prompt improvements: clarified `df` has ALL rows (not just preview), listed tools
+  as capabilities not instructions, removed prescriptive phase ordering.
+
 ### 2026-03-14 — S.5: Agent Solver v3 — python_exec + unified case solving
 - **`src/sreg/agent/python_exec.py`** (NEW): persistent Python interpreter for the agent.
   Sandboxed exec() with namespace persistence (like Jupyter). Pre-loads numpy, pandas,

@@ -149,7 +149,7 @@
 > y `run_diagnostic.py` (N SRCs + metricas). Legacy scripts eliminados.
 
 - [x] **DIAG.1**: Implementar DiagnosticRunner (sistema real E2E con LLM)
-  - [x] Mini diagnostic: 3 SRCs reales (scripts/mini_benchmark.py)
+  - [x] Mini diagnostic: 3 SRCs reales (consolidated into run_diagnostic.py)
   - [x] Orchestrator genera N casos con goals variados
   - [x] Agent solver en CADA task del SRC (multi-tipo)
   - [x] Metricas agregadas por eval type + failure modes type-aware
@@ -170,11 +170,11 @@
   - [x] Renombrar archivos y clases: benchmark.py -> diagnostic.py, BenchmarkRunner -> DiagnosticRunner, etc.
 - [x] **DIAG.2**: Crear `experiments/` directory con index.md
 - [ ] **DIAG.3**: Actualizar `quality.py` Layer B para cubrir 9 eval types (no solo 3)
-- [~] **DIAG.4**: Primer diagnostic run real (20-30 casos, varied goals)
+- [x] **DIAG.4**: Primer diagnostic run real (15 SRCs)
   > 15 SRCs corridos (diag_20260311_15srcs): 14/15 completados, 57 tasks, 9/9 tipos.
   > Hallazgos: causal_effect y compare_interventions beats baseline 71%.
   > hypothesis_selection PEOR que azar (17%). NBO sospechoso (100% sin observar).
-  > Falta escalar a 20-30 SRCs y analizar patrones mas profundamente.
+  > Escalar a 20-30 SRCs es trabajo futuro (ver seccion "Proximas prioridades").
 - [x] **DIAG.5**: Consolidar scripts sueltos
   > Done: 7 legacy scripts eliminados. `generate_src.py` reemplaza test_orchestrator/test_e2e/test_agent.
   > `run_diagnostic.py` reemplaza mini_benchmark/diagnostic_batch/batch_eval. 13 scripts -> 6.
@@ -361,7 +361,7 @@
 - [ ] **A.2**: E2E con LLM real: el orchestrator mira un mundo y decide qué preguntas valen la pena
 - [ ] **A.3**: Tests con combinaciones variadas (1 sola pregunta, 2 sin infer_target, hyp_sel como primary, etc.)
 - [ ] **A.4**: Budget compartido entre preguntas del mismo caso
-- [ ] **A.5**: Paper-seeded cases — el orchestrator lee un paper y diseña un caso sintetico inspirado
+- [ ] **A.5**: Paper-seeded cases — ver seccion "Paper-seeded SRCs" abajo (PS.1-PS.4)
 
 ##### Eje B: Nuevos eval types (catálogo de 31 tipos en 6 familias)
 > **Research completo en WORLD_DESIGN.md** (3 secciones clave):
@@ -466,7 +466,7 @@
     - ProblemBuilder: _build_intervene_actions para causas directas del target
     - Agent: mapea action_def.action_type a ActionType. Prompts explican experiments
     - Deuda: teacher no recomienda intervenciones (Slice C), cap de 4 acciones hardcoded
-- [ ] **S.5**: Agent Solver v3 — investigador real (EN PROGRESO)
+- [x] **S.5**: Agent Solver v3 — investigador real (COMPLETE)
   > El solver actual tiene 2 problemas criticos:
   > 1. **No analiza datos**: solo ve filas en el prompt, no puede hacer analisis
   >    cuantitativo (correlaciones, frecuencias condicionales, etc.)
@@ -494,8 +494,65 @@
     - Nudge mechanism: if agent writes answers as text, system reminds to use tool
     - `generate_src.py --solve` uses unified mode
     - Prompt structured in 3 phases: analyze data → gather evidence → submit
+  - [x] **S.5.3**: think() tool + full_case.md report
+    - think(reasoning): forces model to externalize reasoning as tool call
+    - full_case.md: complete report (system prompt + conversation + evaluation)
+    - Prompt: clarified df has ALL rows, tools as capabilities not instructions
   - Deuda S.5: agent reasoning depth varies by model (some skip research_actions),
     NBO scoring needs review, teacher comparison not implemented for case mode
+
+### Proximas prioridades (2026-03-14)
+
+#### Mergear worktrees
+> Las sesiones paralelas en worktrees (benchmark-suite y rl-env-verifiers)
+> hicieron trabajo util que necesita integrarse a main.
+> NO hacer merge ciego — revisar cada branch, cherry-pick archivos nuevos,
+> adaptar lo que toca archivos existentes. Ver CLAUDE.md "Parallel sessions".
+
+- [ ] **MERGE.1**: Integrar worktree `benchmark-suite` (3 commits)
+  - CLadder adapter, QRData adapter, OpenAI client, run_benchmark.py
+  - Resultados BEFORE: GPT-5.2 CLadder 78%, QRData 38%
+  - Archivos nuevos: `src/sreg/benchmarks/`, `src/sreg/inference/openai_client.py`, tests
+  - Archivos a adaptar: .gitignore (data/), docs (BENCH.1-2 progress)
+- [ ] **MERGE.2**: Integrar worktree `rl-env-verifiers` (4 commits)
+  - SregEnv (verifiers adapter), training tools, rubric, types, validators
+  - python_exec ya integrado en S.5.1 (adaptado). Revisar si hay mejoras.
+  - Archivos nuevos: `src/sreg/training/`, tests
+  - Cuidado: depende de verifiers library (pip install)
+
+#### Paper-seeded SRCs (A.5 expandido)
+> **Concepto**: a partir de un paper cientifico real, crear un SRC inspirado
+> en el. No es una replica fiel (no conocemos la BN real del mundo), sino una
+> version sintetica que captura:
+> - La problematica general del paper
+> - Las research questions que el paper responde
+> - Las subtasks implicitas (identificar causas, comparar intervenciones, etc.)
+> - El nivel de complejidad (cantidad de variables, tipos de relaciones)
+> - El tipo de datos disponibles
+>
+> El orchestrator lee el paper (o un resumen), extrae la estructura del problema,
+> y diseña un SRC que se siente como una mini-version de esa investigacion.
+> La BN subyacente es sintetica pero las preguntas y la narrativa son realistas.
+>
+> Esto es el salto cualitativo mas grande: pasar de "genera algo sobre ecologia"
+> a "genera un caso inspirado en este paper de Nature sobre acidificacion oceanica".
+
+- [ ] **PS.1**: Definir formato de paper seed
+  - Que informacion extraer del paper: abstract, hipotesis, variables, conclusiones
+  - Formato del seed file (markdown estructurado vs texto libre)
+  - Probar con research_seed.md actual (Vaca Muerta) como primer caso
+- [ ] **PS.2**: Orchestrator extrae estructura del paper
+  - LLM lee el seed y propone: nodos, relaciones causales, tipos de evaluacion
+  - Mapeo paper → DAGSpec: variables reales → nodos sinteticos con nombres semi-reales
+  - Las conclusiones del paper → research questions del SRC
+- [ ] **PS.3**: Validar con 3-5 papers de distintos dominios
+  - Ecologia, epidemiologia, ingenieria, ciencias sociales, economia
+  - Comparar: ¿el SRC generado se siente como esa investigacion?
+  - ¿Las preguntas son las que un investigador real se haria?
+- [ ] **PS.4**: Crear coleccion de paper seeds
+  - 10-20 papers seleccionados que representen problemas causales interesantes
+  - Cada uno como un seed file en `seeds/` o similar
+  - Documentar: paper original, que se extrajo, que SRC genero
 
 ### Composicion de motifs
 - [ ] Motif composer: combine chain+fork+collider into a single DAGSpec
