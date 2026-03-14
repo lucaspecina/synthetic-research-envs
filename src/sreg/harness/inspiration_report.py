@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 class InspirationProfile:
     """Structured profile of a seed or SRC across the 8 dimensions."""
 
+    narrative_summary: str = ""
     domain: str = ""
     problem_description: str = ""
     variable_count: int = 0
@@ -52,6 +53,8 @@ class InspirationProfile:
     question_descriptions: list[str] = field(default_factory=list)
     signal_strength: str = ""  # weak / moderate / strong
     research_actions: list[str] = field(default_factory=list)
+    # Justifications (WHY each value was extracted)
+    justifications: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -77,43 +80,92 @@ class InspirationReport:
     critical_failures: list[str] = field(default_factory=list)
 
     def to_markdown(self) -> str:
-        """Render as human-readable markdown."""
+        """Render as human-readable markdown — narrative and friendly."""
         lines = ["# Inspiration Report", ""]
 
-        # Overall
+        # Narrative intro
+        if self.seed_profile.narrative_summary:
+            lines.append("## What the seed is about")
+            lines.append("")
+            lines.append(self.seed_profile.narrative_summary)
+            lines.append("")
+
+        if self.src_profile.problem_description:
+            lines.append("## What the SRC created")
+            lines.append("")
+            lines.append(
+                f"**{self.src_profile.problem_description}** -- "
+                f"{self.src_profile.variable_count} variables, "
+                f"{len(self.src_profile.question_types)} research questions, "
+                f"complexity: {self.src_profile.complexity_level}."
+            )
+            lines.append("")
+
+        # Overall score
         label = _score_label(self.overall_score)
-        lines.append(f"**Overall: {self.overall_score:.0%} ({label})**")
+        bar = "#" * int(self.overall_score * 20)
+        empty = "." * (20 - len(bar))
+        lines.append(f"## Overall inspiration: {self.overall_score:.0%} ({label})")
+        lines.append(f"`[{bar}{empty}]`")
         lines.append("")
 
         if self.critical_failures:
-            lines.append("### Critical issues")
+            lines.append("**Issues:**")
             for f in self.critical_failures:
                 lines.append(f"- {f}")
             lines.append("")
 
-        # Dimension table
-        lines.append("| Dimension | Seed | SRC | Score | Assessment |")
-        lines.append("|---|---|---|---|---|")
+        # Scorecard
+        lines.append("## Scorecard")
+        lines.append("")
+        lines.append("| Dimension | Score | Verdict |")
+        lines.append("|---|---|---|")
         for d in self.dimensions:
-            seed_short = d.seed_summary[:50] + ("..." if len(d.seed_summary) > 50 else "")
-            src_short = d.src_summary[:50] + ("..." if len(d.src_summary) > 50 else "")
-            lines.append(
-                f"| {d.name} | {seed_short} | {src_short} "
-                f"| {d.score:.0%} {d.label} | {d.assessment} |"
-            )
+            icon = "v" if d.score >= 0.75 else ("~" if d.score >= 0.5 else "x")
+            lines.append(f"| {d.name} | {d.score:.0%} | {icon} {d.label} |")
         lines.append("")
 
-        # Details
-        lines.append("## Details")
+        # Detailed breakdown with justifications
+        lines.append("## Detailed comparison")
         lines.append("")
+
+        seed_just = self.seed_profile.justifications
+
         for d in self.dimensions:
-            lines.append(f"### {d.name} ({d.score:.0%} {d.label})")
-            lines.append(f"- **Seed**: {d.seed_summary}")
-            lines.append(f"- **SRC**: {d.src_summary}")
-            lines.append(f"- **Assessment**: {d.assessment}")
+            lines.append(f"### {d.name}")
+            lines.append("")
+            lines.append(f"**Score: {d.score:.0%} ({d.label})**")
+            lines.append("")
+            lines.append(f"**In the seed:** {d.seed_summary}")
+            # Add justification if available
+            dim_key = _dimension_to_key(d.name)
+            if dim_key and dim_key in seed_just:
+                lines.append(f"  - *Why:* {seed_just[dim_key]}")
+            lines.append("")
+            lines.append(f"**In the SRC:** {d.src_summary}")
+            lines.append("")
+            if d.assessment:
+                lines.append(f"**Assessment:** {d.assessment}")
+                lines.append("")
+            lines.append("---")
             lines.append("")
 
         return "\n".join(lines)
+
+
+def _dimension_to_key(dim_name: str) -> str:
+    """Map dimension display name to justification key."""
+    mapping = {
+        "Domain & Problem": "work_type",
+        "Scale & Complexity": "complexity",
+        "Causal Structure": "causal_features",
+        "Data & Problems": "data_problems",
+        "Type of Work": "work_type",
+        "Research Questions": "question_types",
+        "Signal vs Noise": "signal_strength",
+        "Research Actions": "research_actions",
+    }
+    return mapping.get(dim_name, "")
 
 
 def _score_label(score: float) -> str:
@@ -234,23 +286,36 @@ _EXTRACT_PROMPT = """\
 You are analyzing a research seed (a scientific paper, business case, operational \
 problem, or dataset description). Extract a structured profile of the research.
 
-Return ONLY valid JSON with these fields:
+Return ONLY valid JSON with these fields. For EVERY list field, include a \
+"_why" field explaining WHY you extracted each item (cite evidence from the text).
+
 {
-  "domain": "the research domain (e.g., 'perinatal epidemiology', 'oil & gas engineering')",
-  "problem_description": "one-sentence description of the problem",
+  "narrative_summary": "2-3 sentence plain-language summary of what this research is about, written as if explaining to a colleague",
+  "domain": "the research domain",
+  "problem_description": "one-sentence core problem",
   "variable_count": <number of distinct variables/factors mentioned>,
   "variable_names": ["list", "of", "variable", "names"],
+  "variable_names_why": "Why these variables: brief explanation of how you identified them",
   "relationship_count": <estimated number of causal/correlational relationships>,
   "complexity_level": "low | medium | high",
-  "causal_features": ["list of: confounders, mediators, colliders, latent_variables, chains"],
+  "complexity_why": "Why this complexity level",
+  "causal_features": ["confounders", "mediators", "colliders", "latent_variables", "chains"],
+  "causal_features_why": "For each feature, explain which variables are involved. E.g. 'confounders: SES confounds the pollution-asthma relationship'",
   "latent_variables": ["variables that cannot be directly measured"],
+  "latent_variables_why": "Why each is latent — what makes it unobservable",
   "data_sources": ["types of data sources mentioned"],
-  "data_problems": ["missing_data", "selection_bias", "measurement_error", etc.],
+  "data_sources_why": "Evidence for each data source from the text",
+  "data_problems": ["missing_data", "selection_bias", etc.],
+  "data_problems_why": "For each problem, cite evidence from the text",
   "work_type": "observational | experimental | operational | mixed",
+  "work_type_why": "Why this work type",
   "question_types": ["causal_effect", "prediction", "adjustment_set", etc.],
+  "question_types_why": "For each question type, which research question from the seed maps to it",
   "question_descriptions": ["actual research questions from the seed"],
   "signal_strength": "weak | moderate | strong",
-  "research_actions": ["what researchers can do: measure, experiment, survey, etc."]
+  "signal_strength_why": "Evidence for signal strength from the text",
+  "research_actions": ["what researchers can do"],
+  "research_actions_why": "For each action, why it's available or relevant"
 }
 
 Count ALL distinct variables mentioned, not just main ones. Include covariates, \
@@ -300,7 +365,19 @@ def extract_seed_profile(
         logger.warning("Failed to parse seed profile JSON: %s", raw[:200])
         return InspirationProfile()
 
+    # Collect justifications
+    justifications = {}
+    for key in [
+        "variable_names", "complexity", "causal_features", "latent_variables",
+        "data_sources", "data_problems", "work_type", "question_types",
+        "signal_strength", "research_actions",
+    ]:
+        why_key = f"{key}_why"
+        if why_key in data:
+            justifications[key] = data[why_key]
+
     return InspirationProfile(
+        narrative_summary=data.get("narrative_summary", ""),
         domain=data.get("domain", ""),
         problem_description=data.get("problem_description", ""),
         variable_count=data.get("variable_count", 0),
@@ -316,6 +393,7 @@ def extract_seed_profile(
         question_descriptions=data.get("question_descriptions", []),
         signal_strength=data.get("signal_strength", ""),
         research_actions=data.get("research_actions", []),
+        justifications=justifications,
     )
 
 
