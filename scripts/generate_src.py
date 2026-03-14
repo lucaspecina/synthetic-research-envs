@@ -1231,10 +1231,13 @@ def main():
         )
         _print(f"  Overall: {report.overall_score:.0%} ({label})")
         for d in report.dimensions:
-            icon = _c(GRN, 'v') if d.score >= 0.75 else (
-                _c(YLW, '~') if d.score >= 0.5 else _c(RED, 'x')
-            )
-            _print(f"    {icon} {d.name}: {d.score:.0%} {d.label}")
+            if d.score < 0:
+                _print(f"    {_c(YLW, '?')} {d.name}: n/a ({d.label})")
+            else:
+                icon = _c(GRN, 'v') if d.score >= 0.75 else (
+                    _c(YLW, '~') if d.score >= 0.5 else _c(RED, 'x')
+                )
+                _print(f"    {icon} {d.name}: {d.score:.0%} {d.label}")
         if report.critical_failures:
             for cf in report.critical_failures:
                 _print(f"    {_c(RED, '!')} {cf}")

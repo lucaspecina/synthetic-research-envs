@@ -78,30 +78,79 @@ class InspirationReport:
     dimensions: list[DimensionScore] = field(default_factory=list)
     overall_score: float = 0.0
     critical_failures: list[str] = field(default_factory=list)
+    narrative_comparison: str = ""  # LLM-written qualitative comparison
 
     def to_markdown(self) -> str:
         """Render as human-readable markdown — narrative and friendly."""
         lines = ["# Inspiration Report", ""]
 
-        # Narrative intro
+        # ---- Narrative intro ----
         if self.seed_profile.narrative_summary:
             lines.append("## What the seed is about")
             lines.append("")
             lines.append(self.seed_profile.narrative_summary)
             lines.append("")
+            # Seed research questions
+            if self.seed_profile.question_descriptions:
+                lines.append("**Research questions in the seed:**")
+                for q in self.seed_profile.question_descriptions:
+                    lines.append(f"- {q}")
+                lines.append("")
+            # Seed variables
+            if self.seed_profile.variable_names:
+                lines.append(
+                    f"**Variables mentioned** ({self.seed_profile.variable_count}): "
+                    + ", ".join(self.seed_profile.variable_names[:20])
+                )
+                if len(self.seed_profile.variable_names) > 20:
+                    lines.append(f"  ... and {len(self.seed_profile.variable_names) - 20} more")
+                lines.append("")
 
         if self.src_profile.problem_description:
             lines.append("## What the SRC created")
             lines.append("")
+            lines.append(f"**{self.src_profile.problem_description}**")
+            lines.append("")
             lines.append(
-                f"**{self.src_profile.problem_description}** -- "
-                f"{self.src_profile.variable_count} variables, "
-                f"{len(self.src_profile.question_types)} research questions, "
-                f"complexity: {self.src_profile.complexity_level}."
+                f"- {self.src_profile.variable_count} variables "
+                f"({self.src_profile.complexity_level} complexity)"
             )
+            lines.append(f"- {self.src_profile.relationship_count} causal relationships")
+            lines.append(
+                f"- {len(self.src_profile.question_types)} research questions: "
+                + ", ".join(self.src_profile.question_types)
+            )
+            if self.src_profile.latent_variables:
+                lines.append(
+                    f"- Latent (unobservable): "
+                    + ", ".join(self.src_profile.latent_variables)
+                )
+            lines.append("")
+            # SRC variables
+            if self.src_profile.variable_names:
+                lines.append(
+                    "**SRC variables:** " + ", ".join(self.src_profile.variable_names)
+                )
+                lines.append("")
+            # SRC questions
+            if self.src_profile.question_descriptions:
+                lines.append("**SRC research questions:**")
+                for i, q in enumerate(self.src_profile.question_descriptions, 1):
+                    qt = (
+                        self.src_profile.question_types[i - 1]
+                        if i <= len(self.src_profile.question_types) else "?"
+                    )
+                    lines.append(f"{i}. ({qt}) {q}")
+                lines.append("")
+
+        # ---- Qualitative narrative comparison ----
+        if self.narrative_comparison:
+            lines.append("## Qualitative comparison")
+            lines.append("")
+            lines.append(self.narrative_comparison)
             lines.append("")
 
-        # Overall score
+        # ---- Overall score ----
         label = _score_label(self.overall_score)
         bar = "#" * int(self.overall_score * 20)
         empty = "." * (20 - len(bar))
@@ -115,17 +164,28 @@ class InspirationReport:
                 lines.append(f"- {f}")
             lines.append("")
 
-        # Scorecard
+        # ---- Scorecard ----
         lines.append("## Scorecard")
         lines.append("")
+        assessable = [d for d in self.dimensions if d.score >= 0]
+        not_assessable = [d for d in self.dimensions if d.score < 0]
+
         lines.append("| Dimension | Score | Verdict |")
         lines.append("|---|---|---|")
-        for d in self.dimensions:
+        for d in assessable:
             icon = "v" if d.score >= 0.75 else ("~" if d.score >= 0.5 else "x")
             lines.append(f"| {d.name} | {d.score:.0%} | {icon} {d.label} |")
+        for d in not_assessable:
+            lines.append(f"| {d.name} | -- | ? {d.label} |")
+        if not_assessable:
+            lines.append("")
+            lines.append(
+                f"*{len(not_assessable)} dimensions not assessable "
+                f"(SRC extraction limited). Not counted in overall score.*"
+            )
         lines.append("")
 
-        # Detailed breakdown with justifications
+        # ---- Detailed breakdown ----
         lines.append("## Detailed comparison")
         lines.append("")
 
@@ -137,10 +197,9 @@ class InspirationReport:
             lines.append(f"**Score: {d.score:.0%} ({d.label})**")
             lines.append("")
             lines.append(f"**In the seed:** {d.seed_summary}")
-            # Add justification if available
             dim_key = _dimension_to_key(d.name)
             if dim_key and dim_key in seed_just:
-                lines.append(f"  - *Why:* {seed_just[dim_key]}")
+                lines.append(f"> *Why:* {seed_just[dim_key]}")
             lines.append("")
             lines.append(f"**In the SRC:** {d.src_summary}")
             lines.append("")
@@ -208,6 +267,9 @@ def extract_src_profile(world: World, tasks: list) -> InspirationProfile:
             edge_list.append((e[0], e[1]))
         elif isinstance(e, dict):
             edge_list.append((e.get("from", ""), e.get("to", "")))
+        elif hasattr(e, "from_node"):
+            # Edge object (Pydantic model)
+            edge_list.append((e.from_node, e.to_node))
 
     # Build parent/child maps
     parents: dict[str, list[str]] = {}
@@ -596,19 +658,35 @@ def compare_profiles(
     # 3. Causal structure
     dimensions.append(_compare_causal(seed, src))
 
-    # 4. Data types/problems
-    d4 = _compare_simple(
-        "Data & Problems",
-        ", ".join(seed.data_problems) or "none",
-        "tabular dataset",
-        seed.data_problems,
-        src.data_problems,
-    )
+    # 4. Data types/problems (SRC extraction limited — mark as not assessable if empty)
+    if src.data_problems:
+        d4 = _compare_simple(
+            "Data & Problems",
+            ", ".join(seed.data_problems) or "none",
+            ", ".join(src.data_problems),
+            seed.data_problems,
+            src.data_problems,
+        )
+    else:
+        d4 = DimensionScore(
+            name="Data & Problems",
+            seed_summary=", ".join(seed.data_problems) or "none",
+            src_summary="(not yet extractable from SRC)",
+            score=-1.0,  # sentinel: not assessable
+            label="not assessable",
+            assessment="SRC data problems cannot be extracted programmatically yet",
+        )
     dimensions.append(d4)
 
-    # 5. Type of work
-    d5 = _compare_simple("Type of Work", seed.work_type, src.work_type)
-    d5.assessment = f"Seed: {seed.work_type}. SRC: observational + interventional"
+    # 5. Type of work (infer from SRC actions if not explicit)
+    src_work = src.work_type
+    if not src_work and src.research_actions:
+        src_work = "observational + interventional" if "intervene" in src.research_actions else "observational"
+    d5 = _compare_simple("Type of Work", seed.work_type, src_work)
+    d5.assessment = f"Seed: {seed.work_type}. SRC: {src_work or 'not specified'}"
+    if seed.work_type and src_work:
+        d5.score = 0.75  # Both are present and roughly match
+        d5.label = _score_label(d5.score)
     dimensions.append(d5)
 
     # 6. Research questions (most important)
@@ -620,16 +698,19 @@ def compare_profiles(
     dimensions.append(d7)
 
     # 8. Research actions
-    d8 = _compare_simple(
-        "Research Actions",
-        ", ".join(seed.research_actions),
-        "observe, intervene",
-        seed.research_actions,
-        src.research_actions,
+    # Research Actions (SRC only has generic types — mark not assessable for detailed comparison)
+    d8 = DimensionScore(
+        name="Research Actions",
+        seed_summary=", ".join(seed.research_actions) or "not specified",
+        src_summary="observe, intervene (generic)",
+        score=-1.0,  # not assessable at detail level
+        label="not assessable",
+        assessment="SRC actions are generic (observe/intervene). Detailed comparison "
+                   "requires richer action metadata (future work).",
     )
     dimensions.append(d8)
 
-    # Overall score (weighted — questions and scale matter most)
+    # Overall score (weighted — exclude not-assessable dimensions)
     weights = {
         "Domain & Problem": 1.0,
         "Scale & Complexity": 2.0,  # Critical
@@ -641,8 +722,13 @@ def compare_profiles(
         "Research Actions": 1.0,
     }
 
-    total_weight = sum(weights.get(d.name, 1.0) for d in dimensions)
-    overall = sum(d.score * weights.get(d.name, 1.0) for d in dimensions) / total_weight
+    # Only count assessable dimensions (score >= 0)
+    assessable = [d for d in dimensions if d.score >= 0]
+    total_weight = sum(weights.get(d.name, 1.0) for d in assessable)
+    overall = (
+        sum(d.score * weights.get(d.name, 1.0) for d in assessable) / total_weight
+        if total_weight > 0 else 0.0
+    )
 
     # Critical failures
     critical = []
@@ -664,6 +750,95 @@ def compare_profiles(
         overall_score=overall,
         critical_failures=critical,
     )
+
+
+# ---------------------------------------------------------------------------
+# Narrative comparison (LLM-generated)
+# ---------------------------------------------------------------------------
+
+_NARRATIVE_PROMPT = """\
+You are writing a qualitative comparison between a research seed and a \
+synthetic research case (SRC) that was generated inspired by it.
+
+Write 3-4 paragraphs in a friendly, clear style (in the same language as \
+the seed if possible, otherwise English):
+
+1. **What was preserved well**: What aspects of the original research did \
+the SRC capture faithfully? Be specific — mention variables, relationships, \
+question types that match.
+
+2. **What was simplified or lost**: What complexity from the seed didn't \
+make it into the SRC? Missing variables, data problems not represented, \
+causal patterns lost. Explain WHY this matters.
+
+3. **What the SRC added**: Did the SRC introduce things not in the seed? \
+Extra question types, new variables? Are these additions good (enriching \
+the case) or noise?
+
+4. **Overall verdict**: In one paragraph, would a researcher working on the \
+seed's problem recognize the SRC as a relevant synthetic version of their \
+investigation? What's the single most important thing to improve?
+
+Be specific, cite variable names and question types. Don't be generic.
+"""
+
+
+def _generate_narrative(
+    seed: InspirationProfile,
+    src: InspirationProfile,
+    report: InspirationReport,
+    client: OpenAI,
+    model: str,
+) -> str:
+    """Generate a qualitative narrative comparing seed and SRC."""
+    # Build a summary of both profiles for the LLM
+    context = (
+        f"SEED PROFILE:\n"
+        f"- Domain: {seed.domain}\n"
+        f"- Problem: {seed.problem_description}\n"
+        f"- Summary: {seed.narrative_summary}\n"
+        f"- Variables ({seed.variable_count}): {', '.join(seed.variable_names[:25])}\n"
+        f"- Causal features: {', '.join(seed.causal_features)}\n"
+        f"- Latent: {', '.join(seed.latent_variables)}\n"
+        f"- Data problems: {', '.join(seed.data_problems)}\n"
+        f"- Question types: {', '.join(seed.question_types)}\n"
+        f"- Questions: {'; '.join(seed.question_descriptions[:5])}\n"
+        f"- Research actions: {', '.join(seed.research_actions)}\n"
+        f"\nSRC PROFILE:\n"
+        f"- Title: {src.problem_description}\n"
+        f"- Variables ({src.variable_count}): {', '.join(src.variable_names)}\n"
+        f"- Causal features: {', '.join(src.causal_features)}\n"
+        f"- Latent: {', '.join(src.latent_variables)}\n"
+        f"- Question types: {', '.join(src.question_types)}\n"
+        f"- Questions: {'; '.join(src.question_descriptions[:5])}\n"
+        f"\nSCORES:\n"
+    )
+    for d in report.dimensions:
+        context += f"- {d.name}: {d.score:.0%} ({d.label}) — {d.assessment}\n"
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": _NARRATIVE_PROMPT},
+                {"role": "user", "content": context},
+            ],
+            temperature=0.7,
+        )
+    except Exception:
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": _NARRATIVE_PROMPT},
+                    {"role": "user", "content": context},
+                ],
+            )
+        except Exception as e:
+            logger.warning("Failed to generate narrative: %s", e)
+            return ""
+
+    return response.choices[0].message.content or ""
 
 
 # ---------------------------------------------------------------------------
@@ -700,8 +875,22 @@ def generate_report(
         _model = model or os.environ.get("AZURE_MODEL", "gpt-4o")
         seed_profile = extract_seed_profile(seed_text, _client, _model)
 
+    # Ensure _client and _model are defined for narrative generation
+    if client and model:
+        _client = client
+        _model = model
+
     # Compare
-    return compare_profiles(seed_profile, src_profile)
+    report = compare_profiles(seed_profile, src_profile)
+
+    # Generate qualitative narrative comparison
+    _llm_client = client or _client
+    _llm_model = model or _model
+    report.narrative_comparison = _generate_narrative(
+        seed_profile, src_profile, report, _llm_client, _llm_model
+    )
+
+    return report
 
 
 __all__ = [
