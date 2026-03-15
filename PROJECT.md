@@ -523,6 +523,59 @@ interesantes, pocas para que no sea abrumador.
 
 ---
 
+## Principio fundamental: simular investigaciones REALES
+
+**TODO lo que diseñemos tiene que basarse en cómo funciona la investigación
+científica REAL, no en mecánicas de juego o abstracciones de conveniencia.**
+
+El test para cualquier feature, acción, o mecánica es:
+> "¿Un investigador real en este dominio haría esto?"
+
+### Lo que hay que estudiar y definir
+
+Para crear SRCs que se sientan como investigaciones reales, necesitamos:
+
+1. **Taxonomía de tipos de investigación** — no toda investigación es igual:
+   - Observacional (solo analizás datos existentes, no podés experimentar)
+   - Experimental (podés diseñar y correr experimentos)
+   - Cuasi-experimental (experimentos naturales, regression discontinuity)
+   - Clínico (ensayos controlados, dosis-respuesta)
+   - Campo (ecología, geología — muestreos, mediciones in situ)
+   - Computacional (simulaciones, modelos, datos sintéticos)
+
+2. **Qué acciones tiene un investigador REAL en cada tipo**:
+   - En observacional: analizar el dataset, ajustar confounders, estratificar
+   - En experimental: diseñar el experimento (parámetros, controles, réplicas),
+     ejecutarlo, analizar resultados
+   - En campo: elegir sitios de muestreo, medir variables, recolectar datos
+   - En clínico: definir grupos, dosis, endpoints, analizar eficacia/seguridad
+
+3. **Las restricciones reales** por dominio:
+   - "Solo podés hacer 2 ensayos porque la máquina tarda 3 días cada uno"
+   - "No podés experimentar con personas (observacional solamente)"
+   - "Tenés datos de 5 estaciones, podés instalar sensores en 2 más"
+
+4. **Cómo los investigadores reales trabajan con datos**:
+   - Datos sucios con valores faltantes, outliers, sesgos
+   - Múltiples fuentes con definiciones inconsistentes
+   - Datasets grandes pero incompletos
+   - Necesidad de limpiar, transformar, explorar antes de modelar
+
+### Cómo aplicar esto en SREG
+
+Al generar un SRC desde un paper:
+- Estudiar qué TIPO de investigación es
+- Diseñar acciones que correspondan a ese tipo (no genéricas)
+- Crear datos que se parezcan a los del paper (con sus problemas)
+- Las preguntas deben ser del mismo tipo que las del paper
+- Las restricciones deben ser realistas para el dominio
+
+**Las 8 dimensiones de inspiración** (en WORLD_DESIGN.md) son la guía
+para extraer esto de cada paper. Ver "Dimensiones de inspiración desde
+papers reales" para el desarrollo completo.
+
+---
+
 ## Cómo se genera un research case — el pipeline
 
 ### Seed (input)

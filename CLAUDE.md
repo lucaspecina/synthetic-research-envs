@@ -67,6 +67,15 @@ Every training environment has two layers:
   Only "real-world actions" (experiments, measurements) cost budget.
 - **Data is configurable**: tabular datasets, isolated observations, experimental results,
   multiple datasets, partial/incomplete data — all sampled from the BN.
+- **ALWAYS question realism — this is NON-NEGOTIABLE.** Never get attached to
+  current implementation if it doesn't serve the vision. Before building ANYTHING:
+  1. "Would a real researcher in this domain do this?"
+  2. "Is this in PROJECT.md's vision?"
+  3. "Have I studied how this works in real science?"
+  If research_actions feel like a game mechanic instead of real investigation,
+  they need redesign. If the dataset is too clean, it needs richer data.
+  Study real papers, real research workflows, real constraints. Then build.
+  See PROJECT.md "Principio fundamental: simular investigaciones REALES".
 - **Multiple evaluation types**: target inference (KL), causal effects, hypothesis
   selection, structure discovery, next-best-action, optimization — see PROJECT.md.
 - **LLM orchestrates, tools own truth**: the LLM proposes structure and semantics,
