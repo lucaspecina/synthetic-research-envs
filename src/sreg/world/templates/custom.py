@@ -30,6 +30,7 @@ class CustomTemplate:
         dag_spec: DAGSpec,
         edge_strength: float,
         seed: int,
+        edge_directions: dict[tuple[str, str], str] | None = None,
     ) -> World:
         """Generate a World from a DAGSpec.
 
@@ -41,6 +42,9 @@ class CustomTemplate:
             Controls signal strength in CPDs (0.0 = weak, 1.0 = strong).
         seed : int
             Random seed for reproducibility.
+        edge_directions : dict | None
+            Optional {(parent, child): "positive"|"negative"} mapping.
+            Controls effect direction in CPDs.
 
         Returns
         -------
@@ -51,7 +55,7 @@ class CustomTemplate:
 
         nodes = self._create_nodes(dag_spec)
         edges = self._create_edges(dag_spec)
-        cpds = self._create_cpds(dag_spec, edge_strength, rng)
+        cpds = self._create_cpds(dag_spec, edge_strength, rng, edge_directions)
         difficulty = self._build_difficulty(dag_spec, edge_strength)
 
         return World(
@@ -92,7 +96,11 @@ class CustomTemplate:
         ]
 
     def _create_cpds(
-        self, dag_spec: DAGSpec, edge_strength: float, rng: np.random.Generator
+        self,
+        dag_spec: DAGSpec,
+        edge_strength: float,
+        rng: np.random.Generator,
+        edge_directions: dict[tuple[str, str], str] | None = None,
     ) -> list:
         parent_map: dict[str, list[str]] = {n.name: [] for n in dag_spec.nodes}
         for src, dst in dag_spec.edges:
@@ -101,7 +109,10 @@ class CustomTemplate:
         node_states = {n.name: list(n.states) for n in dag_spec.nodes}
         nodes_tuples = [(n.name, list(n.states)) for n in dag_spec.nodes]
 
-        return generate_cpds_for_dag(nodes_tuples, parent_map, node_states, edge_strength, rng)
+        return generate_cpds_for_dag(
+            nodes_tuples, parent_map, node_states, edge_strength, rng,
+            edge_directions=edge_directions,
+        )
 
     def _build_difficulty(self, dag_spec: DAGSpec, edge_strength: float) -> DifficultyProfile:
         num_nodes = len(dag_spec.nodes)

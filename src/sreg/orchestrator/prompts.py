@@ -441,6 +441,20 @@ TOOL_DEFINITIONS = [
                                     "type": "string",
                                     "description": "Destination node name (the effect)",
                                 },
+                                "direction": {
+                                    "type": "string",
+                                    "enum": ["positive", "negative"],
+                                    "description": (
+                                        "Effect direction: 'positive' means higher "
+                                        "parent state leads to higher child state "
+                                        "(e.g., more smoking -> more cancer risk). "
+                                        "'negative' means higher parent leads to "
+                                        "lower child (e.g., more exercise -> less "
+                                        "obesity). ALWAYS specify this for ordinal "
+                                        "variables. Omit only for non-ordinal "
+                                        "variables like categories."
+                                    ),
+                                },
                             },
                             "required": ["from", "to"],
                         },

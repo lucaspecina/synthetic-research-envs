@@ -42,6 +42,13 @@ class CustomWorldGenConfig(BaseModel):
     dag_spec: DAGSpec
     edge_strength: float = Field(default=0.7, ge=0.1, le=1.0)
     seed: int = Field(default=42)
+    edge_directions: dict[tuple[str, str], str] = Field(
+        default_factory=dict,
+        description=(
+            "Edge direction hints: {(parent, child): 'positive'|'negative'}. "
+            "Controls whether higher parent state leads to higher or lower child state."
+        ),
+    )
 
 
 _TEMPLATES = {
@@ -80,6 +87,7 @@ class WorldGenTool:
             dag_spec=config.dag_spec,
             edge_strength=config.edge_strength,
             seed=config.seed,
+            edge_directions=config.edge_directions,
         )
 
 

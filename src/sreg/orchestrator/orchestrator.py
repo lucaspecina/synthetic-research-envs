@@ -294,10 +294,23 @@ class Orchestrator:
             ]
             dag_edges = [(e["from"], e["to"]) for e in raw_edges]
             spec = DAGSpec(nodes=dag_nodes, edges=dag_edges)
+
+            # Extract edge directions (optional)
+            edge_directions: dict[tuple[str, str], str] = {}
+            for e in raw_edges:
+                d = e.get("direction")
+                if d in ("positive", "negative"):
+                    edge_directions[(e["from"], e["to"])] = d
+
         except (ValueError, KeyError) as e:
             return {"error": f"Invalid DAG specification: {e}"}
 
-        config = CustomWorldGenConfig(dag_spec=spec, edge_strength=edge_strength, seed=seed)
+        config = CustomWorldGenConfig(
+            dag_spec=spec,
+            edge_strength=edge_strength,
+            seed=seed,
+            edge_directions=edge_directions,
+        )
         world = self._world_gen.generate_custom(config)
         self._worlds[world.id] = world
         result.world = world

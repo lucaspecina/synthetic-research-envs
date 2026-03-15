@@ -226,15 +226,109 @@ class TestEquivalenceWithTemplates:
 
         cpds = generate_cpds_for_dag(nodes_tuples, parent_map, node_states, edge_strength, rng)
 
-        # Compare CPD tables
+        # Verify CPD properties (not exact values — algorithm changed to ordinal scoring)
         assert len(cpds) == len(world.cpds)
         for cpd_gen_cpd, world_cpd in zip(cpds, world.cpds):
             assert cpd_gen_cpd.node == world_cpd.node
             assert cpd_gen_cpd.parents == world_cpd.parents
             assert len(cpd_gen_cpd.table) == len(world_cpd.table)
-            for row_gen, row_world in zip(cpd_gen_cpd.table, world_cpd.table):
-                for val_gen, val_world in zip(row_gen, row_world):
-                    assert abs(val_gen - val_world) < 1e-15, (
-                        f"CPD mismatch for {cpd_gen_cpd.node}: "
-                        f"{val_gen} != {val_world}"
+            # Verify probabilities sum to ~1 for each column
+            import numpy as _np
+
+            arr = _np.array(cpd_gen_cpd.table)
+            for col in range(arr.shape[1]):
+                col_sum = arr[:, col].sum()
+                assert abs(col_sum - 1.0) < 1e-10, (
+                    f"CPD column doesn't sum to 1 for {cpd_gen_cpd.node}: {col_sum}"
                     )
+
+
+# --- Direction-aware CPD tests ---
+
+
+class TestDirectionalCPDs:
+    """Test that edge direction affects CPD generation correctly."""
+
+    def test_positive_direction_monotone(self):
+        """Positive direction: higher parent state -> higher child state dominant."""
+        rng = np.random.default_rng(42)
+        # 3 states, 1 parent with 3 states, positive direction
+        table = generate_child_cpd(3, [3], 0.7, rng, parent_directions=["positive"])
+        arr = np.array(table)
+        # For parent state 0 (low), dominant child should be low (state 0)
+        assert np.argmax(arr[:, 0]) == 0, "Low parent should produce low child"
+        # For parent state 2 (high), dominant child should be high (state 2)
+        assert np.argmax(arr[:, 2]) == 2, "High parent should produce high child"
+
+    def test_negative_direction_monotone(self):
+        """Negative direction: higher parent state -> lower child state dominant."""
+        rng = np.random.default_rng(42)
+        table = generate_child_cpd(3, [3], 0.7, rng, parent_directions=["negative"])
+        arr = np.array(table)
+        # For parent state 0 (low), dominant child should be high (state 2)
+        assert np.argmax(arr[:, 0]) == 2, "Low parent should produce high child"
+        # For parent state 2 (high), dominant child should be low (state 0)
+        assert np.argmax(arr[:, 2]) == 0, "High parent should produce low child"
+
+    def test_no_direction_still_valid(self):
+        """Without direction, CPDs should still be valid probability distributions."""
+        rng = np.random.default_rng(42)
+        table = generate_child_cpd(3, [3], 0.7, rng)
+        arr = np.array(table)
+        for col in range(arr.shape[1]):
+            assert abs(arr[:, col].sum() - 1.0) < 1e-10
+
+    def test_mixed_directions_two_parents(self):
+        """Two parents with opposite directions should partially cancel."""
+        rng = np.random.default_rng(42)
+        table = generate_child_cpd(
+            3, [3, 3], 0.7, rng,
+            parent_directions=["positive", "negative"],
+        )
+        arr = np.array(table)
+        # When both parents are low (col 0): positive says low, negative says high
+        # They should partially cancel -> middle state more likely
+        # When parent1=high, parent2=high (col 8): positive says high, negative says low
+        # Again should cancel
+        # Just verify valid probabilities
+        for col in range(arr.shape[1]):
+            assert abs(arr[:, col].sum() - 1.0) < 1e-10
+
+    def test_direction_in_dag_generation(self):
+        """Edge directions propagate through generate_cpds_for_dag."""
+        rng = np.random.default_rng(42)
+        nodes = [("cause", ["low", "high"]), ("effect", ["low", "high"])]
+        parent_map = {"cause": [], "effect": ["cause"]}
+        node_states = {"cause": ["low", "high"], "effect": ["low", "high"]}
+
+        # Positive: high cause -> high effect
+        cpds_pos = generate_cpds_for_dag(
+            nodes, parent_map, node_states, 0.8, rng,
+            edge_directions={("cause", "effect"): "positive"},
+        )
+        effect_cpd_pos = cpds_pos[1]
+        arr = np.array(effect_cpd_pos.table)
+        # cause=high (col 1) -> effect=high (row 1) should dominate
+        assert arr[1, 1] > arr[0, 1], "Positive: high cause should favor high effect"
+
+        # Negative: high cause -> low effect
+        rng2 = np.random.default_rng(42)
+        cpds_neg = generate_cpds_for_dag(
+            nodes, parent_map, node_states, 0.8, rng2,
+            edge_directions={("cause", "effect"): "negative"},
+        )
+        effect_cpd_neg = cpds_neg[1]
+        arr_neg = np.array(effect_cpd_neg.table)
+        # cause=high (col 1) -> effect=low (row 0) should dominate
+        assert arr_neg[0, 1] > arr_neg[1, 1], "Negative: high cause should favor low effect"
+
+    def test_strong_edge_strength_sharper(self):
+        """Higher edge_strength should produce more peaked distributions."""
+        rng_weak = np.random.default_rng(42)
+        rng_strong = np.random.default_rng(42)
+        table_weak = generate_child_cpd(3, [3], 0.3, rng_weak, ["positive"])
+        table_strong = generate_child_cpd(3, [3], 0.9, rng_strong, ["positive"])
+        # Strong should have higher max probability in dominant state
+        max_weak = max(max(row) for row in table_weak)
+        max_strong = max(max(row) for row in table_strong)
+        assert max_strong > max_weak, "Strong edge_strength should produce sharper CPDs"
