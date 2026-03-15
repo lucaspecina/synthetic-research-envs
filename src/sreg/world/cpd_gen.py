@@ -82,13 +82,17 @@ def generate_child_cpd(
     if parent_directions is None:
         parent_directions = [None] * len(parent_cards)
 
-    # Direction signs: +1 for positive/neutral, -1 for negative
+    # Direction signs: +1 for positive, -1 for negative
+    # None = random sign (preserves signal without assuming direction)
     signs = []
-    for d in parent_directions:
-        if d == "negative":
+    for i, d in enumerate(parent_directions):
+        if d == "positive":
+            signs.append(1.0)
+        elif d == "negative":
             signs.append(-1.0)
         else:
-            signs.append(1.0)
+            # Random sign: preserves signal strength without assuming direction
+            signs.append(1.0 if rng.random() < 0.5 else -1.0)
 
     table = np.zeros((num_child_states, num_combos))
 
@@ -122,22 +126,27 @@ def generate_child_cpd(
             norm_score = total_score / total_weight  # -1 to +1
         else:
             norm_score = 0.0
+        # Clip to [-1, 1] for safety
+        norm_score = max(-1.0, min(1.0, norm_score))
         center = (norm_score + 1.0) / 2.0 * (num_child_states - 1)  # 0 to num_child_states-1
         center = max(0.0, min(float(num_child_states - 1), center))
-        dominant = int(round(center))
 
-        # Generate Dirichlet distribution peaked at dominant state
+        # Smooth interpolation: distribute alpha between floor and ceil states
         base = max(0.1, (1.0 - edge_strength) * 2.0)
         alpha = np.full(num_child_states, base)
-        alpha[dominant] += edge_strength * 15.0
+        peak_mass = edge_strength * 15.0
 
-        # Add slight noise to neighboring states for more natural distributions
-        if num_child_states > 2:
-            frac = center - int(center)
-            if dominant + 1 < num_child_states and frac > 0.3:
-                alpha[dominant + 1] += edge_strength * 5.0 * frac
-            if dominant - 1 >= 0 and frac < -0.3:
-                alpha[dominant - 1] += edge_strength * 5.0 * abs(frac)
+        floor_idx = int(center)
+        ceil_idx = min(floor_idx + 1, num_child_states - 1)
+        frac = center - floor_idx  # 0.0 to 1.0
+
+        if floor_idx == ceil_idx:
+            # Exactly on a state
+            alpha[floor_idx] += peak_mass
+        else:
+            # Interpolate between adjacent states
+            alpha[ceil_idx] += peak_mass * frac
+            alpha[floor_idx] += peak_mass * (1.0 - frac)
 
         probs = rng.dirichlet(alpha)
         table[:, col_idx] = probs
