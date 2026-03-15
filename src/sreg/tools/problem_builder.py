@@ -42,16 +42,23 @@ class ProblemBuilder:
         if data_config is None:
             if rich_data:
                 data_config = DataSamplerConfig(
-                    num_rows=50,
+                    num_rows=500,
                     format="tabular",
                     seed=world.seed,
                     multi_dataset=True,
-                    missing_rate=0.1,
+                    missing_rate=0.08,
+                    missing_mechanism="mar",
+                    measurement_noise=0.05,
                     narrative_observations=3,
                 )
             else:
                 data_config = DataSamplerConfig(
-                    num_rows=50, format="tabular", seed=world.seed,
+                    num_rows=500,
+                    format="tabular",
+                    seed=world.seed,
+                    measurement_noise=0.05,
+                    missing_rate=0.05,
+                    missing_mechanism="mar",
                 )
 
         # Hide observable parents of target from the dataset

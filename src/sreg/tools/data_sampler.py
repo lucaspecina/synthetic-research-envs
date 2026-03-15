@@ -63,6 +63,141 @@ class DataSamplerConfig(BaseModel):
             "the CSV. The agent must use research_action(observe) to reveal them."
         ),
     )
+    # Measurement realism (v2)
+    measurement_noise: float = Field(
+        default=0.0, ge=0.0, le=0.5,
+        description=(
+            "Probability of misclassifying a discrete state to an adjacent "
+            "state. Simulates measurement error. 0.0 = perfect measurement, "
+            "0.1 = 10% chance of adjacent-state flip. Applied to ordinal "
+            "variables only (not target, not latent, not nominal)."
+        ),
+    )
+    missing_mechanism: str = Field(
+        default="mcar",
+        description=(
+            "'mcar' = missing completely at random (current behavior). "
+            "'mar' = missing depends on observed parent variables. "
+            "More realistic: sicker patients more likely to have missing follow-up."
+        ),
+    )
+
+
+def _is_ordinal(states: list[str]) -> bool:
+    """Heuristic: a variable is ordinal if states suggest an order."""
+    ordinal_markers = {
+        "low", "medium", "high", "very_low", "very_high",
+        "none", "mild", "moderate", "severe",
+        "weak", "strong",
+        "short", "long",
+        "small", "large",
+        "few", "many",
+        "poor", "good", "excellent",
+        "preterm", "early_term", "full_term",
+        "shallow", "deep",
+        "young", "middle", "advanced",
+        "close", "far",
+        "dry", "wet",
+        "thin", "thick",
+        "absent", "present",
+    }
+    return any(s.lower() in ordinal_markers for s in states)
+
+
+def _apply_measurement_noise(
+    rows: list[dict],
+    world_nodes: list,
+    noise_rate: float,
+    rng,
+) -> list[dict]:
+    """Apply misclassification noise to ordinal variables.
+
+    For ordinal variables, flips the state to an adjacent one with
+    probability noise_rate. Does NOT apply to target or latent nodes.
+    """
+    if noise_rate <= 0:
+        return rows
+
+    # Build state info for each ordinal observable
+    ordinal_info: dict[str, list[str]] = {}
+    for node in world_nodes:
+        if node.type.value in ("latent", "target"):
+            continue
+        if _is_ordinal(node.states):
+            ordinal_info[node.name] = list(node.states)
+
+    for row in rows:
+        for col, states in ordinal_info.items():
+            if col not in row or row[col] == "not_measured":
+                continue
+            if rng.random() < noise_rate:
+                current = row[col]
+                if current in states:
+                    idx = states.index(current)
+                    # Flip to adjacent state
+                    if idx == 0:
+                        row[col] = states[1]
+                    elif idx == len(states) - 1:
+                        row[col] = states[-2]
+                    else:
+                        row[col] = states[idx + 1] if rng.random() < 0.5 else states[idx - 1]
+
+    return rows
+
+
+def _apply_mar_missingness(
+    rows: list[dict],
+    world_nodes: list,
+    world_edges: list,
+    missing_rate: float,
+    rng,
+) -> list[dict]:
+    """Apply MAR missingness: probability of missing depends on parent values.
+
+    Variables with parents that have "extreme" states (first or last state)
+    are more likely to be missing. This creates realistic bias: sicker patients
+    drop out more, extreme values are harder to measure.
+    """
+    if missing_rate <= 0:
+        return rows
+
+    # Build parent map
+    parent_map: dict[str, list[str]] = {}
+    for edge in world_edges:
+        parent = edge.from_node if hasattr(edge, "from_node") else edge[0]
+        child = edge.to_node if hasattr(edge, "to_node") else edge[1]
+        parent_map.setdefault(child, []).append(parent)
+
+    # Node state info
+    node_states = {n.name: list(n.states) for n in world_nodes}
+    target_names = {n.name for n in world_nodes if n.type.value == "target"}
+
+    for row in rows:
+        for col in list(row.keys()):
+            if col in ("sample_id",) or col in target_names:
+                continue
+            if row[col] == "not_measured":
+                continue
+
+            # Base missing rate, increased if parents have extreme values
+            p_missing = missing_rate
+            parents = parent_map.get(col, [])
+            for parent in parents:
+                if parent in row and parent in node_states:
+                    p_states = node_states[parent]
+                    val = row[parent]
+                    if val in p_states:
+                        idx = p_states.index(val)
+                        # Extreme states (first/last) increase missing probability
+                        if idx == 0 or idx == len(p_states) - 1:
+                            p_missing *= 2.0
+
+            p_missing = min(p_missing, 0.5)  # Cap at 50%
+
+            if rng.random() < p_missing:
+                row[col] = "not_measured"
+
+    return rows
 
 
 class DataSampler:
@@ -320,14 +455,55 @@ class DataSampler:
                 row[name] = state[name]
             rows.append(row)
 
+        # Apply measurement noise (misclassification)
+        if config.measurement_noise > 0:
+            import numpy as _np
+            noise_rng = _np.random.default_rng(config.seed + 99999)
+            rows = _apply_measurement_noise(rows, world.nodes, config.measurement_noise, noise_rng)
+
+        # Apply missingness
+        if config.missing_rate > 0:
+            import numpy as _np
+            miss_rng = _np.random.default_rng(config.seed + 88888)
+            if config.missing_mechanism == "mar":
+                rows = _apply_mar_missingness(
+                    rows, world.nodes, world.edges, config.missing_rate, miss_rng
+                )
+            else:
+                # MCAR fallback (original behavior)
+                for row in rows:
+                    for col in list(row.keys()):
+                        if col == "sample_id":
+                            continue
+                        if miss_rng.random() < config.missing_rate:
+                            row[col] = "not_measured"
+
+        # Build description with data quality notes
         title = world.scenario_title or world.domain or "research"
         slug = title.lower().replace(" ", "_").replace("-", "_")[:40]
+
+        quality_notes = []
+        if config.measurement_noise > 0:
+            quality_notes.append(
+                f"Measurement error: ~{config.measurement_noise:.0%} misclassification rate"
+            )
+        if config.missing_rate > 0:
+            mechanism = "correlated with variable severity" if config.missing_mechanism == "mar" else "random"
+            quality_notes.append(
+                f"Missing data: ~{config.missing_rate:.0%} ({mechanism})"
+            )
+        quality_str = ". ".join(quality_notes)
+
+        desc = (
+            f"Dataset with {config.num_rows} samples. "
+            f"Columns: {', '.join(visible_names)}."
+        )
+        if quality_str:
+            desc += f" Data quality notes: {quality_str}."
+
         return DataAsset(
             name=f"{slug}_data",
-            description=(
-                f"Dataset with {config.num_rows} samples. "
-                f"Columns: {', '.join(visible_names)}."
-            ),
+            description=desc,
             format="tabular",
             data=rows,
         )

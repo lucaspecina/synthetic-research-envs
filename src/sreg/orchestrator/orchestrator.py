@@ -610,9 +610,12 @@ class Orchestrator:
         num_rows = args.get("num_data_rows", 50)
 
         data_config = DataSamplerConfig(
-            num_rows=num_rows,
+            num_rows=max(num_rows, 200),  # Minimum 200 rows for realism
             format=data_format,
             seed=world.seed,
+            measurement_noise=0.05,  # 5% misclassification on ordinal variables
+            missing_rate=0.05,  # 5% MAR missingness
+            missing_mechanism="mar",  # Correlated with variable severity
         )
 
         # Use CasePlan if available (for richer question + actions)
