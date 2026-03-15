@@ -554,6 +554,81 @@ def _compare_scale(seed: InspirationProfile, src: InspirationProfile) -> Dimensi
     )
 
 
+# Controlled vocabulary for research actions
+_ACTION_ALIASES = {
+    "observe variables": "observe_variables",
+    "observe": "observe_variables",
+    "measure": "observe_variables",
+    "collect additional data": "collect_additional_data",
+    "collect data": "collect_additional_data",
+    "collect new data": "collect_additional_data",
+    "recoleccion de datos": "collect_additional_data",
+    "incorporate new measurements": "collect_additional_data",
+    "nuevas mediciones": "collect_additional_data",
+    "datos adicionales": "collect_additional_data",
+    "estimate causal effect": "estimate_causal_effect",
+    "causal inference": "estimate_causal_effect",
+    "causal attribution": "estimate_causal_effect",
+    "modelado causal": "estimate_causal_effect",
+    "inferencia causal": "estimate_causal_effect",
+    "counterfactual": "estimate_causal_effect",
+    "contrafactual": "estimate_causal_effect",
+    "compare interventions": "compare_interventions",
+    "simulate interventions": "compare_interventions",
+    "intervene": "compare_interventions",
+    "intervention": "compare_interventions",
+    "sensitivity analysis": "run_sensitivity_analysis",
+    "sensibilidad": "run_sensitivity_analysis",
+    "robustness": "run_sensitivity_analysis",
+    "stratify": "stratify_subgroups",
+    "subgroup": "stratify_subgroups",
+    "estratificacion": "stratify_subgroups",
+    "latent": "infer_latent_cause",
+    "infer latent": "infer_latent_cause",
+    "select next measurement": "select_next_measurement",
+    "select next measurements": "select_next_measurement",
+    "next best observation": "select_next_measurement",
+    "prioritize measurement": "select_next_measurement",
+    "value of information": "select_next_measurement",
+    "measurement prioritization": "select_next_measurement",
+    "risk assessment": "estimate_causal_effect",
+    "causal attribution": "estimate_causal_effect",
+    "intervention comparison": "compare_interventions",
+}
+
+# Parent categories for partial credit
+_ACTION_CATEGORIES = {
+    "observe_variables": "measure",
+    "collect_additional_data": "measure",
+    "select_next_measurement": "measure",
+    "estimate_causal_effect": "analyze",
+    "run_sensitivity_analysis": "analyze",
+    "stratify_subgroups": "analyze",
+    "infer_latent_cause": "analyze",
+    "compare_interventions": "intervene",
+}
+
+
+def _normalize_actions(actions: list[str]) -> set[str]:
+    """Normalize research action descriptions to controlled vocabulary."""
+    normalized = set()
+    for action in actions:
+        action_lower = action.lower().strip()
+        # Try exact match first
+        if action_lower in _ACTION_ALIASES:
+            normalized.add(_ACTION_ALIASES[action_lower])
+            continue
+        # Try ALL substring matches (one action can map to multiple types)
+        matched = False
+        for key, val in _ACTION_ALIASES.items():
+            if key in action_lower or action_lower in key:
+                normalized.add(val)
+                matched = True
+        if not matched:
+            normalized.add(action_lower)
+    return normalized
+
+
 def _compare_causal(seed: InspirationProfile, src: InspirationProfile) -> DimensionScore:
     """Compare causal structure features."""
     seed_set = set(seed.causal_features)
@@ -710,8 +785,18 @@ def compare_profiles(
     # 2. Scale
     dimensions.append(_compare_scale(seed, src))
 
-    # 3. Causal structure
-    dimensions.append(_compare_causal(seed, src))
+    # 3. Causal structure (scored on realization, not intent)
+    d3 = _compare_causal(seed, src)
+    # Add intent vs realization discrepancy note from manifest
+    m_causal = m.get("intended_causal_patterns", [])
+    if m_causal and d3.score < 0.75:
+        intended_str = "; ".join(m_causal)
+        d3.assessment += (
+            f". NOTE: manifest intended [{intended_str}] "
+            f"but DAG only realized [{', '.join(src.causal_features)}]. "
+            f"This is a generation gap, not an extraction gap."
+        )
+    dimensions.append(d3)
 
     # 4. Data types/problems — use manifest if available
     m_data = m.get("data_problems", {})
@@ -788,28 +873,57 @@ def compare_profiles(
         if m_signal.get("rationale"):
             d7_prev.assessment += f". {m_signal['rationale']}"
 
-    # 8. Research Actions — use manifest if available
-    m_actions = m.get("research_actions", {})
-    if m_actions and m_actions.get("intended_actions"):
-        intended = m_actions["intended_actions"]
-        not_supported = m_actions.get("not_supported", [])
-        d8 = _compare_simple(
-            "Research Actions",
-            ", ".join(seed.research_actions) or "not specified",
-            ", ".join(intended),
-            seed.research_actions,
-            intended,
-        )
-        if not_supported:
-            d8.assessment += f". Not supported: {', '.join(not_supported)}"
-    else:
+    # 8. Research Actions — normalize and compare
+    src_actions_raw = (
+        m.get("research_actions", {}).get("intended_actions", [])
+        if m.get("research_actions") else
+        src.research_actions
+    )
+    seed_norm = _normalize_actions(seed.research_actions)
+    src_norm = _normalize_actions(src_actions_raw)
+
+    if not seed_norm:
         d8 = DimensionScore(
             name="Research Actions",
-            seed_summary=", ".join(seed.research_actions) or "not specified",
-            src_summary="observe, intervene (generic)",
-            score=-1.0,
-            label="not assessable",
-            assessment="No manifest and SRC actions are generic",
+            seed_summary="not specified",
+            src_summary=", ".join(src_norm),
+            score=0.5,
+            label="partial",
+            assessment="Seed didn't specify research actions",
+        )
+    else:
+        # Direct overlap
+        overlap = seed_norm & src_norm
+        score = len(overlap) / max(len(seed_norm), 1)
+
+        # Partial credit via parent categories
+        if score < 1.0:
+            seed_cats = {_ACTION_CATEGORIES.get(a, a) for a in seed_norm}
+            src_cats = {_ACTION_CATEGORIES.get(a, a) for a in src_norm}
+            cat_overlap = seed_cats & src_cats
+            cat_score = len(cat_overlap) / max(len(seed_cats), 1)
+            # Blend: 70% direct, 30% category
+            score = 0.7 * score + 0.3 * cat_score
+
+        missing = seed_norm - src_norm
+        extra = src_norm - seed_norm
+        assessment = f"Matched: {', '.join(overlap) or 'none'}"
+        if missing:
+            assessment += f". Missing: {', '.join(missing)}"
+        if extra:
+            assessment += f". Extra: {', '.join(extra)}"
+
+        not_supported = m.get("research_actions", {}).get("not_supported", [])
+        if not_supported:
+            assessment += f". Not supported by SREG: {', '.join(not_supported)}"
+
+        d8 = DimensionScore(
+            name="Research Actions",
+            seed_summary=", ".join(seed_norm),
+            src_summary=", ".join(src_norm),
+            score=score,
+            label=_score_label(score),
+            assessment=assessment,
         )
     dimensions.append(d8)
 
