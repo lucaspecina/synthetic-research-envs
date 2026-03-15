@@ -293,3 +293,67 @@ The agent never sees this classification. It experiences the constraints.
 4. **Actions produce artifacts, not truth** — datasets, reports, failed attempts
 5. **Start with underspecified brief** — not fixed questions
 6. **BN stays as ground truth** — exact reward, no LLM judge
+
+---
+
+## Open Design Questions (for further analysis)
+
+### Generic vs Realistic Variable Names — CRITICAL for training
+
+**The problem:** if we train a model on SRCs with realistic names
+(`maternal_smoking`, `water_temperature`) but INVENTED causal relationships,
+the model may learn FALSE factual associations about the real world.
+
+Example: an SRC where `smoking -> birth_weight` is POSITIVE (more smoking =
+higher weight) for training purposes. A model trained on this might incorrectly
+"learn" that smoking helps birth weight.
+
+**Proposed solution: TWO modes**
+
+| Mode | Names | Use for |
+|------|-------|---------|
+| **Training mode** | Typed-generic: `exposure_1`, `outcome_primary`, `site_covariate` | RL training, curriculum, methodology learning |
+| **Evaluation mode** | Realistic: `maternal_smoking`, `birth_weight` | Benchmarking, paper-seeded cases, human review |
+
+Training mode teaches METHODOLOGY (how to investigate, design studies,
+handle confounders). Evaluation mode tests whether the skill transfers
+to realistic scientific language.
+
+**Not fully anonymous** (`var_17` is too sterile). Use role-typed labels:
+`prenatal_exposure_A`, `environmental_stressor_1`, `lab_marker_2`.
+
+**Codex assessment (round 8):** "Do NOT use realistic names with arbitrary
+synthetic truths as your main RL training corpus. That is the wrong tradeoff.
+You may accidentally train a model that is good at SREG and worse at science."
+
+### Continuous Variables + Other Model Types
+
+Current SREG only has discrete variables (`low/medium/high`) in Bayesian
+networks. Real science has continuous measurements, time series, ODEs, etc.
+
+**Assessment:** important for realism but lower priority than fixing the
+research interface (data, actions, evaluation). A continuous-variable system
+with the same toy action loop would still feel like a toy.
+
+**Plan:** v2.5 or v3 concern. Short-term: allow limited continuous extension
+(linear-Gaussian nodes) if cheap. Don't make "support arbitrary model families"
+the next milestone.
+
+### Task Structure: Primary + Secondary with Rubrics
+
+Real investigations have:
+- A primary research question (the main finding)
+- Secondary questions (validation, robustness, mechanism)
+- Process quality (did the researcher follow good practices?)
+
+**Idea:** score not just the final answer but the PROCESS:
+- Did the agent explore the data before claiming?
+- Did it check for confounders?
+- Did it run sensitivity analyses?
+- Did it qualify its claims appropriately?
+
+This could use rubrics (structured checklists) scored against the
+agent's trajectory, not just the final submission.
+
+**Status:** needs further design. Related to Change 4 (structured claims)
+but goes beyond it into process evaluation.
