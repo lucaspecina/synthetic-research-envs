@@ -144,6 +144,13 @@ class InspirationReport:
                     lines.append(f"{i}. ({qt}) {q}")
                 lines.append("")
 
+        # ---- Qualitative narrative comparison (THE MAIN CONTENT) ----
+        if self.narrative_comparison:
+            lines.append("## How the inspiration worked")
+            lines.append("")
+            lines.append(self.narrative_comparison)
+            lines.append("")
+
         # ---- Orchestrator's intent (manifest) ----
         if self.manifest:
             lines.append("## What the orchestrator intended")
@@ -191,13 +198,6 @@ class InspirationReport:
             if m.get("intentional_changes"):
                 lines.append(f"**Intentional changes:** {m['intentional_changes']}")
                 lines.append("")
-
-        # ---- Qualitative narrative comparison ----
-        if self.narrative_comparison:
-            lines.append("## Qualitative comparison")
-            lines.append("")
-            lines.append(self.narrative_comparison)
-            lines.append("")
 
         # ---- Overall score ----
         label = _score_label(self.overall_score)
@@ -974,29 +974,44 @@ def compare_profiles(
 # ---------------------------------------------------------------------------
 
 _NARRATIVE_PROMPT = """\
-You are writing a qualitative comparison between a research seed and a \
-synthetic research case (SRC) that was generated inspired by it.
+You are writing a qualitative, intuitive, friendly comparison between a \
+research seed and a synthetic research case (SRC) inspired by it.
 
-Write 3-4 paragraphs in a friendly, clear style (in the same language as \
-the seed if possible, otherwise English):
+Write in the same language as the seed (if Spanish, write in Spanish). \
+Be specific — cite variable names, question types, relationships. \
+Avoid jargon about "dimensions" or "scores". Tell the STORY of how the \
+inspiration worked.
 
-1. **What was preserved well**: What aspects of the original research did \
-the SRC capture faithfully? Be specific — mention variables, relationships, \
-question types that match.
+Structure your response in these 5 sections:
 
-2. **What was simplified or lost**: What complexity from the seed didn't \
-make it into the SRC? Missing variables, data problems not represented, \
-causal patterns lost. Explain WHY this matters.
+**1. The scientific work in the seed** (2-3 paragraphs)
+Explain what the original research is REALLY about. Not just the topic — \
+the TYPE of scientific work: What questions do the researchers ask? What \
+do they measure and why? What's the challenge? What makes this research \
+hard or interesting? Explain it like telling a colleague about a paper \
+you just read.
 
-3. **What the SRC added**: Did the SRC introduce things not in the seed? \
-Extra question types, new variables? Are these additions good (enriching \
-the case) or noise?
+**2. How the orchestrator discovered the variables** (1-2 paragraphs)
+Trace the process: the seed mentions N variables. Which ones did the \
+orchestrator pick up? Which did it rename or adapt? Which did it group \
+or simplify? Show the mapping — "the seed talks about fracture pressure, \
+PEM pressure, and their ratio — the SRC created three corresponding nodes."
 
-4. **Overall verdict**: In one paragraph, would a researcher working on the \
-seed's problem recognize the SRC as a relevant synthetic version of their \
-investigation? What's the single most important thing to improve?
+**3. The causal structure — what was captured** (1-2 paragraphs)
+What causal patterns from the seed made it into the SRC? Are confounders, \
+mediators, colliders, latent variables present? What causal story does \
+the SRC tell vs what the seed implied?
 
-Be specific, cite variable names and question types. Don't be generic.
+**4. The research questions — same type of investigation?** (1-2 paragraphs)
+This is the MOST IMPORTANT part. Compare the TYPE of questions: does the \
+SRC ask the same KIND of questions as the seed? Not the same words — the \
+same scientific reasoning. "What causes X?" maps to causal_effect. \
+"What should we measure next?" maps to next_best_observation. Etc.
+
+**5. Overall: would a researcher recognize this?** (1 paragraph)
+If a researcher working on the seed's problem saw the SRC, would they \
+say "yes, this feels like a synthetic version of my investigation"? \
+What's the single biggest gap?
 """
 
 
@@ -1008,30 +1023,68 @@ def _generate_narrative(
     model: str,
 ) -> str:
     """Generate a qualitative narrative comparing seed and SRC."""
-    # Build a summary of both profiles for the LLM
+    # Build rich context for the LLM
     context = (
-        f"SEED PROFILE:\n"
+        f"SEED:\n"
         f"- Domain: {seed.domain}\n"
         f"- Problem: {seed.problem_description}\n"
         f"- Summary: {seed.narrative_summary}\n"
         f"- Variables ({seed.variable_count}): {', '.join(seed.variable_names[:25])}\n"
         f"- Causal features: {', '.join(seed.causal_features)}\n"
-        f"- Latent: {', '.join(seed.latent_variables)}\n"
+        f"- Latent variables: {', '.join(seed.latent_variables)}\n"
         f"- Data problems: {', '.join(seed.data_problems)}\n"
-        f"- Question types: {', '.join(seed.question_types)}\n"
-        f"- Questions: {'; '.join(seed.question_descriptions[:5])}\n"
+        f"- Research questions: {'; '.join(seed.question_descriptions[:5])}\n"
         f"- Research actions: {', '.join(seed.research_actions)}\n"
-        f"\nSRC PROFILE:\n"
+    )
+
+    context += (
+        f"\nSRC GENERATED:\n"
         f"- Title: {src.problem_description}\n"
         f"- Variables ({src.variable_count}): {', '.join(src.variable_names)}\n"
-        f"- Causal features: {', '.join(src.causal_features)}\n"
-        f"- Latent: {', '.join(src.latent_variables)}\n"
+        f"- Causal features detected: {', '.join(src.causal_features)}\n"
+        f"- Latent variables: {', '.join(src.latent_variables)}\n"
         f"- Question types: {', '.join(src.question_types)}\n"
         f"- Questions: {'; '.join(src.question_descriptions[:5])}\n"
-        f"\nSCORES:\n"
     )
-    for d in report.dimensions:
-        context += f"- {d.name}: {d.score:.0%} ({d.label}) — {d.assessment}\n"
+
+    # Include manifest if available (the orchestrator's own explanation)
+    m = report.manifest
+    if m:
+        context += (
+            f"\nORCHESTRATOR'S OWN EXPLANATION (manifest):\n"
+            f"- Seed understanding: {m.get('seed_understanding', '')}\n"
+        )
+        scale = m.get("intended_scale", {})
+        if scale:
+            context += (
+                f"- Scale intent: seed ~{scale.get('seed_vars_estimate', '?')} vars "
+                f"-> {scale.get('target_src_nodes', '?')} nodes. "
+                f"{scale.get('rationale', '')}\n"
+            )
+        preserved = m.get("preserved_elements", [])
+        if preserved:
+            context += "- Preserved:\n"
+            for p in preserved:
+                context += f"  - {p.get('seed_element', '?')} -> {p.get('src_element', '?')}\n"
+        simplified = m.get("simplified_elements", [])
+        if simplified:
+            context += "- Simplified/dropped:\n"
+            for s in simplified:
+                context += f"  - {s.get('seed_element', '?')}: {s.get('why_dropped', '?')}\n"
+        causal = m.get("intended_causal_patterns", [])
+        if causal:
+            context += f"- Intended causal patterns: {'; '.join(causal)}\n"
+        qmap = m.get("question_mapping", [])
+        if qmap:
+            context += "- Question mapping:\n"
+            for q in qmap:
+                context += (
+                    f"  - \"{q.get('seed_question', '?')}\" -> "
+                    f"{q.get('src_eval_type', '?')}\n"
+                )
+        changes = m.get("intentional_changes", "")
+        if changes:
+            context += f"- Intentional changes: {changes}\n"
 
     try:
         response = client.chat.completions.create(
