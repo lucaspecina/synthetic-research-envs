@@ -54,6 +54,35 @@ class ProblemBuilder:
                     num_rows=50, format="tabular", seed=world.seed,
                 )
 
+        # Hide observable parents of target from the dataset
+        # Forces the agent to use research_actions to investigate
+        if not data_config.hidden_columns:
+            target = next((n for n in world.nodes if n.type == NodeType.TARGET), None)
+            if target:
+                # Find observable parents of the target
+                parent_names = set()
+                for edge in world.edges:
+                    to_node = edge.to_node if hasattr(edge, "to_node") else (
+                        edge[1] if isinstance(edge, (list, tuple)) else
+                        edge.get("to", "")
+                    )
+                    from_node = edge.from_node if hasattr(edge, "from_node") else (
+                        edge[0] if isinstance(edge, (list, tuple)) else
+                        edge.get("from", "")
+                    )
+                    if to_node == target.name:
+                        parent_names.add(from_node)
+
+                observable_parents = [
+                    name for name in parent_names
+                    if any(n.name == name and n.type == NodeType.OBSERVABLE
+                           for n in world.nodes)
+                ]
+                if observable_parents:
+                    data_config = data_config.model_copy(
+                        update={"hidden_columns": observable_parents}
+                    )
+
         # Sample data
         sampler = DataSampler()
         data_assets = sampler.sample(world, data_config)

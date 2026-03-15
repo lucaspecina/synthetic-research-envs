@@ -55,6 +55,14 @@ class DataSamplerConfig(BaseModel):
         default=None, ge=1,
         description="Rows in secondary dataset (defaults to num_rows // 3)",
     )
+    hidden_columns: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Observable columns to HIDE from the initial dataset. "
+            "These variables exist in the world but are not included in "
+            "the CSV. The agent must use research_action(observe) to reveal them."
+        ),
+    )
 
 
 class DataSampler:
@@ -69,7 +77,8 @@ class DataSampler:
             n for n in world.nodes
             if n.type != NodeType.LATENT or config.include_latent
         ]
-        visible_names = [n.name for n in visible_nodes]
+        hidden_set = set(config.hidden_columns)
+        visible_names = [n.name for n in visible_nodes if n.name not in hidden_set]
 
         if config.multi_dataset and len(visible_names) >= 4:
             assets.extend(
