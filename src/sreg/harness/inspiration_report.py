@@ -687,9 +687,15 @@ def _compare_simple(
 def compare_profiles(
     seed: InspirationProfile,
     src: InspirationProfile,
+    manifest: dict | None = None,
 ) -> InspirationReport:
-    """Compare seed and SRC profiles across all dimensions."""
+    """Compare seed and SRC profiles across all dimensions.
+
+    If manifest is provided, uses it to fill gaps in SRC extraction
+    (type_of_work, data_problems, signal_noise, research_actions).
+    """
     dimensions = []
+    m = manifest or {}
 
     # 1. Domain (simple match)
     d1 = _compare_simple("Domain & Problem", seed.domain, src.domain)
@@ -707,8 +713,21 @@ def compare_profiles(
     # 3. Causal structure
     dimensions.append(_compare_causal(seed, src))
 
-    # 4. Data types/problems (SRC extraction limited — mark as not assessable if empty)
-    if src.data_problems:
+    # 4. Data types/problems — use manifest if available
+    m_data = m.get("data_problems", {})
+    if m_data and m_data.get("preserved"):
+        src_data_str = ", ".join(m_data["preserved"])
+        d4 = _compare_simple(
+            "Data & Problems",
+            ", ".join(seed.data_problems) or "none",
+            src_data_str,
+            seed.data_problems,
+            m_data["preserved"],
+        )
+        not_repr = m_data.get("not_representable", [])
+        if not_repr:
+            d4.assessment += f". Not representable yet: {', '.join(not_repr)}"
+    elif src.data_problems:
         d4 = _compare_simple(
             "Data & Problems",
             ", ".join(seed.data_problems) or "none",
@@ -720,22 +739,33 @@ def compare_profiles(
         d4 = DimensionScore(
             name="Data & Problems",
             seed_summary=", ".join(seed.data_problems) or "none",
-            src_summary="(not yet extractable from SRC)",
-            score=-1.0,  # sentinel: not assessable
+            src_summary="(no manifest or extraction available)",
+            score=-1.0,
             label="not assessable",
-            assessment="SRC data problems cannot be extracted programmatically yet",
+            assessment="No manifest data_problems and SRC extraction limited",
         )
     dimensions.append(d4)
 
-    # 5. Type of work (infer from SRC actions if not explicit)
-    src_work = src.work_type
-    if not src_work and src.research_actions:
-        src_work = "observational + interventional" if "intervene" in src.research_actions else "observational"
-    d5 = _compare_simple("Type of Work", seed.work_type, src_work)
-    d5.assessment = f"Seed: {seed.work_type}. SRC: {src_work or 'not specified'}"
-    if seed.work_type and src_work:
-        d5.score = 0.75  # Both are present and roughly match
+    # 5. Type of work — use manifest if available
+    m_work = m.get("type_of_work", {})
+    if m_work and m_work.get("src_style"):
+        src_work = m_work["src_style"]
+        d5 = _compare_simple("Type of Work", seed.work_type, src_work)
+        d5.assessment = f"Seed: {seed.work_type}. SRC: {src_work}"
+        activities = m_work.get("researcher_activities", [])
+        if activities:
+            d5.assessment += f". Activities: {', '.join(activities)}"
+        d5.score = 0.75
         d5.label = _score_label(d5.score)
+    else:
+        src_work = src.work_type or (
+            "observational + interventional" if "intervene" in src.research_actions else ""
+        )
+        d5 = _compare_simple("Type of Work", seed.work_type, src_work)
+        d5.assessment = f"Seed: {seed.work_type}. SRC: {src_work or 'not specified'}"
+        if seed.work_type and src_work:
+            d5.score = 0.75
+            d5.label = _score_label(d5.score)
     dimensions.append(d5)
 
     # 6. Research questions (most important)
@@ -747,16 +777,40 @@ def compare_profiles(
     dimensions.append(d7)
 
     # 8. Research actions
-    # Research Actions (SRC only has generic types — mark not assessable for detailed comparison)
-    d8 = DimensionScore(
-        name="Research Actions",
-        seed_summary=", ".join(seed.research_actions) or "not specified",
-        src_summary="observe, intervene (generic)",
-        score=-1.0,  # not assessable at detail level
-        label="not assessable",
-        assessment="SRC actions are generic (observe/intervene). Detailed comparison "
-                   "requires richer action metadata (future work).",
-    )
+    # 7b. Signal vs Noise — enrich with manifest if available
+    m_signal = m.get("signal_noise", {})
+    if m_signal:
+        src_signal = m_signal.get("intended_signal", src.signal_strength)
+        detect = m_signal.get("detectability", "")
+        d7_prev = dimensions[-1]  # last added was signal
+        d7_prev.src_summary = f"{src_signal} (detectability: {detect})"
+        d7_prev.assessment = f"Seed: {seed.signal_strength}. SRC intent: {src_signal}, {detect}"
+        if m_signal.get("rationale"):
+            d7_prev.assessment += f". {m_signal['rationale']}"
+
+    # 8. Research Actions — use manifest if available
+    m_actions = m.get("research_actions", {})
+    if m_actions and m_actions.get("intended_actions"):
+        intended = m_actions["intended_actions"]
+        not_supported = m_actions.get("not_supported", [])
+        d8 = _compare_simple(
+            "Research Actions",
+            ", ".join(seed.research_actions) or "not specified",
+            ", ".join(intended),
+            seed.research_actions,
+            intended,
+        )
+        if not_supported:
+            d8.assessment += f". Not supported: {', '.join(not_supported)}"
+    else:
+        d8 = DimensionScore(
+            name="Research Actions",
+            seed_summary=", ".join(seed.research_actions) or "not specified",
+            src_summary="observe, intervene (generic)",
+            score=-1.0,
+            label="not assessable",
+            assessment="No manifest and SRC actions are generic",
+        )
     dimensions.append(d8)
 
     # Overall score (weighted — exclude not-assessable dimensions)
@@ -931,7 +985,7 @@ def generate_report(
         _model = model
 
     # Compare
-    report = compare_profiles(seed_profile, src_profile)
+    report = compare_profiles(seed_profile, src_profile, manifest=manifest)
 
     # Attach manifest if available
     report.manifest = manifest

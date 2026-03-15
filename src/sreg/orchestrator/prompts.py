@@ -882,6 +882,72 @@ TOOL_DEFINITIONS = [
                         },
                         "description": "How seed research questions map to SRC eval types",
                     },
+                    "type_of_work": {
+                        "type": "object",
+                        "description": "What type of research this is",
+                        "properties": {
+                            "seed_style": {
+                                "type": "string",
+                                "description": "observational | experimental | operational | mixed",
+                            },
+                            "src_style": {
+                                "type": "string",
+                                "description": "How the SRC represents this",
+                            },
+                            "researcher_activities": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "What the researcher does (e.g. identify drivers, compare interventions)",
+                            },
+                        },
+                    },
+                    "data_problems": {
+                        "type": "object",
+                        "description": "Data quality issues from the seed",
+                        "properties": {
+                            "preserved": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Data problems preserved in the SRC",
+                            },
+                            "not_representable": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Data problems from the seed that SREG cannot represent yet",
+                            },
+                        },
+                    },
+                    "signal_noise": {
+                        "type": "object",
+                        "description": "How strong/subtle the effects are",
+                        "properties": {
+                            "intended_signal": {
+                                "type": "string",
+                                "description": "weak | moderate | strong",
+                            },
+                            "detectability": {
+                                "type": "string",
+                                "description": "easy | moderate | hard",
+                            },
+                            "rationale": {"type": "string"},
+                        },
+                    },
+                    "research_actions": {
+                        "type": "object",
+                        "description": "What the researcher can do",
+                        "properties": {
+                            "intended_actions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Actions available in the SRC",
+                            },
+                            "not_supported": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Actions from the seed that SREG cannot support yet",
+                            },
+                        },
+                    },
                     "intentional_changes": {
                         "type": "string",
                         "description": "What you changed on purpose from the seed and why",
