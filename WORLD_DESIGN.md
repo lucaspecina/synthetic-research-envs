@@ -36,6 +36,11 @@ a la seccion que necesites:
 | **Quality gates + QualitySuite** | Que hace que un mundo sea "bueno" + metricas |
 | **Principios de PCG** | Generate-evaluate-refine, MAP-Elites, expressive range |
 | **Hallazgos experimentales** | Resultados de templates, DAGSpec, batch sweep |
+| **Hallazgos 5-SRC eval** | 5 dominios, budget 0 en 4/5, diagnostico Codex |
+|---|---|
+| **docs/REAL_RESEARCH_PATTERNS.md** | 10 patrones de investigacion real (papers + Codex) |
+| **docs/SREG_V2_DESIGN.md** | Plan de 5 cambios para ir de benchmark a research env |
+| **research/real_investigations_analysis.md** | Analisis detallado de 7 papers reales |
 | **Investigacion previa** | BoxingGym, DiscoveryWorld, Reasoning Core, benchmarks |
 
 ---
