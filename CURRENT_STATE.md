@@ -490,17 +490,44 @@ print(f"Observar: {out.recommended_action.node}, IG: {out.information_gain:.4f}"
 ```bash
 # Necesita: AZURE_INFERENCE_CREDENTIAL, AZURE_FOUNDRY_BASE_URL en .env
 
-# Generar SRC basico
-python scripts/generate_src.py --goal "marine ecology, 8 nodes" -o experiments/reef/
+# Desde un goal libre
+python scripts/generate_src.py --goal "marine ecology, 8 nodes" -o output/ --inspect
 
-# Con inspeccion completa (briefing, CSV, answer key, DAG)
-python scripts/generate_src.py --goal "football analytics" -o experiments/football/ --inspect
+# Desde un paper PDF (paper-seeded SRC)
+python scripts/generate_src.py --seed-file seeds/paper.pdf -o output/ --inspect
 
-# Con evaluacion del agente
-python scripts/generate_src.py --goal "epidemiology" -o experiments/epi/ --solve --seed 42
+# Desde un caso de negocio en markdown
+python scripts/generate_src.py --seed-file research_seed.md -o output/ --inspect
 
-# Desde research_seed.md
-python scripts/generate_src.py -o experiments/case/ --inspect
+# Con Inspiration Report (compara seed vs SRC)
+python scripts/generate_src.py --seed-file research_seed.md -o output/ --inspect --report
+
+# Con evaluacion del agente solver
+python scripts/generate_src.py --seed-file research_seed.md -o output/ --solve
+
+# Con solver usando vLLM local (Qwen)
+python scripts/generate_src.py --solve -o output/ \
+  --solver-base-url http://localhost:8000/v1 \
+  --solver-api-key none --solver-model Qwen/Qwen2.5-7B-Instruct
+```
+
+### Correr benchmarks externos
+```bash
+# CLadder (razonamiento causal, text-only)
+python scripts/run_benchmark.py -b cladder --subset dev
+
+# QRData (datos + causal, CON python_exec)
+python scripts/run_benchmark.py -b qrdata --subset dev --with-tools
+
+# Con backend vLLM
+python scripts/run_benchmark.py -b cladder \
+  --base-url http://localhost:8000/v1 --api-key none
+```
+
+### Levantar modelo local con vLLM
+```bash
+bash scripts/serve_model.sh --setup    # primera vez
+bash scripts/serve_model.sh            # sirve Qwen en localhost:8000
 ```
 
 ---
@@ -510,7 +537,9 @@ python scripts/generate_src.py -o experiments/case/ --inspect
 | Módulo | Ubicación | Qué hace |
 |--------|----------|----------|
 | **Models** | `src/sreg/models/` | Contratos de datos (Pydantic): World, Episode, Task, Score, ResearchProblem, DAGSpec, CasePlan. Tambien contratos preparatorios para trabajo futuro (AgentTool/Toolset, BenchmarkResult/Comparison, CodeExecConfig/Result, EnvAction/Observation/StepResult — NO son parte de SREG core, son interfaces para agent harness/training) |
-| **Inference** | `src/sreg/inference/` | Protocolo provider-agnostic para LLM: ModelClient, Message, ChatResponse, ToolSpec, ToolCall, Usage |
+| **Inference** | `src/sreg/inference/` | Protocolo provider-agnostic para LLM: ModelClient, OpenAIClient, ToolEnrichedClient (benchmarks con tools) |
+| **Benchmarks** | `src/sreg/benchmarks/` | Adaptadores para benchmarks externos: CLadder, QRData, DiscoveryBench |
+| **Training** | `src/sreg/training/` | Adaptador RL: SregEnv (verifiers), rubric, dataset gen, prompts |
 | **DAGSpec** | `src/sreg/models/dag_spec.py` | Contrato universal para DAGs arbitrarios (validaciones: acíclico, max parents, tipos) |
 | **CPD gen** | `src/sreg/world/cpd_gen.py` | Generación genérica de CPDs (extraída de templates, soporta estados heterogéneos) |
 | **Templates** | `src/sreg/world/templates/` | 4 generadores: latent_preference, causal_chain, fork_collider + **custom** (DAGSpec) |
