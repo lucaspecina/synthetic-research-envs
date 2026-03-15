@@ -1554,6 +1554,55 @@ question_text dentro de CasePlans convincentes.
 | 7. Senal vs ruido | OK parcial (edge_strength) | CPDs con direccion | Control fino |
 | 8. Acciones | OK observe + intervene | Costos realistas | request_dataset, consult |
 
+### Hallazgos de la evaluacion 5-SRC (2026-03-15)
+
+> 5 SRCs generados desde papers reales de dominios distintos:
+> 1. Vaca Muerta (oil & gas, 16 nodos)
+> 2. Smoking/Birthweight (epidemiologia perinatal, 9 nodos)
+> 3. Alcohol/COVID HCW (salud ocupacional, 12 nodos)
+> 4. Coral Reef Bleaching (ecologia marina, 15 nodos)
+> 5. School Performance (educacion/sociologia, 15 nodos)
+>
+> Todos generados con --inspect --solve --report. Resultados en experiments/eval_*/
+
+**Lo que funciona:**
+- End-to-end generation en 5 dominios distintos
+- CPDs con direccion correcta post-fix (smoking=heavy -> 97% preterm)
+- Escala razonable (9-16 nodos por caso)
+- Narrativas relevantes y apropiadas por dominio
+- 5 tasks por caso, variedad de eval types
+
+**Problema critico: el agente no investiga**
+- Budget usado: 0/9, 0/5, 0/7, **6/9**, 0/8
+- Solo en 1 de 5 casos el agente uso research_actions
+- El dataset CSV expone TODAS las variables observables de entrada
+- El agente analiza el dataset con python_exec y responde sin medir nada
+- Codex: "es un benchmark causal con wrappers realistas, no un ambiente
+  de investigacion. Si el agente puede saltear el loop de investigar,
+  no estamos entrenando investigacion"
+
+**Estructura causal**
+- DAGs tienden a ser convergentes (todo apunta al target)
+- Faltan confounders y mediadores que el seed implica
+- Inspiration Report: causal structure 20-60%
+
+**Calidad de respuestas**
+- Mezcla de GOOD y POOR por caso (no uniformemente malos)
+- POOR scores ambiguos: puede ser el agente O el ambiente
+- Tareas faciles se resuelven sin investigar, tareas dificiles fallan
+
+**Diagnostico general (Codex):**
+> "Un ambiente de investigacion real tiene tres propiedades:
+> 1. Incertidumbre util: el agente empieza materialmente ignorante
+> 2. Acciones consecuentes: medir/intervenir cambia lo que se puede saber
+> 3. Presion de identificacion: algunas preguntas solo se responden
+>    despues de reunir la evidencia correcta
+>
+> Los dominios se sienten reales, pero el loop de interaccion no."
+
+**Siguiente paso: LOOP.1 — ocultar variables en el dataset para forzar
+investigacion. Ver TODO.md.**
+
 ## Diseno de Research Cases — del TaskBundle al ResearchCase (analisis 2026-03-09)
 
 > **Este es el analisis mas importante del proyecto hasta ahora.** Cambia la

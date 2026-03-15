@@ -503,34 +503,67 @@
 
 ### Proximas prioridades (2026-03-15)
 
-> **Direccion estrategica (Codex + usuario, 2026-03-14):**
+> **Direccion estrategica (Codex + usuario, 2026-03-14/15):**
 > SREG no necesita mas capacidades. Necesita UN resultado creible.
-> El camino: CPDs realistas → reproducibilidad → evaluacion intensa de
-> calidad → dataset congelado → primer experimento de transfer.
+> El camino: CPDs realistas → loop epistemico → evaluacion intensa →
+> dataset congelado → primer experimento de transfer.
 >
-> Paper-seeded, mas eval types, y scaling son POSTERIORES a probar
-> que los SRCs que generamos son buenos y utiles para entrenar.
-
-#### FASE ACTUAL: calidad del generador
-
-##### CPD.1: CPDs con direccion realista (PROXIMO)
-> Hoy `cpd_gen` genera CPDs con `edge_strength` generico — controla
-> la MAGNITUD del efecto pero no la DIRECCION. Resultado: "mas smoking
-> = menos preterm" u otros absurdos. El LLM sabe la direccion correcta
-> (esta en el paper/seed) pero no la comunica a cpd_gen.
+> **Hallazgo critico (5-SRC evaluation, 2026-03-15):**
+> Corrimos 5 SRCs de papers reales (oil&gas, epidemiologia, salud
+> ocupacional, ecologia marina, educacion). Resultado:
+> - End-to-end funciona en los 5 dominios
+> - CPDs con direccion correcta (smoking=heavy -> 97% preterm)
+> - PERO: el solver uso 0 research_actions en 4/5 casos
+> - El agente responde desde el dataset sin investigar
+> - "Es un benchmark causal con wrappers realistas, pero NO un ambiente
+>   de investigacion" (Codex)
 >
-> El fix: que el orchestrator (o el LLM) especifique la direccion del
-> efecto para cada arista, y que cpd_gen lo respete.
->
-> Opciones de implementacion:
-> - El orchestrator pasa `direction` en cada edge de dag_construct
-> - El LLM genera un "effect direction hint" post-semantics
-> - cpd_gen infiere direccion de los nombres de variables (fragil)
+> **El problema #1: el ambiente no fuerza investigacion.**
+> Si un agente puede responder sin observar ni experimentar, no estamos
+> entrenando investigacion — estamos entrenando QA causal. El dataset
+> inicial revela demasiado. Las variables criticas deberian estar ocultas
+> hasta que el agente las pida.
 
-- [ ] **CPD.1**: Direccion de efecto en cada arista
-  - Definir como se especifica (en dag_construct? en apply_semantics?)
-  - cpd_gen respeta la direccion: "more X = more Y" vs "more X = less Y"
-  - No necesita ser perfecto — solo no absurdo
+#### FASE ACTUAL: hacer que el ambiente requiera investigar
+
+##### LOOP.1: Informacion oculta — forzar investigacion (PROXIMO)
+> El problema mas grave: el dataset CSV muestra TODAS las columnas
+> observables. El agente tiene toda la informacion de entrada.
+> No necesita usar research_actions porque ya tiene los datos.
+>
+> Fix: que el dataset inicial NO incluya todas las columnas. Algunas
+> variables solo se revelan cuando el agente las pide (research_action).
+> Asi el agente NECESITA investigar para tener informacion suficiente.
+>
+> Esto no es un cambio superficial — es lo que hace la diferencia entre
+> "benchmark causal" y "ambiente de investigacion".
+
+- [ ] **LOOP.1**: Ocultar variables en el dataset inicial
+  - El dataset CSV no incluye TODAS las columnas observables
+  - Algunas se revelan solo con research_action (observe)
+  - El agente empieza con informacion parcial y debe decidir que medir
+  - Configurar: que fraccion/cuales variables son visibles al inicio
+- [ ] **LOOP.2**: Tareas que requieran evidencia
+  - Verificar para cada tarea: es respondible sin observar?
+  - Tareas que dependen de variables ocultas REQUIEREN investigacion
+  - Agregar check: si una tarea es trivial sin acciones, rechazarla o advertir
+- [ ] **LOOP.3**: Penalizar respuestas sin soporte
+  - Reward shaping: responder sin haber observado deberia dar peor reward
+  - No es solo KL — es KL condicionado a si el agente investigo
+  - "Confianza sin evidencia" deberia penalizarse
+
+##### CPD.1: CPDs con direccion realista (COMPLETO)
+> RESUELTO. cpd_gen ahora usa modelo de scoring ordinal con signo.
+> El orchestrator especifica direction (positive/negative) por edge.
+> Verificado E2E: smoking=heavy -> 97% preterm (correcto).
+> Smooth interpolation, random sign for unknown, Codex reviewed.
+
+- [x] **CPD.1**: Direccion de efecto en cada arista
+  - Signed ordinal scoring reemplaza permutation voting
+  - dag_construct acepta direction: positive|negative por edge
+  - Smooth interpolation entre estados adyacentes
+  - Unknown direction: random sign (preserva signal sin asumir positivo)
+  - 7 tests nuevos, 1107 total
 - [ ] **CPD.2**: Validar CPDs generadas
   - Check basico: la direccion dominante coincide con lo especificado
   - Alerta si una CPD tiene direccion contraintuitiva
@@ -548,24 +581,36 @@
   - Formato compatible con training (SregEnv) y diagnostico
 
 ##### EVAL.1: Evaluacion intensa de calidad de SRCs
-> Antes de escalar o entrenar, necesitamos una evaluacion INTENSA de
-> los SRCs que el generador produce HOY. La QualitySuite v2 esta
-> desactualizada (solo 3 eval types, mundos programaticos). El
-> DiagnosticRunner existe pero el ultimo run fue hace dias.
+> **5-SRC eval COMPLETADA (2026-03-15)**: 5 dominios, resultados en
+> `experiments/eval_*`. Ver hallazgos arriba.
 >
-> Objetivo: entender cualitativamente que tan buenos son los SRCs,
-> que patrones aparecen, que falla sistematicamente, que funciona.
+> **Hallazgos clave:**
+> - Budget usado: 0/9, 0/5, 0/7, 6/9, 0/8 (solo coral reef investigo)
+> - CPD directions: correctas en todos los casos post-fix
+> - Causal structure: 20-60% inspiracion (DAGs demasiado simples)
+> - Scores: mezcla de GOOD y POOR por caso (no uniformemente malos)
+> - Narrativas: relevantes y apropiadas para cada dominio
+> - Escala: 9-16 nodos (razonable)
+>
+> **Diagnostico (Codex):**
+> - "Benchmark causal con wrappers realistas, no ambiente de investigacion"
+> - El agente responde sin investigar porque el dataset tiene toda la info
+> - Scores POOR pueden ser del agente O del ambiente — ambiguos
+> - Fix #1: ocultar variables para forzar investigacion (LOOP.1)
 
-- [ ] **EVAL.1**: Actualizar QualitySuite para 9 eval types
+- [x] **EVAL.1**: 5-SRC eval multi-dominio (oil&gas, epi, salud, eco, edu)
+  - Resultados en experiments/eval_*/
+  - Hallazgo principal: el agente no usa research_actions
+- [ ] **EVAL.2**: Actualizar QualitySuite para 9 eval types
   - Hoy solo cubre infer_target, NBO, hypothesis_selection
   - Agregar checks para los 6 tipos nuevos
-- [ ] **EVAL.2**: Correr diagnostico intenso (5-10 SRCs con LLM real)
-  - Generar SRCs variados (goals distintos, seeds distintos)
-  - Analizar cualitativamente CADA uno: narrativa, CPDs, preguntas, acciones
-  - Documentar patrones: que sale bien, que sale mal, por que
-- [ ] **EVAL.3**: Taxonomia de fallos
-  - Clasificar fallos sistematicos: CPD absurda, DAG trivial, pregunta/respuesta
-    desalineada, narrativa incoherente, acciones irrelevantes, etc.
+- [ ] **EVAL.3**: Re-evaluar post LOOP.1 (despues de ocultar variables)
+  - Correr los mismos 5 seeds de nuevo
+  - Verificar que ahora el agente SI investiga
+  - Comparar scores antes/despues
+- [ ] **EVAL.4**: Taxonomia de fallos
+  - Clasificar fallos sistematicos: DAG trivial, pregunta/respuesta
+    desalineada, agente no investiga, CPD incorrecta, etc.
   - Priorizar fixes basados en frecuencia e impacto
 
 #### FUTURO: hacia el primer resultado

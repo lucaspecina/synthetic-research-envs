@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+### 2026-03-15 — 5-SRC multi-domain evaluation + CPD direction fix
+- **CPD.1 COMPLETE**: directional CPDs via signed ordinal scoring model.
+  dag_construct edges accept direction (positive/negative). Verified E2E:
+  smoking=heavy -> 97% preterm. Smooth interpolation, Codex reviewed.
+- **5-SRC evaluation** across 5 domains (oil&gas, epidemiology, occupational
+  health, marine ecology, education). All generate + solve end-to-end.
+- **Critical finding**: solver used 0 research_actions in 4/5 cases.
+  The environment doesn't force investigation. Dataset exposes everything.
+  Codex: "benchmark causal, not research environment yet."
+- **Next priority**: LOOP.1 — hide variables to force active investigation.
+- TODO rewritten with LOOP.1-3 as top priority.
+- WORLD_DESIGN.md: new section with 5-SRC evaluation findings.
+
 ### 2026-03-14 — Inspiration Report (PS.2)
 - **`harness/inspiration_report.py`**: compares seed vs SRC on 8 dimensions
   with structured profiles, programmatic scoring, and markdown report.
