@@ -154,8 +154,12 @@ WORLD_DESIGN.md              # Research doc: dimensions, strategies, references,
 EVAL_DESIGN.md               # Evaluation strategy: metrics, experimental designs, infrastructure
 
 docs/
+├── SREG_V2_DESIGN.md        # V2 design: 10 patterns of real research + 5 changes + taxonomy
 ├── EXTERNAL_BENCHMARKS.md   # External benchmarks for transfer validation (CLadder, QRData, etc.)
 └── references/              # Original design docs (read-only)
+
+research/
+└── real_investigations_analysis.md  # Analysis of 7 real papers (969 lines)
 
 .claude/skills/      # Project skills: /plan, /status, /test, /review, /phase
 ```

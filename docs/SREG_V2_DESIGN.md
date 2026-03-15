@@ -14,22 +14,117 @@ environments. Evidence:
 - "Set algal_competition to low" is not a real experiment
 - Fixed pre-formulated questions say "benchmark", not "investigation"
 
-## The Diagnosis (from debate with Codex)
-
-**What real research has that SREG v1 doesn't:**
-1. Multiple data sources with different quality, resolution, provenance
-2. Messy, noisy, incomplete data with realistic problems
-3. Actions that commission studies, run experiments, request data — not reveal nodes
-4. Evidence that's produced, not merely accessed
-5. Underspecified problems where the researcher chooses what to investigate
-6. Claims with uncertainty, not exact answer submission
-
 **What SREG v1 does RIGHT that we keep:**
 - BN as exact ground truth (exact reward signals = differentiator)
 - 9 eval types that map to real research questions
 - Dataset generation from the BN
 - Agent solver with python_exec for real analysis
 - Orchestrator that designs cases from seeds/papers
+
+---
+
+## 10 Patterns That Make Real Research Real
+
+> From analysis of 7 real papers (epi, ecology, clinical, education,
+> materials, economics) + 7 rounds of debate with Codex.
+> Full paper analysis in `research/real_investigations_analysis.md`.
+
+### From real papers (7 studies)
+
+**1. Data assembly is half the work.**
+Each real study combines 3-8 heterogeneous data sources. Registries +
+surveys + satellite data. Different granularity, coverage, problems.
+A single clean CSV of 80 rows is unrealistic.
+*Example: Danish asthma study combines 7 national registries, 3-scale
+exposure models, and 2 cohorts with their own questionnaires.*
+
+**2. Identification strategy > statistical method.**
+The hard part is not "which regression" but "which comparison isolates
+the causal effect." Double negative controls, age-at-move variation,
+instrumental variables — each is a creative causal argument, not a formula.
+*An agent that only runs regressions is not doing research.*
+
+**3. Sensitivity analysis is multidimensional.**
+No study reports ONE answer. They vary model specification, confounder
+sets, sample definitions, aggregation levels. The PATTERN across
+specifications is what builds confidence.
+*SREG should evaluate whether the agent CHECKS its answer, not just
+whether the answer is correct.*
+
+**4. Constraints shape everything.**
+You can't randomize humans to pollution, heat a coral reef, or assign
+families to neighborhoods. Each investigation is DEFINED by what it
+CANNOT do. Constraints determine investigation type.
+*An SRC should start from constraints, not from variables.*
+
+**5. The answer depends on framing.**
+Same data, different valid conclusions: school funding appears harmful
+(no controls), neutral (with SES), or beneficial for low achievers
+(quantile regression). Dexamethasone helps ventilated patients but may
+harm mild cases.
+*There isn't ONE correct answer — there are defensible answers under
+different assumptions.*
+
+**6. Sequential decision-making.**
+Research unfolds as a series of decisions: initial results suggest
+something → measure in more detail → experiment fails → redesign →
+subgroup shows opposite effect → investigate why.
+*Not "receive data, analyze, answer." An iterative loop.*
+
+### From debate with Codex (7 rounds)
+
+**7. Researchers PRODUCE evidence, not reveal it.**
+In a benchmark, evidence exists and is "discovered." In real research,
+the researcher CREATES evidence: designs a study, recruits participants,
+fabricates samples, deploys instruments.
+*Actions should be "launch a data collection program with real
+constraints," not "reveal a hidden node."*
+
+**8. Data comes with systematic problems.**
+Not "clean + some noise." Real data has: MNAR missingness (sicker
+patients drop out more), differential measurement error (self-report
+underestimates smoking), selection bias (only survivors are observed).
+*These are threats to validity, not random noise.*
+
+**9. Claims have type and weight.**
+A researcher doesn't say "the answer is 0.34." They say: "We found a
+moderate association (OR 1.45, 95%CI 1.12-1.88). The evidence suggests
+a causal effect but we cannot rule out residual confounding."
+*A claim has type, strength, confidence, caveats, limitations.*
+
+**10. The problem is not pre-formulated.**
+A benchmark says "answer these 5 questions." A researcher starts with:
+"Reefs are dying — why?" and discovers which questions matter through
+exploration. Choosing WHAT to ask is part of the scientific work.
+
+### SREG v1 vs v2 on each pattern
+
+| Pattern | SREG v1 | SREG v2 (proposed) |
+|---------|---------|-------------------|
+| 1. Multi-source data | 1 CSV, 80 rows | 2-3 artifacts, 500-5000 rows |
+| 2. Identification | Not evaluated | Evaluate analytic choices |
+| 3. Sensitivity | Not required | Reward robustness checking |
+| 4. Constraints | Generic budget | Domain-specific constraints |
+| 5. Framing | 1 correct answer | Multiple defensible answers |
+| 6. Sequential | Atomic actions | Each result informs next step |
+| 7. Produce evidence | Reveal variables | Commission studies/experiments |
+| 8. Data problems | Clean sampling | Noise, MNAR, selection bias |
+| 9. Typed claims | Exact distribution | Direction + strength + confidence |
+| 10. Open problem | 5 fixed questions | General brief + free claims |
+
+### Papers analyzed
+
+| Domain | Paper | Investigation Type |
+|--------|-------|--------------------|
+| Epidemiology | Pedersen et al. (asthma + pollution, 1M subjects) | Observational cohort |
+| Ecology | Hughes et al. (coral bleaching, GBR) | Field survey + satellite |
+| Clinical | RECOVERY trial (dexamethasone, COVID) | Multi-center RCT |
+| Education | Jackson et al. (school funding) | Quasi-experimental |
+| Materials | High-entropy alloys (BO-guided) | Lab experimental |
+| Economics | Card & Krueger (minimum wage) | Natural experiment |
+| Ecology | Biodiversity-productivity | Causal inference observational |
+
+---
 
 ## The 5 Changes (incremental, not redesign)
 
