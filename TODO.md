@@ -501,7 +501,108 @@
   - Deuda S.5: agent reasoning depth varies by model (some skip research_actions),
     NBO scoring needs review, teacher comparison not implemented for case mode
 
-### Proximas prioridades (2026-03-14)
+### Proximas prioridades (2026-03-15)
+
+> **Direccion estrategica (Codex + usuario, 2026-03-14):**
+> SREG no necesita mas capacidades. Necesita UN resultado creible.
+> El camino: CPDs realistas → reproducibilidad → evaluacion intensa de
+> calidad → dataset congelado → primer experimento de transfer.
+>
+> Paper-seeded, mas eval types, y scaling son POSTERIORES a probar
+> que los SRCs que generamos son buenos y utiles para entrenar.
+
+#### FASE ACTUAL: calidad del generador
+
+##### CPD.1: CPDs con direccion realista (PROXIMO)
+> Hoy `cpd_gen` genera CPDs con `edge_strength` generico — controla
+> la MAGNITUD del efecto pero no la DIRECCION. Resultado: "mas smoking
+> = menos preterm" u otros absurdos. El LLM sabe la direccion correcta
+> (esta en el paper/seed) pero no la comunica a cpd_gen.
+>
+> El fix: que el orchestrator (o el LLM) especifique la direccion del
+> efecto para cada arista, y que cpd_gen lo respete.
+>
+> Opciones de implementacion:
+> - El orchestrator pasa `direction` en cada edge de dag_construct
+> - El LLM genera un "effect direction hint" post-semantics
+> - cpd_gen infiere direccion de los nombres de variables (fragil)
+
+- [ ] **CPD.1**: Direccion de efecto en cada arista
+  - Definir como se especifica (en dag_construct? en apply_semantics?)
+  - cpd_gen respeta la direccion: "more X = more Y" vs "more X = less Y"
+  - No necesita ser perfecto — solo no absurdo
+- [ ] **CPD.2**: Validar CPDs generadas
+  - Check basico: la direccion dominante coincide con lo especificado
+  - Alerta si una CPD tiene direccion contraintuitiva
+
+##### REPR.1: Reproducibilidad
+> Cada run del orchestrator genera un SRC distinto (LLM no determinista).
+> Necesitamos poder congelar un dataset para evaluacion y training.
+
+- [ ] **REPR.1**: Generacion reproducible
+  - Fijar seed del orchestrator LLM (temperature=0 si el modelo soporta)
+  - Fijar seeds de todas las herramientas (WorldGen, DataSampler, etc.)
+  - Exportar SRC congelado como JSON reproducible
+- [ ] **REPR.2**: Dataset congelado
+  - Generar N SRCs, guardarlos como dataset fijo
+  - Formato compatible con training (SregEnv) y diagnostico
+
+##### EVAL.1: Evaluacion intensa de calidad de SRCs
+> Antes de escalar o entrenar, necesitamos una evaluacion INTENSA de
+> los SRCs que el generador produce HOY. La QualitySuite v2 esta
+> desactualizada (solo 3 eval types, mundos programaticos). El
+> DiagnosticRunner existe pero el ultimo run fue hace dias.
+>
+> Objetivo: entender cualitativamente que tan buenos son los SRCs,
+> que patrones aparecen, que falla sistematicamente, que funciona.
+
+- [ ] **EVAL.1**: Actualizar QualitySuite para 9 eval types
+  - Hoy solo cubre infer_target, NBO, hypothesis_selection
+  - Agregar checks para los 6 tipos nuevos
+- [ ] **EVAL.2**: Correr diagnostico intenso (5-10 SRCs con LLM real)
+  - Generar SRCs variados (goals distintos, seeds distintos)
+  - Analizar cualitativamente CADA uno: narrativa, CPDs, preguntas, acciones
+  - Documentar patrones: que sale bien, que sale mal, por que
+- [ ] **EVAL.3**: Taxonomia de fallos
+  - Clasificar fallos sistematicos: CPD absurda, DAG trivial, pregunta/respuesta
+    desalineada, narrativa incoherente, acciones irrelevantes, etc.
+  - Priorizar fixes basados en frecuencia e impacto
+
+#### FUTURO: hacia el primer resultado
+
+> Estas tareas son para DESPUES de que los SRCs sean de calidad.
+> Las registramos ahora para no perderlas.
+
+##### Transfer experiment (cuando los SRCs sean buenos)
+- [ ] **TRANSFER.1**: Definir experimento falsificable
+  - Modelo base (ej: Qwen-7B)
+  - Benchmark de referencia (CLadder + QRData)
+  - Criterio de exito explicito: "si CLadder mejora >X% despues de entrenar
+    con N SRCs, SREG funciona. Si <Y%, no funciona."
+  - Definir ANTES de correr el experimento
+- [ ] **TRANSFER.2**: Controles negativos
+  - SRCs con DAGs random (misma narrativa, estructura causal sin sentido)
+  - SRCs con CPDs invertidas (relaciones al reves)
+  - SRCs sin estructura (solo texto narrativo, sin BN)
+  - Si entrenar con estos mejora IGUAL que con SRCs buenos, SREG no aporta
+    lo que promete — la mejora vendria de otra cosa (tool-use, formato, etc.)
+- [ ] **TRANSFER.3**: Quality gate para dataset de training
+  - Checks automaticos que cada SRC debe pasar para entrar al dataset:
+    - CPDs con direccion coherente
+    - Al menos 1 confounder o latente (no DAG trivial)
+    - Solver puede resolver al menos 3/5 preguntas
+    - Teacher beats random en >60% de rollouts
+    - Pregunta/respuesta alineadas
+  - Solo los que pasan entran al training. Los demas se descartan.
+- [ ] **TRANSFER.4**: Primer training + evaluacion
+  - Entrenar modelo con SRCs buenos (post quality gate)
+  - Evaluar BEFORE/AFTER en CLadder + QRData
+  - Comparar con controles negativos
+  - Documentar resultados
+
+---
+
+### Completado en sesion 2026-03-14/15 (15 commits)
 
 #### Infraestructura de inferencia unificada
 > **Principio**: un solo engine de inferencia con tres backends, reutilizable
