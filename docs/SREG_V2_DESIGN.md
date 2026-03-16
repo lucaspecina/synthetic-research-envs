@@ -298,6 +298,31 @@ The agent never sees this classification. It experiences the constraints.
 
 ## Open Design Questions (for further analysis)
 
+### HALLAZGO CRITICO: el solver shortcuttea con conocimiento preentrenado
+
+> Descubierto analizando la trayectoria real del caso coral reef (2026-03-15).
+> El solver hizo UNA llamada a python_exec (df.head() + value_counts), pensó
+> UNA vez, y respondió las 5 preguntas desde su conocimiento de ecología de
+> arrecifes. NO analizó los datos. NO usó los 3 datasets. NO investigó.
+>
+> Esto es más fundamental que las acciones o el formato de datos. Si el modelo
+> puede responder bien desde su pretraining, SREG no está enseñando investigación.
+> Está testeando recall de dominio.
+>
+> **Consecuencia directa:** los nombres genéricos para training ya no son
+> opcionales — son NECESARIOS para evitar que el modelo haga shortcut con
+> conocimiento previo. "herbivore_fish_biomass" le dice al modelo qué esperar.
+> "biotic_factor_B" lo fuerza a analizar los datos.
+
+**El problema real no es la interfaz del ambiente. Es que el ambiente es
+shortcutteable por priors semánticos del modelo preentrenado.**
+
+**Implicaciones:**
+1. Training DEBE usar nombres genéricos (typed-abstract, no realistas)
+2. Las preguntas deben depender de los datos DE ESTE EPISODIO, no de priors generales
+3. El scoring debe requerir evidencia de los artifacts, no solo plausibilidad
+4. El caso actual (current case) debe tener algo que solo se resuelve investigando
+
 ### Generic vs Realistic Variable Names — CRITICAL for training
 
 **The problem:** if we train a model on SRCs with realistic names
