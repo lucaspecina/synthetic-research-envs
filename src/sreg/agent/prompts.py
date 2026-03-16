@@ -648,12 +648,26 @@ def build_case_system_prompt(
     for i, task in enumerate(tasks, 1):
         questions_section += "\n" + _format_question(i, task, problem) + "\n"
 
+    # Count tabular datasets for the intro
+    tabular_count = sum(1 for a in problem.data_assets if a.format == "tabular")
+    if tabular_count > 1:
+        dataset_intro = (
+            f"You have {tabular_count} historical datasets from different sources, "
+            f"pre-loaded as `df`, `df_1`, `df_2`, etc. in the Python interpreter. "
+            f"Each has different variables, sample sizes, and quality. "
+            f"Use `python_exec` to explore ALL of them."
+        )
+    else:
+        dataset_intro = (
+            "The full dataset is pre-loaded as `df` (pandas DataFrame) in the Python "
+            "interpreter — it has ALL rows, not just the preview shown below."
+        )
+
     return f"""\
 You are a research scientist investigating a new case. You have been given \
-a historical dataset, the ability to run measurements and experiments on \
-the current case, and a Python interpreter for data analysis. \
-The full dataset is pre-loaded as `df` (pandas DataFrame) in the Python \
-interpreter — it has ALL rows, not just the preview shown below.
+historical datasets from multiple sources, the ability to run measurements \
+and experiments on the current case, and a Python interpreter for data analysis. \
+{dataset_intro}
 
 ## Research Problem: {problem.title}
 
@@ -661,8 +675,8 @@ interpreter — it has ALL rows, not just the preview shown below.
 {theoretical}
 ## Historical Reference Data
 
-The following is HISTORICAL data from previous cases. It shows patterns and \
-correlations, but it is NOT data about the current case.
+The following datasets are from previous cases. They show patterns and \
+correlations from different sources, but they are NOT data about the current case.
 {data_section}
 ## Measurements on the Current Case
 
