@@ -12,7 +12,7 @@ v2 changes from v1:
   - budget_ratio added for episode design quality
   - useful_bundle tightened (requires entropy reduction + 2 of 3 dimensions)
 
-See WORLD_DESIGN.md "Suite de evaluacion y validacion" for full specification.
+See research/notes/world_design_legacy.md for historical specification.
 """
 
 from __future__ import annotations

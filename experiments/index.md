@@ -5,7 +5,7 @@
 >
 > NOTA: estos son diagnosticos del generador, NO el benchmark real de SREG.
 > El benchmark real es el experimento de transferencia (BEFORE/AFTER en
-> benchmarks externos). Ver docs/EXTERNAL_BENCHMARKS.md.
+> benchmarks externos). Ver research/synthesis/benchmark_analysis.md.
 
 ## Experimentos
 

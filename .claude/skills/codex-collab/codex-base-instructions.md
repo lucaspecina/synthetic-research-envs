@@ -39,14 +39,13 @@ Every task must feel like a real research question, not a DAG exercise.
 
 ### Document hierarchy for THIS project
 
-1. `CLAUDE.md` — START HERE. Master guide, conventions, workflow, trigger table.
-2. `PROJECT.md` — Vision and soul. Every decision must align with this.
-3. `CURRENT_STATE.md` — What works TODAY. 766 tests, 9 eval types.
-4. `TODO.md` — Task tracking. Priorities, known issues, done items.
-5. `CHANGELOG.md` — History.
-6. `WORLD_DESIGN.md` — Research doc for world generation (Pearl theory, eval catalog).
-7. `EVAL_DESIGN.md` — Evaluation strategy.
-8. `docs/EXTERNAL_BENCHMARKS.md` — External benchmarks for transfer validation.
+1. `CLAUDE.md` — START HERE. Conventions, workflow, doc map.
+2. `PROJECT.md` — Vision, principles, invariants, hierarchy of decision.
+3. `ARCHITECTURE.md` — System design, contracts, flows, extension points.
+4. `CURRENT_STATE.md` — What exists TODAY. 1107 tests, 9 eval types.
+5. `TODO.md` — Pending work, open problems, backlog.
+6. `CHANGELOG.md` — History.
+7. `research/` — Analysis, findings, synthesis (see research/README.md).
 
 ### Three-level QA
 

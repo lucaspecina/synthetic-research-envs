@@ -110,7 +110,7 @@ Detalle en research/.
 
 - Adaptadores: CLadder, QRData, DiscoveryBench.
 - `ToolEnrichedClient`: wraps ModelClient, agrega python_exec + think.
-- BEFORE scores documentados en docs/BENCHMARK_RESULTS.md.
+- BEFORE scores documentados en research/notes/benchmark_results.md.
 - `run_benchmark.py`: --with-tools, --base-url, --api-key.
 
 ### Training / RL integration — Experimental

@@ -66,7 +66,7 @@ class ProblemBuilder:
         # The solver just mechanically revealed hidden columns without doing
         # genuine analysis. Future: redesign research_actions as realistic
         # experiments that return NEW datasets, not as variable reveals.
-        # See docs/SREG_V2_DESIGN.md "Change 3: Realistic Action Semantics"
+        # See research/notes/sreg_v2_design_findings.md "Change 3: Realistic Action Semantics"
         # and TODO.md for the roadmap.
 
         # Sample data

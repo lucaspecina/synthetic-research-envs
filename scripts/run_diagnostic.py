@@ -6,7 +6,7 @@ The diagnostic is PARTIAL and EVOLVING.
 
 NOTE: This is NOT the real benchmark of SREG. The real benchmark is the
 transfer experiment (BEFORE -> TRAIN on SREG -> AFTER on external benchmarks).
-See docs/EXTERNAL_BENCHMARKS.md. This diagnostic validates that the generator
+See research/synthesis/benchmark_analysis.md. This diagnostic validates that the generator
 produces quality environments.
 
 Usage:

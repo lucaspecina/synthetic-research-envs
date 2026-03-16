@@ -81,7 +81,7 @@ note that the environment diagnostic (`/eval`) should be re-run to verify
 environment quality. This is a NOTE, not a blocker — log it and move on.
 
 (Note: `/eval` runs the environment diagnostic, NOT the transfer benchmark.
-The transfer benchmark is a separate, future process — see docs/EXTERNAL_BENCHMARKS.md.)
+The transfer benchmark is a separate, future process — see research/synthesis/benchmark_analysis.md.)
 
 ## Report format
 

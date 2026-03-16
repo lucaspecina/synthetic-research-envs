@@ -1,6 +1,6 @@
 ---
 name: eval
-description: Run the SREG environment diagnostic — generator quality control using the REAL system with LLM. NOT unit tests. Validates that environments are well-formed, solvable, and non-trivial. NOTE: this is NOT the real benchmark (that's the transfer experiment — see docs/EXTERNAL_BENCHMARKS.md).
+description: Run the SREG environment diagnostic — generator quality control using the REAL system with LLM. NOT unit tests. Validates that environments are well-formed, solvable, and non-trivial. NOTE: this is NOT the real benchmark (that's the transfer experiment — see research/synthesis/benchmark_analysis.md).
 disable-model-invocation: true
 ---
 

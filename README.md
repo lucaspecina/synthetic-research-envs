@@ -161,7 +161,7 @@ The system extracts 8 **inspiration dimensions** from the seed:
 7. Signal vs noise
 8. Available research actions
 
-See `WORLD_DESIGN.md` for the full research on inspiration dimensions.
+See `research/` for the full research on inspiration dimensions.
 
 ## Evaluation types (9)
 
@@ -192,11 +192,12 @@ See `WORLD_DESIGN.md` for the full research on inspiration dimensions.
 
 | Document | What it contains |
 |----------|-----------------|
-| `PROJECT.md` | Vision, architecture, design principles |
-| `WORLD_DESIGN.md` | Research: inspiration dimensions, causal theory, eval catalog |
-| `CURRENT_STATE.md` | What the system does today, APIs, test coverage |
-| `TODO.md` | Task tracking, priorities |
+| `PROJECT.md` | Vision, principles, what SREG should achieve |
+| `ARCHITECTURE.md` | System design, contracts, flows, extension points |
+| `CURRENT_STATE.md` | What exists today, limitations, how to run |
+| `TODO.md` | Pending work, open problems, backlog |
 | `CHANGELOG.md` | Version history |
+| `research/` | Analysis, findings, synthesis (see research/README.md) |
 | `CLAUDE.md` | Project config, conventions, commit workflow |
 
 ## Architecture
