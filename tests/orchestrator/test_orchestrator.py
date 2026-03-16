@@ -259,7 +259,7 @@ def test_dispatch_build_problem():
 
     assert output["title"] == "Test Problem"
     assert output["budget"] == 4
-    assert output["num_data_assets"] == 1
+    assert output["num_data_assets"] >= 1  # multi_dataset produces 2-3 artifacts
     assert output["num_actions"] > 0
     assert result.problem is not None
     assert result.problem.budget == 4

@@ -245,31 +245,97 @@ class DataSampler:
         visible_names: list[str],
         config: DataSamplerConfig,
     ) -> list[DataAsset]:
-        """Generate primary + secondary datasets with column splits."""
+        """Generate 2-3 datasets with different roles and quality profiles.
+
+        Simulates how real research data comes from multiple sources:
+        - Background/public data: many rows, few columns, low noise
+        - Field/survey data: moderate rows, more columns, some missingness
+        - Detailed/lab data: few rows, specialized columns, high precision
+        """
         primary_cols, secondary_cols = self._split_columns(world, visible_names)
 
-        # Primary dataset: all rows
-        primary = self._tabular_subset(
-            world, solver, primary_cols, config.num_rows, config.seed,
-            name_suffix="primary", source="main study",
+        # Find target for inclusion in background
+        target_nodes = [n for n in world.nodes if n.type == NodeType.TARGET]
+        target_name = target_nodes[0].name if target_nodes else None
+
+        # Artifact 1: Background/public data — many rows, few key columns
+        bg_cols = [c for c in primary_cols if c == target_name or
+                   primary_cols.index(c) < len(primary_cols) // 2 + 1]
+        if target_name and target_name not in bg_cols:
+            bg_cols.append(target_name)
+        bg_rows = max(config.num_rows, 500)
+
+        background = self._tabular_subset(
+            world, solver, bg_cols, bg_rows, config.seed,
+            name_suffix="background_records",
+            source="historical records / administrative database",
         )
 
-        # Secondary dataset: fewer rows, different seed
-        sec_rows = config.secondary_rows or max(5, config.num_rows // 3)
-        secondary = self._tabular_subset(
-            world, solver, secondary_cols, sec_rows, config.seed + 10000,
-            name_suffix="supplementary", source="supplementary source",
+        # Artifact 2: Field/survey data — moderate rows, more columns, more missingness
+        survey_cols = list(set(primary_cols + secondary_cols[:len(secondary_cols) // 2]))
+        if target_name and target_name not in survey_cols:
+            survey_cols.append(target_name)
+        survey_rows = config.secondary_rows or max(50, config.num_rows // 3)
+
+        survey = self._tabular_subset(
+            world, solver, survey_cols, survey_rows, config.seed + 10000,
+            name_suffix="field_survey",
+            source="field survey / direct measurement campaign",
         )
 
-        assets = [primary, secondary]
+        assets = [background, survey]
 
-        # Inject missing data
+        # Artifact 3 (optional): Detailed data — few rows, specialized columns
+        if len(secondary_cols) >= 3:
+            detail_cols = secondary_cols[len(secondary_cols) // 2:]
+            if target_name and target_name not in detail_cols:
+                detail_cols.append(target_name)
+            detail_rows = max(15, config.num_rows // 10)
+
+            detailed = self._tabular_subset(
+                world, solver, detail_cols, detail_rows, config.seed + 20000,
+                name_suffix="detailed_analysis",
+                source="detailed laboratory / specialist analysis",
+            )
+            assets.append(detailed)
+
+        # Apply noise and missingness (v2 realism)
+        noise_rng = np.random.default_rng(config.seed + 30000)
+        miss_rng = np.random.default_rng(config.seed + 40000)
+
+        # Background: low noise, low missingness (administrative data is clean)
+        if config.measurement_noise > 0:
+            _apply_measurement_noise(background.data, world.nodes, config.measurement_noise * 0.3, noise_rng)
         if config.missing_rate > 0:
-            rng = np.random.default_rng(config.seed + 20000)
-            self._inject_missing(primary, config.missing_rate, rng)
-            # Secondary has slightly higher missing rate
-            sec_rate = min(config.missing_rate * 1.5, 0.3)
-            self._inject_missing(secondary, sec_rate, rng)
+            if config.missing_mechanism == "mar":
+                _apply_mar_missingness(background.data, world.nodes, world.edges, config.missing_rate * 0.5, miss_rng)
+            else:
+                self._inject_missing(background, config.missing_rate * 0.5, miss_rng)
+
+        # Survey: moderate noise, moderate missingness
+        if config.measurement_noise > 0:
+            _apply_measurement_noise(survey.data, world.nodes, config.measurement_noise, noise_rng)
+        if config.missing_rate > 0:
+            if config.missing_mechanism == "mar":
+                _apply_mar_missingness(survey.data, world.nodes, world.edges, config.missing_rate, miss_rng)
+            else:
+                self._inject_missing(survey, config.missing_rate, miss_rng)
+
+        # Detailed: low noise (precise instruments), minimal missingness
+        if len(assets) >= 3:
+            detailed_asset = assets[2]
+            if config.measurement_noise > 0:
+                _apply_measurement_noise(detailed_asset.data, world.nodes, config.measurement_noise * 0.2, noise_rng)
+
+        # Update descriptions with quality notes
+        for asset in assets:
+            rows = len(asset.data)
+            total = sum(1 for r in asset.data for k, v in r.items() if k != "sample_id")
+            miss = sum(1 for r in asset.data for k, v in r.items() if k != "sample_id" and v == "not_measured")
+            miss_pct = miss / max(total, 1)
+            if miss_pct > 0.01:
+                asset.description += f" Missing data: {miss_pct:.0%}."
+            asset.num_rows = rows
 
         return assets
 

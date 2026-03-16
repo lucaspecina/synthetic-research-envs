@@ -616,6 +616,7 @@ class Orchestrator:
             measurement_noise=0.05,  # 5% misclassification on ordinal variables
             missing_rate=0.05,  # 5% MAR missingness
             missing_mechanism="mar",  # Correlated with variable severity
+            multi_dataset=True,  # Multiple artifacts with different quality profiles
         )
 
         # Use CasePlan if available (for richer question + actions)

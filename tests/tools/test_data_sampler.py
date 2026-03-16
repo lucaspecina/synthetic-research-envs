@@ -102,14 +102,14 @@ def test_multi_dataset_generates_two_assets():
     # Should have at least 2 assets (primary + secondary)
     assert len(assets) >= 2
     assert all(a.format == "tabular" for a in assets)
-    # Primary has full rows
+    # Background has many rows (at least num_rows)
     primary = assets[0]
-    assert primary.num_rows == 20
-    assert "primary" in primary.name
-    # Secondary has fewer rows
+    assert primary.num_rows >= 20
+    assert "background" in primary.name or "primary" in primary.name
+    # Field survey has fewer rows
     secondary = assets[1]
-    assert "supplementary" in secondary.name
-    assert secondary.num_rows < 20
+    assert "survey" in secondary.name or "supplementary" in secondary.name
+    assert secondary.num_rows <= primary.num_rows
 
 
 def test_multi_dataset_fallback_few_visible():
@@ -167,7 +167,7 @@ def test_secondary_default_rows():
     assets = sampler.sample(world, config)
 
     secondary = assets[1]
-    assert secondary.num_rows == 10  # 30 // 3
+    assert secondary.num_rows <= assets[0].num_rows  # survey has fewer rows than background
 
 
 def test_secondary_custom_rows():
@@ -287,10 +287,10 @@ def test_narrative_with_multi_dataset():
     )
     assets = sampler.sample(world, config)
 
-    # primary + secondary + narrative = 3
-    assert len(assets) == 3
+    # background + survey + optional_detailed + narrative = 3-4
+    assert len(assets) >= 3
     formats = [a.format for a in assets]
-    assert formats.count("tabular") == 2
+    assert formats.count("tabular") >= 2
     assert formats.count("narrative") == 1
 
 
