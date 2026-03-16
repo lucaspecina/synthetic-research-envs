@@ -36,7 +36,7 @@ def main():
 
     base_url = os.environ.get("AZURE_FOUNDRY_BASE_URL", "")
     api_key = os.environ.get("AZURE_INFERENCE_CREDENTIAL", "")
-    model = os.environ.get("AZURE_MODEL", "gpt-5.4")
+    model = os.environ.get("AZURE_SOLVER_MODEL", os.environ.get("AZURE_MODEL", "gpt-5.4"))
     client = OpenAI(base_url=base_url, api_key=api_key)
 
     mode = src.get("metadata", {}).get("semantic_mode", "realistic")

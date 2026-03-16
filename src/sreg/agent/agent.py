@@ -23,6 +23,7 @@ from sreg.agent.prompts import (
 )
 from sreg.agent.python_exec import execute_code, make_python_namespace
 from sreg.env.episode import EpisodeRunner
+from sreg.inference.responses_utils import convert_tools_for_responses
 from sreg.models.episode import Action, ActionType, Observation
 from sreg.models.research_problem import ResearchProblem
 from sreg.models.score import Score
@@ -103,18 +104,7 @@ class AgentSolver:
         task: Task | None = None,
         on_step: Callable[[str, dict], None] | None = None,
     ) -> AgentResult:
-        """Run the agent on a research problem.
-
-        Args:
-            world: The underlying World (hidden from the agent).
-            problem: The ResearchProblem the agent sees.
-            seed: Seed for sampling the true state.
-            task: Optional Task for multi-type support. When provided,
-                the submit tool and scoring adapt to the task type.
-            on_step: Optional callback for real-time output. Called with
-                (event_type, data) where event_type is one of:
-                "thinking", "observe", "submit", "error".
-        """
+        """Run the agent on a research problem."""
         result = AgentResult()
         result.budget_total = problem.budget
         result.task_type = task.type if task else TaskType.INFER_TARGET
@@ -139,61 +129,77 @@ class AgentSolver:
 
         # Build the agent's prompt and tools (task-aware)
         system_prompt = build_agent_system_prompt(problem, task=task)
-        tools = build_agent_tools(task=task, target_states=problem.target_states)
+        tools = convert_tools_for_responses(
+            build_agent_tools(task=task, target_states=problem.target_states)
+        )
 
-        messages: list[dict] = [
+        messages_log: list[dict] = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": "Please analyze the data and solve this research problem."},
         ]
 
+        prev_response_id = None
+
         for iteration in range(self.max_iterations):
             logger.info(f"Agent iteration {iteration + 1}")
 
-            response = self._client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=tools,
-            )
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "tools": tools,
+            }
 
-            choice = response.choices[0]
-            message = choice.message
+            if prev_response_id is None:
+                kwargs["instructions"] = system_prompt
+                kwargs["input"] = "Please analyze the data and solve this research problem."
+            else:
+                kwargs["previous_response_id"] = prev_response_id
+                kwargs["input"] = self._pending_tool_outputs
 
-            # Add assistant message to history
+            response = self._client.responses.create(**kwargs)
+            prev_response_id = response.id
+
+            # Parse output items
+            text_content = None
+            tool_calls = []
+            for item in response.output:
+                if item.type == "message":
+                    for part in item.content:
+                        if hasattr(part, "text"):
+                            text_content = (text_content or "") + part.text
+                elif item.type == "function_call":
+                    tool_calls.append(item)
+
+            # Log assistant message
             msg_dict: dict[str, Any] = {"role": "assistant"}
-            if message.content:
-                msg_dict["content"] = message.content
-            if message.tool_calls:
+            if text_content:
+                msg_dict["content"] = text_content
+            if tool_calls:
                 msg_dict["tool_calls"] = [
                     {
-                        "id": tc.id,
+                        "id": tc.call_id,
                         "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
+                        "function": {"name": tc.name, "arguments": tc.arguments},
                     }
-                    for tc in message.tool_calls
+                    for tc in tool_calls
                 ]
-            messages.append(msg_dict)
+            messages_log.append(msg_dict)
 
             # Notify callback about agent thinking
-            if on_step and message.content:
+            if on_step and text_content:
                 on_step("thinking", {
-                    "content": message.content,
+                    "content": text_content,
                     "iteration": iteration + 1,
                 })
 
-            if choice.finish_reason == "stop" and not message.tool_calls:
+            if not tool_calls:
                 logger.info("Agent finished without submitting")
                 break
 
-            if not message.tool_calls:
-                break
-
             # Process tool calls
-            for tool_call in message.tool_calls:
-                fn_name = tool_call.function.name
-                fn_args = json.loads(tool_call.function.arguments)
+            self._pending_tool_outputs = []
+            for tc in tool_calls:
+                fn_name = tc.name
+                fn_args = json.loads(tc.arguments)
                 logger.info(f"Agent tool call: {fn_name}({fn_args})")
 
                 tool_result = self._dispatch_tool(
@@ -211,24 +217,27 @@ class AgentSolver:
                     elif fn_name == "submit":
                         on_step("submit", tool_result)
 
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": json.dumps(tool_result, default=str),
-                    }
-                )
+                result_str = json.dumps(tool_result, default=str)
+                messages_log.append({
+                    "role": "tool",
+                    "tool_call_id": tc.call_id,
+                    "content": result_str,
+                })
+                self._pending_tool_outputs.append({
+                    "type": "function_call_output",
+                    "call_id": tc.call_id,
+                    "output": result_str,
+                })
 
                 # If agent submitted, we're done
                 if fn_name == "submit" and "error" not in tool_result:
                     break
 
-            # Check if episode is done (distribution types finish via runner,
-            # non-distribution types finish via submitted_answer)
+            # Check if episode is done
             if runner.is_finished or result.submitted_answer is not None:
                 break
 
-        result.messages = messages
+        result.messages = messages_log
 
         # Score the agent
         if result.submitted_answer is not None:
@@ -416,8 +425,6 @@ class AgentSolver:
         task: Task | None = None,
     ) -> dict:
         """Handle distribution submission (infer_target, causal_effect, etc.)."""
-        # Use task-specific states when available (e.g. infer_latent_cause
-        # has different states than problem.target_states)
         if task and task.correct_answer:
             expected_states = list(task.correct_answer.keys())
         else:
@@ -425,9 +432,6 @@ class AgentSolver:
 
         distribution = args.get("distribution", {})
 
-        # Fallback: LLM sometimes puts state keys at top level instead of
-        # nesting under "distribution". Auto-correct silently to avoid
-        # wasting a turn on format retry.
         if not distribution:
             state_set = set(expected_states)
             top_level = {
@@ -485,7 +489,6 @@ class AgentSolver:
         choice = args.get("choice", "")
 
         if not choice:
-            # Fallback: look for common patterns in args
             for key in ("answer", "selection", "hypothesis"):
                 if key in args and isinstance(args[key], str):
                     choice = args[key]
@@ -568,10 +571,6 @@ class AgentSolver:
         task_type = task.type if task else TaskType.INFER_TARGET
 
         if task_type in DISTRIBUTION_TYPES:
-            # KL divergence scoring
-            # Use task.correct_answer when available (e.g. causal_effect has
-            # P(target|do(X=x)), infer_latent_cause has P(latent|evidence)).
-            # Fall back to runner posterior for infer_target without explicit task.
             if task is not None and task.correct_answer:
                 true_posterior = task.correct_answer
             else:
@@ -668,49 +667,64 @@ class AgentSolver:
 
         # Build unified prompt and tools
         system_prompt = build_case_system_prompt(problem, tasks)
-        tools = build_case_tools()
+        tools = convert_tools_for_responses(build_case_tools())
 
-        messages: list[dict] = [
+        messages_log: list[dict] = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": "Please investigate this case and answer all questions."},
         ]
 
+        prev_response_id = None
         n_submitted = 0
 
         for iteration in range(self.max_iterations):
             logger.info(f"Case solver iteration {iteration + 1}")
 
-            response = self._client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=tools,
-            )
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "tools": tools,
+            }
 
-            choice = response.choices[0]
-            message = choice.message
+            if prev_response_id is None:
+                kwargs["instructions"] = system_prompt
+                kwargs["input"] = "Please investigate this case and answer all questions."
+            else:
+                kwargs["previous_response_id"] = prev_response_id
+                kwargs["input"] = self._pending_tool_outputs
 
-            # Add assistant message to history
+            response = self._client.responses.create(**kwargs)
+            prev_response_id = response.id
+
+            # Parse output items
+            text_content = None
+            tool_calls = []
+            for item in response.output:
+                if item.type == "message":
+                    for part in item.content:
+                        if hasattr(part, "text"):
+                            text_content = (text_content or "") + part.text
+                elif item.type == "function_call":
+                    tool_calls.append(item)
+
+            # Log assistant message
             msg_dict: dict[str, Any] = {"role": "assistant"}
-            if message.content:
-                msg_dict["content"] = message.content
-            if message.tool_calls:
+            if text_content:
+                msg_dict["content"] = text_content
+            if tool_calls:
                 msg_dict["tool_calls"] = [
                     {
-                        "id": tc.id,
+                        "id": tc.call_id,
                         "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
+                        "function": {"name": tc.name, "arguments": tc.arguments},
                     }
-                    for tc in message.tool_calls
+                    for tc in tool_calls
                 ]
-            messages.append(msg_dict)
+            messages_log.append(msg_dict)
 
-            if on_step and message.content:
-                on_step("thinking", {"content": message.content, "iteration": iteration + 1})
+            if on_step and text_content:
+                on_step("thinking", {"content": text_content, "iteration": iteration + 1})
 
-            if not message.tool_calls:
+            if not tool_calls:
                 # Agent responded with text but no tool calls.
                 # If there are unanswered questions, nudge it to use submit tool.
                 if n_submitted < len(tasks):
@@ -721,15 +735,20 @@ class AgentSolver:
                     nudge = (
                         f"You have {len(unanswered)} unanswered question(s): "
                         f"{unanswered}. You MUST use the `submit` tool (function call) "
-                        f"for each one. Do NOT write answers as text — use the tool."
+                        f"for each one. Do NOT write answers as text -- use the tool."
                     )
-                    messages.append({"role": "user", "content": nudge})
+                    messages_log.append({"role": "user", "content": nudge})
+                    # Send nudge as new input continuing the conversation
+                    self._pending_tool_outputs = [
+                        {"role": "user", "content": nudge}
+                    ]
                     continue
                 break
 
-            for tool_call in message.tool_calls:
-                fn_name = tool_call.function.name
-                fn_args = json.loads(tool_call.function.arguments)
+            self._pending_tool_outputs = []
+            for tc in tool_calls:
+                fn_name = tc.name
+                fn_args = json.loads(tc.arguments)
                 logger.info(f"Case solver tool call: {fn_name}({fn_args})")
 
                 tool_result = self._dispatch_case_tool(
@@ -746,10 +765,16 @@ class AgentSolver:
                     elif fn_name == "submit":
                         on_step("submit", tool_result)
 
-                messages.append({
+                result_str = json.dumps(tool_result, default=str)
+                messages_log.append({
                     "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(tool_result, default=str),
+                    "tool_call_id": tc.call_id,
+                    "content": result_str,
+                })
+                self._pending_tool_outputs.append({
+                    "type": "function_call_output",
+                    "call_id": tc.call_id,
+                    "output": result_str,
                 })
 
                 if fn_name == "submit" and "error" not in tool_result:
@@ -759,7 +784,7 @@ class AgentSolver:
             if n_submitted >= len(tasks):
                 break
 
-        case_result.messages = messages
+        case_result.messages = messages_log
         case_result.budget_used = problem.budget - runner.budget_remaining
         case_result.observations = list(runner.evidence.items())
 
@@ -808,7 +833,7 @@ class AgentSolver:
         tasks: list[Task],
         case_result: CaseResult,
     ) -> dict:
-        """Handle submit in multi-task mode — routes by question number."""
+        """Handle submit in multi-task mode -- routes by question number."""
         q_num = args.get("question")
         if q_num is None:
             return {"error": "You must provide 'question' (the question number, e.g. 1)."}
@@ -830,7 +855,6 @@ class AgentSolver:
         if task_type in DISTRIBUTION_TYPES:
             distribution = args.get("distribution", {})
             if not distribution:
-                # Fallback: check top-level keys
                 if task.correct_answer:
                     state_set = set(task.correct_answer.keys())
                     top_level = {

@@ -28,24 +28,32 @@ def _make_problem(world):
 
 
 def _make_mock_response(content=None, tool_calls=None, finish_reason="stop"):
-    message = MagicMock()
-    message.content = content
-    message.tool_calls = tool_calls
-
-    choice = MagicMock()
-    choice.message = message
-    choice.finish_reason = finish_reason
+    """Create a mock Responses API response."""
+    output = []
+    if content:
+        text_part = MagicMock()
+        text_part.text = content
+        msg_item = MagicMock()
+        msg_item.type = "message"
+        msg_item.content = [text_part]
+        output.append(msg_item)
+    if tool_calls:
+        output.extend(tool_calls)
 
     response = MagicMock()
-    response.choices = [choice]
+    response.output = output
+    response.id = f"resp-{id(response)}"
+    response.status = "completed"
     return response
 
 
 def _make_tool_call(call_id, name, args):
+    """Create a mock function_call output item (Responses API format)."""
     tc = MagicMock()
-    tc.id = call_id
-    tc.function.name = name
-    tc.function.arguments = json.dumps(args)
+    tc.type = "function_call"
+    tc.call_id = call_id
+    tc.name = name
+    tc.arguments = json.dumps(args)
     return tc
 
 
@@ -676,7 +684,7 @@ def test_agent_research_action_then_submit():
         finish_reason="tool_calls",
     )
 
-    client.chat.completions.create.side_effect = [resp1, resp2]
+    client.responses.create.side_effect = [resp1, resp2]
 
     agent = AgentSolver(client=client, max_iterations=10)
     result = agent.solve(world, problem, seed=0)
@@ -713,7 +721,7 @@ def test_agent_observe_then_submit():
         finish_reason="tool_calls",
     )
 
-    client.chat.completions.create.side_effect = [resp1, resp2]
+    client.responses.create.side_effect = [resp1, resp2]
 
     agent = AgentSolver(client=client, max_iterations=10)
     result = agent.solve(world, problem, seed=0)
@@ -738,7 +746,7 @@ def test_agent_direct_submit():
         tool_calls=[_make_tool_call("call_1", "submit", {"distribution": dist})],
         finish_reason="tool_calls",
     )
-    client.chat.completions.create.side_effect = [resp]
+    client.responses.create.side_effect = [resp]
 
     agent = AgentSolver(client=client, max_iterations=10)
     result = agent.solve(world, problem, seed=0)
@@ -760,12 +768,12 @@ def test_agent_max_iterations():
         tool_calls=[_make_tool_call("call_x", "observe", {"variable": node})],
         finish_reason="tool_calls",
     )
-    client.chat.completions.create.return_value = resp
+    client.responses.create.return_value = resp
 
     agent = AgentSolver(client=client, max_iterations=3)
     result = agent.solve(world, problem, seed=0)
 
-    assert client.chat.completions.create.call_count == 3
+    assert client.responses.create.call_count == 3
     assert result.submitted_answer is None
     assert result.score is None
 
@@ -783,7 +791,7 @@ def test_agent_solve_with_choice_task():
         ],
         finish_reason="tool_calls",
     )
-    client.chat.completions.create.side_effect = [resp]
+    client.responses.create.side_effect = [resp]
 
     agent = AgentSolver(client=client, max_iterations=10)
     result = agent.solve(world, problem, seed=0, task=task)
@@ -810,7 +818,7 @@ def test_agent_solve_with_intervention_task():
         ],
         finish_reason="tool_calls",
     )
-    client.chat.completions.create.side_effect = [resp]
+    client.responses.create.side_effect = [resp]
 
     agent = AgentSolver(client=client, max_iterations=10)
     result = agent.solve(world, problem, seed=0, task=task)

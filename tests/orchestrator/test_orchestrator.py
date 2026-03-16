@@ -289,26 +289,32 @@ def test_dispatch_unknown_tool():
 
 
 def _make_mock_response(content=None, tool_calls=None, finish_reason="stop"):
-    """Build a mock ChatCompletion response."""
-    message = MagicMock()
-    message.content = content
-    message.tool_calls = tool_calls
-
-    choice = MagicMock()
-    choice.message = message
-    choice.finish_reason = finish_reason
+    """Build a mock Responses API response."""
+    output = []
+    if content:
+        text_part = MagicMock()
+        text_part.text = content
+        msg_item = MagicMock()
+        msg_item.type = "message"
+        msg_item.content = [text_part]
+        output.append(msg_item)
+    if tool_calls:
+        output.extend(tool_calls)
 
     response = MagicMock()
-    response.choices = [choice]
+    response.output = output
+    response.id = f"resp-{id(response)}"
+    response.status = "completed"
     return response
 
 
 def _make_tool_call(call_id, name, args):
-    """Build a mock tool call."""
+    """Build a mock function_call output item (Responses API format)."""
     tc = MagicMock()
-    tc.id = call_id
-    tc.function.name = name
-    tc.function.arguments = json.dumps(args)
+    tc.type = "function_call"
+    tc.call_id = call_id
+    tc.name = name
+    tc.arguments = json.dumps(args)
     return tc
 
 
@@ -367,7 +373,7 @@ def test_orchestrator_full_loop():
         finish_reason="stop",
     )
 
-    client.chat.completions.create.side_effect = [resp1, resp2, resp3, resp4]
+    client.responses.create.side_effect = [resp1, resp2, resp3, resp4]
 
     orch = Orchestrator(client=client, max_iterations=10)
     result = orch.run("Generate a medium-difficulty world for testing")
@@ -380,7 +386,7 @@ def test_orchestrator_full_loop():
     assert len(result.messages) > 0
 
     # Verify the client was called 4 times
-    assert client.chat.completions.create.call_count == 4
+    assert client.responses.create.call_count == 4
 
 
 def test_orchestrator_retry_on_validation_failure():
@@ -436,7 +442,7 @@ def test_orchestrator_retry_on_validation_failure():
     # Step 5: Done
     resp5 = _make_mock_response(content="Done", finish_reason="stop")
 
-    client.chat.completions.create.side_effect = [resp1, resp2, resp3, resp4, resp5]
+    client.responses.create.side_effect = [resp1, resp2, resp3, resp4, resp5]
 
     orch = Orchestrator(client=client, max_iterations=10)
     result = orch.run("Generate a world, retry if needed")
@@ -465,12 +471,12 @@ def test_orchestrator_max_iterations():
         ],
         finish_reason="tool_calls",
     )
-    client.chat.completions.create.return_value = resp
+    client.responses.create.return_value = resp
 
     orch = Orchestrator(client=client, max_iterations=3)
     orch.run("Generate endlessly")
 
-    assert client.chat.completions.create.call_count == 3
+    assert client.responses.create.call_count == 3
 
 
 # --- dag_generate tool ---

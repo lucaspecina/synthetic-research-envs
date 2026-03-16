@@ -10,6 +10,7 @@ from sreg.inference.protocol import (
     ToolSpec,
     Usage,
 )
+from sreg.inference.responses_utils import convert_tools_for_responses
 
 __all__ = [
     "ChatResponse",
@@ -20,4 +21,5 @@ __all__ = [
     "ToolCall",
     "ToolSpec",
     "Usage",
+    "convert_tools_for_responses",
 ]

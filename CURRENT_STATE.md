@@ -9,13 +9,16 @@
 
 ## Resumen ejecutivo
 
-- **1107 tests**, todos pasando
+- **1102 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
 - Paper-seeded SRCs funcionando (PDF + markdown)
+- **Responses API**: toda la codebase migrada de Chat Completions a Responses API,
+  soportando todos los modelos incluyendo reasoning models (codex, o-series).
+- **Dual model**: orchestrator usa `AZURE_MODEL` (default gpt-5.4), solver usa
+  `AZURE_SOLVER_MODEL` (default gpt-5.2-codex). Configurable via env vars.
 - 3 backends de inferencia para el solver (Azure, vLLM, transformers).
-  El orchestrator usa siempre Azure. Modelo actual: gpt-5.4.
 - Benchmarks externos integrados (CLadder, QRData, DiscoveryBench)
 - Training adapter experimental (SregEnv/verifiers)
 

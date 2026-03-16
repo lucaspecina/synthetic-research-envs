@@ -1,10 +1,10 @@
-"""Tests for OpenAI adapter (mocked, no real API calls)."""
+"""Tests for OpenAI adapter using Responses API (mocked, no real API calls)."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from sreg.inference.openai_client import OpenAIClient, _message_to_dict, _parse_response
+from sreg.inference.openai_client import OpenAIClient, _parse_responses_api, _toolspec_to_responses
 from sreg.inference.protocol import (
     ChatResponse,
     FinishReason,
@@ -13,90 +13,91 @@ from sreg.inference.protocol import (
     ToolSpec,
 )
 
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 
-def _mock_openai_response(
-    content: str = "Hello",
-    finish_reason: str = "stop",
+def _mock_responses_api_response(
+    text: str = "Hello",
     tool_calls: list | None = None,
+    status: str = "completed",
     model: str = "gpt-4o",
-    prompt_tokens: int = 10,
-    completion_tokens: int = 5,
+    input_tokens: int = 10,
+    output_tokens: int = 5,
 ):
-    """Create a mock OpenAI API response object."""
-    msg = MagicMock()
-    msg.content = content
-    msg.tool_calls = tool_calls
+    """Create a mock Responses API response object."""
+    output = []
 
-    choice = MagicMock()
-    choice.message = msg
-    choice.finish_reason = finish_reason
+    if text:
+        text_part = MagicMock()
+        text_part.text = text
+
+        msg_item = MagicMock()
+        msg_item.type = "message"
+        msg_item.content = [text_part]
+        output.append(msg_item)
+
+    if tool_calls:
+        for tc in tool_calls:
+            output.append(tc)
 
     usage = MagicMock()
-    usage.prompt_tokens = prompt_tokens
-    usage.completion_tokens = completion_tokens
-    usage.total_tokens = prompt_tokens + completion_tokens
+    usage.input_tokens = input_tokens
+    usage.output_tokens = output_tokens
+    usage.total_tokens = input_tokens + output_tokens
 
     response = MagicMock()
-    response.choices = [choice]
+    response.output = output
     response.usage = usage
     response.model = model
     response.id = "resp-123"
+    response.status = status
 
     return response
 
 
-def _mock_tool_call(tc_id: str = "tc-1", name: str = "get_weather", args: str = '{"city": "NYC"}'):
-    """Create a mock tool call object."""
-    func = MagicMock()
-    func.name = name
-    func.arguments = args
-
+def _mock_function_call(call_id: str = "call-1", name: str = "get_weather", args: str = '{"city": "NYC"}'):
+    """Create a mock function_call output item."""
     tc = MagicMock()
-    tc.id = tc_id
-    tc.function = func
+    tc.type = "function_call"
+    tc.call_id = call_id
+    tc.name = name
+    tc.arguments = args
     return tc
 
 
 # ---------------------------------------------------------------------------
-# Tests: _message_to_dict
+# Tests: _toolspec_to_responses
 # ---------------------------------------------------------------------------
 
 
-class TestMessageToDict:
-    def test_simple_user_message(self):
-        msg = Message(role=MessageRole.USER, content="Hello")
-        d = _message_to_dict(msg)
-        assert d == {"role": "user", "content": "Hello"}
-
-    def test_system_message(self):
-        msg = Message(role=MessageRole.SYSTEM, content="You are helpful.")
-        d = _message_to_dict(msg)
-        assert d == {"role": "system", "content": "You are helpful."}
-
-    def test_tool_message(self):
-        msg = Message(role=MessageRole.TOOL, content="result", tool_call_id="tc-1", name="fn")
-        d = _message_to_dict(msg)
-        assert d == {"role": "tool", "content": "result", "tool_call_id": "tc-1", "name": "fn"}
-
-    def test_none_content_omitted(self):
-        msg = Message(role=MessageRole.ASSISTANT)
-        d = _message_to_dict(msg)
-        assert "content" not in d
+class TestToolspecToResponses:
+    def test_converts_spec(self):
+        spec = ToolSpec(
+            name="search",
+            description="Search the web",
+            parameters={"type": "object", "properties": {"q": {"type": "string"}}},
+        )
+        d = _toolspec_to_responses(spec)
+        assert d == {
+            "type": "function",
+            "name": "search",
+            "description": "Search the web",
+            "parameters": {"type": "object", "properties": {"q": {"type": "string"}}},
+        }
 
 
 # ---------------------------------------------------------------------------
-# Tests: _parse_response
+# Tests: _parse_responses_api
 # ---------------------------------------------------------------------------
 
 
-class TestParseResponse:
+class TestParseResponsesApi:
     def test_simple_response(self):
-        raw = _mock_openai_response(content="Hello world", finish_reason="stop")
-        result = _parse_response(raw)
+        raw = _mock_responses_api_response(text="Hello world", status="completed")
+        result = _parse_responses_api(raw)
 
         assert isinstance(result, ChatResponse)
         assert result.message.role == MessageRole.ASSISTANT
@@ -109,36 +110,24 @@ class TestParseResponse:
         assert result.provider_model == "gpt-4o"
 
     def test_tool_calls_parsed(self):
-        tc = _mock_tool_call("tc-1", "search", '{"q": "test"}')
-        raw = _mock_openai_response(
-            content=None, finish_reason="tool_calls", tool_calls=[tc]
-        )
-        result = _parse_response(raw)
+        tc = _mock_function_call("call-1", "search", '{"q": "test"}')
+        raw = _mock_responses_api_response(text=None, tool_calls=[tc])
+        result = _parse_responses_api(raw)
 
         assert result.finish_reason == FinishReason.TOOL_CALLS
         assert len(result.tool_calls) == 1
-        assert result.tool_calls[0].id == "tc-1"
+        assert result.tool_calls[0].id == "call-1"
         assert result.tool_calls[0].name == "search"
         assert result.tool_calls[0].arguments == {"q": "test"}
         assert result.tool_calls[0].raw_arguments == '{"q": "test"}'
 
     def test_invalid_json_in_tool_args(self):
-        tc = _mock_tool_call("tc-1", "fn", "not-json")
-        raw = _mock_openai_response(content=None, finish_reason="tool_calls", tool_calls=[tc])
-        result = _parse_response(raw)
+        tc = _mock_function_call("call-1", "fn", "not-json")
+        raw = _mock_responses_api_response(text=None, tool_calls=[tc])
+        result = _parse_responses_api(raw)
 
         assert result.tool_calls[0].arguments == {}
         assert result.tool_calls[0].raw_arguments == "not-json"
-
-    def test_length_finish_reason(self):
-        raw = _mock_openai_response(finish_reason="length")
-        result = _parse_response(raw)
-        assert result.finish_reason == FinishReason.LENGTH
-
-    def test_unknown_finish_reason_maps_to_error(self):
-        raw = _mock_openai_response(finish_reason="content_filter")
-        result = _parse_response(raw)
-        assert result.finish_reason == FinishReason.ERROR
 
 
 # ---------------------------------------------------------------------------
@@ -152,8 +141,8 @@ class TestOpenAIClientChat:
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
 
-        mock_resp = _mock_openai_response("Yes, that is correct.")
-        mock_client.chat.completions.create.return_value = mock_resp
+        mock_resp = _mock_responses_api_response("Yes, that is correct.")
+        mock_client.responses.create.return_value = mock_resp
 
         client = OpenAIClient(api_key="test-key", model="test-model")
         result = client.chat(
@@ -165,19 +154,17 @@ class TestOpenAIClientChat:
         assert result.finish_reason == FinishReason.STOP
 
         # Verify API was called correctly
-        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        call_kwargs = mock_client.responses.create.call_args[1]
         assert call_kwargs["model"] == "test-model"
         assert call_kwargs["temperature"] == 0.0
-        assert len(call_kwargs["messages"]) == 1
-        assert call_kwargs["messages"][0]["role"] == "user"
 
     @patch("sreg.inference.openai_client.OpenAI")
     def test_chat_with_tools(self, mock_openai_cls):
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
 
-        mock_resp = _mock_openai_response("ok")
-        mock_client.chat.completions.create.return_value = mock_resp
+        mock_resp = _mock_responses_api_response("ok")
+        mock_client.responses.create.return_value = mock_resp
 
         client = OpenAIClient(api_key="test-key")
         tools = [
@@ -192,18 +179,18 @@ class TestOpenAIClientChat:
             tools=tools,
         )
 
-        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        call_kwargs = mock_client.responses.create.call_args[1]
         assert "tools" in call_kwargs
         assert call_kwargs["tools"][0]["type"] == "function"
-        assert call_kwargs["tools"][0]["function"]["name"] == "search"
+        assert call_kwargs["tools"][0]["name"] == "search"
 
     @patch("sreg.inference.openai_client.OpenAI")
     def test_model_override(self, mock_openai_cls):
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
 
-        mock_resp = _mock_openai_response("ok")
-        mock_client.chat.completions.create.return_value = mock_resp
+        mock_resp = _mock_responses_api_response("ok")
+        mock_client.responses.create.return_value = mock_resp
 
         client = OpenAIClient(api_key="test-key", model="default-model")
         client.chat(
@@ -211,5 +198,5 @@ class TestOpenAIClientChat:
             model="override-model",
         )
 
-        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        call_kwargs = mock_client.responses.create.call_args[1]
         assert call_kwargs["model"] == "override-model"

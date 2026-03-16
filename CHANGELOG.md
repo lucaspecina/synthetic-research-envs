@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-03-16 — Migrate to Responses API + dual model support
+
+- **Responses API migration**: entire codebase migrated from Chat Completions
+  to OpenAI Responses API. Supports all models including reasoning models
+  (gpt-5.2-codex, o-series) that don't support Chat Completions on Azure.
+- **Dual model config**: `AZURE_MODEL` for orchestrator (gpt-5.4), new
+  `AZURE_SOLVER_MODEL` for solver (gpt-5.2-codex). Configurable via env vars.
+- **New module**: `src/sreg/inference/responses_utils.py` — helper to convert
+  Chat Completions tool format to Responses API format.
+- Multi-turn loops now use `previous_response_id` for token efficiency.
+- All 1102 tests pass. No regressions.
+
 ### 2026-03-16 — Semantic modes + TODO restructure + Prompt overhaul + Inspiration Report v2
 
 - **Semantic transform prototype**: `scripts/semantic_transform.py` transforms

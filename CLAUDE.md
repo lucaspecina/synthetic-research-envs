@@ -100,17 +100,18 @@ Python 3.11. Recrear: `conda create -n sreg python=3.11 -y && conda activate sre
 - **networkx** — DAG validation (`nx.is_d_separator()`, NOT `nx.d_separated`)
 - **numpy / scipy** — sampling, distributions
 - **pydantic v2** — data contracts (`BaseModel`, not dataclass)
-- **openai SDK** — LLM via Azure AI Foundry (`OpenAI` with `base_url`, NOT `AzureOpenAI`)
+- **openai SDK** — LLM via Azure AI Foundry, Responses API (`client.responses.create`, NOT `chat.completions`)
 - **pytest** + **ruff** (line length 100)
 
-Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`
+Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL` (orchestrator),
+`AZURE_SOLVER_MODEL` (solver, defaults to AZURE_MODEL)
 
 ## Project structure
 
 ```
 src/sreg/
 ├── models/          # Pydantic contracts (World, Episode, Task, Score, DAGSpec, CasePlan...)
-├── inference/       # LLM protocol (ModelClient, OpenAIClient, ToolEnrichedClient)
+├── inference/       # LLM protocol (ModelClient, OpenAIClient, ToolEnrichedClient, responses_utils)
 ├── world/           # Templates, cpd_gen, DAG generators, pgmpy utils
 ├── solver/          # Teacher (exact Bayesian inference)
 ├── tools/           # WorldGen, WorldCheck, EpisodeGen, TaskGen, Verifier, ProblemBuilder

@@ -1,7 +1,8 @@
 """OpenAI SDK adapter for the ModelClient protocol.
 
 Supports both OpenAI-native and Azure AI Foundry endpoints via base_url.
-Uses the openai SDK directly (NOT AzureOpenAI — see CLAUDE.md).
+Uses the Responses API (not Chat Completions) for broad model compatibility
+including reasoning models like gpt-5.2-codex.
 """
 
 from __future__ import annotations
@@ -61,10 +62,6 @@ class OpenAIClient:
             kwargs["base_url"] = resolved_url
 
         self._client = OpenAI(**kwargs)
-        # Track whether this model rejects temperature (reasoning models).
-        # Reasoning models also mishandle max_completion_tokens (it caps
-        # thinking + output combined), so we skip it too.
-        self._is_reasoning_model = False
 
     def chat(
         self,
@@ -74,33 +71,48 @@ class OpenAIClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> ChatResponse:
-        """Send a chat completion request and return a normalized response."""
-        api_messages = [_message_to_dict(m) for m in messages]
+        """Send a request via the Responses API and return a normalized response."""
+        # Extract system prompt from messages
+        instructions = None
+        input_items: list[dict[str, Any]] = []
+        for m in messages:
+            if m.role == MessageRole.SYSTEM:
+                instructions = m.content
+            elif m.role == MessageRole.USER:
+                input_items.append({"role": "user", "content": m.content or ""})
+            elif m.role == MessageRole.ASSISTANT:
+                input_items.append({"role": "assistant", "content": m.content or ""})
+            elif m.role == MessageRole.TOOL:
+                input_items.append({
+                    "type": "function_call_output",
+                    "call_id": m.tool_call_id or "",
+                    "output": m.content or "",
+                })
 
         kwargs: dict[str, Any] = {
             "model": model or self.default_model,
-            "messages": api_messages,
+            "input": input_items if input_items else "",
         }
-        if temperature is not None and not self._is_reasoning_model:
+        if instructions:
+            kwargs["instructions"] = instructions
+        if temperature is not None:
             kwargs["temperature"] = temperature
-        if max_tokens is not None and not self._is_reasoning_model:
-            kwargs["max_completion_tokens"] = max_tokens
+        if max_tokens is not None:
+            kwargs["max_output_tokens"] = max_tokens
         if tools:
-            kwargs["tools"] = [_toolspec_to_dict(t) for t in tools]
+            kwargs["tools"] = [_toolspec_to_responses(t) for t in tools]
 
         try:
-            response = self._client.chat.completions.create(**kwargs)
+            response = self._client.responses.create(**kwargs)
         except Exception as e:
             err_msg = str(e).lower()
-            # Reasoning models (o-series, gpt-5+) don't support temperature != 1
-            if "unsupported" in err_msg and ("temperature" in err_msg or "max_tokens" in err_msg):
-                self._is_reasoning_model = True
+            if "unsupported" in err_msg or "temperature" in err_msg or "max" in err_msg:
                 kwargs.pop("temperature", None)
-                kwargs.pop("max_completion_tokens", None)
-                response = self._client.chat.completions.create(**kwargs)
+                kwargs.pop("max_output_tokens", None)
+                response = self._client.responses.create(**kwargs)
             else:
                 raise
-        return _parse_response(response)
+        return _parse_responses_api(response)
 
 
 # ---------------------------------------------------------------------------
@@ -108,74 +120,63 @@ class OpenAIClient:
 # ---------------------------------------------------------------------------
 
 
-def _message_to_dict(msg: Message) -> dict[str, Any]:
-    """Convert a protocol Message to an OpenAI API dict."""
-    d: dict[str, Any] = {"role": msg.role.value}
-    if msg.content is not None:
-        d["content"] = msg.content
-    if msg.tool_call_id is not None:
-        d["tool_call_id"] = msg.tool_call_id
-    if msg.name is not None:
-        d["name"] = msg.name
-    return d
-
-
-def _toolspec_to_dict(spec: ToolSpec) -> dict[str, Any]:
-    """Convert a protocol ToolSpec to an OpenAI function-tool dict."""
+def _toolspec_to_responses(spec: ToolSpec) -> dict[str, Any]:
+    """Convert a protocol ToolSpec to a Responses API function-tool dict."""
     return {
         "type": "function",
-        "function": {
-            "name": spec.name,
-            "description": spec.description,
-            "parameters": spec.parameters,
-        },
+        "name": spec.name,
+        "description": spec.description,
+        "parameters": spec.parameters,
     }
 
 
-def _parse_response(response: Any) -> ChatResponse:
-    """Parse an OpenAI API response into a protocol ChatResponse."""
-    choice = response.choices[0]
-    msg = choice.message
-
-    # Parse tool calls
+def _parse_responses_api(response: Any) -> ChatResponse:
+    """Parse a Responses API response into a protocol ChatResponse."""
+    text_content = None
     tool_calls: list[ToolCall] = []
-    if msg.tool_calls:
-        for tc in msg.tool_calls:
-            raw = tc.function.arguments
+
+    for item in response.output:
+        if item.type == "message":
+            # Extract text from message content
+            for part in item.content:
+                if hasattr(part, "text"):
+                    text_content = (text_content or "") + part.text
+        elif item.type == "function_call":
+            raw = item.arguments
             try:
                 args = json.loads(raw) if raw else {}
             except (json.JSONDecodeError, TypeError):
                 args = {}
             tool_calls.append(
                 ToolCall(
-                    id=tc.id,
-                    name=tc.function.name,
+                    id=item.call_id,
+                    name=item.name,
                     arguments=args,
                     raw_arguments=raw,
                 )
             )
 
-    # Map finish reason
-    reason_map = {
-        "stop": FinishReason.STOP,
-        "tool_calls": FinishReason.TOOL_CALLS,
-        "length": FinishReason.LENGTH,
-    }
-    finish = reason_map.get(choice.finish_reason, FinishReason.ERROR)
+    # Determine finish reason
+    if tool_calls:
+        finish = FinishReason.TOOL_CALLS
+    elif response.status == "completed":
+        finish = FinishReason.STOP
+    else:
+        finish = FinishReason.ERROR
 
     # Parse usage
     usage = None
     if response.usage:
         usage = Usage(
-            input_tokens=response.usage.prompt_tokens,
-            output_tokens=response.usage.completion_tokens,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
             total_tokens=response.usage.total_tokens,
         )
 
     return ChatResponse(
         message=Message(
             role=MessageRole.ASSISTANT,
-            content=msg.content,
+            content=text_content,
         ),
         tool_calls=tool_calls,
         finish_reason=finish,

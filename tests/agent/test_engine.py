@@ -103,20 +103,28 @@ def test_parse_hermes_cleans_special_tokens():
 
 
 def _mock_response(content=None, tool_calls=None):
-    """Create a mock OpenAI response."""
-    msg = MagicMock()
-    msg.content = content
-    msg.tool_calls = tool_calls
-    choice = MagicMock()
-    choice.message = msg
+    """Create a mock Responses API response."""
+    output = []
+    if content:
+        text_part = MagicMock()
+        text_part.text = content
+        msg_item = MagicMock()
+        msg_item.type = "message"
+        msg_item.content = [text_part]
+        output.append(msg_item)
+    if tool_calls:
+        output.extend(tool_calls)
+
     resp = MagicMock()
-    resp.choices = [choice]
+    resp.output = output
+    resp.id = f"resp-{id(resp)}"
+    resp.status = "completed"
     return resp
 
 
 def test_run_with_tools_no_tools():
     client = MagicMock()
-    client.chat.completions.create.return_value = _mock_response(content="hello")
+    client.responses.create.return_value = _mock_response(content="hello")
 
     messages = [{"role": "user", "content": "hi"}]
     result = run_with_tools(client, "gpt-4o", messages)
@@ -127,12 +135,13 @@ def test_run_with_tools_no_tools():
 def test_run_with_tools_with_tool_call():
     # First call returns a tool call, second returns text
     tc = MagicMock()
-    tc.id = "call_123"
-    tc.function.name = "think"
-    tc.function.arguments = '{"reasoning": "test"}'
+    tc.type = "function_call"
+    tc.call_id = "call_123"
+    tc.name = "think"
+    tc.arguments = '{"reasoning": "test"}'
 
     client = MagicMock()
-    client.chat.completions.create.side_effect = [
+    client.responses.create.side_effect = [
         _mock_response(content="", tool_calls=[tc]),
         _mock_response(content="final answer"),
     ]
@@ -151,7 +160,7 @@ def test_run_with_tools_with_tool_call():
 
 def test_solve_question_basic():
     client = MagicMock()
-    client.chat.completions.create.return_value = _mock_response(content="42")
+    client.responses.create.return_value = _mock_response(content="42")
 
     answer = solve_question(
         client=client,
@@ -166,11 +175,12 @@ def test_solve_question_with_data():
     client = MagicMock()
     # Model calls python_exec, then answers
     tc = MagicMock()
-    tc.id = "call_1"
-    tc.function.name = "python_exec"
-    tc.function.arguments = '{"code": "df.shape[0]"}'
+    tc.type = "function_call"
+    tc.call_id = "call_1"
+    tc.name = "python_exec"
+    tc.arguments = '{"code": "df.shape[0]"}'
 
-    client.chat.completions.create.side_effect = [
+    client.responses.create.side_effect = [
         _mock_response(content="", tool_calls=[tc]),
         _mock_response(content="The dataset has 2 rows"),
     ]

@@ -12,6 +12,7 @@ from openai import OpenAI
 
 load_dotenv()
 
+from sreg.inference.responses_utils import convert_tools_for_responses
 from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 from sreg.models.dag_spec import DAGNodeSpec, DAGSpec
 from sreg.models.research_problem import ResearchProblem
@@ -82,6 +83,9 @@ class Orchestrator:
         self._worlds: dict[str, World] = {}
         self._case_plans: dict[str, CasePlan] = {}
 
+        # Convert tool definitions to Responses API format
+        self._tools = convert_tools_for_responses(TOOL_DEFINITIONS)
+
     def run(self, goal: str) -> OrchestratorResult:
         """Run the orchestrator with a high-level goal.
 
@@ -90,67 +94,87 @@ class Orchestrator:
                   "generate a medium-difficulty world about medical diagnosis"
         """
         result = OrchestratorResult()
-
-        messages: list[dict] = [
+        messages_log: list[dict] = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": goal},
         ]
 
+        prev_response_id = None
+
         for iteration in range(self.max_iterations):
             logger.info(f"Orchestrator iteration {iteration + 1}")
 
-            response = self._client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=TOOL_DEFINITIONS,
-            )
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "tools": self._tools,
+            }
 
-            choice = response.choices[0]
-            message = choice.message
+            if prev_response_id is None:
+                # First call: include instructions and goal
+                kwargs["instructions"] = SYSTEM_PROMPT
+                kwargs["input"] = goal
+            else:
+                # Subsequent calls: chain with previous response
+                kwargs["previous_response_id"] = prev_response_id
+                kwargs["input"] = self._pending_tool_outputs
 
-            # Add assistant message to history
+            response = self._client.responses.create(**kwargs)
+            prev_response_id = response.id
+
+            # Parse output items
+            text_content = None
+            tool_calls = []
+            for item in response.output:
+                if item.type == "message":
+                    for part in item.content:
+                        if hasattr(part, "text"):
+                            text_content = (text_content or "") + part.text
+                elif item.type == "function_call":
+                    tool_calls.append(item)
+
+            # Log assistant message
             msg_dict: dict[str, Any] = {"role": "assistant"}
-            if message.content:
-                msg_dict["content"] = message.content
-            if message.tool_calls:
+            if text_content:
+                msg_dict["content"] = text_content
+            if tool_calls:
                 msg_dict["tool_calls"] = [
                     {
-                        "id": tc.id,
+                        "id": tc.call_id,
                         "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
+                        "function": {"name": tc.name, "arguments": tc.arguments},
                     }
-                    for tc in message.tool_calls
+                    for tc in tool_calls
                 ]
-            messages.append(msg_dict)
+            messages_log.append(msg_dict)
 
-            if choice.finish_reason == "stop":
-                logger.info("Orchestrator finished (stop)")
+            if not tool_calls:
+                logger.info("Orchestrator finished (no tool calls)")
                 break
 
-            if not message.tool_calls:
-                logger.info("No tool calls, finishing")
-                break
-
-            # Process tool calls
-            for tool_call in message.tool_calls:
-                fn_name = tool_call.function.name
-                fn_args = json.loads(tool_call.function.arguments)
+            # Process tool calls and build outputs for next round
+            self._pending_tool_outputs = []
+            for tc in tool_calls:
+                fn_name = tc.name
+                fn_args = json.loads(tc.arguments)
                 logger.info(f"Tool call: {fn_name}({fn_args})")
 
                 tool_result = self._dispatch_tool(fn_name, fn_args, result)
 
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": json.dumps(tool_result, default=str),
-                    }
-                )
+                # Log tool result
+                messages_log.append({
+                    "role": "tool",
+                    "tool_call_id": tc.call_id,
+                    "content": json.dumps(tool_result, default=str),
+                })
 
-        result.messages = messages
+                # Queue for next API call
+                self._pending_tool_outputs.append({
+                    "type": "function_call_output",
+                    "call_id": tc.call_id,
+                    "output": json.dumps(tool_result, default=str),
+                })
+
+        result.messages = messages_log
         return result
 
     def _dispatch_tool(self, name: str, args: dict, result: OrchestratorResult) -> dict:
@@ -399,8 +423,6 @@ class Orchestrator:
         edge_descriptions: dict[str, str] = args.get("edge_descriptions", {})
 
         # Auto-complete identity mappings if node_renames is empty or partial.
-        # This avoids the common LLM failure where it omits node_renames
-        # when nodes already have semantic names from dag_construct.
         world_node_names = {n.name for n in world.nodes}
         if not node_renames:
             node_renames = {n: n for n in world_node_names}
@@ -436,8 +458,6 @@ class Orchestrator:
         }
 
     # Eval types that REQUIRE node hints when used in a CasePlan.
-    # Without hints, the task generator picks random nodes and the
-    # question/answer won't match the plan's question_text.
     _HINT_REQUIRED_TYPES: dict[TaskType, list[str]] = {
         TaskType.CAUSAL_EFFECT: ["intervention_node"],
         TaskType.BEST_INTERVENTION: ["desired_state"],
@@ -480,7 +500,6 @@ class Orchestrator:
             try:
                 eval_type = TaskType(eval_type_str)
             except ValueError:
-                # Will be caught by Pydantic later
                 continue
             required_hints = self._HINT_REQUIRED_TYPES.get(eval_type, [])
             missing = [h for h in required_hints if not rq.get(h)]
@@ -493,8 +512,7 @@ class Orchestrator:
                     )
                 }
 
-            # Validate hint node names: must be OBSERVABLE (not latent, not target)
-            # because generators only operate on observable nodes for interventions
+            # Validate hint node names: must be OBSERVABLE
             for hint_field in ("intervention_node", "condition_variable"):
                 hint_val = rq.get(hint_field)
                 if hint_val:

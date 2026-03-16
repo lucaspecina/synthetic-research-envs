@@ -623,7 +623,9 @@ def solve_tasks(
         api_key = "not-needed"
     client = OpenAI(base_url=base_url, api_key=api_key)
 
-    model = solver_model or os.environ.get("AZURE_MODEL", "gpt-4o")
+    model = solver_model or os.environ.get(
+        "AZURE_SOLVER_MODEL", os.environ.get("AZURE_MODEL", "gpt-4o")
+    )
     agent = AgentSolver(model=model, max_iterations=25, client=client)
 
     if solver_base_url:

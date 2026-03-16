@@ -383,25 +383,21 @@ def extract_seed_profile(
 ) -> InspirationProfile:
     """Extract InspirationProfile from seed text using LLM."""
     try:
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=model,
-            messages=[
-                {"role": "system", "content": _EXTRACT_PROMPT},
-                {"role": "user", "content": seed_text[:12000]},
-            ],
+            instructions=_EXTRACT_PROMPT,
+            input=seed_text[:12000],
             temperature=0.0,
         )
     except Exception:
         # Reasoning models don't support temperature — retry without it
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=model,
-            messages=[
-                {"role": "system", "content": _EXTRACT_PROMPT},
-                {"role": "user", "content": seed_text[:12000]},
-            ],
+            instructions=_EXTRACT_PROMPT,
+            input=seed_text[:12000],
         )
 
-    raw = response.choices[0].message.content or "{}"
+    raw = response.output_text or "{}"
 
     # Parse JSON from response (may be wrapped in ```json blocks)
     raw = raw.strip()
@@ -1104,28 +1100,24 @@ def _generate_narrative(
             context += f"- Intentional changes: {changes}\n"
 
     try:
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=model,
-            messages=[
-                {"role": "system", "content": _NARRATIVE_PROMPT},
-                {"role": "user", "content": context},
-            ],
+            instructions=_NARRATIVE_PROMPT,
+            input=context,
             temperature=0.7,
         )
     except Exception:
         try:
-            response = client.chat.completions.create(
+            response = client.responses.create(
                 model=model,
-                messages=[
-                    {"role": "system", "content": _NARRATIVE_PROMPT},
-                    {"role": "user", "content": context},
-                ],
+                instructions=_NARRATIVE_PROMPT,
+                input=context,
             )
         except Exception as e:
             logger.warning("Failed to generate narrative: %s", e)
             return ""
 
-    return response.choices[0].message.content or ""
+    return response.output_text or ""
 
 
 # ---------------------------------------------------------------------------

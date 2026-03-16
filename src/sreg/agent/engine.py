@@ -7,6 +7,7 @@ backend (Azure, vLLM, transformers). Used by:
 - Training (via verifiers, which has its own loop)
 
 The engine handles: tool dispatch, python_exec, think, multi-turn conversation.
+Uses the Responses API for broad model compatibility (including reasoning models).
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from typing import Any, Callable
 from openai import OpenAI
 
 from sreg.agent.python_exec import ExecResult, execute_code, make_python_namespace
+from sreg.inference.responses_utils import convert_tools_for_responses
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +97,7 @@ def run_with_tools(
     temperature: float | None = None,
     max_tokens: int | None = None,
 ) -> list[dict]:
-    """Run a multi-turn conversation with tool calling.
+    """Run a multi-turn conversation with tool calling via the Responses API.
 
     This is the shared engine that powers both SRC solving and benchmark
     evaluation. It handles the tool-calling loop: send messages to LLM,
@@ -105,7 +107,7 @@ def run_with_tools(
         client: OpenAI-compatible client (Azure, vLLM, etc.)
         model: Model name/ID
         messages: Initial messages (system + user)
-        tools: Tool definitions (OpenAI function format). None = no tools.
+        tools: Tool definitions (OpenAI function format — auto-converted). None = no tools.
         tool_handler: Function(name, args) -> str to handle tool calls.
         max_iterations: Max tool-calling rounds.
         temperature: Sampling temperature (None = model default).
@@ -114,66 +116,104 @@ def run_with_tools(
     Returns:
         Full message history including all tool calls and responses.
     """
+    # Convert tools to Responses API format
+    resp_tools = convert_tools_for_responses(tools) if tools else None
+
+    # Extract system prompt from messages
+    instructions = None
+    initial_input = None
+    for m in messages:
+        if m.get("role") == "system":
+            instructions = m.get("content", "")
+        elif m.get("role") == "user":
+            initial_input = m.get("content", "")
+
+    prev_response_id = None
+
     for _ in range(max_iterations):
-        kwargs: dict[str, Any] = {"model": model, "messages": messages}
-        if tools:
-            kwargs["tools"] = tools
+        kwargs: dict[str, Any] = {"model": model}
+        if resp_tools:
+            kwargs["tools"] = resp_tools
         if temperature is not None:
             kwargs["temperature"] = temperature
         if max_tokens is not None:
-            kwargs["max_tokens"] = max_tokens
+            kwargs["max_output_tokens"] = max_tokens
+
+        if prev_response_id is None:
+            # First call
+            if instructions:
+                kwargs["instructions"] = instructions
+            kwargs["input"] = initial_input or ""
+        else:
+            # Subsequent calls: chain with previous response
+            kwargs["previous_response_id"] = prev_response_id
+            kwargs["input"] = pending_tool_outputs
 
         try:
-            response = client.chat.completions.create(**kwargs)
+            response = client.responses.create(**kwargs)
         except Exception as e:
             logger.warning("LLM call failed: %s", e)
             # Try without unsupported params (reasoning models)
-            for param in ("temperature", "max_tokens"):
-                kwargs.pop(param, None)
+            kwargs.pop("temperature", None)
+            kwargs.pop("max_output_tokens", None)
             try:
-                response = client.chat.completions.create(**kwargs)
+                response = client.responses.create(**kwargs)
             except Exception:
                 raise
 
-        choice = response.choices[0]
-        msg = choice.message
+        prev_response_id = response.id
 
-        # Append assistant message
-        assistant_msg: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
-        if msg.tool_calls:
+        # Parse output items
+        text_content = None
+        tool_calls = []
+        for item in response.output:
+            if item.type == "message":
+                for part in item.content:
+                    if hasattr(part, "text"):
+                        text_content = (text_content or "") + part.text
+            elif item.type == "function_call":
+                tool_calls.append(item)
+
+        # Append assistant message to history
+        assistant_msg: dict[str, Any] = {"role": "assistant", "content": text_content or ""}
+        if tool_calls:
             assistant_msg["tool_calls"] = [
                 {
-                    "id": tc.id,
+                    "id": tc.call_id,
                     "type": "function",
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments,
-                    },
+                    "function": {"name": tc.name, "arguments": tc.arguments},
                 }
-                for tc in msg.tool_calls
+                for tc in tool_calls
             ]
         messages.append(assistant_msg)
 
         # If no tool calls, conversation is done
-        if not msg.tool_calls:
+        if not tool_calls:
             break
 
         # Dispatch tool calls
         if tool_handler is None:
             break
 
-        for tc in msg.tool_calls:
+        pending_tool_outputs = []
+        for tc in tool_calls:
             try:
-                args = json.loads(tc.function.arguments)
+                args = json.loads(tc.arguments)
             except json.JSONDecodeError:
                 args = {}
 
-            result_str = tool_handler(tc.function.name, args)
+            result_str = tool_handler(tc.name, args)
 
             messages.append({
                 "role": "tool",
-                "tool_call_id": tc.id,
+                "tool_call_id": tc.call_id,
                 "content": result_str,
+            })
+
+            pending_tool_outputs.append({
+                "type": "function_call_output",
+                "call_id": tc.call_id,
+                "output": result_str,
             })
 
     return messages

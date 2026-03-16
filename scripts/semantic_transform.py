@@ -315,18 +315,18 @@ Return ONLY valid JSON:
 """
 
     try:
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
+            input=prompt,
             temperature=0.7,
         )
     except Exception:
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
+            input=prompt,
         )
 
-    raw = response.choices[0].message.content or "{}"
+    raw = response.output_text or "{}"
     raw = raw.strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
