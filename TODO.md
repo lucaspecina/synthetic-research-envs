@@ -76,18 +76,33 @@ contradictorios.
 **Referencia:** NOTES.md seccion "Teoria inventada", "Solo data-driven".
 **Implementar:** I7 (teoria inventada), y modo `theory_rich` en I2.
 
-### A5. Que tipo de research tasks pedir?
+### A5. Taxonomia de investigaciones y research tasks
 
-Inspirarse en Research Gym, Kimi, RL long-horizon. Las tasks actuales son
-preguntas cerradas. Los papers piden cosas mas complejas: planificar,
-disenar experimentos, integrar fuentes.
+No tenemos claro los TIPOS de investigacion que existen, que dimensiones
+tienen, y que tasks/preguntas se derivan de cada uno. Sin eso, no podemos
+disenar bien las research tasks ni ampliar lo que el sistema puede hacer.
+
+Hay un primer borrador en `research/notes/scientific_taxonomy.md` con 10
+tipos + proceso en fases (framing, propose, plan, execute, analyze). Pero
+falta profundizar con ejemplos reales de distintos dominios.
+
+**Ejemplo real (surfactantes/petroleo):** seleccion basada en teoria y
+tablas → prueba rapida de efectividad → 200-500 ensayos iterativos de
+fine-tuning de estabilidad con ajustes finos. Esto es un patron de
+investigacion industrial que combina knowledge retrieval, validacion
+rapida, y optimizacion iterativa. Nuestros eval types no cubren nada
+de esto.
 
 **Sub-preguntas:**
-- [ ] Que hacen Research Gym, SciGym, DiscoveryBench como tasks?
-- [ ] Subtasks? Planes de investigacion? Preguntas vagas?
-- [ ] Que rol tiene el LLM en disenar las tasks vs elegir de un menu?
+- [ ] Que tipos de investigacion existen? (observacional, experimental,
+  de campo, clinica, ingenieria, optimizacion iterativa, etc)
+- [ ] Que dimensiones tienen? (fases, tipos de preguntas, tipos de datos,
+  tipos de acciones, restricciones)
+- [ ] Que hacen Research Gym, SciGym, DiscoveryBench, SciDesignBench como
+  tasks? Que podemos aprender?
+- [ ] Como se traduce cada tipo a tasks verificables en SREG?
 
-**Referencia:** NOTES.md seccion "Que tipo de preguntas / tasks".
+**Referencia:** `research/notes/scientific_taxonomy.md`, inbox de TODO.
 
 ### A6. Evaluaciones y validaciones sin uso
 
@@ -297,3 +312,30 @@ Necesita mejores descripciones y ejemplos de cuando usar cada uno.
   complementario, seed-first design. Inspiration Report v2.
 
 Detalle historico en `CHANGELOG.md`.
+
+---
+
+## Inbox — ideas sueltas
+
+> Espacio libre para anotar cosas que se me ocurren. Se procesan en sesion
+> y se mueven a la seccion que corresponda (analisis, implementacion, etc).
+
+- Repasar evaluaciones y validaciones que se hicieron y quedaron sin uso
+  (QualitySuite, diagnostics, baselines). → ver A6
+- Teoria inventada como literatura visible (papers ficticios derivados
+  parcialmente del mundo verdadero). → ver A4, I7
+- Investigar Research Gym, SciGym, Kimi como referencia para tasks. → ver A5
+- Preguntas vagas → entrenar plan de investigacion. → ver A5
+- Critica: SREG solo data-driven? Necesita data + theory + literature. → ver A4
+- SciDesignBench (arxiv 2603.12724): inverse design con simuladores.
+  Nuestra BN puede hacer lo mismo. → ver I1 (inverse_design)
+- DISTINCION CRITICA: research actions (FUTURO) = interacciones con el
+  ENTORNO. Analisis del solver (AHORA) = python_exec, asunto del solver.
+- Ejemplo real (surfactantes/petroleo): seleccion basada en teoria +
+  tablas, prueba rapida de efectividad, despues 200-500 ensayos iterativos
+  de estabilidad con ajustes finos. → esto es un patron de investigacion
+  industrial que SREG deberia poder representar. Conecta con A5 (taxonomia
+  de investigaciones) e inverse_design iterativo.
+- Taxonomia de investigaciones: no tenemos claro los TIPOS de investigacion
+  que existen y que dimensiones tienen. Necesitamos eso para disenar las
+  research tasks. → ver A5, research/

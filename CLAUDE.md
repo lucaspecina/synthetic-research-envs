@@ -8,9 +8,8 @@
 | `PROJECT.md`         | Por que existe SREG, que principios no pueden violarse | Siempre antes de decisiones de diseno |
 | `ARCHITECTURE.md`    | Como esta organizado el sistema objetivo               | Antes de implementar algo nuevo       |
 | `CURRENT_STATE.md`   | Que parte de la arquitectura existe hoy                | Para saber que hay y que falta        |
-| `TODO.md`            | Que trabajo esta pendiente, que problemas hay          | Para saber que hacer                  |
+| `TODO.md`            | Que trabajo esta pendiente, que problemas hay, inbox de ideas | Para saber que hacer                  |
 | `CHANGELOG.md`       | Historia de cambios                                    | Cuando necesites contexto historico   |
-| `NOTES.md`           | Inbox de ideas, problemas y preguntas abiertas del usuario | Al inicio de sesion para procesar pendientes |
 | `research/`          | Analisis, hallazgos, sintesis                          | Cuando investigues o explores         |
 | `research/README.md` | Reglas + indice de que investiga cada archivo           | Para saber que research existe        |
 
@@ -21,17 +20,14 @@
 se desactualiza, todo lo demas deja de funcionar. Los otros docs se vuelven
 mentira y las decisiones se toman sin informacion.
 
-### Regla de promocion (NOTES → research → docs canonicos)
+### Regla de promocion (TODO inbox → research → docs canonicos)
 
-0. Idea cruda, problema, pregunta abierta → `NOTES.md` (inbox del usuario)
+0. Idea cruda, problema, pregunta abierta → seccion "Inbox" de `TODO.md`
 1. Se procesa en sesion → `research/notes/` (si necesita investigacion)
-   o directamente a donde corresponda
+   o directamente a la seccion de analisis/implementacion de `TODO.md`
 2. Se consolida con evidencia → `research/synthesis/`
 3. Se vuelve decision → se promueve a `PROJECT.md` o `ARCHITECTURE.md`
-4. Implica trabajo → `TODO.md`
-5. Se implementa → `CURRENT_STATE.md` + `CHANGELOG.md`
-
-`NOTES.md` es un inbox — los items se procesan y se mueven, no se acumulan.
+4. Se implementa → `CURRENT_STATE.md` + `CHANGELOG.md`
 
 ### Como leer y mantener `research/`
 
