@@ -22,12 +22,16 @@
 - Benchmarks externos integrados (CLadder, QRData, DiscoveryBench)
 - Training adapter experimental (SregEnv/verifiers)
 
-**Ultima validacion relevante** (7-SRC eval + inspiration reports, 2026-03-16):
-las preguntas descriptivas fuerzan analisis de datos; las causales se responden
-desde priors. Inspiration reports revelan que el orchestrator usaba infer_target
-como pregunta principal (ahora corregido) y que faltan eval types para mediacion,
-effect modification, selection bias y source attribution. Prompt reescrito para
-priorizar preguntas causales. Modelo actualizado a gpt-5.4.
+**Ultima validacion relevante** (5-SRC + 3-mode experiment, 2026-03-16):
+
+- **Codex como solver**: investiga con python_exec (crosstabs, Cramer's V,
+  naive Bayes, backdoor adjustment) — comportamiento data-driven real.
+  Necesita deadline nudge para submitir a tiempo (75% de iteraciones).
+- **Semantic modes (Vaca Muerta)**: abstract (avg 0.62) > fictional (0.82)
+  > realistic (8.30). Domain priors perjudican cuando el mundo es sintetico.
+- **Inspiration reports**: el orchestrator preserva bien la estructura causal
+  de los papers, pero faltan eval types (mediacion, effect modification,
+  selection bias, source attribution).
 
 ---
 

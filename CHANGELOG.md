@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+### 2026-03-16 — Deadline nudge + codex solver findings
+
+- **Deadline nudge**: proactive warning when 75% of iterations used and
+  questions remain unanswered. Fixes codex spending all iterations analyzing
+  without submitting. Submission rate: 0/4 -> 4/4.
+- **Max iterations**: 25 -> 40 for solver scripts.
+- **Bug fix**: solver now handles distribution submitted as JSON string
+  (codex sometimes sends `'{"yes": 0.7}'` instead of `{"yes": 0.7}`).
+- **Vaca Muerta 3-mode experiment**: abstract (avg 0.62) > fictional (0.82)
+  > realistic (8.30). Evidence that domain priors hurt when world is synthetic.
+- **Codex as solver**: investigates data-driven (crosstabs, Cramer's V,
+  naive Bayes, backdoor adjustment) unlike gpt-5.4 which answered from priors.
+
 ### 2026-03-16 — Migrate to Responses API + dual model support
 
 - **Responses API migration**: entire codebase migrated from Chat Completions

@@ -96,6 +96,20 @@ class AgentSolver:
             )
         self._python_namespace: dict = {}
 
+    @staticmethod
+    def _parse_distribution(raw: Any) -> dict:
+        """Parse distribution from args — handles both dict and JSON string."""
+        if isinstance(raw, dict):
+            return raw
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return {}
+
     def solve(
         self,
         world: World,
@@ -430,7 +444,7 @@ class AgentSolver:
         else:
             expected_states = list(problem.target_states)
 
-        distribution = args.get("distribution", {})
+        distribution = self._parse_distribution(args.get("distribution", {}))
 
         if not distribution:
             state_set = set(expected_states)
@@ -676,6 +690,10 @@ class AgentSolver:
 
         prev_response_id = None
         n_submitted = 0
+        # Nudge threshold: start warning when 25% of iterations remain
+        nudge_threshold = max(1, int(self.max_iterations * 0.75))
+        deadline_nudged = False
+        deadline_msg = None
 
         for iteration in range(self.max_iterations):
             logger.info(f"Case solver iteration {iteration + 1}")
@@ -738,7 +756,6 @@ class AgentSolver:
                         f"for each one. Do NOT write answers as text -- use the tool."
                     )
                     messages_log.append({"role": "user", "content": nudge})
-                    # Send nudge as new input continuing the conversation
                     self._pending_tool_outputs = [
                         {"role": "user", "content": nudge}
                     ]
@@ -746,6 +763,29 @@ class AgentSolver:
                 break
 
             self._pending_tool_outputs = []
+
+            # Proactive deadline nudge: when running low on iterations and
+            # there are still unanswered questions, inject a warning AFTER
+            # processing tool outputs (below) so the model sees it next turn.
+            remaining_iters = self.max_iterations - iteration - 1
+            if (
+                iteration >= nudge_threshold
+                and not deadline_nudged
+                and n_submitted < len(tasks)
+            ):
+                unanswered = [
+                    i for i in range(1, len(tasks) + 1)
+                    if case_result.task_results[i].submitted_answer is None
+                ]
+                deadline_msg = (
+                    f"DEADLINE WARNING: You have only {remaining_iters} iteration(s) "
+                    f"left and {len(unanswered)} unanswered question(s): {unanswered}. "
+                    f"Stop analyzing and submit your best answers NOW using the "
+                    f"`submit` tool. Use your current analysis -- do not start new "
+                    f"computations. Submit one answer per tool call."
+                )
+                deadline_nudged = True
+                # This will be appended to pending_tool_outputs after processing
             for tc in tool_calls:
                 fn_name = tc.name
                 fn_args = json.loads(tc.arguments)
@@ -783,6 +823,14 @@ class AgentSolver:
             # Stop when all questions answered
             if n_submitted >= len(tasks):
                 break
+
+            # Inject deadline nudge after tool outputs if triggered this iteration
+            if deadline_nudged and deadline_msg:
+                messages_log.append({"role": "user", "content": deadline_msg})
+                self._pending_tool_outputs.append(
+                    {"role": "user", "content": deadline_msg}
+                )
+                deadline_msg = None  # Only inject once
 
         case_result.messages = messages_log
         case_result.budget_used = problem.budget - runner.budget_remaining
@@ -853,7 +901,7 @@ class AgentSolver:
 
         # Extract the answer based on task type
         if task_type in DISTRIBUTION_TYPES:
-            distribution = args.get("distribution", {})
+            distribution = self._parse_distribution(args.get("distribution", {}))
             if not distribution:
                 if task.correct_answer:
                     state_set = set(task.correct_answer.keys())
@@ -897,7 +945,7 @@ class AgentSolver:
 
         else:
             # Fallback to distribution
-            distribution = args.get("distribution", {})
+            distribution = self._parse_distribution(args.get("distribution", {}))
             if distribution:
                 total = sum(distribution.values())
                 if total > 0:

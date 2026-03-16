@@ -92,9 +92,9 @@ class ChatResponse(BaseModel):
 
 @runtime_checkable
 class ModelClient(Protocol):
-    """Minimal interface for chat completions with tool calling.
+    """Minimal interface for LLM inference with tool calling.
 
-    Adapters (OpenAI, vLLM, etc.) implement this protocol.
+    Adapters (OpenAI Responses API, vLLM, etc.) implement this protocol.
     The agent, orchestrator, and benchmarks program against it.
     """
 

@@ -626,7 +626,7 @@ def solve_tasks(
     model = solver_model or os.environ.get(
         "AZURE_SOLVER_MODEL", os.environ.get("AZURE_MODEL", "gpt-4o")
     )
-    agent = AgentSolver(model=model, max_iterations=25, client=client)
+    agent = AgentSolver(model=model, max_iterations=40, client=client)
 
     if solver_base_url:
         _print(f"  Backend: {solver_base_url} | Model: {model}")

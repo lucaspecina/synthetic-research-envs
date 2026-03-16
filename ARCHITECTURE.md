@@ -348,6 +348,20 @@ La decision importante no es el nombre de cada tool sino esta:
 > El LLM diseña el caso, pero la verdad del entorno y la validacion fuerte
 > viven en contratos estructurados y herramientas programaticas.
 
+### Modelo dual y API de inferencia
+
+Toda la codebase usa la **Responses API** de OpenAI (no Chat Completions).
+Esto soporta modelos de razonamiento (codex, o-series) ademas de modelos
+conversacionales clasicos.
+
+El orchestrator y el solver pueden usar **modelos distintos**:
+
+- `AZURE_MODEL` — modelo para orchestrator, reports, transformaciones
+- `AZURE_SOLVER_MODEL` — modelo para el solver diagnostico (default: AZURE_MODEL)
+
+Esto permite usar un modelo generalista para disenar casos y un modelo de
+razonamiento optimizado para investigar.
+
 ---
 
 ## 9. Modelo de QA y validacion

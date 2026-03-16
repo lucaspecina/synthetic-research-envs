@@ -46,7 +46,7 @@ def main():
     print(f"  Model: {model}")
     print()
 
-    agent = AgentSolver(model=model, max_iterations=25, client=client)
+    agent = AgentSolver(model=model, max_iterations=40, client=client)
     case_result = agent.solve_case(world, problem, tasks, seed=42)
 
     # Extract scores from agent results (solver scores internally)

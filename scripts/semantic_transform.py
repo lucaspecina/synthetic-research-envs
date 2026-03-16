@@ -20,6 +20,10 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def _build_abstract_rename(node_names: list[str], target_node: str) -> dict[str, str]:
     """Map node names to abstract labels: V1, V2, ..., Y (target)."""
