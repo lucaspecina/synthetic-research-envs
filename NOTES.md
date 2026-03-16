@@ -204,7 +204,15 @@ que ver con oil & gas). Crear el .md.
 - Categorizacion / taxonomia / dimensiones de lo que tienen las investigaciones
 - BN con numericas y mas complejos
 - Datasets realistas e inputs realistas
-- Solver actions: experimentos cientificos (inspirados en papers reales seed)
+- El solver ya tiene python_exec — puede investigar iterativamente con
+  codigo (subgrupos, sensibilidad, comparar modelos, etc). Si no
+  investiga, es porque las preguntas son demasiado directas y los datos
+  demasiado limpios, no porque le falten herramientas.
+- DISTINCION CRITICA: research actions (FUTURO) = interacciones con el
+  ENTORNO (disenar experimentos, pedir datos nuevos, etc — como step()
+  en Gym). Analisis del solver (AHORA) = razonamiento interno via
+  python_exec, asunto del solver, el entorno no se entera. Las viejas
+  research_actions (observe X cuesta 2) estan MUERTAS.
 - crear nuevas preguntas de investigacion para SRC -> porque hay pocas ahora y no captura la complejidad de tareas que hay en papers
 
 

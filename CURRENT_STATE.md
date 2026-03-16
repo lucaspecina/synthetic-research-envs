@@ -15,7 +15,7 @@
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
 - Paper-seeded SRCs funcionando (PDF + markdown)
 - 3 backends de inferencia para el solver (Azure, vLLM, transformers).
-  El orchestrator usa siempre Azure.
+  El orchestrator usa siempre Azure. Modelo actual: gpt-5.4.
 - Benchmarks externos integrados (CLadder, QRData, DiscoveryBench)
 - Training adapter experimental (SregEnv/verifiers)
 
@@ -73,11 +73,13 @@ priorizar preguntas causales. Modelo actualizado a gpt-5.4.
 - `ResearchActionType`: observe, intervene, request_dataset, consult.
 - Intervenciones implementadas: do-operations, sampling intervencional, conflict
   guards.
-- **Limitacion**: el solver diagnostico actual NO usa research_actions. Solo
-  tiene python_exec + think + submit. El budget y las acciones de investigacion
-  existen en la infraestructura pero no se ejercitan en el solver. Esto es
-  consecuencia del hallazgo de que el budget creaba un "juego de desbloqueo"
-  artificial en vez de investigacion real.
+- **Estado**: la infraestructura de research_actions (observe, intervene,
+  budget) existe en el codigo pero esta DESACTIVADA. Las acciones antiguas
+  eran artificiales ("observar X cuesta 2 puntos"). El solver investiga
+  libremente con python_exec + think + submit — no necesita acciones
+  predefinidas para analizar datos. Las research actions futuras deben
+  rediseniarse desde cero como interacciones ricas con el entorno
+  (diseno experimental, campanas de datos, etc).
 
 ### Evaluacion / teacher / scoring — Estable
 

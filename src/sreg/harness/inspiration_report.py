@@ -990,12 +990,14 @@ How strong are the effects in the seed? (obvious, moderate, subtle?) \
 Does the SRC match that difficulty? Would the solver find this easy or \
 hard, and for the right reasons?
 
-## 8. Research actions
+## 8. Investigation workflow
 What would a real researcher DO in the seed's investigation? (run \
-experiments, collect new data, analyze subgroups, perform sensitivity \
-analyses, consult literature, design follow-up studies) What can the \
-solver do in the SRC? Note: research actions are not fully implemented \
-yet in SREG, but document what SHOULD be available.
+analyses, compare models, check subgroups, perform sensitivity tests, \
+explore the data iteratively) The solver has python_exec and can do \
+all of this through code. The question is: does the SRC's design \
+(questions + data) REQUIRE this kind of iterative analysis, or can \
+the solver answer without investigating? If the solver can skip the \
+analysis, that is a CASE DESIGN problem, not a missing tool.
 
 ## 9. Overall assessment
 Would a researcher working on the seed's problem recognize the SRC as \
@@ -1016,9 +1018,11 @@ important variable, oversimplified structure).
 - **DATA/EVIDENCE GAP**: the SRC's data presentation is too clean, too simple, \
 or missing something the seed implies (e.g., multiple data sources, measurement \
 error, temporal structure, missing data patterns).
-- **ACTION GAP**: research actions the solver should be able to perform but \
-can't (e.g., run subgroup analysis, compare naive vs adjusted estimates, \
-perform sensitivity analysis).
+- **CASE DESIGN GAP**: the SRC's questions or data don't require the solver \
+to investigate iteratively (e.g., questions answerable without analysis, \
+no need for subgroup comparison, no ambiguity that rewards exploration). \
+The solver HAS python_exec and CAN do anything through code — if it \
+doesn't, the case failed to motivate investigation.
 - **STRUCTURAL LIMITATION**: something about SREG's architecture that prevents \
 faithful translation (e.g., only discrete BNs, no temporal dynamics, no \
 multi-level data).
