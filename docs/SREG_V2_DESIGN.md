@@ -356,8 +356,27 @@ Las nuestras son DOMINIO-GENERICAS y GRAFO-INDEXADAS.
 
 Por eso las reales requieren investigacion y las nuestras no.
 
-El cambio necesario: pasar de evaluar CONOCIMIENTO CAUSAL a evaluar
-RESULTADOS DE ANALISIS SOBRE DATOS ESPECIFICOS.
+**INSIGHT FINAL (usuario + Claude + Codex, rounds 11-13):**
+
+No es genericidad vs especificidad. No es nombres reales vs genéricos.
+Es GRANULARIDAD: nuestras preguntas piden invariantes del TIPO de mundo
+(que los priors ya saben), en vez de cantidades del INSTANCE del mundo
+(que solo los datos de este episodio pueden revelar).
+
+El BN ya CONTIENE respuestas episodio-específicas (las CPDs definen
+magnitudes exactas). Solo que no PREGUNTAMOS por ellas.
+
+Tres niveles de evaluación:
+1. STRUCTURAL (grafo): "qué es confounder?" → no fuerza investigación
+2. ESTIMAND (cantidad): "cuál es el efecto ajustado?" → fuerza análisis
+3. SPECIFICATION-SENSITIVITY: "cambia el efecto si ajusto diferente?"
+   → más cercano a lo que papers reales hacen
+
+Nuestros 9 eval types están en nivel 1 (structural).
+Papers reales viven en niveles 2 y 3.
+
+El cambio necesario: pasar de evaluar CONOCIMIENTO CAUSAL ESTRUCTURAL
+a evaluar RESULTADOS DE ANALISIS SOBRE DATOS ESPECIFICOS.
 
 Ejemplos de mejores preguntas:
 - "In this dataset, which variable has the strongest adjusted association?"
