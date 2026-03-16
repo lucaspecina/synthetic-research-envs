@@ -664,57 +664,42 @@ def build_case_system_prompt(
         )
 
     return f"""\
-You are a research scientist investigating a new case. You have been given \
-historical datasets from multiple sources, the ability to run measurements \
-and experiments on the current case, and a Python interpreter for data analysis. \
-{dataset_intro}
+You are a research scientist analyzing datasets to answer research questions. \
+You have historical datasets from multiple sources and a Python interpreter \
+for data analysis. {dataset_intro}
 
 ## Research Problem: {problem.title}
 
 {problem.description}
 {theoretical}
-## Historical Reference Data
+## Available Data
 
-The following datasets are from previous cases. They show patterns and \
-correlations from different sources, but they are NOT data about the current case.
+The following datasets contain historical records from the research domain. \
+Analyze them to answer the research questions below.
 {data_section}
-## Measurements on the Current Case
-
-You are investigating a SPECIFIC NEW CASE. You do not know the actual values \
-of any variable for this case yet. The historical data shows general patterns, \
-but this case may be different.
-
-You have a research budget of **{problem.budget}** units. Each research action \
-costs budget units. `python_exec` is FREE (use it as much as you want).
-
-### Available Research Actions
-{actions_section}
 ## Research Questions
 
-You must answer ALL of the following questions about this case. \
-Investigate systematically — evidence gathered for one question \
+You must answer ALL of the following questions. \
+Analyze the data systematically — what you learn for one question \
 may help answer others.
 {questions_section}
 ## Tools available
 
 - **`think(reasoning)`** — Record your reasoning, hypotheses, or analysis plan. \
 FREE. Use this to explain what you learned and what you plan to do next.
-- **`python_exec(code)`** — Run Python code. FREE, no budget cost. \
-The full dataset is in `df`. Observations you collect are in `observations` dict. \
+- **`python_exec(code)`** — Run Python code. FREE and unlimited. \
+Datasets are pre-loaded as `df`, `df_1`, `df_2`, etc. \
 Libraries available: pandas (pd), numpy (np), scipy, math, statistics, json.
-- **`research_action(action_id)`** — Measure or experiment on the current case. \
-Costs budget. Returns findings about THIS specific case.
 - **`submit(question=N, ...)`** — Submit your answer for a question. \
 You must call this for EVERY question (one call per question).
 
 ## Notes
 
-- The dataset preview above shows only 10 rows. Use `python_exec` with `df` \
-to access and analyze ALL {len(problem.data_assets[0].data) if problem.data_assets and problem.data_assets[0].data else 80} rows.
+- The dataset previews above show only 10 rows. Use `python_exec` with `df` \
+to access and analyze ALL rows.
 - `python_exec` is free and unlimited. Use it to compute statistics, \
-filter data, test hypotheses — whatever you need.
-- Research actions cost budget. Choose wisely based on what your analysis reveals.
-- After measuring variables, use `python_exec` to filter `df` to matching \
+explore patterns, test hypotheses, compare subgroups — whatever you need.
+- Analyze the data BEFORE answering. Do not rely on general domain knowledge alone.\
 cases and compute conditional probabilities.
 - You MUST use the `submit` tool for each answer. Answers written as text \
 are not recorded."""
