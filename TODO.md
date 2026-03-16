@@ -538,11 +538,12 @@
 > Esto no es un cambio superficial — es lo que hace la diferencia entre
 > "benchmark causal" y "ambiente de investigacion".
 
-- [x] **LOOP.1**: Ocultar variables en el dataset inicial (padres del target)
-  - El dataset CSV no incluye TODAS las columnas observables
-  - Algunas se revelan solo con research_action (observe)
-  - El agente empieza con informacion parcial y debe decidir que medir
-  - Configurar: que fraccion/cuales variables son visibles al inicio
+- [-] **LOOP.1**: ~~Ocultar variables en el dataset inicial~~ REVERTIDO
+  - Ocultaba padres del target para forzar budget usage
+  - El solver solo desbloqueaba columnas mecanicamente, no investigaba
+  - Creo un "data-unlock game" artificial, no investigacion real
+  - REVERTIDO: el agente recibe TODOS los datos, como un investigador real
+  - FUTURO: research_actions deberian comisionar NUEVOS datos, no revelar ocultos
 - [ ] **LOOP.2**: Tareas que requieran evidencia
   - Verificar para cada tarea: es respondible sin observar?
   - Tareas que dependen de variables ocultas REQUIEREN investigacion
