@@ -104,7 +104,27 @@ de esto.
 
 **Referencia:** `research/notes/scientific_taxonomy.md`, inbox de TODO.
 
-### A6. Evaluaciones y validaciones sin uso
+### A6. Estudiar como otros sistemas evaluan y entrenan
+
+Estudiar Research Gym, SciGym, Kimi, SciDesignBench y otros proyectos
+de RL agentico y long-horizon para entender como EVALUAN y ENTRENAN.
+Esto no es para copiar sus tasks, sino para aprender:
+
+- [ ] Que metricas usan para evaluar si un agente "investiga bien"?
+- [ ] Como estructuran el RL loop (reward, episodes, curriculum)?
+- [ ] Como miden agentic behavior (no solo respuestas correctas)?
+- [ ] Que benchmarks usan para medir transferencia?
+- [ ] Como hacen el training — que framework, que escala, que datos?
+- [ ] Que podemos aprender para disenar nuestro propio eval y training?
+
+Referencia: https://x.com/askalphaxiv/status/2030765298723283424
+SciDesignBench: arxiv 2603.12724
+
+**Esto es diferente de A5:** A5 es sobre taxonomia de investigaciones
+reales (para disenar SRCs mas diversos). A6 es sobre como otros sistemas
+miden y entrenan razonamiento cientifico (para evaluar SREG mejor).
+
+### A7. Evaluaciones y validaciones existentes sin uso
 
 Se construyeron QualitySuite, DiagnosticRunner, baselines, pero parte
 quedo desactualizada o sin uso real. Hay que repasar que sirve y que no.
@@ -114,7 +134,7 @@ quedo desactualizada o sin uso real. Hay que repasar que sirve y que no.
   iterar. Como cerrar el loop?
 - [ ] Baselines: son los correctos para los eval types actuales?
 
-### A7. Variables numericas y mundos mixtos
+### A8. Variables numericas y mundos mixtos
 
 Hoy la BN solo soporta variables discretas. Los papers reales tienen
 variables continuas (presion, temperatura, concentracion, scores). Esto
@@ -126,7 +146,7 @@ limita el realismo de los datos y las preguntas que podemos hacer.
 - [ ] Que cambia en el teacher, scoring y CPD generation?
 - [ ] Que eval types nuevos habilita (regresion, correlacion, etc)?
 
-### A8. Inspiration report: racionalizacion post-hoc
+### A9. Inspiration report: racionalizacion post-hoc
 
 El report narrativo se genera DESPUES del SRC, por un LLM diferente al
 orchestrator. Eso significa que "explica" las decisiones reconstruyendo
