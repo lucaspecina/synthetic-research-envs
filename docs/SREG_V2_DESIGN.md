@@ -333,6 +333,39 @@ La raiz es triple:
    — también hay que hacer que los priors sean no-confiables)
 3. El scoring recompensa la respuesta correcta, no el USO de evidencia
 
+**Root cause (debate Claude + Codex, round 11-12):**
+
+La diferencia entre preguntas reales y las nuestras:
+- Nuestras eval types son GENERICAS CAUSALES: "does X affect Y?"
+  → respondibles desde conocimiento de dominio
+- Las preguntas de papers reales son EMPIRICAS ANALITICAS:
+  "what does THIS analysis of THIS dataset show?"
+  → requieren analizar los datos porque la respuesta depende del dataset
+
+Un paper real pregunta:
+- "Is the HR > 1.0 after adjusting for 15 covariates IN THIS cohort?"
+- "Does the effect survive 5 alternative specifications?"
+- "Which predictor dominates in a two-pollutant model?"
+
+Nuestros eval types preguntan:
+- "Does thermal stress affect recovery?" (causal_effect)
+- "What variables should you control for?" (adjustment_set)
+
+Las preguntas de papers son ANALISIS-CONDICIONADAS y DATASET-INDEXADAS.
+Las nuestras son DOMINIO-GENERICAS y GRAFO-INDEXADAS.
+
+Por eso las reales requieren investigacion y las nuestras no.
+
+El cambio necesario: pasar de evaluar CONOCIMIENTO CAUSAL a evaluar
+RESULTADOS DE ANALISIS SOBRE DATOS ESPECIFICOS.
+
+Ejemplos de mejores preguntas:
+- "In this dataset, which variable has the strongest adjusted association?"
+- "Run two models (with/without variable_Z). Does the main effect change?"
+- "Is the relationship linear or is there a threshold effect?"
+- "The background data shows pattern X. Does the field survey confirm it?"
+- "Which of these two causal graphs better explains the observed correlations?"
+
 **Fix combinado (no solo uno de estos):**
 1. Preguntas episodio-específicas: "en ESTE dataset, cuál variable tiene
    el efecto más fuerte?" no "does X affect Y in general?"
