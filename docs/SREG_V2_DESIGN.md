@@ -317,11 +317,41 @@ The agent never sees this classification. It experiences the constraints.
 **El problema real no es la interfaz del ambiente. Es que el ambiente es
 shortcutteable por priors semánticos del modelo preentrenado.**
 
-**Implicaciones:**
-1. Training DEBE usar nombres genéricos (typed-abstract, no realistas)
-2. Las preguntas deben depender de los datos DE ESTE EPISODIO, no de priors generales
-3. El scoring debe requerir evidencia de los artifacts, no solo plausibilidad
-4. El caso actual (current case) debe tener algo que solo se resuelve investigando
+**Analisis profundo (debate Claude + Codex, round 10):**
+
+El shortcutting NO es solo un problema de nombres. Es un **mismatch de
+objetivos**: si la pregunta se puede responder desde priors, entonces
+NO investigar es la estrategia OPTIMA. El solver no esta "fallando"
+— esta siendo racional bajo los incentivos actuales.
+
+La raiz es triple:
+1. Las preguntas son genérico-dominiales, no episodio-específicas
+   ("does thermal stress affect recovery?" vs "which variable is the
+   strongest driver IN THIS PARTICULAR DATASET?")
+2. La narrativa activa priors semánticos que hacen la investigación
+   innecesaria (pero NO es suficiente solo sacar los nombres reales
+   — también hay que hacer que los priors sean no-confiables)
+3. El scoring recompensa la respuesta correcta, no el USO de evidencia
+
+**Fix combinado (no solo uno de estos):**
+1. Preguntas episodio-específicas: "en ESTE dataset, cuál variable tiene
+   el efecto más fuerte?" no "does X affect Y in general?"
+2. Priors no confiables: a veces el mundo coincide con la expectativa
+   del dominio, a veces NO. El agente no puede saber cuál sin analizar.
+   NO invertir siempre (eso crea un nuevo shortcut: "lo obvio esta mal").
+   Hacer que la alineacion sea VARIABLE e impredecible.
+3. Reward por evidencia: no solo correctness, también calidad del proceso.
+   Calibración, uso de datos, robustez.
+4. Preguntas discriminativas: "cuál de estos dos DAGs explica mejor los
+   datos?" "qué edge esperado esta AUSENTE en este mundo?" "estima el
+   signo Y la magnitud relativa de X->Y en ESTE episodio"
+
+**Nombres genéricos vs realistas (decision refinada):**
+- Nombres genéricos solos NO resuelven el problema
+  (el modelo puede shortcuttear con heurísticas estructurales)
+- Nombres realistas solos son PEORES (activan pretraining directo)
+- La solución real es EPISODIO-DEPENDENCIA + PRIORS VARIABLES
+- Nombres genéricos son útiles como control experimental, no como fix
 
 ### Generic vs Realistic Variable Names — CRITICAL for training
 
