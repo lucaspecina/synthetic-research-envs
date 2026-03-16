@@ -385,18 +385,40 @@ Ejemplos de mejores preguntas:
 - "The background data shows pattern X. Does the field survey confirm it?"
 - "Which of these two causal graphs better explains the observed correlations?"
 
-**Fix combinado (no solo uno de estos):**
-1. Preguntas episodio-específicas: "en ESTE dataset, cuál variable tiene
-   el efecto más fuerte?" no "does X affect Y in general?"
-2. Priors no confiables: a veces el mundo coincide con la expectativa
-   del dominio, a veces NO. El agente no puede saber cuál sin analizar.
-   NO invertir siempre (eso crea un nuevo shortcut: "lo obvio esta mal").
-   Hacer que la alineacion sea VARIABLE e impredecible.
-3. Reward por evidencia: no solo correctness, también calidad del proceso.
-   Calibración, uso de datos, robustez.
-4. Preguntas discriminativas: "cuál de estos dos DAGs explica mejor los
-   datos?" "qué edge esperado esta AUSENTE en este mundo?" "estima el
-   signo Y la magnitud relativa de X->Y en ESTE episodio"
+**RESPUESTA DEFINITIVA (usuario + Claude + Codex, rounds 11-14):**
+
+No es granularidad. No es nombres genéricos vs realistas.
+Es **AMBIGUEDAD MECANISTICA**.
+
+En Vaca Muerta real: "¿qué causa el arenamiento?" requirió meses de
+investigación porque había 6-8 explicaciones IGUALMENTE plausibles:
+presión, distancia, geología, interacción, latente geomecánico...
+La investigación fue necesaria para ELIMINAR RIVALES.
+
+En nuestro SRC: "¿thermal stress afecta recovery?" se resuelve en
+5 segundos porque la narrativa activa UNA explicación canónica.
+No hay competencia entre mecanismos.
+
+**Condiciones para que un SRC REQUIERA investigación:**
+1. Múltiples explicaciones son semánticamente plausibles desde la narrativa
+2. Esas explicaciones implican patrones observables DIFERENTES
+3. Solo los datos del episodio pueden resolver cuál es correcta
+
+Si las tres se cumplen → investigar es necesario (con o sin nombres realistas)
+Si alguna falla → el solver puede shortcuttear
+
+**Implicaciones para el diseño:**
+- Los SRCs necesitan HIPOTESIS RIVALES genuinas, no una explicación canónica
+- Las preguntas deben ser discriminativas: "cuál de estos mecanismos
+  explica mejor los datos?" no "¿X afecta Y?"
+- El BN debe poder soportar que la respuesta "sorpresa" sea la correcta
+  (a veces la explicación obvia NO es la dominante en este mundo)
+- Los nombres realistas estan BIEN si la ambigüedad mecanística se preserva
+- Los nombres genéricos son útiles como control, no como solución principal
+
+**Esto no es incremental. Es un cambio en cómo diseñamos los casos.**
+El orchestrator no solo necesita crear un mundo y preguntas — necesita
+crear un ESPACIO DE HIPOTESIS RIVALES donde los datos discriminan.
 
 **Nombres genéricos vs realistas (decision refinada):**
 - Nombres genéricos solos NO resuelven el problema
