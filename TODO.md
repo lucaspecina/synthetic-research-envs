@@ -538,7 +538,7 @@
 > Esto no es un cambio superficial — es lo que hace la diferencia entre
 > "benchmark causal" y "ambiente de investigacion".
 
-- [ ] **LOOP.1**: Ocultar variables en el dataset inicial
+- [x] **LOOP.1**: Ocultar variables en el dataset inicial (padres del target)
   - El dataset CSV no incluye TODAS las columnas observables
   - Algunas se revelan solo con research_action (observe)
   - El agente empieza con informacion parcial y debe decidir que medir
