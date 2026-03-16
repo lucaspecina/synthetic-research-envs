@@ -134,7 +134,9 @@ scripts/
 ├── demo.py                # Demo sin LLM
 ├── view_case.py           # Inspeccionar casos exportados
 ├── view_trajectory.py     # Inspeccionar trayectorias
-└── batch_sweep.py         # Parameter sweep
+├── batch_sweep.py         # Parameter sweep
+├── semantic_transform.py  # Transformar SRC a modo abstract/fictional
+└── run_inspiration_reports.py  # Batch inspiration reports
 
 seeds/               # Paper seeds (PDF, markdown)
 experiments/         # Resultados de diagnostico

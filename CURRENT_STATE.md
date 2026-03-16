@@ -65,6 +65,9 @@ priorizar preguntas causales. Modelo actualizado a gpt-5.4.
   especializadas).
 - Measurement noise (5% misclassification) + MAR missingness (5%).
 - Datasets pre-loaded como df, df_1, df_2 en python_exec.
+- **Modos semanticos (prototipo):** `scripts/semantic_transform.py` transforma
+  SRCs post-generacion a 3 modos (realistic/fictional/abstract). Misma BN,
+  distinta capa visible. `theory_rich` es futuro. Experimento pendiente.
 
 ### Interaccion / episodes / actions — Parcial
 

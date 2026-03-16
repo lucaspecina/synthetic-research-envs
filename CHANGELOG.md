@@ -5,7 +5,19 @@
 
 ## [Unreleased]
 
-### 2026-03-16 — Prompt overhaul + Inspiration Report v2
+### 2026-03-16 — Semantic modes + TODO restructure + Prompt overhaul + Inspiration Report v2
+
+- **Semantic transform prototype**: `scripts/semantic_transform.py` transforms
+  SRCs to 3 modes (realistic/fictional/abstract) as post-process. Same BN,
+  different semantic layer. Tested on smoking + vaca_muerta cases.
+- **TODO restructured**: analysis (A1-A7) separated from implementation (I1-I9).
+  Research actions clarified: old observe/intervene/budget mechanics dead,
+  future actions need fresh design. Solver investigates with python_exec.
+- **Inspiration report**: "Research actions" -> "Investigation workflow",
+  "ACTION GAP" -> "CASE DESIGN GAP".
+- **7 SRCs regenerated** with new prompt (gpt-5.4, causal-first design).
+
+### 2026-03-16 — Prompt overhaul + Inspiration Report v2 (earlier)
 
 - **Orchestrator prompt rewritten**: eval types now described in research
   language (not statistical). Causal questions promoted as primary; infer_target

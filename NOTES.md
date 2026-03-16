@@ -46,12 +46,24 @@ una AI se entrene usando estos mundos, se confunda porque van a ser cosas
 parecidas a la realidad pero los mecanismos van a ser inventados, entonces
 sea para peor.
 
-**Posible solucion:** hacer opcional los nombres semanticos? Pero que
-pasaria con la "historia" en general?
+**Prototipo implementado (2026-03-16):** `scripts/semantic_transform.py`
+transforma un SRC existente a 3 modos (misma BN, distinta capa semantica):
+- `realistic` = lo que genera el orchestrator (nombres cientificos reales,
+  setting ficticio — ej "Kallistran shale corridor" en vez de "Vaca Muerta")
+- `fictional` = nombres inventados con estructura narrativa (ej "luminocoral
+  resonance farming", "brineglow exposure", "Veylith Bloom Tracts")
+- `abstract` = V1, V2, Y sin contexto. Puro formalismo.
+- `theory_rich` = FUTURO: fictional + literatura inventada (papers ficticios).
 
-> **Estado:** pregunta abierta, necesita analisis y posiblemente experimento.
-> Relacionado con la tension estrategica en PROJECT.md ("Semantica realista
-> vs semantica abstracta").
+**Aclaracion importante:** el modo "realistic" ya es ficticio — el orchestrator
+nunca usa datos ni nombres reales del paper seed. Usa terminologia cientifica
+reconocible del dominio. La diferencia con "fictional" es que en realistic el
+solver puede usar priors del dominio porque reconoce los conceptos.
+
+**Pendiente:** correr el solver en los 3 modos y comparar. Esto sigue siendo
+una pregunta ABIERTA — el prototipo existe pero no tenemos evidencia todavia.
+
+> **Estado:** prototipo listo, experimento pendiente. Ver TODO.md I2.
 
 ### Que tipo de preguntas cientificas / tasks hacer?
 
