@@ -211,6 +211,33 @@ que ver con oil & gas). Crear el .md.
 
 ---
 
+### Inverse design como eval type (inspirado por SciDesignBench)
+
+La BN es un simulador. Podriamos preguntar: "encontra la combinacion de
+intervenciones que produzca este resultado." El solver propone un diseno,
+la BN lo evalua con do-calculus, y le da feedback. Iterativo.
+
+Ejemplo Vaca Muerta: "que combinacion de spacing, fluido y presion
+minimiza la probabilidad de sanding?" El solver propone → BN computa →
+feedback → solver ajusta → repite.
+
+Es lo que hace SciDesignBench (arxiv 2603.12724) pero con nuestra BN
+como simulador en vez de simuladores fisicos/quimicos. Ellos miden si
+el LLM puede disenar soluciones; nosotros mediamos si puede investigar.
+Pero el diseño experimental es PARTE de la investigacion.
+
+**Diferencia con best_intervention:** best_intervention pregunta por UNA
+variable. inverse_design pide una COMBINACION de valores. Es mas abierto,
+mas parecido a diseño experimental real.
+
+**Verificable?** Si — do-calculus sobre multiples intervenciones
+simultaneas. P(Y | do(X1=a, X2=b, X3=c)). La BN lo puede computar.
+
+> **Estado:** idea nueva, muy prometedora. Conecta SREG con el mundo de
+> design benchmarks. Ver SciDesignBench como referencia.
+
+---
+
 ## Para implementar
 
 - Categorizacion / taxonomia / dimensiones de lo que tienen las investigaciones

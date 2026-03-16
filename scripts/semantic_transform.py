@@ -83,20 +83,18 @@ def transform_abstract(src: dict) -> dict:
         "by causal relationships. Data has been collected from the system."
     )
 
-    # Rename nodes
+    # Rename nodes (keep states unchanged — renaming states breaks CPD consistency)
     for node in world["nodes"]:
         old_name = node["name"]
         node["name"] = rename[old_name]
-        # Rename states to generic
-        if "states" in node:
-            node["states"] = [f"s{i}" for i in range(len(node["states"]))]
+        node["description"] = f"{node['type']} variable: {rename[old_name]}"
 
     # Rename edges
     for edge in world["edges"]:
         edge["from_node"] = rename.get(edge["from_node"], edge["from_node"])
         edge["to_node"] = rename.get(edge["to_node"], edge["to_node"])
 
-    # Rename CPDs
+    # Rename CPDs (node, parents, and state_names keys)
     cpds = world.get("cpds", [])
     if isinstance(cpds, list):
         for cpd in cpds:
@@ -104,6 +102,11 @@ def transform_abstract(src: dict) -> dict:
                 cpd["node"] = rename.get(cpd["node"], cpd["node"])
             if "parents" in cpd:
                 cpd["parents"] = [rename.get(p, p) for p in cpd["parents"]]
+            if "state_names" in cpd and isinstance(cpd["state_names"], dict):
+                new_sn = {}
+                for k, v in cpd["state_names"].items():
+                    new_sn[rename.get(k, k)] = v
+                cpd["state_names"] = new_sn
     elif isinstance(cpds, dict):
         new_cpds = {}
         for old_name, cpd in cpds.items():
@@ -346,20 +349,17 @@ Return ONLY valid JSON:
     world["domain"] = result.get("domain", world["domain"])
     world["theoretical_context"] = result.get("theoretical_context", world.get("theoretical_context", ""))
 
-    # Rename nodes and states
+    # Rename nodes (keep states unchanged — renaming states breaks CPD consistency)
     for node in world["nodes"]:
         old_name = node["name"]
         node["name"] = rename.get(old_name, old_name)
-        sr = state_renames.get(old_name, {})
-        if sr and "states" in node:
-            node["states"] = [sr.get(s, s) for s in node["states"]]
 
     # Rename edges
     for edge in world["edges"]:
         edge["from_node"] = rename.get(edge["from_node"], edge["from_node"])
         edge["to_node"] = rename.get(edge["to_node"], edge["to_node"])
 
-    # Rename CPDs
+    # Rename CPDs (node, parents, and state_names keys)
     cpds = world.get("cpds", [])
     if isinstance(cpds, list):
         for cpd in cpds:
@@ -367,6 +367,11 @@ Return ONLY valid JSON:
                 cpd["node"] = rename.get(cpd["node"], cpd["node"])
             if "parents" in cpd:
                 cpd["parents"] = [rename.get(p, p) for p in cpd["parents"]]
+            if "state_names" in cpd and isinstance(cpd["state_names"], dict):
+                new_sn = {}
+                for k, v in cpd["state_names"].items():
+                    new_sn[rename.get(k, k)] = v
+                cpd["state_names"] = new_sn
     elif isinstance(cpds, dict):
         new_cpds = {}
         for old_name, cpd in cpds.items():

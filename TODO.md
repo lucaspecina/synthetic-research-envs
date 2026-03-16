@@ -99,7 +99,19 @@ quedo desactualizada o sin uso real. Hay que repasar que sirve y que no.
   iterar. Como cerrar el loop?
 - [ ] Baselines: son los correctos para los eval types actuales?
 
-### A7. Inspiration report: racionalizacion post-hoc
+### A7. Variables numericas y mundos mixtos
+
+Hoy la BN solo soporta variables discretas. Los papers reales tienen
+variables continuas (presion, temperatura, concentracion, scores). Esto
+limita el realismo de los datos y las preguntas que podemos hacer.
+
+**Sub-preguntas:**
+- [ ] Se puede extender pgmpy a variables continuas o mixtas?
+- [ ] Alternativa: discretizar pero con mas granularidad (10-20 estados)?
+- [ ] Que cambia en el teacher, scoring y CPD generation?
+- [ ] Que eval types nuevos habilita (regresion, correlacion, etc)?
+
+### A8. Inspiration report: racionalizacion post-hoc
 
 El report narrativo se genera DESPUES del SRC, por un LLM diferente al
 orchestrator. Eso significa que "explica" las decisiones reconstruyendo
@@ -133,6 +145,10 @@ analisis que la motiva.
 - [ ] Disenar `effect_modification`: "el efecto de X sobre Y cambia segun
   el valor de Z?". Verificar computabilidad.
 - [ ] Disenar `subgroup_effect` o `selection_bias_assessment`.
+- [ ] Disenar `inverse_design`: "que combinacion de intervenciones produce
+  este resultado?" Verificable con do-calculus multi-intervencion.
+  Potencialmente iterativo (proponer → feedback → refinar).
+  Referencia: SciDesignBench (arxiv 2603.12724).
 - [ ] Para cada tipo nuevo: definir scoring, correcta ground truth, y
   agregar al teacher.
 
