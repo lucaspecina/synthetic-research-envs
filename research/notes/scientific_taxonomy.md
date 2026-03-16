@@ -1,7 +1,7 @@
 # TEMP: Scientific Taxonomy Debate (2026-03-15/16)
 
-> Working document. NOT final. Will be consolidated into SREG_V2_DESIGN.md
-> or WORLD_DESIGN.md once we reach conclusions.
+> Working note. Este debate alimenta `research/synthesis/eval_types_analysis.md`.
+> Se conserva como material de exploracion, no como conclusion final.
 
 ## User's taxonomy (7 types + 2 axes)
 
@@ -148,4 +148,3 @@ Solo el primero fuerza investigacion naturalmente.
 5. Should we restructure around the PROCESS (framing, proposing, planning,
    executing, analyzing) rather than just final answers?
 6. What to do about realistic experiments/actions (future feature)?
-

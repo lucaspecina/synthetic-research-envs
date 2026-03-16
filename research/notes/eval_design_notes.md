@@ -1,14 +1,10 @@
 # EVAL_DESIGN.md — Como evaluar SREG
 
-> **Documento de investigacion.** Define QUE queremos medir del sistema SREG,
-> a que nivel, con que metricas, y con que comparaciones. Es el equivalente
-> de WORLD_DESIGN.md pero para evaluacion.
+> **Note.** Este archivo conserva la version extensa del doc de evaluacion.
+> La sintesis activa vive ahora en `research/synthesis/eval_strategy.md`.
 >
-> Este documento NO describe la implementacion del benchmark (eso va en el
-> codigo). Describe la **estrategia de evaluacion**: que preguntas queremos
-> responder y como las respondemos.
->
-> Documento vivo — se actualiza a medida que aprendemos.
+> Mantener este archivo para detalle, historial de ideas y secciones todavia no
+> promovidas. No usarlo como documento canonico de entrada.
 
 ---
 

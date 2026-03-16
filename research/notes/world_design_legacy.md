@@ -1,18 +1,17 @@
 # De mundos de juguete a mundos realistas
 
-> **Documento de investigacion y referencia.** Estrategia, decisiones de diseno,
-> preguntas abiertas y conclusiones parciales para evolucionar los mundos de SREG
-> desde patrones aislados hacia research cases que se parezcan a investigaciones
-> reales.
+> **Legacy note.** Este archivo conserva el megadoc original de research sobre
+> generacion de mundos y research cases. Ya no es referencia activa ni canonica.
 >
-> Este documento es **dinamico** — se actualiza a medida que investigamos
-> alternativas, encontramos problemas, o descubrimos nuevos enfoques. No es un
-> plan de implementacion (eso esta en TODO.md). Es el espacio para pensar,
-> investigar y decidir antes de escribir codigo.
+> Para sintesis activas, usar primero:
 >
-> **Relacion con PROJECT.md**: PROJECT.md es la estrella polar (hacia donde vamos).
-> Este documento es la brujula de investigacion para una parte especifica del
-> camino: como generar mundos formales mas ricos y realistas.
+> - `research/synthesis/research_case_design.md`
+> - `research/synthesis/eval_types_analysis.md`
+> - `research/synthesis/real_papers_patterns.md`
+> - `research/synthesis/eval_strategy.md`
+>
+> Este archivo se mantiene como fuente historica y de detalle, no como
+> documento de entrada.
 
 ### Indice de navegacion
 
@@ -38,8 +37,8 @@ a la seccion que necesites:
 | **Hallazgos experimentales** | Resultados de templates, DAGSpec, batch sweep |
 | **Hallazgos 5-SRC eval** | 5 dominios, budget 0 en 4/5, diagnostico Codex |
 |---|---|
-| **docs/SREG_V2_DESIGN.md** | 10 patrones reales + 5 cambios + taxonomia (TODO unificado) |
-| **research/real_investigations_analysis.md** | Analisis detallado de 7 papers reales |
+| **research/notes/sreg_v2_design_findings.md** | Sesion de findings sobre SREG v2 |
+| **research/notes/real_investigations_analysis.md** | Analisis detallado de 7 papers reales |
 | **Investigacion previa** | BoxingGym, DiscoveryWorld, Reasoning Core, benchmarks |
 
 ---

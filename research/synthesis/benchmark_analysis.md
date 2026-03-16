@@ -427,7 +427,7 @@ AstaBench
 ## Fuentes
 
 Este documento consolida investigacion de dos fuentes independientes:
-- `docs/references/scientific_benchmarks_policy_claude.md` -- analisis de 20+ benchmarks
-- `docs/references/scientific_benchmarks_policy_gpt.md` -- seleccion de top 3 + protocolo BEFORE/AFTER
+- `research/archive/scientific_benchmarks_policy_claude.md` -- analisis de 20+ benchmarks
+- `research/archive/scientific_benchmarks_policy_gpt.md` -- seleccion de top 3 + protocolo BEFORE/AFTER
 
 Ambos archivos se mantienen como referencia con el analisis completo original.

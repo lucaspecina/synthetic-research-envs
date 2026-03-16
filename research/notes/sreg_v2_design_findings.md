@@ -1,8 +1,15 @@
 # SREG v2 Design — From Causal Benchmark to Research Environment
 
-> Result of deep analysis session (2026-03-15): 6 rounds of debate with Codex,
-> analysis of real scientific papers, examination of 5 generated SRCs, and
-> critical assessment of what makes real research different from benchmarks.
+> Session note. Este archivo conserva el resultado detallado de una sesion de
+> analisis de SREG v2.
+>
+> Para conclusiones activas, usar primero:
+>
+> - `research/synthesis/research_case_design.md`
+> - `research/synthesis/eval_types_analysis.md`
+> - `research/synthesis/real_papers_patterns.md`
+>
+> Full paper analysis lives in `research/notes/real_investigations_analysis.md`.
 
 ## The Problem
 
@@ -27,7 +34,7 @@ environments. Evidence:
 
 > From analysis of 7 real papers (epi, ecology, clinical, education,
 > materials, economics) + 7 rounds of debate with Codex.
-> Full paper analysis in `research/real_investigations_analysis.md`.
+> Full paper analysis in `research/notes/real_investigations_analysis.md`.
 
 ### From real papers (7 studies)
 

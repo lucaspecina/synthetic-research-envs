@@ -1,0 +1,439 @@
+# SREG — Arquitectura
+## Synthetic Research Environment Generator
+
+> Este documento define como deberia estar organizado SREG dentro del alcance
+> arquitectonico hoy seleccionado.
+>
+> `PROJECT.md` define la vision.
+> `ARCHITECTURE.md` define el sistema objetivo para este horizonte.
+> `CURRENT_STATE.md` describe que parte de eso existe hoy realmente.
+> `TODO.md` describe la brecha y el trabajo pendiente.
+
+---
+
+## 1. Proposito
+
+Este documento fija:
+
+- la unidad central de producto,
+- las piezas principales del sistema,
+- los contratos de dominio que las conectan,
+- los flujos canonicos de generacion, interaccion y evaluacion,
+- y los limites de responsabilidad de SREG.
+
+No deberia usarse para documentar estado actual, backlog, bugs o research
+abierto.
+
+---
+
+## 2. Horizonte arquitectonico
+
+### Alcance seleccionado
+
+La arquitectura actual apunta a **research cases estructurados y verificables**
+donde:
+
+- la verdad del caso vive en un sustrato formal discreto y exacto,
+- el caso visible se presenta como un problema de investigacion con datos,
+  contexto, acciones y restricciones,
+- el orchestrator diseña el caso como conjunto,
+- el solver interactua dentro de un episodio con budget,
+- y la evaluacion se ancla a un teacher formal.
+
+### Debe soportar crecimiento hacia
+
+- artefactos de evidencia mas ricos,
+- material teorico sintetico,
+- acciones de investigacion mas expresivas,
+- briefs y casos menos cerrados,
+- y paradigmas cientificos mas diversos,
+
+sin romper el nucleo verificable del sistema.
+
+### Fuera de alcance de esta version
+
+- training loops de RL,
+- simulacion cientifica totalmente abierta sin estructura formal,
+- evaluacion cuyo nucleo dependa solo de jueces humanos o LLM-as-judge,
+- y un salto inmediato a cualquier idea futura del `PROJECT.md` sin pasar por
+  contratos y flujos estables.
+
+---
+
+## 3. Vista general del sistema
+
+SREG se organiza alrededor de tres piezas:
+
+1. **Generador de entornos**
+   Convierte un goal, seed o paper en un caso de investigacion sintetico
+   verificable.
+
+2. **Teacher / evaluador**
+   Usa la verdad formal del mundo para computar respuestas correctas,
+   posteriors, efectos, recomendaciones y rewards.
+
+3. **Policy diagnostica**
+   Un solver de referencia usado para validar que los casos generados funcionen
+   realmente como entornos de investigacion y no como puzzles triviales o
+   shortcutteables.
+
+```text
+goal / seed / paper
+        |
+        v
+  Orchestrator + tools
+        |
+        v
+       SRC
+        |
+   +----+----+
+   |         |
+   v         v
+solver    teacher
+   |         |
+   +----+----+
+        |
+        v
+   reward / diagnostico
+```
+
+---
+
+## 4. La unidad central: el SRC
+
+La unidad de producto de SREG es el **SRC** (`Synthetic Research Case`).
+
+Un SRC no es solo un grafo ni solo un prompt. Es un caso de investigacion
+completo con dos capas coordinadas:
+
+- una **capa formal oculta**, donde vive la verdad matematica del mundo,
+- una **capa visible**, donde ese mundo aparece como research case para un
+  solver.
+
+Hoy el SRC es un artefacto compuesto, no una clase unica. Sus piezas centrales
+son:
+
+- `World`
+- `CasePlan`
+- `ResearchProblem`
+- una o mas `Task`
+- `Episode`
+- scores, trayectorias y artefactos exportables
+
+Arquitectonicamente, el SRC debe tratarse como un producto coherente aunque se
+represente con varios contratos.
+
+---
+
+## 5. Contratos centrales
+
+### `DAGSpec`
+
+Contrato universal para describir una estructura DAG arbitraria sin CPDs.
+
+Desacopla la fuente de estructura de la generacion del mundo. Cualquier origen
+de estructura deberia poder emitir un `DAGSpec`.
+
+### `World`
+
+Contrato del mundo formal completo.
+
+Contiene nodos, edges, CPDs y metadata de dificultad. Es la fuente de verdad
+del caso.
+
+En este horizonte, el sustrato formal aceptado es una **red bayesiana discreta**.
+
+### `CasePlan`
+
+Contrato de diseno del caso.
+
+Define framing, research context, preguntas planeadas, budget compartido y
+hints para mantener alineadas pregunta visible y respuesta formal.
+
+### `ResearchProblem`
+
+Contrato de la presentacion visible del caso.
+
+Contiene narrativa, dominio, contexto teorico, `DataAsset`s,
+`AvailableAction`s, budget y pregunta principal. Es lo que el solver ve.
+
+### `DataAsset`
+
+Contrato de un artefacto de evidencia visible.
+
+Representa datasets, observaciones o activos narrativos que el solver puede
+inspeccionar como parte del caso.
+
+Arquitectonicamente, esto permite que la evidencia visible no se reduzca a un
+solo CSV plano.
+
+### `AvailableAction`
+
+Contrato de una accion de investigacion visible para el solver.
+
+Representa que se puede hacer dentro del caso, con que costo y, cuando aplica,
+sobre que nodos o con que valores de intervencion.
+
+Es la traduccion semantica de la interfaz investigativa del caso: medir,
+intervenir, pedir datos o, a futuro, otras formas de accion guiadas por el
+propio research case.
+
+### `Task`
+
+Contrato de una evaluacion concreta derivada del mundo.
+
+Contiene tipo, pregunta, target, evidencia visible, respuesta correcta oculta y
+metodo de scoring.
+
+La superficie de evaluacion seleccionada para este horizonte es una superficie
+tipada de preguntas cientificas. Incluye:
+
+- `infer_target`
+- `next_best_observation`
+- `hypothesis_selection`
+- `causal_effect`
+- `best_intervention`
+- `adjustment_set`
+- `compare_interventions`
+- `should_condition`
+- `infer_latent_cause`
+
+### `Episode`
+
+Contrato de la interaccion ejecutable.
+
+Define budget, evidencia inicial, acciones disponibles y pasos ejecutados.
+
+### `Score`
+
+Contrato del resultado de evaluacion.
+
+Separa al menos calidad funcional, eficiencia informativa y uso de budget.
+
+### `TeacherOutput`
+
+Contrato del teacher paso a paso: posterior verdadera, recomendacion de accion,
+information gain y entropia.
+
+---
+
+## 6. Capas del sistema
+
+### 6.1 Capa formal
+
+Modela la verdad del caso.
+
+Incluye:
+
+- variables y tipos de nodo,
+- estructura causal,
+- distribuciones,
+- y consultas exactas sobre el mundo.
+
+Todo reward central debe anclarse aca.
+
+### 6.2 Capa de diseno del caso
+
+Traduce un mundo posible a un research case investigable.
+
+Su funcion es decidir:
+
+- que preguntas importan,
+- como se presenta el caso,
+- que acciones existen,
+- y que restricciones organizan la investigacion.
+
+`CasePlan` vive principalmente en esta capa.
+
+### 6.3 Capa semantica visible
+
+Empaqueta el caso como problema para el solver:
+
+- narrativa,
+- dominio,
+- contexto teorico,
+- datasets y otros artefactos,
+- acciones disponibles,
+- budget visible.
+
+`ResearchProblem` vive principalmente en esta capa.
+
+La generacion de evidencia visible forma parte de esta capa: sampling de datos,
+multi-asset packaging, missingness, measurement noise y otras propiedades que
+hacen que el caso se parezca mas a investigacion real que a un input limpio y
+unico.
+
+### 6.4 Capa de interaccion
+
+Convierte las acciones visibles del caso en una interfaz formalmente ejecutable.
+
+`Episode` y `EpisodeRunner` viven aca.
+
+### 6.5 Capa de evaluacion
+
+Compara lo que hizo el solver contra lo que implica el mundo formal.
+
+`Task`, `TeacherOutput` y `Score` viven aca.
+
+---
+
+## 7. Flujos canonicos
+
+### 7.1 Generacion
+
+El flujo canonico de generacion es:
+
+1. recibir un `goal`, seed o paper,
+2. proponer estructura y framing del caso,
+3. generar un `World` via templates o via `DAGSpec`,
+4. validar el mundo,
+5. enriquecerlo semanticamente,
+6. disenar el `CasePlan`,
+7. generar `Task`s alineadas con ese plan,
+8. construir el `ResearchProblem`,
+9. generar el `Episode`,
+10. empaquetar todo como SRC.
+
+### 7.2 Interaccion
+
+El solver recibe el `ResearchProblem` y una o mas `Task`s visibles.
+
+Puede:
+
+- inspeccionar datos y contexto,
+- razonar libremente,
+- usar herramientas de analisis y pensamiento abiertas al solver,
+- ejecutar acciones de investigacion con costo,
+- y finalmente enviar respuestas o decisiones.
+
+El runner valida acciones y devuelve observaciones o resultados consistentes con
+la verdad formal del caso.
+
+En este horizonte, la interfaz del solver separa dos cosas:
+
+- herramientas libres de razonamiento y analisis, como `python_exec` o `think`,
+- y acciones de investigacion propias del caso, que consumen budget o modifican
+  el estado del episodio.
+
+### 7.3 Evaluacion
+
+La evaluacion compara lo que hizo el solver contra lo que implica el `World`.
+
+Segun la task, esto puede involucrar:
+
+- distribuciones verdaderas,
+- information gain optima,
+- efectos intervencionales,
+- seleccion de hipotesis,
+- o decisiones estructurales correctas.
+
+El teacher define el upper bound interno del entorno.
+
+---
+
+## 8. Orchestrator y stack de herramientas
+
+El orchestrator es una policy LLM que diseña casos usando herramientas
+programaticas.
+
+Su trabajo arquitectonico es:
+
+- proponer estructura y caso,
+- llamar tools para construir y validar,
+- iterar cuando una propuesta falla checks,
+- y terminar en un SRC coherente.
+
+La decision importante no es el nombre de cada tool sino esta:
+
+> El LLM diseña el caso, pero la verdad del entorno y la validacion fuerte
+> viven en contratos estructurados y herramientas programaticas.
+
+---
+
+## 9. Modelo de QA y validacion
+
+La calidad de SREG se valida en tres niveles.
+
+### Nivel 1: tests
+
+Responde:
+
+> "El codigo funciona?"
+
+Valida contratos, invariantes, tools, episodios, solver formal e integraciones.
+
+### Nivel 2: diagnostico de entornos
+
+Responde:
+
+> "Los SRCs generados funcionan como entornos de investigacion?"
+
+Detecta trivialidad, imposibilidad, leakage, narrativa confusa y desalineacion
+entre caso visible y verdad formal.
+
+### Nivel 3: transferencia externa
+
+Responde:
+
+> "Entrenar con SREG mejora una policy fuera de SREG?"
+
+Es la validacion final del producto, aunque los benchmarks externos no formen
+parte del nucleo del entorno.
+
+---
+
+## 10. Invariantes arquitectonicas
+
+### Alineacion entre capas
+
+La capa visible del caso no puede contradecir la capa formal.
+
+### El caso se diseña como conjunto
+
+`World`, `CasePlan`, `ResearchProblem`, `Task`s y `Episode` deben construirse
+como partes coordinadas de un mismo SRC.
+
+### El reward central se ancla a la verdad formal
+
+La semantica visible puede crecer en riqueza, pero la evaluacion central no
+puede romper su anclaje en la verdad del mundo.
+
+### La policy tiene libertad; el entorno tiene reglas
+
+SREG no impone un procedimiento de razonamiento, pero si impone las reglas del
+caso: que acciones existen, que cuestan y como impactan el mundo.
+
+### El caso debe depender del episodio
+
+La experiencia del solver debe depender de la evidencia y decisiones del caso,
+no solo del conocimiento general del dominio.
+
+---
+
+## 11. Extension y limites
+
+La arquitectura debe permitir crecimiento en:
+
+- generadores estructurales nuevos que emitan `DAGSpec`,
+- artefactos visibles mas ricos,
+- acciones de investigacion mas expresivas,
+- casos mas abiertos,
+- y distintos niveles de realismo semantico,
+
+sin romper coherencia ni evaluabilidad fuerte.
+
+SREG incluye como responsabilidad central:
+
+- generacion de casos,
+- verdad formal,
+- packaging visible,
+- interaccion del entorno,
+- teacher / scoring,
+- y QA del generador.
+
+SREG no incluye como responsabilidad central:
+
+- entrenamiento RL,
+- optimizacion de policies,
+- serving de modelos,
+- ni una simulacion cientifica completamente abierta sin contratos formales.

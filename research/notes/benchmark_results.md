@@ -1,7 +1,8 @@
 # Benchmark BEFORE Scores
 
-> Scores de referencia **antes** de entrenar en SREG.
-> Despues del entrenamiento, la diferencia con estos scores es la evidencia de transferencia.
+> Raw note of baseline benchmark scores before training in SREG.
+> Use `research/synthesis/benchmark_analysis.md` for the active benchmark
+> selection rationale. Use this file for concrete baseline numbers.
 
 ## Modelo
 
