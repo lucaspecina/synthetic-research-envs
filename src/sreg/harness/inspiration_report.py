@@ -199,65 +199,6 @@ class InspirationReport:
                 lines.append(f"**Intentional changes:** {m['intentional_changes']}")
                 lines.append("")
 
-        # ---- Overall score ----
-        label = _score_label(self.overall_score)
-        bar = "#" * int(self.overall_score * 20)
-        empty = "." * (20 - len(bar))
-        lines.append(f"## Overall inspiration: {self.overall_score:.0%} ({label})")
-        lines.append(f"`[{bar}{empty}]`")
-        lines.append("")
-
-        if self.critical_failures:
-            lines.append("**Issues:**")
-            for f in self.critical_failures:
-                lines.append(f"- {f}")
-            lines.append("")
-
-        # ---- Scorecard ----
-        lines.append("## Scorecard")
-        lines.append("")
-        assessable = [d for d in self.dimensions if d.score >= 0]
-        not_assessable = [d for d in self.dimensions if d.score < 0]
-
-        lines.append("| Dimension | Score | Verdict |")
-        lines.append("|---|---|---|")
-        for d in assessable:
-            icon = "v" if d.score >= 0.75 else ("~" if d.score >= 0.5 else "x")
-            lines.append(f"| {d.name} | {d.score:.0%} | {icon} {d.label} |")
-        for d in not_assessable:
-            lines.append(f"| {d.name} | -- | ? {d.label} |")
-        if not_assessable:
-            lines.append("")
-            lines.append(
-                f"*{len(not_assessable)} dimensions not assessable "
-                f"(SRC extraction limited). Not counted in overall score.*"
-            )
-        lines.append("")
-
-        # ---- Detailed breakdown ----
-        lines.append("## Detailed comparison")
-        lines.append("")
-
-        seed_just = self.seed_profile.justifications
-
-        for d in self.dimensions:
-            lines.append(f"### {d.name}")
-            lines.append("")
-            lines.append(f"**Score: {d.score:.0%} ({d.label})**")
-            lines.append("")
-            lines.append(f"**In the seed:** {d.seed_summary}")
-            dim_key = _dimension_to_key(d.name)
-            if dim_key and dim_key in seed_just:
-                lines.append(f"> *Why:* {seed_just[dim_key]}")
-            lines.append("")
-            lines.append(f"**In the SRC:** {d.src_summary}")
-            lines.append("")
-            if d.assessment:
-                lines.append(f"**Assessment:** {d.assessment}")
-                lines.append("")
-            lines.append("---")
-            lines.append("")
-
         return "\n".join(lines)
 
 
@@ -974,44 +915,116 @@ def compare_profiles(
 # ---------------------------------------------------------------------------
 
 _NARRATIVE_PROMPT = """\
-You are writing a qualitative, intuitive, friendly comparison between a \
-research seed and a synthetic research case (SRC) inspired by it.
+You are writing a detailed qualitative comparison between a research seed \
+and a synthetic research case (SRC) inspired by it.
 
 Write in the same language as the seed (if Spanish, write in Spanish). \
 Be specific — cite variable names, question types, relationships. \
 Avoid jargon about "dimensions" or "scores". Tell the STORY of how the \
 inspiration worked.
 
-Structure your response in these 5 sections:
+Structure your response in these sections. Use ## for each heading.
 
-**1. The scientific work in the seed** (2-3 paragraphs)
-Explain what the original research is REALLY about. Not just the topic — \
-the TYPE of scientific work: What questions do the researchers ask? What \
-do they measure and why? What's the challenge? What makes this research \
-hard or interesting? Explain it like telling a colleague about a paper \
-you just read.
+## 1. The scientific work in the seed
+(2-3 paragraphs) Explain what the original research is REALLY about. Not \
+just the topic — the TYPE of scientific work: What questions do the \
+researchers ask? What do they measure and why? What's the challenge? \
+What makes this research hard or interesting? Explain it like telling \
+a colleague about a paper you just read.
 
-**2. How the orchestrator discovered the variables** (1-2 paragraphs)
-Trace the process: the seed mentions N variables. Which ones did the \
-orchestrator pick up? Which did it rename or adapt? Which did it group \
-or simplify? Show the mapping — "the seed talks about fracture pressure, \
-PEM pressure, and their ratio — the SRC created three corresponding nodes."
+## 2. Domain & Problem
+Compare: what domain is the seed in? What domain is the SRC in? Is the \
+SRC in the same domain or did it change? Why? Does the fictional setting \
+preserve the TYPE of problem (e.g., observational epi, field experiment, \
+operational study)?
 
-**3. The causal structure — what was captured** (1-2 paragraphs)
-What causal patterns from the seed made it into the SRC? Are confounders, \
-mediators, colliders, latent variables present? What causal story does \
-the SRC tell vs what the seed implied?
+## 3. Variables — seed to SRC mapping
+Build a MARKDOWN TABLE mapping seed variables to SRC variables:
 
-**4. The research questions — same type of investigation?** (1-2 paragraphs)
-This is the MOST IMPORTANT part. Compare the TYPE of questions: does the \
-SRC ask the same KIND of questions as the seed? Not the same words — the \
-same scientific reasoning. "What causes X?" maps to causal_effect. \
-"What should we measure next?" maps to next_best_observation. Etc.
+| Seed variable | SRC variable | Notes |
+|---|---|---|
 
-**5. Overall: would a researcher recognize this?** (1 paragraph)
-If a researcher working on the seed's problem saw the SRC, would they \
-say "yes, this feels like a synthetic version of my investigation"? \
-What's the single biggest gap?
+For each: was it translated directly, renamed, grouped with others, \
+expanded, or dropped? Why? Which variables did the SRC ADD that were \
+not in the seed, and what role do they play?
+
+Also note scale: how many variables does the seed have vs the SRC? Is \
+the reduction justified or does it lose important structure?
+
+## 4. Causal structure
+What causal patterns does the seed imply? (confounders, mediators, \
+colliders, latent variables, chains, effect modifiers) Which of those \
+made it into the SRC? Which were lost? For each pattern present or \
+missing, explain briefly WHY it matters for the research.
+
+## 5. Data & evidence
+What kind of data or evidence does the seed describe? (survey data, \
+field measurements, multiple sources, time series, experimental results, \
+missing data problems, measurement error, selection bias in the sample) \
+What does the SRC provide to the solver? (datasets, number of rows, \
+data quality issues) What is the gap between what a real researcher \
+would work with and what our solver sees?
+
+## 6. Research questions — one by one
+This is the MOST IMPORTANT section. Build a MARKDOWN TABLE:
+
+| Seed question | SRC question | Eval type | Match quality | What changed? |
+|---|---|---|---|---|
+
+For "Eval type" use the exact eval_type name (causal_effect, should_condition, \
+infer_target, adjustment_set, infer_latent_cause, best_intervention, \
+compare_interventions, next_best_observation, hypothesis_selection).
+
+For each seed question:
+- If well translated: say so and explain why (same causal reasoning, same intent).
+- If imperfect: explain WHAT changed. Did a causal question become predictive? \
+Did a mechanistic question become statistical?
+- If no SRC equivalent: say "Not represented" and explain what type of question \
+it is (mediation, effect modification, selection bias, source attribution, etc.) \
+and note that we don't have an eval_type for it yet.
+
+After the table: did the SRC add questions not in the seed? Are they useful or filler?
+
+## 7. Signal & difficulty
+How strong are the effects in the seed? (obvious, moderate, subtle?) \
+Does the SRC match that difficulty? Would the solver find this easy or \
+hard, and for the right reasons?
+
+## 8. Research actions
+What would a real researcher DO in the seed's investigation? (run \
+experiments, collect new data, analyze subgroups, perform sensitivity \
+analyses, consult literature, design follow-up studies) What can the \
+solver do in the SRC? Note: research actions are not fully implemented \
+yet in SREG, but document what SHOULD be available.
+
+## 9. Overall assessment
+Would a researcher working on the seed's problem recognize the SRC as \
+a synthetic version of their investigation? What are the 2-3 biggest \
+gaps? What works best?
+
+## 10. Limitations & improvement opportunities
+This section is for US (the SREG developers), not for the solver. Be \
+brutally honest about what the system could not do or did poorly. \
+For each limitation, classify it:
+
+- **MISSING EVAL TYPE**: a question type the seed needs but SREG doesn't \
+have yet (e.g., mediation, effect modification, selection bias assessment). \
+Name the type explicitly.
+- **ORCHESTRATOR WEAKNESS**: the orchestrator had the tools but made a poor \
+choice (e.g., used infer_target where causal_effect was needed, dropped an \
+important variable, oversimplified structure).
+- **DATA/EVIDENCE GAP**: the SRC's data presentation is too clean, too simple, \
+or missing something the seed implies (e.g., multiple data sources, measurement \
+error, temporal structure, missing data patterns).
+- **ACTION GAP**: research actions the solver should be able to perform but \
+can't (e.g., run subgroup analysis, compare naive vs adjusted estimates, \
+perform sensitivity analysis).
+- **STRUCTURAL LIMITATION**: something about SREG's architecture that prevents \
+faithful translation (e.g., only discrete BNs, no temporal dynamics, no \
+multi-level data).
+
+For each one, briefly suggest what we could build or change to fix it. \
+Be specific and actionable.
 """
 
 

@@ -43,43 +43,84 @@ visible research question, and actions get realistic costs).
 ## Evaluation types — when to use each one
 
 Each question in `design_case` must have an `eval_type`. Choose based on \
-what a researcher would naturally ask:
+what a researcher would naturally ask IN THE CONTEXT OF THIS CASE.
 
-- **`infer_target`**: "What is the most likely state of Y given what we know?" \
-Use as the primary question when the case is about diagnosing or predicting an \
-outcome. Scored by KL divergence against the true posterior.
+IMPORTANT: Start from the research questions that matter for this case, \
+then find the eval_type that best captures each one. Do NOT pick eval_types \
+from this menu and then write questions around them — that produces generic \
+questions that don't match the case.
 
-- **`causal_effect`**: "If we force X to value x (intervene), what happens to Y?" \
-Use when the research question involves interventions, policy changes, or \
-counterfactuals. Computes P(Y | do(X=x)) via do-calculus. \
-Example: "If we increase pad spacing, how does sanding risk change?"
+### Causal questions — these should be the CORE of most cases
 
-- **`best_intervention`**: "Which single intervention maximizes a desired outcome?" \
-Use when comparing multiple possible actions to find the optimal one. \
-Example: "Which variable should we intervene on to minimize mortality?"
+Real research papers almost always ask causal questions as their primary \
+contribution. The main question of a case should usually be one of these:
 
-- **`compare_interventions`**: "Is intervening on X better than intervening on Z?" \
-Use for pairwise comparison of two specific interventions. \
-Example: "Does reducing pressure help more than increasing spacing?"
+- **`causal_effect`**: A researcher wants to know what would happen if they \
+could change something. "If we reduce thermal stress, does reef recovery \
+improve?" "If we eliminate smoking during pregnancy, how does mortality change?" \
+Use this as the PRIMARY question when the case is about understanding causes, \
+evaluating interventions, or reasoning about counterfactuals.
 
-- **`next_best_observation`**: "What should we measure next to learn the most?" \
-Use when the case involves resource-constrained data collection. \
-Scored by information gain.
+- **`best_intervention`**: A decision-maker must choose where to act. "Which \
+single policy lever — improving teacher quality, reducing class size, or \
+increasing parental involvement — would most effectively raise achievement?" \
+Use when the case involves choosing among competing actions.
 
-- **`adjustment_set`**: "What variables should we control for in our analysis?" \
-Use when the case involves confounding or observational data analysis. \
-Scored by set F1 against the valid backdoor adjustment set.
+- **`compare_interventions`**: Two specific options are on the table. "Does \
+reducing fluid volume help more than reducing fracture pressure?" Use for \
+head-to-head comparisons between two interventions.
 
-- **`should_condition`**: "Someone suggests controlling for Z — is that correct?" \
-Use when there's a risk of conditioning on a collider or mediator. \
-Binary yes/no answer.
+### Structural questions — about HOW to reason correctly
 
-- **`hypothesis_selection`**: "Which of these hypotheses best explains the data?" \
-Use when the case involves competing theories. Scored by binary match.
+These ask about the causal structure itself, not about specific effects:
 
-- **`infer_latent_cause`**: "What is the hidden factor behind the observed symptoms?" \
-Use when there's a latent variable and the case involves diagnostic reasoning. \
-Scored by KL divergence against the true posterior over the latent node.
+- **`adjustment_set`**: A researcher suspects confounding and needs to know \
+what to account for. "To estimate the real effect of income on achievement, \
+which background factors must be controlled for?" Use when the case involves \
+observational data where naive estimates would be biased.
+
+- **`should_condition`**: A common but risky analytic choice needs evaluation. \
+"A colleague suggests adjusting for birth weight when studying smoking and \
+mortality — is that safe, or does it introduce bias?" Use when there is a \
+specific variable that LOOKS like it should be controlled for but might be \
+a collider or mediator. This is about avoiding a methodological trap.
+
+### Diagnostic and exploratory questions — complementary, not primary
+
+These are supporting questions. They enrich the case but should NOT be the \
+main research question:
+
+- **`infer_target`**: "Given what we observe, what is the most likely state \
+of the outcome?" This is a descriptive/predictive question. Use it as a \
+COMPLEMENTARY question to establish a baseline — e.g., "Before investigating \
+causes, what does the data suggest about recovery likelihood?" \
+Do NOT use as the primary question — real papers rarely have prediction as \
+their main contribution.
+
+- **`next_best_observation`**: "We have limited resources — what should we \
+measure next to learn the most?" Use when the case involves incomplete data \
+and resource-constrained investigation.
+
+- **`hypothesis_selection`**: "Multiple explanations are plausible — which \
+one best fits the evidence?" Use when the case presents competing theories \
+that the data can discriminate between.
+
+- **`infer_latent_cause`**: "Something unobserved is driving what we see — \
+what is it?" Use when there is a latent variable and the investigator must \
+diagnose or identify a hidden factor from its observable consequences.
+
+### What we CANNOT represent yet
+
+Some important scientific question types do not have eval_types yet. If the \
+seed asks about these, choose the closest available type:
+- **Mediation** ("Does X affect Y *through* Z?"): closest is `should_condition` \
+or `causal_effect` on the mediator, but neither fully captures mediation.
+- **Effect modification** ("Is the effect of X on Y different for group A vs B?"): \
+no direct equivalent. Consider `compare_interventions` as a rough proxy.
+- **Selection bias** ("Is the apparent effect real or driven by who is in the sample?"): \
+no direct equivalent. `should_condition` can partially capture this.
+- **Source attribution** ("Which of several possible sources is responsible?"): \
+closest is `best_intervention` or `hypothesis_selection`.
 
 **Node hints — REQUIRED for node-sensitive eval types:**
 Some eval types need you to specify WHICH nodes the question is about, so the \
@@ -101,11 +142,16 @@ For `infer_target`, `next_best_observation`, `hypothesis_selection`, and \
 
 **Guidelines for question design:**
 - Use 3-5 questions per case. Don't use all types — pick the ones that fit naturally.
-- The first question is the PRIMARY one (shown to the agent as the main research question).
+- The first question is the PRIMARY one (shown to the agent as the main research question). \
+It should almost always be a causal question (causal_effect, best_intervention, or \
+compare_interventions), NOT a predictive one (infer_target).
 - Every question must feel like something a scientist would ask, not a graph theory exercise.
 - Don't repeat the same eval_type + target_node combination.
 - Write question_text as a natural research question, not as a formal instruction.
 - For node-sensitive types, always provide the required hints (see above).
+- When generating from a seed/paper: identify the paper's ACTUAL research questions \
+FIRST, then map each one to the closest eval_type. Don't pick eval_types and write \
+questions around them.
 
 ## How to choose a generation method
 
@@ -671,14 +717,17 @@ TOOL_DEFINITIONS = [
                                         "infer_latent_cause",
                                     ],
                                     "description": (
-                                        "Type of evaluation. Choose based on the question: "
-                                        "infer_target: predict/diagnose an outcome. "
+                                        "Type of evaluation. The PRIMARY question should almost "
+                                        "always be causal (causal_effect, best_intervention, "
+                                        "compare_interventions). Use infer_target only as a "
+                                        "complementary descriptive question, not the main one. "
                                         "causal_effect: what happens if we intervene on X? "
                                         "best_intervention: which intervention maximizes Y? "
                                         "compare_interventions: is do(X) better than do(Z)? "
-                                        "next_best_observation: what to measure next? "
                                         "adjustment_set: what to control for in analysis? "
                                         "should_condition: is controlling for Z correct? "
+                                        "infer_target: descriptive baseline (complementary). "
+                                        "next_best_observation: what to measure next? "
                                         "hypothesis_selection: which hypothesis fits best? "
                                         "infer_latent_cause: what hidden factor explains this?"
                                     ),

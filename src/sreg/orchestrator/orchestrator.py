@@ -365,7 +365,7 @@ class Orchestrator:
         if world is None:
             return {"error": f"World '{world_id}' not found"}
 
-        task_type_str = args.get("task_type", "infer_target")
+        task_type_str = args.get("task_type", "causal_effect")
         max_budget = args.get("max_budget", 5)
 
         target_nodes = [n for n in world.nodes if n.type == NodeType.TARGET]

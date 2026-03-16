@@ -1148,9 +1148,13 @@ def main():
                 "latent variables in the seed. Your DAG should have SIMILAR structural "
                 "patterns (not necessarily the same edges, but the same types of "
                 "causal complexity).\n\n"
-                "4. RESEARCH QUESTIONS — THIS DRIVES THE TASKS: What types of questions "
-                "do the researchers ask? Causal effects? What to control for? Latent causes? "
-                "Best interventions? Your design_case questions must be of the SAME TYPES.\n\n"
+                "4. RESEARCH QUESTIONS — THIS DRIVES THE TASKS: First, list the actual "
+                "research questions from the seed. What do the researchers REALLY want to know? "
+                "Then map each question to the closest eval_type. The PRIMARY question of the "
+                "case should be CAUSAL (causal_effect, best_intervention, compare_interventions), "
+                "not predictive (infer_target). Use infer_target only as a complementary question. "
+                "If the seed asks about mediation, effect modification, or selection bias, "
+                "pick the closest available type and note what is lost.\n\n"
                 "5. SIGNAL DIFFICULTY: Are the effects strong and obvious, or subtle and "
                 "hard to detect? Set edge_strength accordingly (0.4-0.5 for subtle, "
                 "0.6-0.8 for strong).\n\n"
@@ -1234,22 +1238,7 @@ def main():
             f.write(report.to_markdown())
         _print(f"  {_c(GRN, 'v')} {report_path}")
 
-        # Print summary
-        label = "EXCELLENT" if report.overall_score >= 0.75 else (
-            "PARTIAL" if report.overall_score >= 0.5 else "WEAK"
-        )
-        _print(f"  Overall: {report.overall_score:.0%} ({label})")
-        for d in report.dimensions:
-            if d.score < 0:
-                _print(f"    {_c(YLW, '?')} {d.name}: n/a ({d.label})")
-            else:
-                icon = _c(GRN, 'v') if d.score >= 0.75 else (
-                    _c(YLW, '~') if d.score >= 0.5 else _c(RED, 'x')
-                )
-                _print(f"    {icon} {d.name}: {d.score:.0%} {d.label}")
-        if report.critical_failures:
-            for cf in report.critical_failures:
-                _print(f"    {_c(RED, '!')} {cf}")
+        _print(f"  Report generated (see {report_path})")
     elif args.report and not seed_content:
         _print(f"  {_c(YLW, '!')} --report requires --seed-file")
 

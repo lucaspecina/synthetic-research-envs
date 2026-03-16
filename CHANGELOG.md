@@ -5,6 +5,33 @@
 
 ## [Unreleased]
 
+### 2026-03-16 — Prompt overhaul + Inspiration Report v2
+
+- **Orchestrator prompt rewritten**: eval types now described in research
+  language (not statistical). Causal questions promoted as primary; infer_target
+  demoted to complementary. Seed-first question design: identify paper's real
+  questions, then map to eval types. Missing types documented (mediation,
+  effect modification, selection bias, source attribution).
+- **Default task_type changed**: causal_effect instead of infer_target.
+- **Seed prompt improved**: section 4 now instructs to list actual paper
+  questions first, then map to closest eval_type.
+- **Inspiration Report v2**: 10 sections with detailed qualitative comparison.
+  Variable mapping table, question-by-question with eval_type, data/evidence
+  gap analysis, research actions comparison, and new section 10 with
+  classified limitations (MISSING EVAL TYPE, ORCHESTRATOR WEAKNESS,
+  DATA/EVIDENCE GAP, ACTION GAP, STRUCTURAL LIMITATION) with actionable fixes.
+  Removed overall score — report is qualitative, not quantitative.
+- **Model upgraded**: gpt-5.2-chat -> gpt-5.4.
+- **NOTES.md created**: user inbox for ideas, problems, and open questions.
+  Added to CLAUDE.md doc table and promotion rules.
+- **Vaca Muerta seed**: copied from research_seed.md to seeds/vaca_muerta.md.
+  Previous eval used wrong seed (causal_observational.pdf = epidemiology paper).
+- **run_inspiration_reports.py**: batch script to generate reports for existing
+  experiments.
+- **7-SRC inspiration report findings**: Research Actions 0% in 5/7 cases,
+  infer_target always primary (now fixed), missing question types identified.
+- **output/ directory removed**: stale, experiments/ is the canonical location.
+
 ### 2026-03-15 — 5-SRC multi-domain evaluation + CPD direction fix
 - **CPD.1 COMPLETE**: directional CPDs via signed ordinal scoring model.
   dag_construct edges accept direction (positive/negative). Verified E2E:

@@ -10,6 +10,7 @@
 | `CURRENT_STATE.md`   | Que parte de la arquitectura existe hoy                | Para saber que hay y que falta        |
 | `TODO.md`            | Que trabajo esta pendiente, que problemas hay          | Para saber que hacer                  |
 | `CHANGELOG.md`       | Historia de cambios                                    | Cuando necesites contexto historico   |
+| `NOTES.md`           | Inbox de ideas, problemas y preguntas abiertas del usuario | Al inicio de sesion para procesar pendientes |
 | `research/`          | Analisis, hallazgos, sintesis                          | Cuando investigues o explores         |
 | `research/README.md` | Reglas + indice de que investiga cada archivo           | Para saber que research existe        |
 
@@ -20,13 +21,17 @@
 se desactualiza, todo lo demas deja de funcionar. Los otros docs se vuelven
 mentira y las decisiones se toman sin informacion.
 
-### Regla de promocion (research → docs canonicos)
+### Regla de promocion (NOTES → research → docs canonicos)
 
-1. Idea nueva, debate → `research/notes/`
+0. Idea cruda, problema, pregunta abierta → `NOTES.md` (inbox del usuario)
+1. Se procesa en sesion → `research/notes/` (si necesita investigacion)
+   o directamente a donde corresponda
 2. Se consolida con evidencia → `research/synthesis/`
 3. Se vuelve decision → se promueve a `PROJECT.md` o `ARCHITECTURE.md`
 4. Implica trabajo → `TODO.md`
 5. Se implementa → `CURRENT_STATE.md` + `CHANGELOG.md`
+
+`NOTES.md` es un inbox — los items se procesan y se mueven, no se acumulan.
 
 ### Como leer y mantener `research/`
 

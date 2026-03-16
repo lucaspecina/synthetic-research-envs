@@ -19,9 +19,12 @@
 - Benchmarks externos integrados (CLadder, QRData, DiscoveryBench)
 - Training adapter experimental (SregEnv/verifiers)
 
-**Ultima validacion relevante** (7-SRC eval, 2026-03-16): las preguntas
-descriptivas fuerzan analisis de datos; las causales se responden desde priors.
-Detalle en research/.
+**Ultima validacion relevante** (7-SRC eval + inspiration reports, 2026-03-16):
+las preguntas descriptivas fuerzan analisis de datos; las causales se responden
+desde priors. Inspiration reports revelan que el orchestrator usaba infer_target
+como pregunta principal (ahora corregido) y que faltan eval types para mediacion,
+effect modification, selection bias y source attribution. Prompt reescrito para
+priorizar preguntas causales. Modelo actualizado a gpt-5.4.
 
 ---
 
@@ -45,10 +48,12 @@ Detalle en research/.
   design_case, apply_semantics, build_problem, emit_inspiration_manifest.
 - `CasePlan`: framing, research context, preguntas con hints (node hints
   end-to-end para alinear pregunta visible con respuesta formal).
-- Paper-seeded: PDF via pymupdf, markdown directo. 8 dimensiones de
-  inspiracion en el prompt. El paper inspira, no se replica.
-- Inspiration Report: comparacion seed vs SRC por dimension (narrativa +
-  manifest + scores).
+- Paper-seeded: PDF via pymupdf, markdown directo. El paper inspira, no
+  se replica. Prompt reescrito: preguntas causales como primarias,
+  infer_target solo complementario, seed-first question design.
+- Inspiration Report v2: 10 secciones cualitativas (domain, variables,
+  estructura causal, data/evidence, preguntas con eval_type, signal,
+  actions, assessment, limitaciones clasificadas). Sin score numerico.
 - Edge directions extraidas de dag_construct y pasadas a cpd_gen.
 
 ### Capa semantica / problem builder — Estable
@@ -148,6 +153,10 @@ adjustment_set) se responden desde conocimiento de dominio sin investigar.
 
 - **Preguntas no data-indexed**: las preguntas causales no fuerzan investigacion.
   El solver responde desde priors de pretraining.
+- **Eval types insuficientes**: faltan mediacion, effect modification, selection
+  bias assessment y source attribution. Los papers reales preguntan estos tipos
+  y el orchestrator los fuerza en los 9 tipos existentes, perdiendo lo mas
+  interesante. (Hallazgo de inspiration reports 2026-03-16.)
 - **Solver no usa research_actions**: budget y acciones existen en la
   infraestructura pero estan desactivadas en el solver por ser artificiales.
 - Orchestrator ignora dificultad pedida (siempre genera "easy").
