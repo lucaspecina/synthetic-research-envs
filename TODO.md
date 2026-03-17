@@ -64,30 +64,38 @@ mismos datos, mismas preguntas. Solo cambian los nombres de variables.
 | Fictional | **0.142** | 11/12 | Unico modo con backdoor adjustment genuino |
 | Abstract | 6.69 | **0/12** | Solver no entiende las preguntas (Q1: variable equivocada) |
 
-**Hallazgos concretos:**
-- **Realistic contamina:** El solver "sabe" que fracture_peak_pressure=high es
-  importante en sanding y la elige como intervencion — pero en el DAG la
-  direccion es opuesta. Priors override datos.
-- **Fictional fuerza investigacion real:** Sin priors, el solver hizo backdoor
-  adjustment (la unica trayectoria con razonamiento causal genuino).
-- **Abstract no quita priors — quita comprension:** El solver no entendio NI
-  QUE VARIABLE computar. Respondio P(V2) cuando necesitaba P(Y). Budget 0/12
-  (ni intento medir). Los scores "GOOD" en Q2-Q4 son artefacto de un bug del
-  verifier (no validaba keys — ya fixeado).
-- **Conclusion preliminar:** fictional > realistic > abstract para evaluar
-  razonamiento cientifico genuino. Pero es N=1 — necesitamos football y otros.
+**Evidencia Vaca Muerta (con research_actions — datos contaminados):**
+- Realistic contamina: solver elige intervencion con direccion invertida por prior.
+- Fictional fuerza investigacion: unico modo con backdoor adjustment genuino.
+- Abstract rompe comprension: respondio variable equivocada. Scores "GOOD"
+  eran artefacto de bugs (ya fixeados).
 
-**Sub-preguntas:**
-- [~] Des-realizar mejora o empeora el razonamiento del solver?
-  → Fictional mejora, abstract empeora. Falta mas evidencia.
-- [~] Hay evidencia de que los priors contaminan las respuestas?
-  → Si: Q2 realistic (direccion invertida por prior de dominio).
+**Evidencia Football (SIN research_actions — corrida limpia, 2026-03-17):**
+
+| Modo | Avg | causal_eff | latent | should_cond | infer_target |
+|---|---|---|---|---|---|
+| Realistic | **0.094** | 0.264 OK | 0.105 OK | 0.0 POOR | **0.009 GOOD** |
+| Abstract | 0.149 | **0.008 GOOD** | 0.296 OK | 0.0 POOR | 0.292 OK |
+| Fictional | 0.166 | 0.023 GOOD | **0.085 GOOD** | 0.0 POOR | 0.556 POOR |
+
+**Hallazgos clave post-football:**
+- Sin research_actions, diferencia entre modos es MUCHO menor (1.8x vs 47x).
+- Fictional sigue produciendo mejor RAZONAMIENTO (conditional independence
+  estratificada) pero realistic puede ganar en SCORE por coincidencia estadistica.
+- should_condition falla en los 3 modos (ninguno responde yes/no).
+- Abstract es viable post-fix (0.149), ya no catastrofico.
+- Priors de dominio: depende del dominio. Oil&gas danino, football neutro.
+
+**Conclusiones (N=2):**
+- [x] Des-realizar mejora razonamiento pero no siempre mejora score.
+- [x] Priors contaminan en oil&gas, no en football. Depende del dominio.
+- [x] Replicado con football — patron parcialmente confirmado.
 - [ ] Que implicaciones tiene para el entrenamiento RL futuro?
-- [ ] Se puede mejorar abstract con mejor prompting? O es inviable?
-- [ ] Replicar con football para confirmar/refutar patron.
+- [ ] Metricas de proceso (no solo score funcional) para capturar calidad
+  de razonamiento vs coincidencia estadistica.
 
-**Referencia:** NOTES.md, PROJECT.md (tension estrategica). **Implementar:** I2.
-Experimentos en `experiments/vaca_muerta_{realistic,abstract,fictional}/`.
+**Referencia:** `research/notes/semantic_modes_experiment_2026_03_17.md`
+**Implementar:** I2. Experimentos en `experiments/`.
 
 ### A4. Solo data-driven u otros tipos de investigacion?
 
