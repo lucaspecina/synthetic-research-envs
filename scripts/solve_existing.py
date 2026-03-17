@@ -36,7 +36,7 @@ def main():
 
     from sreg.agent.agent import AgentSolver
     from sreg.models.research_problem import ResearchProblem
-    from sreg.models.task import Task
+    from sreg.models.task import Task, TaskType
     from sreg.models.world import World
 
     world = World(**src["world"])
@@ -80,12 +80,16 @@ def main():
 
         score_val = tr.score.functional_score
         score_str = f"{score_val:.4f}"
-        if score_val < 0.1:
-            verdict = "GOOD"
-        elif score_val < 0.5:
-            verdict = "OK"
+        # Choice/non-distribution types: 1.0=correct, 0.0=wrong (higher=better)
+        # Distribution types (KL): 0.0=perfect, higher=worse (lower=better)
+        higher_is_better = task.type not in (
+            TaskType.INFER_TARGET, TaskType.CAUSAL_EFFECT,
+            TaskType.INFER_LATENT_CAUSE,
+        )
+        if higher_is_better:
+            verdict = "GOOD" if score_val > 0.9 else "OK" if score_val > 0.5 else "POOR"
         else:
-            verdict = "POOR"
+            verdict = "GOOD" if score_val < 0.1 else "OK" if score_val < 0.5 else "POOR"
 
         task_details.append((i, task, tr, verdict, score_str))
         print(f"  {tt:<25} {score_val:>8.3f} {verdict:<12}")

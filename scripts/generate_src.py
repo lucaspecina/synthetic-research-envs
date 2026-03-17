@@ -650,6 +650,7 @@ def solve_tasks(
     from openai import OpenAI
 
     from sreg.agent.agent import AgentSolver
+    from sreg.models.task import TaskType
 
     world = result.world
     problem = result.problem
@@ -689,13 +690,19 @@ def solve_tasks(
         if score is None:
             verdict, score_str = "NO SCORE", "-"
         else:
-            score_str = f"{score.functional_score:.4f}"
-            if score.functional_score < 0.1:
-                verdict = "GOOD"
-            elif score.functional_score < 0.5:
-                verdict = "OK"
+            sv = score.functional_score
+            score_str = f"{sv:.4f}"
+            # Choice/non-distribution types: 1.0=correct, 0.0=wrong (higher=better)
+            # Distribution types (KL): 0.0=perfect, higher=worse (lower=better)
+            tt = task.type
+            higher_is_better = tt not in (
+                TaskType.INFER_TARGET, TaskType.CAUSAL_EFFECT,
+                TaskType.INFER_LATENT_CAUSE,
+            )
+            if higher_is_better:
+                verdict = "GOOD" if sv > 0.9 else "OK" if sv > 0.5 else "POOR"
             else:
-                verdict = "POOR"
+                verdict = "GOOD" if sv < 0.1 else "OK" if sv < 0.5 else "POOR"
 
         task_details.append((i, task, tr, verdict, score_str))
 

@@ -255,6 +255,43 @@ para Q1 (necesitaba `distribution`), `choice` para Q2 (necesitaba
 - [ ] Agregar ejemplos de formato en el system prompt por pregunta?
 - [ ] El deadline nudge compensa esto parcialmente pero no es solucion.
 
+### A11. Solver confunde variables target con observables similares
+
+El solver computa la distribucion de una variable EQUIVOCADA cuando el
+nombre en la pregunta se parece a una columna del dataset. Ejemplo:
+pregunta sobre `neuromuscular_fatigue` (latente), solver computa
+`first_half_high_intensity_output` (observable con distribucion similar).
+
+El prompt ya incluye `Target: **variable_name** (states: ...)` pero el
+lenguaje natural de la pregunta domina la atencion del solver. Esto es un
+failure mode legitimo del solver, no un bug del sistema — un investigador
+real tambien deberia inferir la variable latente, no reportar la observable.
+
+**Evidencia (2026-03-17):** Football realistic Q1 (computo tactical_drop
+en vez de physical_drop) y Q2 (computo first_half_output en vez del latente
+neuromuscular_fatigue). Score "bueno" por coincidencia estadistica.
+
+**Decision:** No agregar pistas extra al prompt. Si el solver confunde
+variables, es un error legitimo que el scoring deberia penalizar. La solucion
+a futuro es mejorar el scoring para detectar cuando la distribucion submitida
+proviene de la variable equivocada.
+
+### A12. Scores enganiosos por coincidencia estadistica
+
+En algunos SRCs, la distribucion marginal de una variable observable es
+casi identica a la posterior causal de otra variable. El solver computa la
+marginal (facil, sin causal inference) y obtiene un score GOOD por
+coincidencia. Esto infla artificialmente los scores del modo realistic.
+
+**Evidencia (2026-03-17):** Football realistic Q1: marginal de
+tactical_drop {moderate: 0.674} vs posterior causal de physical_drop
+{moderate: 0.656}. KL = 0.002 GOOD, pero el razonamiento fue incorrecto.
+
+**Sub-preguntas:**
+- [ ] Se puede verificar que la variable computada sea la correcta?
+- [ ] Agregar una metrica de "proceso" ademas del score funcional?
+- [ ] Datos con distribuciones mas diferenciadas reducirian este problema?
+
 ---
 
 ## Implementacion y experimentos
@@ -276,9 +313,17 @@ Tests: `test_case_submit_rejects_wrong_distribution_keys`,
 **Bottleneck: MAX_PARENTS=4 insuficiente para dominios complejos.**
 El seed de football genero nodos con 5-6 padres naturales. El orchestrator
 gasto 8/10 iteraciones en dag_construct rechazado, nunca llego a design_case.
-- [ ] Subir `MAX_PARENTS` de 4 a 5 en `dag_spec.py` (CPDs: 3^5=243, manejable).
-- [ ] Subir `max_iterations` del orchestrator de 10 a 15.
+- [x] Subir `MAX_PARENTS` de 4 a 5 en `dag_spec.py` (CPDs: 3^5=243, manejable).
+- [x] Subir `max_iterations` del orchestrator de 10 a 15.
 - [ ] Evaluar si es suficiente o necesitamos la migracion a Gaussian (ver A8).
+
+**Bug verdict: logica invertida para choice types.**
+El verdict (GOOD/OK/POOR) usaba `< 0.1 = GOOD` para TODOS los tipos, pero
+choice types (should_condition, hypothesis, compare, best_intervention, NBO,
+adjustment_set) retornan 1.0 = correcto, 0.0 = incorrecto. Resultado:
+toda respuesta INCORRECTA se reportaba como "GOOD".
+**Fix aplicado:** generate_src.py y solve_existing.py ahora detectan el tipo
+y usan `> 0.9 = GOOD` para choice types vs `< 0.1 = GOOD` para KL types.
 
 ### I1. Nuevos eval types — motivado por A2
 
