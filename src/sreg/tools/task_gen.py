@@ -816,6 +816,7 @@ class TaskGenTool:
           or ignored, the auto-generated question is kept to prevent mismatch.
         """
         tasks: list[Task] = []
+        errors: list[str] = []
         for i, q in enumerate(plan.questions):
             spec = TaskSpec(
                 type=q.eval_type,
@@ -826,7 +827,14 @@ class TaskGenTool:
                 compare_nodes=q.compare_nodes,
                 condition_variable=q.condition_variable,
             )
-            task = self.generate(world, spec, seed=seed + i)
+            try:
+                task = self.generate(world, spec, seed=seed + i)
+            except Exception as e:
+                logger.warning(
+                    "Skipping question %d (%s): %s", i + 1, q.eval_type, e
+                )
+                errors.append(f"Q{i + 1} ({q.eval_type}): {e}")
+                continue
 
             # Decide whether to override the auto-generated question text.
             # Safe types (answer doesn't reference specific nodes): always OK.
@@ -845,6 +853,14 @@ class TaskGenTool:
             self._check_question_answer_consistency(task, q.eval_type)
 
             tasks.append(task)
+
+        if not tasks:
+            raise ValueError(
+                f"All questions failed to generate: {'; '.join(errors)}"
+            )
+        if errors:
+            logger.warning("Generated %d/%d tasks (%d skipped)",
+                           len(tasks), len(plan.questions), len(errors))
         return tasks
 
     @staticmethod
