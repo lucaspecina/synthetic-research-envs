@@ -344,7 +344,7 @@ def export_answer_key(result, output_dir: str) -> str | None:
         lines.append(f"{rank}. **{label}**: {ig:.4f} bits [{bar_str}] -- {strength}")
     lines.append("")
 
-    # Causal relationships
+    # Causal relationships (strength + direction only)
     lines.append("### Causal relationships")
     lines.append("")
     for e in world.edges:
@@ -363,6 +363,7 @@ def export_answer_key(result, output_dir: str) -> str | None:
                 pass
 
         if len(effects) < 2:
+            lines.append(f"- {pl} --> {cl}")
             continue
 
         max_shift = 0
@@ -379,13 +380,9 @@ def export_answer_key(result, output_dir: str) -> str | None:
         else:
             sw = "Weak"
 
-        lines.append(f"**{pl} --> {cl}** ({sw}, {max_shift:.0%} max shift)")
-        for state, post in effects:
-            dist_str = ", ".join(
-                f"{cs}={post.get(cs, 0):.0%}" for cs in cnode.states
-            )
-            lines.append(f"  - When {pl} = {state}: [{dist_str}]")
-        lines.append("")
+        mech = f" ({e.mechanism})" if e.mechanism else ""
+        lines.append(f"- {pl} --> {cl}: **{sw}** ({max_shift:.0%}){mech}")
+    lines.append("")
 
     # Baseline
     prior = solver.posterior(target.name, {})
@@ -393,25 +390,6 @@ def export_answer_key(result, output_dir: str) -> str | None:
     lines.append("")
     for s in target.states:
         lines.append(f"- {s}: {prior[s]:.1%}")
-    lines.append("")
-
-    # --- Formal BN specification ---
-    lines.append("---")
-    lines.append("")
-    lines.append("## Formal BN Specification")
-    lines.append("")
-
-    lines.append("### Nodes")
-    lines.append("")
-    for n in world.nodes:
-        lines.append(f"- **{n.name}** ({n.type}): [{', '.join(n.states)}]")
-    lines.append("")
-
-    lines.append("### Edges")
-    lines.append("")
-    for e in world.edges:
-        mech = f" -- {e.mechanism}" if e.mechanism else ""
-        lines.append(f"- {e.from_node} -> {e.to_node}{mech}")
     lines.append("")
 
     # --- Correct answers ---
@@ -642,26 +620,21 @@ def solve_tasks(
     full_lines.append("# Part 1: What the solver received")
     full_lines.append("")
 
-    # System prompt
-    from sreg.agent.prompts import build_case_system_prompt as _build_prompt
-    system_prompt = _build_prompt(problem, tasks)
-    full_lines.append("## System prompt")
+    # Dataset summary (system prompt details in briefing.md)
+    full_lines.append("## Datasets (see briefing.md for full problem statement)")
     full_lines.append("")
-    full_lines.append("```")
-    full_lines.append(system_prompt)
-    full_lines.append("```")
-    full_lines.append("")
-
-    # Dataset summary
-    full_lines.append("## Dataset available as `df`")
-    full_lines.append("")
-    for asset in problem.data_assets:
+    for idx, asset in enumerate(problem.data_assets):
         if asset.format == "tabular" and asset.data:
             headers = [k for k in asset.data[0].keys() if k != "sample_id"]
-            full_lines.append(f"- **{len(asset.data)} rows**, {len(headers)} variables")
-            full_lines.append(f"- Columns: {', '.join(headers)}")
-            full_lines.append(f"- Pre-loaded in python_exec as `df` (pandas DataFrame)")
-            full_lines.append(f"- The solver sees only 10 rows in the prompt but `df` has all {len(asset.data)}")
+            df_name = "df" if idx == 0 else f"df_{idx}"
+            full_lines.append(
+                f"- **{df_name}**: {len(asset.data)} rows, "
+                f"{len(headers)} vars ({', '.join(headers[:5])}...)"
+            )
+    full_lines.append("")
+    full_lines.append(f"Questions: {len(tasks)}")
+    for i, t in enumerate(tasks, 1):
+        full_lines.append(f"  {i}. ({t.type}) {t.question[:80]}...")
     full_lines.append("")
 
     # Part 2: What the solver did

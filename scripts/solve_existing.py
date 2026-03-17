@@ -32,7 +32,6 @@ def main():
     from openai import OpenAI
 
     from sreg.agent.agent import AgentSolver
-    from sreg.agent.prompts import build_case_system_prompt
     from sreg.models.research_problem import ResearchProblem
     from sreg.models.task import Task
     from sreg.models.world import World
@@ -103,23 +102,22 @@ def main():
     full_lines.append("# Part 1: What the solver received")
     full_lines.append("")
 
-    system_prompt = build_case_system_prompt(problem, tasks)
-    full_lines.append("## System prompt")
-    full_lines.append("")
-    full_lines.append("```")
-    full_lines.append(system_prompt)
-    full_lines.append("```")
-    full_lines.append("")
-
-    # Dataset summary
-    full_lines.append("## Datasets")
+    # Dataset summary (system prompt details in briefing.md)
+    full_lines.append("## Datasets (see briefing.md for full problem statement)")
     full_lines.append("")
     for idx, asset in enumerate(problem.data_assets):
         if asset.format == "tabular" and asset.data:
             headers = [k for k in asset.data[0].keys() if k != "sample_id"]
             df_name = "df" if idx == 0 else f"df_{idx}"
-            full_lines.append(f"- **{df_name}**: {len(asset.data)} rows, {len(headers)} variables")
-            full_lines.append(f"  Columns: {', '.join(headers)}")
+            full_lines.append(
+                f"- **{df_name}**: {len(asset.data)} rows, "
+                f"{len(headers)} vars ({', '.join(headers[:5])}...)"
+            )
+    full_lines.append("")
+    full_lines.append(f"Questions: {len(tasks)}")
+    for i, t in enumerate(tasks, 1):
+        q_short = t.question[:80] + "..." if len(t.question) > 80 else t.question
+        full_lines.append(f"  {i}. ({t.type}) {q_short}")
     full_lines.append("")
 
     # Part 2: What the solver did
