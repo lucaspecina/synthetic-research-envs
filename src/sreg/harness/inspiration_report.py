@@ -151,53 +151,9 @@ class InspirationReport:
             lines.append(self.narrative_comparison)
             lines.append("")
 
-        # ---- Orchestrator's intent (manifest) ----
-        if self.manifest:
-            lines.append("## What the orchestrator intended")
-            lines.append("")
-            m = self.manifest
-            if m.get("seed_understanding"):
-                lines.append(f"**Understanding of the seed:** {m['seed_understanding']}")
-                lines.append("")
-            if m.get("intended_scale"):
-                s = m["intended_scale"]
-                lines.append(
-                    f"**Scale intent:** seed ~{s.get('seed_vars_estimate', '?')} vars "
-                    f"-> target {s.get('target_src_nodes', '?')} nodes. "
-                    f"{s.get('rationale', '')}"
-                )
-                lines.append("")
-            if m.get("preserved_elements"):
-                lines.append("**Preserved from seed:**")
-                for p in m["preserved_elements"]:
-                    lines.append(
-                        f"- {p.get('seed_element', '?')} -> "
-                        f"{p.get('src_element', '?')} ({p.get('dimension', '')})"
-                    )
-                lines.append("")
-            if m.get("simplified_elements"):
-                lines.append("**Simplified/dropped:**")
-                for s in m["simplified_elements"]:
-                    lines.append(
-                        f"- {s.get('seed_element', '?')}: {s.get('why_dropped', '?')}"
-                    )
-                lines.append("")
-            if m.get("intended_causal_patterns"):
-                lines.append("**Intended causal patterns:**")
-                for p in m["intended_causal_patterns"]:
-                    lines.append(f"- {p}")
-                lines.append("")
-            if m.get("question_mapping"):
-                lines.append("**Question mapping (seed -> SRC):**")
-                for q in m["question_mapping"]:
-                    lines.append(
-                        f"- \"{q.get('seed_question', '?')}\" -> "
-                        f"{q.get('src_eval_type', '?')} ({q.get('rationale', '')})"
-                    )
-                lines.append("")
-            if m.get("intentional_changes"):
-                lines.append(f"**Intentional changes:** {m['intentional_changes']}")
-                lines.append("")
+        # NOTE: "What the orchestrator intended" section removed — the manifest
+        # is saved as inspiration_manifest.json and the narrative comparison above
+        # already covers the same ground with more nuance.
 
         return "\n".join(lines)
 

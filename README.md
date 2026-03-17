@@ -27,7 +27,8 @@ Configure LLM credentials in `.env`:
 ```
 AZURE_FOUNDRY_BASE_URL=https://your-resource.openai.azure.com/openai/v1
 AZURE_INFERENCE_CREDENTIAL=your-api-key
-AZURE_MODEL=gpt-4o
+AZURE_MODEL=gpt-5.4                    # Orchestrator (case design)
+AZURE_SOLVER_MODEL=gpt-5.2-codex       # Solver (optional, defaults to AZURE_MODEL)
 ```
 
 ## Generate a synthetic research case
@@ -61,28 +62,42 @@ output/
   src.json                  # Full SRC (world, problem, tasks, metadata)
   briefing.md               # What the agent sees (narrative + questions)
   dataset.csv               # Sampled data from the Bayesian network
-  answer_key.md             # Ground truth: DAG + CPDs + correct answers
+  answer_key.md             # Ground truth: DAG + causal relationships + correct answers
   dag.png                   # Causal DAG visualization
 ```
 
 ### What `--report` adds
 
 ```
-  inspiration_report.md     # How the seed inspired the SRC (narrative + scores)
-  inspiration_manifest.json # What the orchestrator intended to preserve/simplify
+  inspiration_report.md     # How the seed inspired the SRC (10-section qualitative analysis)
+  inspiration_manifest.json # Orchestrator's structured intent (preserved/simplified elements)
 ```
-
-The Inspiration Report tells the story of how the seed was translated into a
-synthetic case: which variables were preserved, what was simplified, whether the
-research questions are of the same type. It's for reviewing the quality of
-inspiration, not a reward signal.
 
 ### What `--solve` adds
 
 ```
-  evaluation.md             # Agent scores per question
-  trajectory.md             # Full agent conversation (code, reasoning, actions)
-  full_case.md              # Complete report (system prompt + conversation + eval)
+  full_case.md              # Complete report (system prompt + solver trajectory + evaluation)
+  solve_result.json         # Structured scores summary
+```
+
+### Solving an existing SRC
+
+```bash
+# Solve an already-generated SRC (e.g. after semantic transform)
+python scripts/solve_existing.py experiments/case_abstract/src.json
+```
+
+### Semantic modes
+
+Transform an existing SRC to abstract (V1/V2/Y) or fictional naming:
+
+```bash
+python scripts/semantic_transform.py experiments/case/ abstract
+python scripts/semantic_transform.py experiments/case/ fictional
+
+# Then solve each mode
+python scripts/solve_existing.py experiments/case_abstract/src.json
+python scripts/solve_existing.py experiments/case_fictional/src.json
 ```
 
 ## Use different solver backends
@@ -182,6 +197,8 @@ See `research/` for the full research on inspiration dimensions.
 | Script | Purpose |
 |--------|---------|
 | `generate_src.py` | Generate SRCs (--inspect, --solve, --report) |
+| `solve_existing.py` | Solve an existing SRC from src.json |
+| `semantic_transform.py` | Transform SRC to abstract/fictional mode |
 | `run_benchmark.py` | External benchmarks (CLadder, QRData, DiscoveryBench) |
 | `run_diagnostic.py` | Diagnostic: N SRCs + per-type metrics |
 | `serve_model.sh` | Start vLLM server for local models |

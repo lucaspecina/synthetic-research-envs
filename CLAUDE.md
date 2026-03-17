@@ -74,6 +74,28 @@ mentira y las decisiones se toman sin informacion.
 
 Ver `/precommit` skill para el protocolo completo.
 
+## Principio critico: SIEMPRE evaluar como investigacion real
+
+**Esta es la lente que debe guiar TODA evaluacion, analisis y diseno de SREG.**
+
+Al analizar un SRC, una trayectoria del solver, un score, o un cambio al sistema,
+la pregunta central es siempre:
+
+> "Un investigador real haria esto? Un caso real se veria asi?"
+
+Concretamente:
+- **Al evaluar un SRC**: Se parece a un problema de investigacion real? Las preguntas
+  son las que un investigador haria? Los datos tienen la estructura que tendria un
+  dataset real?
+- **Al evaluar al solver**: Esta investigando como investigaria una persona? Usa los
+  datos? Razona causalmente? O responde desde priors de pretraining?
+- **Al disenar cambios**: Este cambio hace que el entorno se parezca MAS a investigacion
+  real, o lo aleja? Un eval type nuevo captura algo que un investigador real preguntaria?
+- **Al interpretar scores**: Un score bajo significa que el solver fallo como investigador,
+  o que el caso estaba mal disenado?
+
+Si algo no se parece a investigacion real, es un bug — no importa si los tests pasan.
+
 ## Project overview
 
 SREG genera entornos sinteticos de investigacion con reward signals exactos,
