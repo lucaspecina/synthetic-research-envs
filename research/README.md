@@ -68,6 +68,8 @@ desplazandose hacia `synthesis/`.
   pueden resolver por shortcut, prior o estructura generica.
 - **Empezar por:** `synthesis/eval_types_analysis.md`
 - **Notas de apoyo:** `notes/scientific_taxonomy.md`,
+  `notes/scientific_taxonomy_deep_research.md` (deep research: como se hace
+  ciencia hoy, taxonomy explicita/implicita, curriculum RL propuesto),
   `notes/solver_trajectory_findings.md`,
   `notes/sreg_v2_design_findings.md`
 

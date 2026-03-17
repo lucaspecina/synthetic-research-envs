@@ -119,12 +119,13 @@ Corrimos 7 SRCs de papers reales SIN budget ni research_actions.
 El solver solo tiene python_exec + think + submit.
 
 **Patron claro:**
+
 - Descriptive questions (infer_target): FUERZAN analisis de datos.
-  El solver TIENE que hacer value_counts/crosstabs. Scores GOOD.
+El solver TIENE que hacer value_counts/crosstabs. Scores GOOD.
 - Causal questions (should_condition, adjustment_set): NO fuerzan analisis.
-  El solver responde desde priors del dominio. A menudo WRONG.
+El solver responde desde priors del dominio. A menudo WRONG.
 - causal_effect: intermedio — a veces compara grupos (empirico shallow),
-  a veces adivina desde priors.
+a veces adivina desde priors.
 
 **Conclusion confirmada por Codex:**
 Si queremos forzar investigacion, las preguntas deben ser DATA-INDEXED
@@ -134,6 +135,7 @@ conocimiento de dominio.
 
 **Implicacion para SREG:**
 Separar dos objetivos de benchmark:
+
 1. Data-grounded empirical analysis (descriptivo, estimacion)
 2. Causal structure reasoning (condicionar, confounders, mecanismo)
 
@@ -146,5 +148,6 @@ Solo el primero fuerza investigacion naturalmente.
 3. How do we make robustness tasks?
 4. How do we implement heterogeneity tasks?
 5. Should we restructure around the PROCESS (framing, proposing, planning,
-   executing, analyzing) rather than just final answers?
+  executing, analyzing) rather than just final answers?
 6. What to do about realistic experiments/actions (future feature)?
+

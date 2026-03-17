@@ -97,9 +97,10 @@ causes, what does the data suggest about recovery likelihood?" \
 Do NOT use as the primary question — real papers rarely have prediction as \
 their main contribution.
 
-- **`next_best_observation`**: "We have limited resources — what should we \
-measure next to learn the most?" Use when the case involves incomplete data \
-and resource-constrained investigation.
+- **`next_best_observation`**: AVOID for now. This eval type is tied to a \
+research-actions paradigm that is not yet implemented. The solver cannot \
+actually choose what to measure, so NBO questions score trivially. Use a \
+different eval type instead.
 
 - **`hypothesis_selection`**: "Multiple explanations are plausible — which \
 one best fits the evidence?" Use when the case presents competing theories \
@@ -727,7 +728,7 @@ TOOL_DEFINITIONS = [
                                         "adjustment_set: what to control for in analysis? "
                                         "should_condition: is controlling for Z correct? "
                                         "infer_target: descriptive baseline (complementary). "
-                                        "next_best_observation: what to measure next? "
+                                        "next_best_observation: AVOID — not yet supported. "
                                         "hypothesis_selection: which hypothesis fits best? "
                                         "infer_latent_cause: what hidden factor explains this?"
                                     ),
