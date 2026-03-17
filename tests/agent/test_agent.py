@@ -1054,3 +1054,45 @@ def test_submit_choice_nbo_error_message():
     assert "error" in output
     assert "variable" in output["error"].lower()
     assert "yes" not in output["error"].lower()
+
+
+# --- Case mode key validation ---
+
+
+def test_case_submit_rejects_wrong_distribution_keys():
+    """Case mode submit must reject distribution with wrong keys (bug fix)."""
+    from sreg.agent.agent import CaseResult
+
+    agent = AgentSolver(client=MagicMock())
+    task = _make_task(TaskType.CAUSAL_EFFECT, {"no": 0.5, "yes": 0.5})
+    case_result = CaseResult()
+    case_result.task_results[1] = AgentResult()
+
+    # Submit with completely wrong keys (the bug that caused score=31.7)
+    output = agent._handle_case_submit(
+        {"question": 1, "distribution": '{"medium": 0.5, "high": 0.3, "low": 0.2}'},
+        [task],
+        case_result,
+    )
+    assert "error" in output
+    assert "Expected" in output["error"]
+    # Answer should NOT be recorded
+    assert case_result.task_results[1].submitted_answer is None
+
+
+def test_case_submit_accepts_correct_distribution_keys():
+    """Case mode submit accepts distribution with correct keys."""
+    from sreg.agent.agent import CaseResult
+
+    agent = AgentSolver(client=MagicMock())
+    task = _make_task(TaskType.CAUSAL_EFFECT, {"no": 0.5, "yes": 0.5})
+    case_result = CaseResult()
+    case_result.task_results[1] = AgentResult()
+
+    output = agent._handle_case_submit(
+        {"question": 1, "distribution": '{"no": 0.7, "yes": 0.3}'},
+        [task],
+        case_result,
+    )
+    assert "error" not in output
+    assert case_result.task_results[1].submitted_answer is not None

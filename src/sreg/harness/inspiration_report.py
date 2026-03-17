@@ -82,78 +82,27 @@ class InspirationReport:
     manifest: dict | None = None  # Orchestrator's self-reported intent
 
     def to_markdown(self) -> str:
-        """Render as human-readable markdown — narrative and friendly."""
+        """Render as compact markdown — seed vs SRC comparison."""
+        seed = self.seed_profile
+        src = self.src_profile
         lines = ["# Inspiration Report", ""]
 
-        # ---- Narrative intro ----
-        if self.seed_profile.narrative_summary:
-            lines.append("## What the seed is about")
-            lines.append("")
-            lines.append(self.seed_profile.narrative_summary)
-            lines.append("")
-            # Seed research questions
-            if self.seed_profile.question_descriptions:
-                lines.append("**Research questions in the seed:**")
-                for q in self.seed_profile.question_descriptions:
-                    lines.append(f"- {q}")
-                lines.append("")
-            # Seed variables
-            if self.seed_profile.variable_names:
-                lines.append(
-                    f"**Variables mentioned** ({self.seed_profile.variable_count}): "
-                    + ", ".join(self.seed_profile.variable_names[:20])
-                )
-                if len(self.seed_profile.variable_names) > 20:
-                    lines.append(f"  ... and {len(self.seed_profile.variable_names) - 20} more")
-                lines.append("")
+        # Quick header: seed -> SRC at a glance
+        lines.append(
+            f"**Seed:** {seed.domain or '?'} ({seed.variable_count} vars) "
+            f"-> **SRC:** {src.problem_description or '?'} "
+            f"({src.variable_count} nodes, "
+            f"{src.relationship_count} edges, "
+            f"{len(src.question_types)} questions)"
+        )
+        if src.latent_variables:
+            lines.append(f"Latent: {', '.join(src.latent_variables)}")
+        lines.append("")
 
-        if self.src_profile.problem_description:
-            lines.append("## What the SRC created")
-            lines.append("")
-            lines.append(f"**{self.src_profile.problem_description}**")
-            lines.append("")
-            lines.append(
-                f"- {self.src_profile.variable_count} variables "
-                f"({self.src_profile.complexity_level} complexity)"
-            )
-            lines.append(f"- {self.src_profile.relationship_count} causal relationships")
-            lines.append(
-                f"- {len(self.src_profile.question_types)} research questions: "
-                + ", ".join(self.src_profile.question_types)
-            )
-            if self.src_profile.latent_variables:
-                lines.append(
-                    f"- Latent (unobservable): "
-                    + ", ".join(self.src_profile.latent_variables)
-                )
-            lines.append("")
-            # SRC variables
-            if self.src_profile.variable_names:
-                lines.append(
-                    "**SRC variables:** " + ", ".join(self.src_profile.variable_names)
-                )
-                lines.append("")
-            # SRC questions
-            if self.src_profile.question_descriptions:
-                lines.append("**SRC research questions:**")
-                for i, q in enumerate(self.src_profile.question_descriptions, 1):
-                    qt = (
-                        self.src_profile.question_types[i - 1]
-                        if i <= len(self.src_profile.question_types) else "?"
-                    )
-                    lines.append(f"{i}. ({qt}) {q}")
-                lines.append("")
-
-        # ---- Qualitative narrative comparison (THE MAIN CONTENT) ----
+        # ---- THE MAIN CONTENT: LLM narrative comparison ----
         if self.narrative_comparison:
-            lines.append("## How the inspiration worked")
-            lines.append("")
             lines.append(self.narrative_comparison)
             lines.append("")
-
-        # NOTE: "What the orchestrator intended" section removed — the manifest
-        # is saved as inspiration_manifest.json and the narrative comparison above
-        # already covers the same ground with more nuance.
 
         return "\n".join(lines)
 
@@ -867,120 +816,54 @@ def compare_profiles(
 # ---------------------------------------------------------------------------
 
 _NARRATIVE_PROMPT = """\
-You are writing a detailed qualitative comparison between a research seed \
-and a synthetic research case (SRC) inspired by it.
+You are writing a CONCISE comparison between a research seed and a synthetic \
+research case (SRC) inspired by it. Be specific but brief — cite variable \
+names, question types, relationships. No filler.
 
-Write in the same language as the seed (if Spanish, write in Spanish). \
-Be specific — cite variable names, question types, relationships. \
-Avoid jargon about "dimensions" or "scores". Tell the STORY of how the \
-inspiration worked.
+Write in the same language as the seed (if Spanish, write in Spanish).
 
-Structure your response in these sections. Use ## for each heading.
+Structure your response EXACTLY with these sections. Use ## for each heading.
 
-## 1. The scientific work in the seed
-(2-3 paragraphs) Explain what the original research is REALLY about. Not \
-just the topic — the TYPE of scientific work: What questions do the \
-researchers ask? What do they measure and why? What's the challenge? \
-What makes this research hard or interesting? Explain it like telling \
-a colleague about a paper you just read.
+## 1. Seed summary
+(1 paragraph MAX) What the research is about, what makes it hard, what kind \
+of scientific work it represents. Like a 3-sentence abstract for a colleague.
 
-## 2. Domain & Problem
-Compare: what domain is the seed in? What domain is the SRC in? Is the \
-SRC in the same domain or did it change? Why? Does the fictional setting \
-preserve the TYPE of problem (e.g., observational epi, field experiment, \
-operational study)?
+## 2. Variable mapping
+Build a COMPACT markdown table. Group related variables on one row when possible:
 
-## 3. Variables — seed to SRC mapping
-Build a MARKDOWN TABLE mapping seed variables to SRC variables:
-
-| Seed variable | SRC variable | Notes |
+| Seed variables | SRC variable | How mapped |
 |---|---|---|
+| var_a, var_b, var_c | src_var | Grouped: reason |
+| var_d | src_var_2 | Direct translation |
+| var_e, var_f | (dropped) | Why dropped |
+| (none) | src_var_3 | Added by SRC: role |
 
-For each: was it translated directly, renamed, grouped with others, \
-expanded, or dropped? Why? Which variables did the SRC ADD that were \
-not in the seed, and what role do they play?
+After the table: one line noting scale (seed N vars -> SRC M nodes).
 
-Also note scale: how many variables does the seed have vs the SRC? Is \
-the reduction justified or does it lose important structure?
+## 3. Research questions
+THE MOST IMPORTANT SECTION. Build a markdown table:
 
-## 4. Causal structure
-What causal patterns does the seed imply? (confounders, mediators, \
-colliders, latent variables, chains, effect modifiers) Which of those \
-made it into the SRC? Which were lost? For each pattern present or \
-missing, explain briefly WHY it matters for the research.
-
-## 5. Data & evidence
-What kind of data or evidence does the seed describe? (survey data, \
-field measurements, multiple sources, time series, experimental results, \
-missing data problems, measurement error, selection bias in the sample) \
-What does the SRC provide to the solver? (datasets, number of rows, \
-data quality issues) What is the gap between what a real researcher \
-would work with and what our solver sees?
-
-## 6. Research questions — one by one
-This is the MOST IMPORTANT section. Build a MARKDOWN TABLE:
-
-| Seed question | SRC question | Eval type | Match quality | What changed? |
+| Seed question | SRC question | Eval type | Match | Notes |
 |---|---|---|---|---|
 
-For "Eval type" use the exact eval_type name (causal_effect, should_condition, \
-infer_target, adjustment_set, infer_latent_cause, best_intervention, \
-compare_interventions, next_best_observation, hypothesis_selection).
+Use exact eval_type names. For seed questions not represented, say \
+"Not represented" and name the missing eval type. After the table: \
+one sentence on whether SRC added filler questions.
 
-For each seed question:
-- If well translated: say so and explain why (same causal reasoning, same intent).
-- If imperfect: explain WHAT changed. Did a causal question become predictive? \
-Did a mechanistic question become statistical?
-- If no SRC equivalent: say "Not represented" and explain what type of question \
-it is (mediation, effect modification, selection bias, source attribution, etc.) \
-and note that we don't have an eval_type for it yet.
+## 4. Structure, data & causal patterns
+(1-2 paragraphs MAX) Combine causal structure and data in one brief section: \
+What causal patterns exist (confounders, mediators, latent vars)? What data \
+does the solver get? What's the gap vs what a real researcher would have?
 
-After the table: did the SRC add questions not in the seed? Are they useful or filler?
+## 5. Challenges for SREG
+(Bulleted list, 3-6 items MAX) Each item is ONE LINE with a tag:
+- **[MISSING_EVAL_TYPE]** brief description
+- **[ORCHESTRATOR]** brief description
+- **[DATA_GAP]** brief description
+- **[CASE_DESIGN]** brief description
+- **[STRUCTURAL]** brief description
 
-## 7. Signal & difficulty
-How strong are the effects in the seed? (obvious, moderate, subtle?) \
-Does the SRC match that difficulty? Would the solver find this easy or \
-hard, and for the right reasons?
-
-## 8. Investigation workflow
-What would a real researcher DO in the seed's investigation? (run \
-analyses, compare models, check subgroups, perform sensitivity tests, \
-explore the data iteratively) The solver has python_exec and can do \
-all of this through code. The question is: does the SRC's design \
-(questions + data) REQUIRE this kind of iterative analysis, or can \
-the solver answer without investigating? If the solver can skip the \
-analysis, that is a CASE DESIGN problem, not a missing tool.
-
-## 9. Overall assessment
-Would a researcher working on the seed's problem recognize the SRC as \
-a synthetic version of their investigation? What are the 2-3 biggest \
-gaps? What works best?
-
-## 10. Limitations & improvement opportunities
-This section is for US (the SREG developers), not for the solver. Be \
-brutally honest about what the system could not do or did poorly. \
-For each limitation, classify it:
-
-- **MISSING EVAL TYPE**: a question type the seed needs but SREG doesn't \
-have yet (e.g., mediation, effect modification, selection bias assessment). \
-Name the type explicitly.
-- **ORCHESTRATOR WEAKNESS**: the orchestrator had the tools but made a poor \
-choice (e.g., used infer_target where causal_effect was needed, dropped an \
-important variable, oversimplified structure).
-- **DATA/EVIDENCE GAP**: the SRC's data presentation is too clean, too simple, \
-or missing something the seed implies (e.g., multiple data sources, measurement \
-error, temporal structure, missing data patterns).
-- **CASE DESIGN GAP**: the SRC's questions or data don't require the solver \
-to investigate iteratively (e.g., questions answerable without analysis, \
-no need for subgroup comparison, no ambiguity that rewards exploration). \
-The solver HAS python_exec and CAN do anything through code — if it \
-doesn't, the case failed to motivate investigation.
-- **STRUCTURAL LIMITATION**: something about SREG's architecture that prevents \
-faithful translation (e.g., only discrete BNs, no temporal dynamics, no \
-multi-level data).
-
-For each one, briefly suggest what we could build or change to fix it. \
-Be specific and actionable.
+No explanations of what the tags mean — just the items. Be specific.
 """
 
 

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from sreg.models.world import NodeType
 
-MAX_PARENTS = 4
+MAX_PARENTS = 5
 
 
 class DAGNodeSpec(BaseModel):

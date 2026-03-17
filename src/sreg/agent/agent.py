@@ -919,6 +919,17 @@ class AgentSolver:
                         f"Keys: {', '.join(states)}"
                     ),
                 }
+            # Validate keys match expected states
+            if task.correct_answer:
+                expected = set(task.correct_answer.keys())
+                provided = set(distribution.keys())
+                if provided != expected:
+                    return {
+                        "error": (
+                            f"Distribution keys must match target states. "
+                            f"Expected: {sorted(expected)}, got: {sorted(provided)}"
+                        ),
+                    }
             total = sum(distribution.values())
             if total > 0:
                 distribution = {k: v / total for k, v in distribution.items()}

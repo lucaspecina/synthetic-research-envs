@@ -19,12 +19,15 @@ load_dotenv()
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python scripts/solve_existing.py <src.json>")
-        sys.exit(1)
+    import argparse
 
-    src_path = sys.argv[1]
-    output_dir = os.path.dirname(src_path)
+    parser = argparse.ArgumentParser(description="Solve an existing SRC")
+    parser.add_argument("src_json", help="Path to src.json")
+    parser.add_argument("-o", "--output", help="Output directory (default: same as src.json)")
+    args = parser.parse_args()
+
+    src_path = args.src_json
+    output_dir = args.output or os.path.dirname(src_path)
 
     with open(src_path, encoding="utf-8") as f:
         src = json.load(f)
@@ -88,6 +91,8 @@ def main():
         print(f"  {tt:<25} {score_val:>8.3f} {verdict:<12}")
 
     # --- Build full_case.md ---
+    from generate_src import build_dag_section
+
     full_lines = []
     full_lines.append(f"# Full Case Report: {world.scenario_title or world.id}")
     full_lines.append("")
@@ -95,6 +100,13 @@ def main():
     full_lines.append(f"Budget: {case_result.budget_used}/{case_result.budget_total}")
     full_lines.append(f"Tasks: {len(tasks)}")
     full_lines.append("")
+
+    # Part 0: Ground truth
+    full_lines.append("---")
+    full_lines.append("")
+    full_lines.append("# Part 0: Ground truth (hidden from solver)")
+    full_lines.append("")
+    full_lines.extend(build_dag_section(world, tasks))
 
     # Part 1: What the solver received
     full_lines.append("---")

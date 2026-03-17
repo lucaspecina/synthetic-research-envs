@@ -59,7 +59,7 @@ class Orchestrator:
     def __init__(
         self,
         model: str | None = None,
-        max_iterations: int = 10,
+        max_iterations: int = 15,
         max_gen_attempts: int = 3,
         client: OpenAI | None = None,
     ):

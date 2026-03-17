@@ -55,12 +55,39 @@ la semantica para que aprenda el core de investigacion.
 **Modos propuestos:** realistic (actual), fictional (nombres inventados),
 abstract (X1/X2/Y), theory_rich (fictional + literatura inventada, futuro).
 
+**Evidencia experimental (2026-03-17): 3 modos de Vaca Muerta.** Misma BN,
+mismos datos, mismas preguntas. Solo cambian los nombres de variables.
+
+| Modo | Avg score | Budget usado | Hallazgo clave |
+|---|---|---|---|
+| Realistic | 0.425 | 12/12 | Priors de dominio INVIERTEN la respuesta (Q2) |
+| Fictional | **0.142** | 11/12 | Unico modo con backdoor adjustment genuino |
+| Abstract | 6.69 | **0/12** | Solver no entiende las preguntas (Q1: variable equivocada) |
+
+**Hallazgos concretos:**
+- **Realistic contamina:** El solver "sabe" que fracture_peak_pressure=high es
+  importante en sanding y la elige como intervencion — pero en el DAG la
+  direccion es opuesta. Priors override datos.
+- **Fictional fuerza investigacion real:** Sin priors, el solver hizo backdoor
+  adjustment (la unica trayectoria con razonamiento causal genuino).
+- **Abstract no quita priors — quita comprension:** El solver no entendio NI
+  QUE VARIABLE computar. Respondio P(V2) cuando necesitaba P(Y). Budget 0/12
+  (ni intento medir). Los scores "GOOD" en Q2-Q4 son artefacto de un bug del
+  verifier (no validaba keys — ya fixeado).
+- **Conclusion preliminar:** fictional > realistic > abstract para evaluar
+  razonamiento cientifico genuino. Pero es N=1 — necesitamos football y otros.
+
 **Sub-preguntas:**
-- [ ] Des-realizar mejora o empeora el razonamiento del solver?
-- [ ] Hay evidencia de que los priors contaminan las respuestas?
+- [~] Des-realizar mejora o empeora el razonamiento del solver?
+  → Fictional mejora, abstract empeora. Falta mas evidencia.
+- [~] Hay evidencia de que los priors contaminan las respuestas?
+  → Si: Q2 realistic (direccion invertida por prior de dominio).
 - [ ] Que implicaciones tiene para el entrenamiento RL futuro?
+- [ ] Se puede mejorar abstract con mejor prompting? O es inviable?
+- [ ] Replicar con football para confirmar/refutar patron.
 
 **Referencia:** NOTES.md, PROJECT.md (tension estrategica). **Implementar:** I2.
+Experimentos en `experiments/vaca_muerta_{realistic,abstract,fictional}/`.
 
 ### A4. Solo data-driven u otros tipos de investigacion?
 
@@ -134,17 +161,62 @@ quedo desactualizada o sin uso real. Hay que repasar que sirve y que no.
   iterar. Como cerrar el loop?
 - [ ] Baselines: son los correctos para los eval types actuales?
 
-### A8. Variables numericas y mundos mixtos
+### A8. Variables numericas y mundos mixtos — DECISION ARQUITECTONICA CRITICA
 
-Hoy la BN solo soporta variables discretas. Los papers reales tienen
-variables continuas (presion, temperatura, concentracion, scores). Esto
-limita el realismo de los datos y las preguntas que podemos hacer.
+Hoy la BN solo soporta variables discretas con CPD tables. Los papers reales
+tienen variables continuas (presion, temperatura, concentracion, scores). Esto
+causa dos problemas concretos:
+
+**Problema 1: Realismo.** Un investigador de football mediria VO2max en
+mL/kg/min, temperatura en grados, frecuencia cardiaca en bpm. Discretizar a
+3 niveles (`low/moderate/high`) es artificial. Los datos no se parecen a datos
+reales y el solver hace crosstabs en vez de analisis estadistico real.
+
+**Problema 2: Escalabilidad.** CPD tables crecen exponencialmente con padres:
+3 estados x N padres = 3^N entries. Con 4 padres = 81. Con 5 = 243. Con 6 =
+729. `MAX_PARENTS = 4` es necesario para mantener el tamano manejable, pero
+dominios complejos (football, epidemiologia) naturalmente tienen nodos con 5-6
+causas. El orchestrator gasta iteraciones enteras intentando reducir padres.
+
+**Evidencia concreta (2026-03-17):** El seed de football fallo 8/10 iteraciones
+del orchestrator por "Nodes exceed max parents (4)": `second_half_physical_drop`
+necesitaba 5-6 padres (load, hidratacion, calor, exercion, perfil). Nunca
+llego a `design_case`.
+
+**Opciones evaluadas:**
+
+| Representacion | Continuas | Inferencia exacta | Reward exacto | Escala con padres |
+|---|---|---|---|---|
+| **CPD tables** (actual) | No | Si | Si | No (3^N) |
+| **Linear Gaussian BN** | Si | Si (closed-form) | Si (KL Gaussianas) | Si (O(n)) |
+| **CLG (Conditional Linear Gaussian)** | Mix | Si | Si | Si |
+| **SEM lineal** | Si | Si | Si | Si |
+| **MCMC / nonparametric** | Si | No (aprox) | No exacto | Si |
+
+**Candidatos serios: Linear Gaussian y CLG.** Ambos mantienen inferencia
+exacta (el diferenciador de SREG) y escalan linealmente con padres. pgmpy
+soporta `LinearGaussianCPD`. CLG permite mezclar discretas y continuas.
+
+**Lo que cambia:** todo el engine de CPD generation, sampling, teacher,
+eval types (scoring con distribuciones continuas), prompts del solver.
+Es un cambio grande pero resuelve problemas de raiz.
+
+**Lo que NO cambia:** el principio de reward exacto. P(Y|do(X)) tiene
+solucion analitica en modelos Gaussianos. KL entre Gaussianas es closed-form.
 
 **Sub-preguntas:**
-- [ ] Se puede extender pgmpy a variables continuas o mixtas?
-- [ ] Alternativa: discretizar pero con mas granularidad (10-20 estados)?
-- [ ] Que cambia en el teacher, scoring y CPD generation?
-- [ ] Que eval types nuevos habilita (regresion, correlacion, etc)?
+- [ ] Prototipar un mini Linear Gaussian BN en pgmpy. Verificar que
+  inference, sampling, y do-calculus funcionan.
+- [ ] Prototipar CLG: nodos discretos (posicion, tipo_superficie) +
+  continuos (temperatura, VO2max). Verificar inferencia mixta.
+- [ ] Definir como adaptar el teacher para distribuciones continuas.
+- [ ] Definir scoring: KL entre Gaussianas? Wasserstein? CRPS?
+- [ ] Que eval types nuevos habilita (regresion, correlacion, intervalos)?
+- [ ] Estimar esfuerzo total de migracion.
+
+**Decision pendiente:** migrar a Gaussian/CLG vs seguir con discreto
+mejorado (mas estados, MAX_PARENTS mas alto). La migracion es mas
+trabajo pero resuelve el problema de raiz.
 
 ### A9. Inspiration report: racionalizacion post-hoc
 
@@ -166,12 +238,47 @@ limitaciones desde perspectiva de SREG developer.
 - [ ] Reemplazar manifest por report escrito durante la creacion.
 - [ ] Paso post-hoc liviano solo para verificacion y limitaciones.
 
+### A10. Errores de formato del solver queman iteraciones
+
+En los 3 modos semanticos, el solver lucha con los formatos de submission
+(distribution vs choice vs node+state). Gasta 2-4 iteraciones del budget
+en errores de formato antes de lograr submitir correctamente. Esto NO es
+un problema semantico — es un problema del prompt/tooling.
+
+**Evidencia (2026-03-17):** En realistic, el solver primero envio `choice`
+para Q1 (necesitaba `distribution`), `choice` para Q2 (necesitaba
+`node+state`). En fictional, envio `variables` para Q3-Q5 (necesitaba
+`choice`/`distribution`). Solo despues de recibir errores corrigio.
+
+**Sub-preguntas:**
+- [ ] Mejorar prompt del solver para que sepa el formato antes de submitir?
+- [ ] Agregar ejemplos de formato en el system prompt por pregunta?
+- [ ] El deadline nudge compensa esto parcialmente pero no es solucion.
+
 ---
 
 ## Implementacion y experimentos
 
 Cosas que sabemos que queremos hacer o probar. Cada una referencia el
 analisis que la motiva.
+
+### I0. Fixes criticos encontrados en sesion 2026-03-17
+
+**Bug verifier: keys de distribucion no validadas en case mode.**
+En `_handle_case_submit` (agent.py), el solver podia submitir una
+distribucion con keys completamente diferentes a las esperadas (ej:
+`{medium, high, low}` cuando se esperaba `{no, yes}`). La distribucion se
+aceptaba, se grababa, y el scoring daba KL = 31.7 bits (catastrofico).
+**Fix aplicado:** validacion de keys identica a la de single mode (linea 921).
+Tests: `test_case_submit_rejects_wrong_distribution_keys`,
+`test_case_submit_accepts_correct_distribution_keys`. **1104 tests pasan.**
+
+**Bottleneck: MAX_PARENTS=4 insuficiente para dominios complejos.**
+El seed de football genero nodos con 5-6 padres naturales. El orchestrator
+gasto 8/10 iteraciones en dag_construct rechazado, nunca llego a design_case.
+- [ ] Subir `MAX_PARENTS` de 4 a 5 en `dag_spec.py` (CPDs: 3^5=243, manejable).
+- [ ] Subir `max_iterations` del orchestrator de 10 a 15.
+- [ ] Evaluar si es suficiente o necesitamos la migracion a Gaussian (ver A8).
 
 ### I1. Nuevos eval types — motivado por A2
 
@@ -283,7 +390,8 @@ Necesita mejores descripciones y ejemplos de cuando usar cada uno.
 
 - [ ] Validar CPDs con checks mas fuertes.
 - [ ] Motif composer y expressive range para DAGs.
-- [ ] Variables continuas y mundos mixtos.
+- [ ] Variables continuas y mundos mixtos. → **Promovido a A8** con analisis
+  completo de opciones (Linear Gaussian, CLG, SEM).
 
 ### Producto
 
@@ -359,3 +467,5 @@ Detalle historico en `CHANGELOG.md`.
 - Taxonomia de investigaciones: no tenemos claro los TIPOS de investigacion
   que existen y que dimensiones tienen. Necesitamos eso para disenar las
   research tasks. → ver A5, research/
+- Ver no solo cualquier paper promedio sino TIPO DE INVESTIGACIONES CLAVES QUE HAN SIDO IMPORTANTES… y tipos (anatomía y forma) de investigaciones que pueden llevar a cosas importantes en el futuro. Penémoslo… por ej hoy en día cuáles que sería clave descubrir? Independientemente del cómo… cuáles son las preguntas de investigación CLAVES para áreas que tendrían impacto realmente? O no es tan así y no es que una investigación hace algo increíble sino que son acumulados chicos?
+- CLAVE (incluye lo de tipo de investigaciones, taxonomia, preguntas, etc) ---> QUE SIGNIFICA HACER CIENCIA, QUE ES HACER CIENCIA, COMO SE ESTA HACIENDO CIENCIA ULTIMAMENTE? (moderna). COMO SE HACE CIENCIA ULTIMAMENTE? QUE SIGNIFICA? los descubrimientos cientificos modernos y avances como son? son encontrar cosas causales? son cosas computacionales? es construir herramientas mas que inferir estadisticamente algo? cuales son los approaches? como ha ido cambiando y ahora como funciona? para tener IMPACTO realmente. Como son los ultimos avances en biologia, tipo para el cancer, drogas, quimica, materiales, superconductores o cosas asi. Todo el tipo de ciencia mas avanzada actual... se sigue haciendo descubriendo causas como lo suponemos? o armando sistemas? ha habido un cambio y ya no tenemos mas la ciencia clasica y ahora tenemos ciencia moderna computacional? como dice Wolfram, a new kind of science? sigue siendo util descubrir causas como lo estamos planteando? hay una lucha de approaches computational-based vs human-based? expandir en esto para entender como se hace ciencia hoy en dia.

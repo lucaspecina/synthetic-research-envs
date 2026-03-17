@@ -81,3 +81,11 @@ desplazandose hacia `synthesis/`.
   fuera de SREG.
 - **Empezar por:** `synthesis/benchmark_analysis.md`
 - **Notas de apoyo:** `notes/benchmark_results.md`
+
+### Modos semanticos (realistic vs fictional vs abstract)
+- **Pregunta:** que modo semantico fuerza mas investigacion genuina y minimiza
+  contaminacion por priors de pretraining.
+- **Empezar por:** `notes/semantic_modes_experiment_2026_03_17.md`
+- **Conecta con:** A3 y I2 en `TODO.md`
+- **Status:** primer experimento (Vaca Muerta, N=1). Pendiente replicar con
+  football y otros dominios.

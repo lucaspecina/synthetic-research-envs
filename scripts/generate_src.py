@@ -244,6 +244,100 @@ def export_briefing(result, output_dir: str) -> str | None:
     return path
 
 
+def build_dag_section(world, tasks=None) -> list[str]:
+    """Build mermaid DAG + variable importance + baseline as markdown lines.
+
+    Reusable for full_case.md and answer_key.md.
+    """
+    from sreg.solver.exact_bayes import ExactBayesSolver
+
+    import networkx as nx
+
+    solver = ExactBayesSolver(world)
+    target = next(n for n in world.nodes if n.type == "target")
+    latents = [n for n in world.nodes if n.type == "latent"]
+
+    dag = nx.DiGraph()
+    for n in world.nodes:
+        dag.add_node(n.name)
+    for e in world.edges:
+        dag.add_edge(e.from_node, e.to_node)
+
+    lines = []
+
+    # Mermaid diagram
+    lines.append("## Causal DAG (ground truth)")
+    lines.append("")
+    lines.append("```mermaid")
+    lines.append("graph TD")
+    for n in world.nodes:
+        label = n.name.replace("_", " ")
+        if n.type == "latent":
+            lines.append(f'    {n.name}(["{label}"]):::latent')
+        elif n.type == "target":
+            lines.append(f'    {n.name}{{{{"{label}"}}}}:::target')
+        else:
+            lines.append(f'    {n.name}["{label}"]:::observable')
+    lines.append("")
+    for e in world.edges:
+        lines.append(f"    {e.from_node} --> {e.to_node}")
+    lines.append("")
+    lines.append("    classDef latent fill:#FF6B6B,stroke:#333,color:#000,stroke-width:2px")
+    lines.append("    classDef observable fill:#51CF66,stroke:#333,color:#000")
+    lines.append("    classDef target fill:#FFD43B,stroke:#333,color:#000,stroke-width:3px")
+    lines.append("```")
+    lines.append("")
+
+    # Hidden variables
+    tname = target.name.replace("_", " ")
+    if latents:
+        for n in latents:
+            children = list(dag.successors(n.name))
+            cstr = ", ".join(c.replace("_", " ") for c in children)
+            lines.append(
+                f"**Latent:** {n.name.replace('_', ' ')} ({', '.join(n.states)})"
+                f" -- affects: {cstr}"
+            )
+        lines.append("")
+
+    # Variable importance
+    lines.append(f"### Variable importance for {tname}")
+    lines.append("")
+    ig_scores = {}
+    for n in world.nodes:
+        if n.type == "latent" or n.name == target.name:
+            continue
+        try:
+            ig = solver.information_gain(target.name, {}, n.name)
+            ig_scores[n.name] = ig
+        except Exception:
+            ig_scores[n.name] = 0.0
+
+    sorted_ig = sorted(ig_scores.items(), key=lambda x: -x[1])
+    max_ig = max(ig_scores.values()) if ig_scores else 1
+
+    for rank, (name, ig) in enumerate(sorted_ig, 1):
+        label = name.replace("_", " ")
+        bars = int((ig / max_ig) * 20) if max_ig > 0 else 0
+        bar_str = "#" * bars + "." * (20 - bars)
+        if ig > max_ig * 0.6:
+            strength = "STRONG"
+        elif ig > max_ig * 0.2:
+            strength = "moderate"
+        else:
+            strength = "weak"
+        lines.append(f"{rank}. **{label}**: {ig:.4f} bits [{bar_str}] -- {strength}")
+    lines.append("")
+
+    # Baseline
+    prior = solver.posterior(target.name, {})
+    lines.append(f"**Baseline** (no evidence): "
+                 + ", ".join(f"{s}={prior[s]:.1%}" for s in target.states))
+    lines.append("")
+
+    return lines
+
+
 def export_answer_key(result, output_dir: str) -> str | None:
     """Export BN truth + quick guide + correct answers."""
     if not result.world or not result.problem:
@@ -613,6 +707,13 @@ def solve_tasks(
     full_lines.append(f"Budget: {case_result.budget_used}/{case_result.budget_total}")
     full_lines.append(f"Tasks: {len(tasks)}")
     full_lines.append("")
+
+    # Part 0: Ground truth (hidden from solver)
+    full_lines.append("---")
+    full_lines.append("")
+    full_lines.append("# Part 0: Ground truth (hidden from solver)")
+    full_lines.append("")
+    full_lines.extend(build_dag_section(world, tasks))
 
     # Part 1: What the solver received
     full_lines.append("---")
@@ -999,10 +1100,6 @@ def main():
         briefing_path = export_briefing(result, args.output)
         if briefing_path:
             _print(f"  {_c(GRN, 'v')} {briefing_path}")
-
-        answer_path = export_answer_key(result, args.output)
-        if answer_path:
-            _print(f"  {_c(GRN, 'v')} {answer_path}")
 
         dag_path = export_dag_png(result, args.output)
         if dag_path:
