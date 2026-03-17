@@ -212,20 +212,6 @@ def export_briefing(result, output_dir: str) -> str | None:
         lines.append(problem.research_question or "")
         lines.append("")
 
-    lines.append("## Available Research Actions")
-    lines.append("")
-    lines.append(f"Budget: {problem.budget} units")
-    lines.append("")
-    for a in problem.available_actions:
-        atype = a.action_type or "observe"
-        desc = a.description or ""
-        iv = a.intervention_values
-        line = f"- ({atype}, cost {a.cost}): {desc}"
-        if iv:
-            line += f" [sets: {dict(iv)}]"
-        lines.append(line)
-    lines.append("")
-
     lines.append("## Dataset")
     lines.append("")
     lines.append("The dataset is provided as a separate CSV file: dataset.csv")
@@ -711,7 +697,7 @@ def solve_tasks(
     full_lines.append(f"# Full Case Report: {world.scenario_title or world.id}")
     full_lines.append("")
     full_lines.append(f"Seed: {seed}")
-    full_lines.append(f"Budget: {case_result.budget_used}/{case_result.budget_total}")
+    full_lines.append(f"Tools: python_exec + think + submit")
     full_lines.append(f"Tasks: {len(tasks)}")
     full_lines.append("")
 
@@ -826,8 +812,7 @@ def solve_tasks(
                 full_lines.append("```")
             elif isinstance(content, dict) and "findings" in content:
                 findings = content["findings"]
-                budget = content.get("remaining_budget", "?")
-                full_lines.append(f"**[FINDING]** {findings} *(budget left: {budget})*")
+                full_lines.append(f"**[FINDING]** {findings}")
             elif isinstance(content, dict) and content.get("status") == "submitted":
                 q = content.get("question", "?")
                 msg_text = content.get("message", "")
@@ -916,8 +901,6 @@ def solve_tasks(
         "title": world.scenario_title or world.id,
         "avg_score": avg_score,
         "tasks": results_list,
-        "budget_used": case_result.budget_used,
-        "budget_total": case_result.budget_total,
     }
     result_path = os.path.join(output_dir, "solve_result.json")
     with open(result_path, "w", encoding="utf-8") as f:

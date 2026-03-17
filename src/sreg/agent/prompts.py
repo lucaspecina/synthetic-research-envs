@@ -77,10 +77,10 @@ _PYTHON_EXEC_TOOL = {
         "name": "python_exec",
         "description": (
             "Execute Python code in a persistent interpreter. Variables persist "
-            "between calls (like a Jupyter notebook). This is FREE — no budget cost. "
+            "between calls (like a Jupyter notebook). FREE and unlimited. "
             "Pre-loaded: numpy (np), pandas (pd), scipy, math, statistics, json. "
-            "The dataset is available as `df`. Observations from research_action "
-            "are in the `observations` dict. Use this to analyze data quantitatively."
+            "Datasets are available as `df`, `df_1`, `df_2`, etc. "
+            "Use this to analyze data quantitatively."
         ),
         "parameters": {
             "type": "object",
@@ -554,8 +554,13 @@ _MULTI_SUBMIT_TOOL = {
 
 
 def build_case_tools() -> list[dict]:
-    """Build tool list for multi-task case mode."""
-    return [_THINK_TOOL, _RESEARCH_ACTION_TOOL, _PYTHON_EXEC_TOOL, _MULTI_SUBMIT_TOOL]
+    """Build tool list for multi-task case mode.
+
+    NOTE: research_action is intentionally EXCLUDED. The old observe/intervene
+    mechanic was an artificial game (see TODO.md "Horizonte siguiente").
+    The solver investigates with python_exec only.
+    """
+    return [_THINK_TOOL, _PYTHON_EXEC_TOOL, _MULTI_SUBMIT_TOOL]
 
 
 def _format_question(i: int, task: Task, problem: ResearchProblem) -> str:
@@ -631,14 +636,6 @@ def build_case_system_prompt(
             for obs in asset.data[:10]:
                 data_section += f"- {obs.get('observation', obs)}\n"
 
-    # Actions section
-    actions_section = ""
-    for action in problem.available_actions:
-        kind = _ACTION_KIND_LABELS.get(action.action_type, "Action")
-        actions_section += (
-            f"- **{action.id}** ({kind}, cost: {action.cost}): {action.description}\n"
-        )
-
     theoretical = ""
     if problem.theoretical_context:
         theoretical = f"\n## Theoretical Context\n{problem.theoretical_context}\n"
@@ -647,6 +644,28 @@ def build_case_system_prompt(
     questions_section = ""
     for i, task in enumerate(tasks, 1):
         questions_section += "\n" + _format_question(i, task, problem) + "\n"
+
+    # Build format summary table
+    format_rows = []
+    for i, task in enumerate(tasks, 1):
+        tt = task.type
+        if tt in DISTRIBUTION_TYPES and task.correct_answer:
+            keys = ", ".join(task.correct_answer.keys())
+            fmt = f'`submit(question={i}, distribution={{"{keys.split(", ")[0]}": 0.X, ...}})`'
+        elif tt == TaskType.SHOULD_CONDITION:
+            fmt = f'`submit(question={i}, choice="yes")` or `choice="no"`'
+        elif tt == TaskType.COMPARE_INTERVENTIONS:
+            fmt = f'`submit(question={i}, choice="A")` or `choice="B"`'
+        elif tt == TaskType.BEST_INTERVENTION:
+            fmt = f'`submit(question={i}, node="...", state="...")`'
+        elif tt == TaskType.ADJUSTMENT_SET:
+            fmt = f'`submit(question={i}, variables=[...])`'
+        else:
+            fmt = f'`submit(question={i}, choice="...")`'
+        format_rows.append(f"| Q{i} | {tt.value} | {fmt} |")
+
+    format_table = "| Q | Type | Required format |\n|---|---|---|\n"
+    format_table += "\n".join(format_rows)
 
     # Count tabular datasets for the intro
     tabular_count = sum(1 for a in problem.data_assets if a.format == "tabular")
@@ -693,6 +712,10 @@ Libraries available: pandas (pd), numpy (np), scipy, math, statistics, json.
 - **`submit(question=N, ...)`** — Submit your answer for a question. \
 You must call this for EVERY question (one call per question).
 
+## Submission formats -- READ CAREFULLY
+
+Each question requires a SPECIFIC format. Using the wrong format will be rejected.
+{format_table}
 ## Notes
 
 - The dataset previews above show only 10 rows. Use `python_exec` with `df` \

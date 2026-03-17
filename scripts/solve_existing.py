@@ -101,7 +101,7 @@ def main():
     full_lines.append(f"# Full Case Report: {world.scenario_title or world.id}")
     full_lines.append("")
     full_lines.append(f"Mode: {mode}")
-    full_lines.append(f"Budget: {case_result.budget_used}/{case_result.budget_total}")
+    full_lines.append(f"Tools: python_exec + think + submit")
     full_lines.append(f"Tasks: {len(tasks)}")
     full_lines.append("")
 
@@ -210,8 +210,7 @@ def main():
                 full_lines.append("```")
             elif isinstance(content, dict) and "findings" in content:
                 findings = content["findings"]
-                budget = content.get("remaining_budget", "?")
-                full_lines.append(f"**[FINDING]** {findings} *(budget left: {budget})*")
+                full_lines.append(f"**[FINDING]** {findings}")
             elif isinstance(content, dict) and content.get("status") == "submitted":
                 q = content.get("question", "?")
                 msg_text = content.get("message", "")
@@ -295,8 +294,6 @@ def main():
         "title": world.scenario_title,
         "avg_score": avg_score,
         "tasks": results_list,
-        "budget_used": case_result.budget_used,
-        "budget_total": case_result.budget_total,
     }
     result_path = os.path.join(output_dir, "solve_result.json")
     with open(result_path, "w", encoding="utf-8") as f:

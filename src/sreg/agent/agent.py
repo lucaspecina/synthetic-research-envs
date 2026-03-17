@@ -859,12 +859,12 @@ class AgentSolver:
             if name == "think":
                 return {"status": "noted", "reasoning": args.get("reasoning", "")}
             elif name == "research_action":
-                # Reuse single-task handler but with a dummy AgentResult
-                dummy = AgentResult()
-                dummy.budget_total = problem.budget
-                tool_result = self._handle_research_action(args, runner, problem, dummy)
-                self._python_namespace["observations"] = dict(runner.evidence)
-                return tool_result
+                return {
+                    "error": (
+                        "research_action is not available. "
+                        "Use python_exec to analyze the datasets directly."
+                    )
+                }
             elif name == "python_exec":
                 return self._handle_python_exec(args)
             elif name == "submit":
