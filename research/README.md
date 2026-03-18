@@ -111,11 +111,12 @@ desplazandose hacia `synthesis/`.
   preguntas naturalizadas.
 - **Conecta con:** A1, A3 en `TODO.md`
 
-### Variables continuas — Linear Gaussian BN
-- **Pregunta:** se puede migrar de CPD tables discretas a Gaussian para tener
-  variables continuas, escalar con padres, y mantener reward exacto?
+### Representacion del mundo — BN vs ecuaciones vs simulacion
+- **Pregunta:** es la BN el formalismo correcto, o se podria usar ecuaciones
+  (SEM) o simulacion con reward por Monte Carlo?
 - **Empezar por:** `notes/gaussian_bn_prototype_findings.md`
-- **Hallazgo:** pgmpy soporta modelo + sampling pero NO inferencia continua.
-  La inferencia es analitica trivial (algebra lineal). do-calculus y KL son
-  closed-form. Prototipo de 3 nodos funciona end-to-end.
+- **Hallazgos:** Linear Gaussian funciona en pgmpy (sampling si, inferencia
+  no pero es trivial). Pregunta mas amplia: las CPDs no son sagradas, lo
+  sagrado es el grafo causal + reward sin LLM judge. Con Monte Carlo se
+  podrian usar ecuaciones arbitrarias (no lineales, umbrales, etc).
 - **Conecta con:** A8 en `TODO.md`

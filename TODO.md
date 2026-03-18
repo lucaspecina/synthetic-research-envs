@@ -169,62 +169,85 @@ quedo desactualizada o sin uso real. Hay que repasar que sirve y que no.
   iterar. Como cerrar el loop?
 - [ ] Baselines: son los correctos para los eval types actuales?
 
-### A8. Variables numericas y mundos mixtos — DECISION ARQUITECTONICA CRITICA
+### A8. Representacion del mundo — BN vs ecuaciones vs simulacion
 
-Hoy la BN solo soporta variables discretas con CPD tables. Los papers reales
-tienen variables continuas (presion, temperatura, concentracion, scores). Esto
-causa dos problemas concretos:
+**La pregunta de fondo:** es la BN el formalismo correcto para el mundo
+subyacente de SREG, o se podria usar algo mas expresivo?
 
-**Problema 1: Realismo.** Un investigador de football mediria VO2max en
-mL/kg/min, temperatura en grados, frecuencia cardiaca en bpm. Discretizar a
-3 niveles (`low/moderate/high`) es artificial. Los datos no se parecen a datos
-reales y el solver hace crosstabs en vez de analisis estadistico real.
+Hoy SREG usa CPD tables discretas (3 estados por variable). Esto causa:
 
-**Problema 2: Escalabilidad.** CPD tables crecen exponencialmente con padres:
-3 estados x N padres = 3^N entries. Con 4 padres = 81. Con 5 = 243. Con 6 =
-729. `MAX_PARENTS = 4` es necesario para mantener el tamano manejable, pero
-dominios complejos (football, epidemiologia) naturalmente tienen nodos con 5-6
-causas. El orchestrator gasta iteraciones enteras intentando reducir padres.
+**Problema 1: Realismo.** Variables como `recovery_quality: [poor, adequate,
+excellent]` cuando un investigador mediria VO2max=52.3 mL/kg/min. El solver
+hace crosstabs en vez de regresion/correlacion.
 
-**Evidencia concreta (2026-03-17):** El seed de football fallo 8/10 iteraciones
-del orchestrator por "Nodes exceed max parents (4)": `second_half_physical_drop`
-necesitaba 5-6 padres (load, hidratacion, calor, exercion, perfil). Nunca
-llego a `design_case`.
+**Problema 2: Escalabilidad.** CPD tables crecen 3^N con N padres.
+MAX_PARENTS=5 es un bottleneck para dominios complejos. Football necesitaba
+6 padres y fallo 8/10 iteraciones.
 
-**Opciones evaluadas:**
+**Problema 3: Expresividad.** Las relaciones reales no son tablas de
+probabilidades — son ecuaciones con umbrales, saturaciones, interacciones,
+efectos no lineales.
 
-| Representacion | Continuas | Inferencia exacta | Reward exacto | Escala con padres |
-|---|---|---|---|---|
-| **CPD tables** (actual) | No | Si | Si | No (3^N) |
-| **Linear Gaussian BN** | Si | Si (closed-form) | Si (KL Gaussianas) | Si (O(n)) |
-| **CLG (Conditional Linear Gaussian)** | Mix | Si | Si | Si |
-| **SEM lineal** | Si | Si | Si | Si |
-| **MCMC / nonparametric** | Si | No (aprox) | No exacto | Si |
+#### Que nos da la BN (lo que NO se puede perder)
 
-**Candidatos serios: Linear Gaussian y CLG.** Ambos mantienen inferencia
-exacta (el diferenciador de SREG) y escalan linealmente con padres. pgmpy
-soporta `LinearGaussianCPD`. CLG permite mezclar discretas y continuas.
+1. **Grafo causal** → d-separation, identifiability, do-calculus. Es lo que
+   hace posible should_condition, adjustment_set, y reward verificable.
+2. **Reward sin LLM judge** → el diferenciador de SREG. La verdad formal
+   permite scoring exacto/preciso.
 
-**Lo que cambia:** todo el engine de CPD generation, sampling, teacher,
-eval types (scoring con distribuciones continuas), prompts del solver.
-Es un cambio grande pero resuelve problemas de raiz.
+Lo que la BN aporta es el GRAFO + la capacidad de computar reward. Las CPDs
+son solo UNA forma de parametrizar las relaciones. No son sagradas.
 
-**Lo que NO cambia:** el principio de reward exacto. P(Y|do(X)) tiene
-solucion analitica en modelos Gaussianos. KL entre Gaussianas es closed-form.
+#### Opciones evaluadas
 
-**Sub-preguntas:**
-- [ ] Prototipar un mini Linear Gaussian BN en pgmpy. Verificar que
-  inference, sampling, y do-calculus funcionan.
-- [ ] Prototipar CLG: nodos discretos (posicion, tipo_superficie) +
-  continuos (temperatura, VO2max). Verificar inferencia mixta.
-- [ ] Definir como adaptar el teacher para distribuciones continuas.
-- [ ] Definir scoring: KL entre Gaussianas? Wasserstein? CRPS?
-- [ ] Que eval types nuevos habilita (regresion, correlacion, intervalos)?
-- [ ] Estimar esfuerzo total de migracion.
+| Representacion | Continuas | Relaciones | Reward | Escala | Complejidad |
+|---|---|---|---|---|---|
+| **CPD tables** (actual) | No | Tablas | Exacto (analitico) | No (3^N) | Ya hecho |
+| **Linear Gaussian BN** | Si | Lineales | Exacto (analitico) | Si | Media |
+| **CLG mixto** | Mix | Lineales condicionadas | Exacto | Si | Alta |
+| **SEM no lineal** | Si | Ecuaciones arbitrarias | Monte Carlo (~exacto) | Si | Media-alta |
+| **Simulacion libre** | Si | Cualquier regla | Monte Carlo (~exacto) | Si | Variable |
 
-**Decision pendiente:** migrar a Gaussian/CLG vs seguir con discreto
-mejorado (mas estados, MAX_PARENTS mas alto). La migracion es mas
-trabajo pero resuelve el problema de raiz.
+#### La pregunta clave: exacto vs estadisticamente preciso
+
+Un Linear Gaussian BN da P(Y|do(X)) como formula cerrada (reward=0.000 de
+error). Un SEM no lineal requiere Monte Carlo: simular 100K muestras de
+do(X=x), estimar la distribucion, calcular KL. El error es ~0.001 con
+suficientes muestras.
+
+**Para RL, la diferencia probablemente no importa.** El ruido de Monte Carlo
+con N grande es menor que el ruido del propio proceso de entrenamiento.
+
+Si Monte Carlo es aceptable, el espacio de diseno se abre enormemente:
+ecuaciones con sigmoid, umbrales, interacciones, saturacion. Los datos
+serian mucho mas realistas y el solver tendria que hacer analisis estadistico
+real (regresion, correlacion, scatterplots) en vez de crosstabs.
+
+#### Sub-preguntas por investigar
+
+- [x] Prototipar Linear Gaussian BN en pgmpy → funciona. Ver
+  `research/notes/gaussian_bn_prototype_findings.md`
+- [ ] Prototipar SEM no lineal: ecuaciones arbitrarias + Monte Carlo para
+  do-calculus. Verificar precision del reward con N=10K, 50K, 100K.
+- [ ] CLG mixto: nodos discretos (posicion, tipo) + continuos (temperatura,
+  VO2max). Inferencia mixta.
+- [ ] Que tan preciso necesita ser el reward para RL? Hay literatura sobre
+  tolerancia a ruido en reward signals?
+- [ ] Scoring para distribuciones continuas: KL Gaussianas (analitico),
+  KL por histograma, Wasserstein, CRPS?
+- [ ] Si vamos a SEM no lineal, como genera el orchestrator las ecuaciones?
+  Las pide al LLM? Las parametriza?
+- [ ] Que eval types nuevos habilita (regresion, correlacion, intervalos,
+  prediccion fuera de muestra)?
+
+#### Decision pendiente
+
+Lo que hay que decidir no es "Gaussian vs discreto" sino algo mas
+fundamental: **el mundo subyacente se define por CPDs, por ecuaciones,
+o por simulacion?** Las tres mantienen el grafo causal y la capacidad de
+computar reward. La diferencia es expresividad vs simplicidad.
+
+**Referencia:** `research/notes/gaussian_bn_prototype_findings.md`
 
 ### A9. Inspiration report: racionalizacion post-hoc
 

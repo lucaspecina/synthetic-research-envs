@@ -138,6 +138,55 @@ discreto o Gaussiano. Los dos coexisten. Mas trabajo pero no rompe nada.
 posicion) + continuos (temperatura, VO2max). Lo mas realista pero lo mas
 complejo de implementar.
 
+**Opcion D: SEM no lineal + Monte Carlo.** Ecuaciones arbitrarias
+(sigmoid, umbrales, interacciones). No hay inferencia analitica — el reward
+se computa por simulacion masiva (100K muestras de do(X=x)). Mas expresivo
+que cualquier BN, pero el reward tiene varianza ~0.001 en vez de 0.000.
+
 **Recomendacion:** empezar con Opcion B (Gaussian paralelo). Validar que
-funciona end-to-end con un mini ejemplo. Despues decidir si migrar todo
-o ir a CLG.
+funciona end-to-end con un mini ejemplo. Despues decidir si migrar todo,
+ir a CLG, o saltar directo a SEM no lineal.
+
+---
+
+## Pregunta mas amplia: por que BN? (2026-03-18)
+
+La BN no es sagrada. Lo que es sagrado es:
+- **El grafo causal** — necesario para d-separation, identifiability, do-calculus
+- **Reward sin LLM judge** — el diferenciador de SREG
+
+Las CPDs son solo UNA forma de parametrizar las relaciones entre variables.
+Un sistema de ecuaciones causales (SEM) con ruido es otra forma que mantiene
+ambas propiedades y es mas expresiva.
+
+Ejemplo: en vez de una CPD table para `temperatura`:
+
+```
+# CPD table (actual): 3^3 = 27 entries para 3 padres
+P(temp=high | ejercicio=high, ambiente=high, hidratacion=low) = 0.8
+P(temp=high | ejercicio=high, ambiente=high, hidratacion=moderate) = 0.6
+...27 filas mas...
+```
+
+Se podria tener una ecuacion:
+
+```python
+temperatura = 36.5 + 0.8*ejercicio - 0.3*hidratacion + 0.5*ambiente + N(0, 0.5)
+```
+
+O incluso no lineal:
+
+```python
+temperatura = 36.5 + 2.0*sigmoid(ejercicio - 0.7) - 0.3*sqrt(hidratacion) + N(0, 0.5)
+```
+
+El grafo causal es el mismo (ejercicio, hidratacion, ambiente -> temperatura).
+do-calculus funciona igual (cortar edges, fijar variable, simular). La
+diferencia es que para no-lineal, P(Y|do(X=x)) se computa por Monte Carlo
+en vez de formula cerrada.
+
+**Pregunta abierta:** para RL, la diferencia entre reward exacto (analitico)
+y reward estadisticamente preciso (Monte Carlo N=100K, error ~0.001) importa?
+Probablemente no — el ruido de MC es menor que el ruido del training.
+
+Si esto es asi, el espacio de diseno se abre enormemente.
