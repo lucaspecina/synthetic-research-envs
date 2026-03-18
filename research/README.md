@@ -110,3 +110,12 @@ desplazandose hacia `synthesis/`.
   preguntas filtran el framework (do-operation, backdoor paths). Fix aplicado:
   preguntas naturalizadas.
 - **Conecta con:** A1, A3 en `TODO.md`
+
+### Variables continuas — Linear Gaussian BN
+- **Pregunta:** se puede migrar de CPD tables discretas a Gaussian para tener
+  variables continuas, escalar con padres, y mantener reward exacto?
+- **Empezar por:** `notes/gaussian_bn_prototype_findings.md`
+- **Hallazgo:** pgmpy soporta modelo + sampling pero NO inferencia continua.
+  La inferencia es analitica trivial (algebra lineal). do-calculus y KL son
+  closed-form. Prototipo de 3 nodos funciona end-to-end.
+- **Conecta con:** A8 en `TODO.md`
