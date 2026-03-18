@@ -16,9 +16,9 @@ En particular:
 
 - las preguntas descriptivas y de estimacion suelen obligar a mirar datos,
 - las preguntas causales estructurales genericas suelen poder responderse desde
-  priors o conocimiento del dominio,
+priors o conocimiento del dominio,
 - y las preguntas mas interesantes son las que exigen distinguir entre
-  mecanismos rivales usando evidencia del episodio.
+mecanismos rivales usando evidencia del episodio.
 
 ## Tipos que naturalmente fuerzan investigacion
 
@@ -39,7 +39,7 @@ No alcanzan por si solos. Para forzar investigacion necesitan:
 - preguntas episodio-especificas,
 - ambiguedad mecanistica real,
 - y respuestas que dependan de evidencia del caso, no de invariantes del tipo
-  de mundo.
+de mundo.
 
 ## Tipos debiles para el horizonte actual
 
@@ -75,3 +75,4 @@ regla:
 
 > un eval type nuevo vale la pena solo si obliga mas a investigar y menos a
 > responder por priors o por estructura generica.
+

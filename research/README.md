@@ -25,6 +25,7 @@ Documentos de sintesis activos:
 - `synthesis/eval_types_analysis.md`
 - `synthesis/eval_strategy.md`
 - `synthesis/benchmark_analysis.md`
+- `synthesis/sreg_scientific_coverage.md`
 
 ### archive/
 Documentos viejos, superseded o referencias heredadas. Read-only.
@@ -70,6 +71,8 @@ desplazandose hacia `synthesis/`.
 - **Notas de apoyo:** `notes/scientific_taxonomy.md`,
   `notes/scientific_taxonomy_deep_research.md` (deep research: como se hace
   ciencia hoy, taxonomy explicita/implicita, curriculum RL propuesto),
+  `synthesis/scientific_research_taxonomy.md` (framework completo de
+  clasificacion con objectives, axes, workflows, scoring, ejemplos),
   `notes/solver_trajectory_findings.md`,
   `notes/sreg_v2_design_findings.md`
 
@@ -89,5 +92,11 @@ desplazandose hacia `synthesis/`.
   contaminacion por priors de pretraining.
 - **Empezar por:** `notes/semantic_modes_experiment_2026_03_17.md`
 - **Conecta con:** A3 y I2 en `TODO.md`
-- **Status:** primer experimento (Vaca Muerta, N=1). Pendiente replicar con
-  football y otros dominios.
+- **Status:** dos experimentos (Vaca Muerta + Football). Ver notas para
+  hallazgos consolidados.
+
+### Cobertura cientifica de SREG
+- **Pregunta:** que tipos de ciencia puede representar SREG y cuales no.
+- **Empezar por:** `synthesis/sreg_scientific_coverage.md`
+- **Framework de referencia:** `synthesis/scientific_research_taxonomy.md`
+- **Conecta con:** A2, A4, A5, A8 en `TODO.md`

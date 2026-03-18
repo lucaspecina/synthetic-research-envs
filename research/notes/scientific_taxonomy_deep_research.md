@@ -211,29 +211,6 @@ High-impact experiments today might include:
 
 Each of these pushes the boundary between human intuition and machine automation in science.
 
-## 8. Thesis Chapter Outline and Final Comments  
-
-We propose the following outline for a thesis synthesizing these ideas:
-
-1. **Introduction**: Motivation, scope, and overview of science as a practice.  
-2. **History of Scientific Method**: Review classical methods (Aristotle through Kuhn/Popper)【10†L230-L238】【57†L335-L344】.  
-3. **Philosophy of Science Background**: Paradigms, theory-ladenness, causality, reproducibility (cover Kuhn, Popper【58†L13-L20】【59†L37-L40】).  
-4. **Data Science and Epistemology**: Review data science epistemology (e.g. Desai *et al.*【60†L218-L227】, Breiman) and the debate over meaning in data.  
-5. **Modern Computational Methods**: Survey ML/AI techniques in science – deep learning, representation learning, foundation models【23†L152-L160】【24†L21-L30】, causal inference, active learning【32†L155-L163】.  
-6. **Self-Driving Labs and Automated Experimentation**: Explain DMTA cycles【21†L164-L173】, AI optimization in labs【19†L119-L127】.  
-7. **Taxonomy of Scientific Tasks**: Formalize tasks (description, explanation, prediction, intervention, representation, design) and map them to ontological classes.  
-8. **Trade-offs in Methodology**: Analyze interpretability vs accuracy【34†L219-L228】, model-based vs data-driven, human-AI collaboration【24†L21-L30】.  
-9. **Case Studies**:  
-   - *Biology/Medicine*: Single-cell cancer, CRISPR screens【39†L76-L84】【41†L228-L237】, organoids【45†L308-L316】, precision medicine.  
-   - *Chemistry/Materials*: ML potentials【47†L69-L77】, superconductors【49†L74-L83】, catalysts, battery materials, etc.  
-   - *Other Domains*: Climate (weather forecasting【52†L64-L67】), social science simulations【54†L189-L197】, others.  
-10. **Implications for Research Practice**: New paradigms for experimental design, peer review, interdisciplinary teams; new evaluation metrics.  
-11. **RL Environment Design**: Detailed specification of the research-simulation environment (state, actions, rewards) with curriculum levels, and examples.  
-12. **Open Problems and Future Directions**: Highlight unanswered questions and propose key experiments as above.  
-13. **Conclusions**: Synthesis of findings and outlook.  
-14. **Bibliography/Appendices**: Key references and possibly extra data.  
-
-In sum, science today is in flux.  It still seeks cause-and-effect understanding, but also exploits predictive algorithms that “see the matrix” of data directly.  Neither pure old‑fashioned nor purely new‑fangled approaches will suffice alone; the frontier lies in integrating them.  This report has mapped the landscape: classifying problems by ontology and task, illustrating with modern examples, and sketching how we might train algorithms to **do science**.  The journey from seeing the world with fixed lenses (variables) to letting the data speak for themselves is well underway, and its ultimate form — whether manual, mechanical, or somewhere in-between — is still to be discovered.  
 
 **Prioritized Bibliography (for further reading):**  
 - Kuhn, T. *The Structure of Scientific Revolutions* (1962). Seminal work on paradigms and scientific change.  
