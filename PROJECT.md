@@ -120,7 +120,14 @@ Todo lo que diseniemos tiene que acercar el entorno a una investigacion
 cientifica real, no a una mecanica de juego ni a un ejercicio abstracto
 disfrazado.
 
-> Litmus test: "Un investigador real en este dominio haria esto?"
+> **LA PREGUNTA que guia todo el proyecto:**
+> **¿Por que esto todavia no es una investigacion real? ¿Que le falta?**
+>
+> Esta pregunta debe estar presente en cada decision, cada evaluacion, cada
+> linea de codigo. La respuesta evoluciona a medida que SREG mejora.
+> Las brechas conocidas estan en `research/synthesis/sreg_scientific_coverage.md`.
+
+Litmus test operativo: "Un investigador real en este dominio haria esto?"
 
 ### 3. Las preguntas deben forzar investigacion
 

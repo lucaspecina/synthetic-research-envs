@@ -74,27 +74,44 @@ mentira y las decisiones se toman sin informacion.
 
 Ver `/precommit` skill para el protocolo completo.
 
-## Principio critico: SIEMPRE evaluar como investigacion real
+## LA PREGUNTA — el ordenador de todo el proyecto
 
-**Esta es la lente que debe guiar TODA evaluacion, analisis y diseno de SREG.**
+> **¿POR QUE ESTO TODAVIA NO ES UNA INVESTIGACION REAL? ¿QUE LE FALTA?**
 
-Al analizar un SRC, una trayectoria del solver, un score, o un cambio al sistema,
-la pregunta central es siempre:
+**Esta pregunta debe estar presente en CADA decision, CADA evaluacion, CADA
+linea de codigo.** No es un principio aspiracional — es el filtro operativo
+diario. Si no podes responder "que le falta para ser investigacion real",
+no entendes el problema.
 
-> "Un investigador real haria esto? Un caso real se veria asi?"
+### Como aplicarla
 
-Concretamente:
 - **Al evaluar un SRC**: Se parece a un problema de investigacion real? Las preguntas
   son las que un investigador haria? Los datos tienen la estructura que tendria un
-  dataset real?
+  dataset real? **Que le falta para que un cientifico lo confunda con un caso real?**
 - **Al evaluar al solver**: Esta investigando como investigaria una persona? Usa los
-  datos? Razona causalmente? O responde desde priors de pretraining?
-- **Al disenar cambios**: Este cambio hace que el entorno se parezca MAS a investigacion
-  real, o lo aleja? Un eval type nuevo captura algo que un investigador real preguntaria?
-- **Al interpretar scores**: Un score bajo significa que el solver fallo como investigador,
-  o que el caso estaba mal disenado?
+  datos? Razona causalmente? O responde desde priors de pretraining? **Que le falta
+  al entorno para FORZAR investigacion genuina?**
+- **Al disenar cambios**: Este cambio acerca el entorno a investigacion real, o lo
+  aleja? **Resuelve alguna de las brechas conocidas, o es cosmético?**
+- **Al interpretar scores**: Un score bajo significa que el solver fallo como
+  investigador, o que el caso estaba mal disenado? **El score captura calidad de
+  investigacion o solo coincidencia numerica?**
+- **Al priorizar trabajo**: Entre dos tareas, priorizar la que cierra una brecha
+  mas grande entre SREG y la investigacion real.
 
-Si algo no se parece a investigacion real, es un bug — no importa si los tests pasan.
+### La respuesta evoluciona
+
+La respuesta a "que le falta" cambia a medida que SREG mejora. Hoy las brechas
+principales estan documentadas en `research/synthesis/sreg_scientific_coverage.md`.
+Cada vez que se cierra una brecha, actualizar ese documento y re-preguntar:
+**¿y ahora que le falta?**
+
+### La regla de oro
+
+Si algo no se parece a investigacion real, es un bug — no importa si los tests
+pasan. Si algo se parece a un juego artificial (budgets de juguete, acciones
+predefinidas, preguntas que se responden sin datos), hay que eliminarlo o
+rediseniarlo.
 
 ## Project overview
 

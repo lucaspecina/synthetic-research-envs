@@ -90,10 +90,9 @@ class TaskGenTool:
         state_list = ", ".join(target_node.states)
 
         question = (
-            f"Estimate the probability distribution over the states of '{target}' "
+            f"Based on the available data, estimate the distribution of '{target}' "
             f"(possible states: {state_list}). "
-            f"You have a research budget of {spec.max_budget} units. "
-            f"Choose which variables to observe to refine your estimate, "
+            f"Analyze the data to refine your estimate, "
             f"then submit your final distribution."
         )
 
@@ -322,11 +321,11 @@ class TaskGenTool:
         state_list = ", ".join(target_node_obj.states)
 
         question = (
-            f"If we intervene and set '{intervention_node}' to '{int_state}', "
-            f"what would be the probability distribution over '{target}' "
+            f"If '{intervention_node}' were set to '{int_state}', "
+            f"what would be the resulting distribution of '{target}' "
             f"(possible states: {state_list})? "
-            f"This is a causal question: you are asked about the effect of an "
-            f"intervention (do-operation), not just an observation."
+            f"Consider how this change would propagate through the system, "
+            f"not just the statistical association in the data."
         )
 
         return Task(
@@ -376,11 +375,11 @@ class TaskGenTool:
         question = (
             f"You want to maximize the probability of '{target}' being "
             f"'{desired_state}' (current baseline probability: {baseline:.2f}). "
-            f"You can intervene on ONE variable by setting it to a specific value. "
-            f"Which variable would you set, and to what value? "
+            f"You can change ONE variable by setting it to a specific value. "
+            f"Which variable would you change, and to what value? "
             f"Available variables: {obs_nodes}. "
-            f"This is a causal question about interventions (do-operations), "
-            f"not observations."
+            f"Think about which factor, if actively changed, would have the "
+            f"greatest effect on the outcome."
         )
 
         return Task(
@@ -483,13 +482,12 @@ class TaskGenTool:
             better_node, better_state = node_b, state_b
 
         question = (
-            f"Your team is debating between two possible interventions to "
+            f"Your team is debating between two possible actions to "
             f"maximize '{target}' being '{desired_state}'. "
-            f"Intervention A: set '{node_a}' to '{state_a}'. "
-            f"Intervention B: set '{node_b}' to '{state_b}'. "
-            f"Which intervention would have a larger causal effect on "
+            f"Option A: set '{node_a}' to '{state_a}'. "
+            f"Option B: set '{node_b}' to '{state_b}'. "
+            f"Which action would be more effective at changing "
             f"the probability of '{target}' being '{desired_state}'? "
-            f"This is about do-operations (interventions), not observations. "
             f"Answer 'A' or 'B'."
         )
 
@@ -539,10 +537,10 @@ class TaskGenTool:
         evidence_desc = ", ".join(f"'{k}' = '{v}'" for k, v in given_evidence.items())
         question = (
             f"Based on the observed data ({evidence_desc}), estimate the "
-            f"probability distribution over the possible states of the hidden "
-            f"variable '{latent_node.name}' (possible states: {state_list}). "
-            f"This variable cannot be directly observed — you must infer it "
-            f"from the available evidence."
+            f"distribution of '{latent_node.name}' "
+            f"(possible states: {state_list}). "
+            f"This factor is not directly measured in the datasets — you must "
+            f"infer it from the available evidence."
         )
 
         return Task(
@@ -635,11 +633,10 @@ class TaskGenTool:
                 correct_answer = {"yes": 1.0}
 
         question = (
-            f"You are analyzing the causal effect of '{treatment}' on '{target}' "
-            f"using observational data. A colleague suggests controlling for "
-            f"'{suggested}' in your analysis. "
-            f"Is this a good idea? Should you include '{suggested}' as a "
-            f"control variable? Answer 'yes' or 'no', and explain your reasoning."
+            f"You are studying the effect of '{treatment}' on '{target}'. "
+            f"A colleague suggests accounting for '{suggested}' in the analysis. "
+            f"Is this a good idea, or could it distort the results? "
+            f"Answer 'yes' or 'no', and explain your reasoning."
         )
 
         return Task(
@@ -738,32 +735,30 @@ class TaskGenTool:
         is_not_identifiable = "_not_identifiable_" in correct_answer
         if is_identifiable_confounded:
             question = (
-                f"You want to estimate the causal effect of '{treatment_node}' on "
-                f"'{target}' using observational data. There may be confounding "
-                f"variables that create spurious associations. Which variables "
-                f"should you control for (include as covariates) in your analysis? "
+                f"You want to estimate the true effect of '{treatment_node}' on "
+                f"'{target}' from the data. Some variables may create misleading "
+                f"associations if not accounted for. Which variables should you "
+                f"include in your analysis to get a fair estimate? "
                 f"Available variables: {available}. "
-                f"Provide the minimal set of variables needed to block all "
-                f"backdoor paths."
+                f"Provide the minimal set needed for an unbiased estimate."
             )
         elif is_not_identifiable:
             question = (
-                f"You want to estimate the causal effect of '{treatment_node}' on "
-                f"'{target}' using observational data. "
+                f"You want to estimate the true effect of '{treatment_node}' on "
+                f"'{target}' from the data. "
                 f"Available variables: {available}. "
-                f"Determine whether this causal effect can be identified from "
-                f"observational data by controlling for available variables. "
-                f"If the required confounders are not measurable, the effect is "
-                f"not identifiable via the backdoor criterion."
+                f"Determine whether this effect can be reliably estimated "
+                f"by accounting for available variables, or whether there are "
+                f"unmeasured factors that make it impossible."
             )
         else:
             question = (
-                f"You want to estimate the causal effect of '{treatment_node}' on "
-                f"'{target}' using observational data. "
-                f"Which variables should you control for (include as covariates) "
-                f"in your analysis? "
+                f"You want to estimate the true effect of '{treatment_node}' on "
+                f"'{target}' from the data. "
+                f"Which variables should you account for in your analysis? "
                 f"Available variables: {available}. "
-                f"If no confounding exists, controlling for no variables is correct."
+                f"If the relationship is already direct, no additional variables "
+                f"may be needed."
             )
 
         return Task(

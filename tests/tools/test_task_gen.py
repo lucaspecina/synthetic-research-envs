@@ -57,14 +57,6 @@ def test_task_question_mentions_target(world):
     assert "target_outcome" in task.question
 
 
-def test_task_question_mentions_budget(world):
-    tool = TaskGenTool()
-    spec = TaskSpec(type=TaskType.INFER_TARGET, target_node="target_outcome", max_budget=3)
-    task = tool.generate(world, spec)
-
-    assert "3" in task.question
-
-
 def test_task_id_format(world):
     tool = TaskGenTool()
     spec = TaskSpec(type=TaskType.INFER_TARGET, target_node="target_outcome", max_budget=5)
@@ -514,7 +506,7 @@ def test_causal_effect_question_mentions_intervention(world):
 
     int_node = list(task.intervention.keys())[0]
     assert int_node in task.question
-    assert "intervene" in task.question.lower() or "do-operation" in task.question.lower()
+    assert "set" in task.question.lower() or "change" in task.question.lower()
 
 
 def test_causal_effect_excludes_intervention_node(world):
@@ -650,7 +642,7 @@ def test_best_intervention_question_mentions_desired_state(world):
 
     assert "maximize" in task.question.lower()
     assert "target_outcome" in task.question
-    assert "intervene" in task.question.lower() or "intervention" in task.question.lower()
+    assert "change" in task.question.lower() or "set" in task.question.lower()
 
 
 def test_best_intervention_deterministic(world):
@@ -777,7 +769,7 @@ def test_adjustment_set_question_mentions_treatment(world):
 
     treatment_node = list(task.intervention.keys())[0]
     assert treatment_node in task.question
-    assert "causal effect" in task.question.lower()
+    assert "effect" in task.question.lower() or "estimate" in task.question.lower()
 
 
 def test_adjustment_set_deterministic(world):
@@ -842,7 +834,7 @@ def test_adjustment_set_latent_preference_not_identifiable():
 
     # Latent preference: hidden_cause is the only valid confounder, but it's latent
     assert "_not_identifiable_" in task.correct_answer
-    assert "not identifiable" in task.question.lower() or "identif" in task.question.lower()
+    assert "unmeasured" in task.question.lower() or "impossible" in task.question.lower()
 
 
 @pytest.mark.parametrize(
@@ -1107,7 +1099,7 @@ def test_should_condition_question_mentions_variables(world):
 
     # Question mentions treatment, suggested variable, and target
     assert "target_outcome" in task.question
-    assert "controlling" in task.question.lower() or "control" in task.question.lower()
+    assert "accounting" in task.question.lower() or "account" in task.question.lower()
     # intervention field stores {treatment: suggested_var}
     assert len(task.intervention) == 1
     treatment = list(task.intervention.keys())[0]
@@ -1268,8 +1260,8 @@ def test_compare_interventions_question_mentions_ab(world):
     )
     task = tool.generate(world, spec, seed=42)
 
-    assert "Intervention A" in task.question
-    assert "Intervention B" in task.question
+    assert "Option A" in task.question
+    assert "Option B" in task.question
     assert "target_outcome" in task.question
 
 
@@ -1521,8 +1513,8 @@ def test_compare_interventions_never_overridden_by_plan(world):
     # The auto-generated question should be kept (mentions exact states)
     assert task.question != "Would reducing A or increasing B be better?"
     # The auto-generated question should mention "Intervention A" and "Intervention B"
-    assert "Intervention A" in task.question
-    assert "Intervention B" in task.question
+    assert "Option A" in task.question
+    assert "Option B" in task.question
     # Every state in the answer keys must appear in the question
     for key in task.correct_answer:
         node, state = key.split(":", 1)
@@ -1671,7 +1663,7 @@ def test_hint_compare_interventions_nodes(world):
     # contains the exact intervention states from correct_answer.
     # Overriding risks semantic inversion.
     assert task.question != "Compare indicator_1 vs indicator_2 interventions."
-    assert "Intervention A" in task.question
+    assert "Option A" in task.question
     # Every state in the answer keys must appear in the question
     for key in task.correct_answer:
         _, state = key.split(":", 1)

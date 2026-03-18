@@ -100,3 +100,13 @@ desplazandose hacia `synthesis/`.
 - **Empezar por:** `synthesis/sreg_scientific_coverage.md`
 - **Framework de referencia:** `synthesis/scientific_research_taxonomy.md`
 - **Conecta con:** A2, A4, A5, A8 en `TODO.md`
+
+### Por que SREG todavia no es investigacion real (debate)
+- **Pregunta:** que brechas fundamentales separan a SREG de la investigacion real,
+  mas alla de las conocidas (variables continuas, teoria inventada).
+- **Empezar por:** `notes/why_not_real_research_debate.md`
+- **Participantes:** Claude, Codex (gpt-5.2), usuario
+- **Hallazgos clave:** el solver no sabe que es una BN, pero los templates de
+  preguntas filtran el framework (do-operation, backdoor paths). Fix aplicado:
+  preguntas naturalizadas.
+- **Conecta con:** A1, A3 en `TODO.md`
