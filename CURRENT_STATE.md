@@ -9,7 +9,7 @@
 
 ## Resumen ejecutivo
 
-- **1102 tests**, todos pasando
+- **1136 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -37,8 +37,9 @@
 
 ## Estado por componente
 
-### Capa formal / world model — Estable
+### Capa formal / world model — Estable + SCM en desarrollo
 
+**BN discreta (legacy, estable):**
 - `World`: nodos, edges, CPDs. Red bayesiana discreta via pgmpy.
 - `DAGSpec`: contrato universal para DAGs arbitrarios.
 - 4 templates: latent_preference, causal_chain, fork_collider, custom (DAGSpec).
@@ -48,6 +49,18 @@
 - `WorldCheckTool`: valida DAG aciclico, entropia, d-separaciones, max parents,
   treewidth.
 - Regimen recomendado: 10-12 nodos, edge_strength 0.5-0.7 (ver research/).
+
+**SCM engine (nuevo, branch `feature/scm-engine`):**
+- `SCMWorld`: grafo causal + ecuaciones Python arbitrarias + ruido.
+  Variables continuas con unidades reales (celsius, mL/kg/min, etc).
+- `sample(n, seed, do)`: sampling observacional e interventional (do-operator).
+- `interventional_distribution(target, do, n)`: P(Y|do(X=x)) via Monte Carlo.
+- d-separation, adjustment_set: queries de grafo puras (via networkx).
+- Scoring continuo: `kl_divergence_histogram`, `kl_divergence_gaussian`,
+  `wasserstein_distance`.
+- 33 tests: validacion, grafos, d-separation, sampling, do-calculus,
+  adjustment sets, scoring, E2E no lineal (threshold + sigmoid).
+- **Pendiente:** integracion con pipeline (TaskGen, Solver, EpisodeRunner).
 
 ### Diseno del caso / orchestrator — Estable
 
@@ -207,7 +220,7 @@ python scripts/run_diagnostic.py
 
 ## Tests
 
-- **1107 tests** en todos los modulos
+- **1136 tests** en todos los modulos
 - Mirrors: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Coverage clave: 100 mundos por template, 50 configs E2E DAG generators,
   cross-template para los 9 eval types, rich actions, CasePlan hints,

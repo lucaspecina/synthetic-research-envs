@@ -141,7 +141,8 @@ Contrato del mundo formal completo.
 Contiene nodos, edges, CPDs y metadata de dificultad. Es la fuente de verdad
 del caso.
 
-En este horizonte, el sustrato formal aceptado es una **red bayesiana discreta**.
+El sustrato formal esta migrando de **red bayesiana discreta** (legacy) a
+**Structural Causal Model** (SCM). Ver seccion 6.1 para detalles.
 
 ### `CasePlan`
 
@@ -221,16 +222,125 @@ information gain y entropia.
 
 ### 6.1 Capa formal
 
-Modela la verdad del caso.
+Modela la verdad del caso. Todo reward central debe anclarse aca.
 
 Incluye:
 
 - variables y tipos de nodo,
-- estructura causal,
-- distribuciones,
-- y consultas exactas sobre el mundo.
+- estructura causal (DAG),
+- relaciones cuantitativas entre variables,
+- y consultas exactas o precisas sobre el mundo.
 
-Todo reward central debe anclarse aca.
+#### Sustrato formal: SCM (Structural Causal Model)
+
+El mundo oculto de cada SRC se define como un **SCM**: un grafo causal +
+ecuaciones estructurales + ruido. Esto reemplaza la BN discreta anterior
+(CPD tables con 3 estados `low/medium/high`).
+
+Un SCM se define con dos cosas:
+
+**1. El grafo: QUE causa QUE**
+
+```
+carga_semanal ---+
+                 +--> ejercicio --> temperatura --> riesgo
+fitness ---------+
+```
+
+**2. Las ecuaciones: COMO lo causa**
+
+Cada variable es una funcion Python arbitraria de sus padres + ruido:
+
+```python
+world = SCMWorld(
+    graph={
+        "carga":       [],                          # raiz
+        "fitness":     [],                          # raiz
+        "ejercicio":   ["carga", "fitness"],
+        "temperatura": ["ejercicio"],
+        "riesgo":      ["temperatura"],
+    },
+    equations={
+        "carga":       lambda p, rng: rng.uniform(2, 15),        # horas/semana
+        "fitness":     lambda p, rng: rng.normal(50, 10),        # VO2max
+        "ejercicio":   lambda p, rng: min(p["carga"]*0.7 + p["fitness"]*0.01, 10)
+                                      + rng.normal(0, 0.5),
+        "temperatura": lambda p, rng: (                          # threshold a 7
+            36.5
+            + (2.0 * sqrt(p["ejercicio"] - 7) if p["ejercicio"] > 7
+               else 0.3 * p["ejercicio"])
+            + rng.normal(0, 0.3)
+        ),
+        "riesgo":      lambda p, rng: sigmoid(p["temperatura"] - 39)
+                                      + rng.normal(0, 0.02),
+    },
+)
+```
+
+**Como funciona el sampling:**
+
+Se procesan las variables en orden topologico. Para cada muestra:
+
+1. Tirar dado: `carga = 8.3` horas/semana
+2. Tirar dado: `fitness = 47.2` mL/kg/min
+3. Calcular: `ejercicio = min(8.3*0.7 + 47.2*0.01, 10) + ruido = 6.28`
+4. Calcular: ejercicio < 7, asi que `temperatura = 36.5 + 0.3*6.28 + ruido = 38.48`
+5. Calcular: `riesgo = sigmoid(38.48 - 39) + ruido = 0.37`
+
+Repetir N veces. El resultado es un DataFrame con datos continuos realistas:
+
+```
+   carga   fitness  ejercicio  temperatura  riesgo
+0   8.3     47.2      6.28       38.48      0.37
+1  12.1     55.0      9.02       40.12      0.85
+2   3.7     42.8      3.02       37.41      0.17
+```
+
+**do-calculus (intervenciones de Pearl):**
+
+Para computar P(riesgo | do(ejercicio=9)):
+- Se **fija** ejercicio = 9 (constante, no se usa su ecuacion)
+- Se **cortan** los edges de carga y fitness hacia ejercicio
+- Se simula el resto muchas veces (Monte Carlo)
+
+Esto responde: "que pasaria si FORZAMOS ejercicio = 9?" — distinto de
+observar ejercicio = 9 (que da informacion sobre carga y fitness).
+
+**Reward via Monte Carlo:**
+
+El reward ya no es analitico-exacto sino estadisticamente preciso:
+con N=100K simulaciones, el error es ~0.001. Para RL, este ruido es
+ordenes de magnitud menor que el del training.
+
+**Que se preserva del grafo:**
+
+| Propiedad | Depende de |
+|---|---|
+| d-separation | Solo del grafo |
+| Identifiability | Solo del grafo |
+| Adjustment sets | Solo del grafo |
+| should_condition | Solo del grafo |
+| do-calculus | Grafo + ecuaciones (simular) |
+
+**Que cambia respecto a la BN discreta:**
+
+| Aspecto | BN legacy | SCM |
+|---|---|---|
+| Variables | 3 estados discretos | Continuas, con unidades reales |
+| Relaciones | CPD tables (3^N entries) | Ecuaciones arbitrarias |
+| Escalabilidad | Exponencial con padres | Lineal |
+| Datos generados | `low/medium/high` | `38.48 C`, `6.28 intensidad` |
+| Expresividad | Solo tablas de probabilidad | Threshold, sigmoid, sqrt, etc |
+| Reward | Analitico exacto (pgmpy) | Monte Carlo preciso (~0.001) |
+
+**Referencia:** `research/synthesis/scm_migration_rationale.md` para los
+fundamentos completos de la migracion.
+
+#### BN discreta (legacy)
+
+La BN discreta (`World` + `ExactBayesSolver` + pgmpy) sigue disponible
+y es usada por todo el pipeline actual. Se mantiene hasta que el pipeline
+E2E funcione con SCMWorld.
 
 ### 6.2 Capa de diseno del caso
 
