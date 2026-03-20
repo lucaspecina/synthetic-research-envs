@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### 2026-03-20 — SCMTaskGenTool: task generation for continuous worlds
+
+- **SCMTaskGenTool** (`src/sreg/tools/scm_task_gen.py`): genera los 9 eval types
+  desde SCMWorld + SCMSolver. Mirrors TaskGenTool pero para variables continuas.
+  - Distribuciones discretizadas como histogramas de bins (equal-width, mean +/- 4*std).
+  - Intervenciones: "low" (p25) y "high" (p75) por variable.
+  - "Desired outcome": target above median (para best_intervention, compare_interventions).
+  - Graph tasks (should_condition, adjustment_set) via SCMWorld.dag.
+- **SCMWorld extendido**: campos `id`, `latent_variables`, propiedad `observable_variables`.
+- **`get_all_backdoor_adjustment_sets()`**: enumeracion exhaustiva de sets minimales
+  via backdoor criterion + networkx d-separation. Fallback heuristico para >15 candidatos.
+- **41 tests** nuevos: 9 eval types + scoring compatibility + cross-task consistency.
+- **Fixes post-review Codex**: bins equal-width (no quantile), precision alignment en
+  intervenciones, warning log en fallback >15 candidatos.
+- 1277 tests totales, todos pasando.
+
 ### 2026-03-20 — SCMSolver: robustness fixes + rigorous evaluation
 
 - **Stopping criterion**: `optimal_action()` devuelve `None` si mejor IG < 0.02

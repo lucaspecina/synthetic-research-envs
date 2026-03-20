@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-20 (SCMSolver)
+> Actualizado: 2026-03-20 (SCMTaskGenTool)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1236 tests**, todos pasando
+- **1277 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -83,7 +83,14 @@
   - MAR: probabilidad de missing depende de valores extremos del padre
     (z-score > 1.5 duplica la tasa). Target nunca missing.
   - 40 tests: transformaciones individuales, multi-dataset, helpers, E2E.
-- **Pendiente:** integracion con pipeline (TaskGen, EpisodeRunner, ProblemBuilder).
+- `SCMTaskGenTool`: genera los 9 eval types desde SCMWorld + SCMSolver.
+  - Distribuciones continuas discretizadas como histogramas (equal-width bins,
+    mean +/- 4*std). Compatible con VerifierTool.kl_divergence sin cambios.
+  - Intervenciones: "low" (p25) y "high" (p75) por variable.
+  - Graph tasks (should_condition, adjustment_set) via SCMWorld.dag.
+  - `get_all_backdoor_adjustment_sets()`: enumeracion exhaustiva de sets minimales.
+  - 41 tests: 9 eval types + scoring + consistency.
+- **Pendiente:** integracion con pipeline (EpisodeRunner, ProblemBuilder, generate_from_plan).
   Mediciones indirectas (senales proxy) documentadas como patron de diseno
   para cuando el orchestrator diseñe SCMs (Fase 3).
 - **Limitacion conocida:** rejection sampling escala mal con >5 evidence variables.
@@ -247,7 +254,7 @@ python scripts/run_diagnostic.py
 
 ## Tests
 
-- **1236 tests** en todos los modulos
+- **1277 tests** en todos los modulos
 - Mirrors: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Coverage clave: 100 mundos por template, 50 configs E2E DAG generators,
   cross-template para los 9 eval types, rich actions, CasePlan hints,

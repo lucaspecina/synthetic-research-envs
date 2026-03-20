@@ -9,12 +9,16 @@ See research/synthesis/scm_migration_rationale.md for the full rationale.
 
 from __future__ import annotations
 
+import itertools
+import logging
 from dataclasses import dataclass, field
 from typing import Callable
 
 import networkx as nx
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -59,6 +63,12 @@ class SCMWorld:
     variable_meta: dict[str, VariableMeta] = field(default_factory=dict)
     """Optional metadata (units, ranges, descriptions) for each variable."""
 
+    id: str = ""
+    """Unique identifier for this world (used in Task.world_id)."""
+
+    latent_variables: set[str] = field(default_factory=set)
+    """Variables that are not directly observable (hidden from the agent)."""
+
     _dag: nx.DiGraph = field(default=None, init=False, repr=False)
     _topo_order: list[str] = field(default=None, init=False, repr=False)
 
@@ -98,6 +108,11 @@ class SCMWorld:
         unknown_parents = all_parents - graph_vars
         if unknown_parents:
             raise ValueError(f"Parents reference unknown variables: {unknown_parents}")
+
+        # Latent variables must be actual variables
+        unknown_latent = self.latent_variables - graph_vars
+        if unknown_latent:
+            raise ValueError(f"Latent variables not in graph: {unknown_latent}")
 
     @property
     def dag(self) -> nx.DiGraph:
@@ -227,6 +242,68 @@ class SCMWorld:
         y_set = {y} if isinstance(y, str) else y
         z_set = z or set()
         return nx.is_d_separator(self._dag, x_set, y_set, z_set)
+
+    @property
+    def observable_variables(self) -> list[str]:
+        """Variables that are directly observable (not latent)."""
+        return [v for v in self._topo_order if v not in self.latent_variables]
+
+    def get_all_backdoor_adjustment_sets(
+        self, treatment: str, outcome: str
+    ) -> list[frozenset[str]]:
+        """Find all minimal backdoor adjustment sets for treatment -> outcome.
+
+        A set Z satisfies the backdoor criterion if:
+        1. No node in Z is a descendant of treatment.
+        2. Z d-separates treatment and outcome in the graph with outgoing
+           edges of treatment removed.
+
+        Returns:
+            List of frozensets. Each is a minimal valid adjustment set.
+            Empty list means the effect is not identifiable via backdoor.
+            A frozenset() in the list means no adjustment is needed.
+        """
+        descendants_of_x = nx.descendants(self._dag, treatment)
+        candidates = sorted(
+            set(self._dag.nodes) - descendants_of_x - {treatment, outcome}
+        )
+
+        # Manipulated graph: remove outgoing edges of treatment
+        manipulated = self._dag.copy()
+        outgoing = list(manipulated.out_edges(treatment))
+        manipulated.remove_edges_from(outgoing)
+
+        # Guard against large candidate sets — falls back to single heuristic
+        # set instead of exhaustive enumeration. Log so callers are aware.
+        if len(candidates) > 15:
+            logger.warning(
+                "get_all_backdoor_adjustment_sets: %d candidates for "
+                "(%s -> %s), falling back to single heuristic set.",
+                len(candidates), treatment, outcome,
+            )
+            result = self.adjustment_set(treatment, outcome)
+            if result is not None:
+                return [frozenset(result)]
+            return []
+
+        # Enumerate all valid sets from smallest to largest
+        valid: list[frozenset[str]] = []
+        for r in range(len(candidates) + 1):
+            for subset in itertools.combinations(candidates, r):
+                z = frozenset(subset)
+                if nx.is_d_separator(manipulated, {treatment}, {outcome}, z):
+                    valid.append(z)
+
+        if not valid:
+            return []
+
+        # Keep only minimal sets (no proper subset already in the list)
+        minimal: list[frozenset[str]] = []
+        for s in sorted(valid, key=len):
+            if not any(m < s for m in minimal):
+                minimal.append(s)
+
+        return minimal
 
     def adjustment_set(self, treatment: str, outcome: str) -> set[str] | None:
         """Find a valid adjustment set for the causal effect of treatment on outcome.
