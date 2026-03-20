@@ -58,10 +58,12 @@ mentira y las decisiones se toman sin informacion.
 ### Commit workflow — MANDATORIO
 
 ```
-1. Tests + Validation     (skip si doc-only)
-   pytest + ruff + E2E
+1. Desarrollo + Tests + Validation
+   Escribir codigo + pytest + ruff + E2E
 
-2. Codex review           (MANDATORIO si MCP disponible, skip si trivial)
+2. Codex review + Fix     (MANDATORIO si MCP disponible, skip si trivial)
+   Mandar a Codex para critica. Fixear hallazgos. Re-testear.
+   Iterar hasta que Codex no tenga criticas graves.
 
 3. Presentar al usuario   (SIEMPRE)
    Explicar en espanol. Pedir aprobacion.

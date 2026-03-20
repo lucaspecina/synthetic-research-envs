@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### 2026-03-20 — SCM pipeline wiring (Fase 2c)
+
+- **SCMProblemBuilder** (`src/sreg/tools/scm_problem_builder.py`): construye ResearchProblem
+  desde SCMWorld. Data via `realistic_sample()` / `multi_dataset_sample()`.
+  Filtra latentes de data, acciones, y descripciones.
+- **SCMTaskGenTool.generate_from_plan()**: genera tasks desde CasePlan con node hints.
+  Override de pregunta seguro para safe types, condicional para el resto.
+  `_infer_latent_cause_task()` ahora respeta `spec.target_node`.
+- **AgentSolver dispatch polimorfico**: `_make_solver(world)` despacha
+  SCMWorld→SCMSolver, World→ExactBayesSolver. `solve()` y `solve_case()` aceptan
+  `World | SCMWorld`. `solve()` single-task con SCMWorld → NotImplementedError.
+- **37 tests nuevos**: SCMProblemBuilder (17), pipeline integration (20 incl. 4 Codex findings).
+- **Workflow en CLAUDE.md**: paso 2 ahora dice "Codex review + Fix" explicitamente.
+- 1314 tests totales, todos pasando.
+
 ### 2026-03-20 — SCMTaskGenTool: task generation for continuous worlds
 
 - **SCMTaskGenTool** (`src/sreg/tools/scm_task_gen.py`): genera los 9 eval types

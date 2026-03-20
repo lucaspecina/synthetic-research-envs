@@ -32,6 +32,7 @@ from sreg.models.world import World
 from sreg.solver.exact_bayes import ExactBayesSolver
 from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
 from sreg.tools.verifier import VerifierTool
+from sreg.world.scm import SCMWorld
 
 logger = logging.getLogger(__name__)
 
@@ -110,9 +111,18 @@ class AgentSolver:
                 pass
         return {}
 
+    @staticmethod
+    def _make_solver(world: World | SCMWorld):
+        """Create the appropriate solver for the world type."""
+        if isinstance(world, SCMWorld):
+            from sreg.solver.scm_solver import SCMSolver
+
+            return SCMSolver(world)
+        return ExactBayesSolver(world)
+
     def solve(
         self,
-        world: World,
+        world: World | SCMWorld,
         problem: ResearchProblem,
         seed: int = 0,
         task: Task | None = None,
@@ -124,8 +134,16 @@ class AgentSolver:
         result.task_type = task.type if task else TaskType.INFER_TARGET
 
         # Set up behind-the-scenes infrastructure
-        solver = ExactBayesSolver(world)
+        solver = self._make_solver(world)
         true_state = solver.sample_state(seed=seed)
+
+        # EpisodeRunner requires discrete World. For SCMWorld, single-task
+        # solve() is not yet supported (needs SCMEpisodeRunner).
+        if isinstance(world, SCMWorld):
+            raise NotImplementedError(
+                "solve() with SCMWorld is not yet supported. "
+                "Use solve_case() for multi-task mode instead."
+            )
 
         ep_tool = EpisodeGenTool()
         episode = ep_tool.generate(
@@ -578,7 +596,7 @@ class AgentSolver:
         result: AgentResult,
         task: Task | None,
         problem: ResearchProblem,
-        runner: EpisodeRunner,
+        runner: EpisodeRunner | None,
     ) -> Score:
         """Score the agent's answer using the appropriate verifier method."""
         verifier = VerifierTool()
@@ -587,8 +605,11 @@ class AgentSolver:
         if task_type in DISTRIBUTION_TYPES:
             if task is not None and task.correct_answer:
                 true_posterior = task.correct_answer
-            else:
+            elif runner is not None:
                 true_posterior = runner.true_posterior(problem.target_node)
+            else:
+                # SCMWorld case mode — tasks always have correct_answer
+                true_posterior = {}
             return verifier.score(
                 agent_posterior=result.submitted_answer,
                 true_posterior=true_posterior,
@@ -640,7 +661,7 @@ class AgentSolver:
 
     def solve_case(
         self,
-        world: World,
+        world: World | SCMWorld,
         problem: ResearchProblem,
         tasks: list[Task],
         seed: int = 0,
@@ -662,16 +683,22 @@ class AgentSolver:
             case_result.task_results[i + 1].task_type = tasks[i].type
 
         # Set up environment (one episode for all tasks)
-        solver = ExactBayesSolver(world)
+        solver = self._make_solver(world)
         true_state = solver.sample_state(seed=seed)
 
-        ep_tool = EpisodeGenTool()
-        episode = ep_tool.generate(
-            world,
-            EpisodeGenConfig(budget=problem.budget, seed=seed),
-            available_actions=problem.available_actions,
-        )
-        runner = EpisodeRunner(world, episode, true_state)
+        # EpisodeRunner requires discrete World — skip it for SCMWorld.
+        # In case mode, research_action is disabled anyway (returns error),
+        # so the runner only provides budget tracking (unused) and scoring
+        # fallback (not needed — SCMTaskGenTool always sets correct_answer).
+        runner: EpisodeRunner | None = None
+        if not isinstance(world, SCMWorld):
+            ep_tool = EpisodeGenTool()
+            episode = ep_tool.generate(
+                world,
+                EpisodeGenConfig(budget=problem.budget, seed=seed),
+                available_actions=problem.available_actions,
+            )
+            runner = EpisodeRunner(world, episode, true_state)
 
         # Python namespace with dataset
         self._python_namespace = make_python_namespace(
@@ -833,8 +860,12 @@ class AgentSolver:
                 deadline_msg = None  # Only inject once
 
         case_result.messages = messages_log
-        case_result.budget_used = problem.budget - runner.budget_remaining
-        case_result.observations = list(runner.evidence.items())
+        if runner is not None:
+            case_result.budget_used = problem.budget - runner.budget_remaining
+            case_result.observations = list(runner.evidence.items())
+        else:
+            case_result.budget_used = 0
+            case_result.observations = []
 
         # Score each submitted task
         for q_num, task in enumerate(tasks, 1):

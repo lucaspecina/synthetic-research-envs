@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-20 (SCMTaskGenTool)
+> Actualizado: 2026-03-20 (SCM pipeline wiring)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1277 tests**, todos pasando
+- **1314 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -90,7 +90,15 @@
   - Graph tasks (should_condition, adjustment_set) via SCMWorld.dag.
   - `get_all_backdoor_adjustment_sets()`: enumeracion exhaustiva de sets minimales.
   - 41 tests: 9 eval types + scoring + consistency.
-- **Pendiente:** integracion con pipeline (EpisodeRunner, ProblemBuilder, generate_from_plan).
+- **Pipeline wiring (Fase 2c):**
+  - `SCMTaskGenTool.generate_from_plan()`: genera tasks desde CasePlan con hints.
+  - `SCMProblemBuilder`: SCMWorld + tasks → ResearchProblem con data realista.
+    Usa `realistic_sample()` / `multi_dataset_sample()`. Filtra latentes.
+  - `AgentSolver._make_solver()`: dispatch polimorfico World→ExactBayesSolver,
+    SCMWorld→SCMSolver. `solve_case()` acepta ambos tipos.
+  - `solve()` single-task con SCMWorld: NotImplementedError (requiere SCMEpisodeRunner).
+  - 37 tests nuevos: problem builder, generate_from_plan, solver dispatch, scoring, E2E.
+- **Pendiente:** `solve()` single-task, orchestrator SCM world generation (Fase 3).
   Mediciones indirectas (senales proxy) documentadas como patron de diseno
   para cuando el orchestrator diseñe SCMs (Fase 3).
 - **Limitacion conocida:** rejection sampling escala mal con >5 evidence variables.

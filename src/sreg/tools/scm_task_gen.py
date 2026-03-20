@@ -12,6 +12,7 @@ Key differences from TaskGenTool:
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
@@ -19,6 +20,9 @@ import numpy as np
 from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.solver.scm_solver import SCMSolver
 from sreg.world.scm import SCMWorld
+
+if TYPE_CHECKING:
+    from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 
 logger = logging.getLogger(__name__)
 
@@ -751,7 +755,11 @@ class SCMTaskGenTool:
                 "Cannot generate infer_latent_cause task: world has no latent variables"
             )
 
-        latent_node = latent_nodes[rng.choice(len(latent_nodes))]
+        # Respect spec.target_node if it's a valid latent variable
+        if spec.target_node in world.latent_variables:
+            latent_node = spec.target_node
+        else:
+            latent_node = latent_nodes[rng.choice(len(latent_nodes))]
 
         # Bin edges for the latent variable
         bin_edges = self._compute_bin_edges(world, latent_node, seed=seed)
@@ -795,6 +803,148 @@ class SCMTaskGenTool:
             scoring_method="kl_divergence",
             given_evidence=given_evidence,
         )
+
+    # ------------------------------------------------------------------
+    # Plan-driven generation
+    # ------------------------------------------------------------------
+
+    # Types where the auto-generated question is safe to replace with the
+    # orchestrator's question_text (answer doesn't reference specific nodes).
+    _SAFE_QUESTION_OVERRIDE_TYPES = frozenset({
+        TaskType.INFER_TARGET,
+        TaskType.NEXT_BEST_OBSERVATION,
+        TaskType.HYPOTHESIS_SELECTION,
+        TaskType.INFER_LATENT_CAUSE,
+    })
+
+    # Types where overriding the question risks semantic inversion.
+    _NEVER_OVERRIDE_QUESTION_TYPES = frozenset({
+        TaskType.COMPARE_INTERVENTIONS,
+    })
+
+    def generate_from_plan(
+        self,
+        world: SCMWorld,
+        plan: CasePlan,
+        seed: int = 0,
+    ) -> list[Task]:
+        """Generate tasks driven by a CasePlan.
+
+        Mirrors TaskGenTool.generate_from_plan() but for continuous SCMWorld.
+        Node hints in the plan are passed through to the task generator.
+
+        Question text override rules:
+        - "Safe" types (infer_target, NBO, hypothesis, infer_latent_cause):
+          always override with plan's question_text.
+        - Other types: override ONLY when hints were honored.
+        """
+        tasks: list[Task] = []
+        errors: list[str] = []
+
+        for i, q in enumerate(plan.questions):
+            spec = TaskSpec(
+                type=q.eval_type,
+                target_node=q.target_node,
+                max_budget=plan.shared_budget,
+                intervention_node=q.intervention_node,
+                desired_state=q.desired_state,
+                compare_nodes=q.compare_nodes,
+                condition_variable=q.condition_variable,
+            )
+            try:
+                task = self.generate(world, spec, seed=seed + i)
+            except Exception as e:
+                logger.warning(
+                    "Skipping question %d (%s): %s", i + 1, q.eval_type, e
+                )
+                errors.append(f"Q{i + 1} ({q.eval_type}): {e}")
+                continue
+
+            # Decide whether to override the auto-generated question text.
+            if q.eval_type in self._NEVER_OVERRIDE_QUESTION_TYPES:
+                pass
+            elif q.eval_type in self._SAFE_QUESTION_OVERRIDE_TYPES:
+                task = task.model_copy(update={"question": q.question_text})
+            elif self._hints_honored(q, task):
+                task = task.model_copy(update={"question": q.question_text})
+
+            self._check_question_answer_consistency(task, q.eval_type)
+            tasks.append(task)
+
+        if not tasks:
+            raise ValueError(
+                f"All questions failed to generate: {'; '.join(errors)}"
+            )
+        if errors:
+            logger.warning(
+                "Generated %d/%d tasks (%d skipped)",
+                len(tasks), len(plan.questions), len(errors),
+            )
+        return tasks
+
+    @staticmethod
+    def _check_question_answer_consistency(
+        task: Task, eval_type: TaskType
+    ) -> None:
+        """Log a warning if the question text doesn't mention nodes from the answer."""
+        if not task.correct_answer or not task.question:
+            return
+
+        question_lower = task.question.lower()
+        nodes_to_check: list[str] = []
+
+        if eval_type in (
+            TaskType.CAUSAL_EFFECT, TaskType.ADJUSTMENT_SET, TaskType.SHOULD_CONDITION,
+        ):
+            if task.intervention:
+                nodes_to_check = list(task.intervention.keys())
+        elif eval_type == TaskType.COMPARE_INTERVENTIONS:
+            nodes_to_check = [k.split(":")[0] for k in task.correct_answer]
+        elif eval_type == TaskType.BEST_INTERVENTION:
+            return
+        else:
+            return
+
+        missing = [n for n in nodes_to_check if n.lower() not in question_lower]
+        if missing:
+            logger.warning(
+                "Question/answer consistency: task %s (%s) -- question does not "
+                "mention nodes from the answer: %s. Question: '%.80s...'",
+                task.id, eval_type.value, missing, task.question,
+            )
+
+    @staticmethod
+    def _hints_honored(q: EvalQuestionPlan, task: Task) -> bool:
+        """Check whether the generated task actually used the plan's hints."""
+        et = q.eval_type
+        inv = task.intervention
+
+        if et == TaskType.CAUSAL_EFFECT:
+            return bool(q.intervention_node and q.intervention_node in inv)
+
+        if et == TaskType.BEST_INTERVENTION:
+            return bool(q.desired_state and q.desired_state in task.question)
+
+        if et == TaskType.COMPARE_INTERVENTIONS:
+            if not q.compare_nodes or len(q.compare_nodes) != 2:
+                return False
+            if len(set(q.compare_nodes)) != 2:
+                return False
+            answer_nodes = {k.split(":")[0] for k in task.correct_answer}
+            nodes_match = set(q.compare_nodes) == answer_nodes
+            if q.desired_state and q.desired_state not in task.question:
+                return False
+            return nodes_match
+
+        if et == TaskType.ADJUSTMENT_SET:
+            return bool(q.intervention_node and q.intervention_node in inv)
+
+        if et == TaskType.SHOULD_CONDITION:
+            if not (q.intervention_node and q.condition_variable):
+                return False
+            return inv == {q.intervention_node: q.condition_variable}
+
+        return False
 
 
 __all__ = ["SCMTaskGenTool"]
