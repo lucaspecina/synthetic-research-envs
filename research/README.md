@@ -111,12 +111,12 @@ desplazandose hacia `synthesis/`.
   preguntas naturalizadas.
 - **Conecta con:** A1, A3 en `TODO.md`
 
-### Representacion del mundo — BN vs ecuaciones vs simulacion
-- **Pregunta:** es la BN el formalismo correcto, o se podria usar ecuaciones
-  (SEM) o simulacion con reward por Monte Carlo?
-- **Empezar por:** `notes/gaussian_bn_prototype_findings.md`
-- **Hallazgos:** Linear Gaussian funciona en pgmpy (sampling si, inferencia
-  no pero es trivial). Pregunta mas amplia: las CPDs no son sagradas, lo
-  sagrado es el grafo causal + reward sin LLM judge. Con Monte Carlo se
-  podrian usar ecuaciones arbitrarias (no lineales, umbrales, etc).
+### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
+- **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
+  Model) con ecuaciones arbitrarias y reward via Monte Carlo.
+- **Empezar por:** `synthesis/scm_migration_rationale.md` (fundamentos completos)
+- **Evidencia de apoyo:** `notes/gaussian_bn_prototype_findings.md` (prototipo Gaussian)
+- **Que se mantiene:** grafo causal, d-separation, do-calculus, reward sin LLM judge
+- **Que cambia:** CPD tables -> ecuaciones Python, inferencia analitica -> Monte Carlo
+- **Status:** DECIDIDO. Implementacion en branch `feature/scm-engine`
 - **Conecta con:** A8 en `TODO.md`

@@ -122,8 +122,11 @@ vision completa, `ARCHITECTURE.md` para el diseno del sistema.
 **Terminologia clave:**
 
 - **SRC** (Synthetic Research Case): la unidad de producto — world + problem + tasks + data
-- **Teacher**: policy optima (inferencia bayesiana exacta, upper bound)
-- **BN**: red bayesiana — la verdad formal oculta de cada SRC
+- **Teacher**: policy optima (upper bound del reward)
+- **SCM** (Structural Causal Model): la verdad formal oculta de cada SRC.
+  Grafo causal + ecuaciones + ruido. Reemplaza la BN discreta anterior.
+  Ver `research/synthesis/scm_migration_rationale.md` para los fundamentos.
+- **BN** (legacy): red bayesiana discreta. El engine actual mientras se migra a SCM.
 
 ## Environment setup
 
