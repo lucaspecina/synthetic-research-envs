@@ -111,6 +111,16 @@ desplazandose hacia `synthesis/`.
   preguntas naturalizadas.
 - **Conecta con:** A1, A3 en `TODO.md`
 
+### Mediciones indirectas — senales proxy en el SCM
+- **Pregunta:** como hacer que el solver no vea variables causales directamente
+  sino senales instrumentales proxy, como en investigacion real.
+- **Empezar por:** `notes/indirect_measurement_design.md`
+- **Conclusion:** no requiere capa nueva — son nodos adicionales en el grafo
+  cuyas ecuaciones simulan la respuesta del instrumento. El orchestrator decide
+  que nodos son latentes y cuales observables al diseñar el SCM.
+- **Conecta con:** Fase 3 (orchestrator diseña SCMs), LA PREGUNTA
+- **Status:** DOCUMENTADO. Implementar cuando orchestrator diseñe SCMs.
+
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
   Model) con ecuaciones arbitrarias y reward via Monte Carlo.

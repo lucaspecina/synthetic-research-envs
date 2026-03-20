@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-16
+> Actualizado: 2026-03-20
 
 ---
 
 ## Resumen ejecutivo
 
-- **1136 tests**, todos pasando
+- **1176 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -60,7 +60,19 @@
   `wasserstein_distance`.
 - 33 tests: validacion, grafos, d-separation, sampling, do-calculus,
   adjustment sets, scoring, E2E no lineal (threshold + sigmoid).
+- Capa de datos realistas (`scm_data.py`):
+  - `apply_realism()`: ruido de medicion (Gaussiano proporcional a std),
+    rounding auto-inferido, outliers, missing data (MCAR/MAR).
+  - `realistic_sample()`: sample + realism en un paso.
+  - `multi_dataset_sample()`: 3 fuentes independientes (background, field
+    survey, detailed analysis) con distinta calidad, cobertura y tamanio.
+    Column split por distancia en el DAG al target.
+  - MAR: probabilidad de missing depende de valores extremos del padre
+    (z-score > 1.5 duplica la tasa). Target nunca missing.
+  - 40 tests: transformaciones individuales, multi-dataset, helpers, E2E.
 - **Pendiente:** integracion con pipeline (TaskGen, Solver, EpisodeRunner).
+  Mediciones indirectas (senales proxy) documentadas como patron de diseno
+  para cuando el orchestrator diseñe SCMs (Fase 3).
 
 ### Diseno del caso / orchestrator — Estable
 
@@ -220,7 +232,7 @@ python scripts/run_diagnostic.py
 
 ## Tests
 
-- **1136 tests** en todos los modulos
+- **1176 tests** en todos los modulos
 - Mirrors: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Coverage clave: 100 mundos por template, 50 configs E2E DAG generators,
   cross-template para los 9 eval types, rich actions, CasePlan hints,
