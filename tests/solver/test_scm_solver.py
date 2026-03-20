@@ -702,3 +702,75 @@ class TestEntropyBits:
         samples = np.array([0] * 2500 + [1] * 2500 + [2] * 2500 + [3] * 2500, dtype=float)
         h = solver.entropy(samples, bins=4)
         assert abs(h - 2.0) < 0.05  # Should be ~2 bits
+
+
+# ------------------------------------------------------------------
+# TestStoppingCriterion — Fix 1: don't recommend when IG is negligible
+# ------------------------------------------------------------------
+
+
+class TestStoppingCriterion:
+    def test_independent_returns_none_action(self):
+        """When all candidates are independent, IG ~ 0 -> no recommendation."""
+        world = _independent()
+        solver = SCMSolver(world)
+        output = solver.optimal_action("A", evidence={}, available=["B"], seed=42)
+        assert output.recommended_action is None
+        assert output.information_gain == 0.0
+
+    def test_trajectory_stops_early_when_no_info(self):
+        """Trajectory should stop before exhausting budget if IG is negligible."""
+        world = _independent()
+        solver = SCMSolver(world)
+        _, traj = solver.generate_trajectory(
+            target="A", available=["B"], budget=3, seed=42
+        )
+        # Should get at most 1 step (the final None) because B has no info about A
+        obs_steps = [t for t in traj if t.recommended_action is not None]
+        assert len(obs_steps) == 0
+
+
+# ------------------------------------------------------------------
+# TestStrictMode — Fix 2: raise instead of silent fallback
+# ------------------------------------------------------------------
+
+
+class TestStrictMode:
+    def test_posterior_strict_raises_on_impossible_evidence(self):
+        """strict=True should raise ValueError when rejection fails."""
+        world = _linear_chain()
+        solver = SCMSolver(world)
+        with pytest.raises(ValueError, match="0 matches"):
+            solver.posterior_samples(
+                "C", evidence={"A": 99999.0}, n=100, seed=42, strict=True
+            )
+
+    def test_posterior_strict_false_falls_back(self):
+        """strict=False (default) should return marginal without raising."""
+        world = _linear_chain()
+        solver = SCMSolver(world)
+        # Should not raise, returns marginal
+        result = solver.posterior_samples(
+            "C", evidence={"A": 99999.0}, n=100, seed=42, strict=False
+        )
+        assert len(result) > 0
+
+    def test_interventional_strict_raises_on_impossible_evidence(self):
+        """strict=True on interventional should raise when rejection fails."""
+        world = _linear_chain()
+        solver = SCMSolver(world)
+        with pytest.raises(ValueError, match="0 matches"):
+            solver.interventional_samples(
+                "C", do={"A": 5.0}, evidence={"B": 99999.0},
+                n=100, seed=42, strict=True,
+            )
+
+    def test_interventional_strict_false_falls_back(self):
+        """strict=False (default) should return interventional without raising."""
+        world = _linear_chain()
+        solver = SCMSolver(world)
+        result = solver.interventional_samples(
+            "C", do={"A": 5.0}, evidence={"B": 99999.0},
+            n=100, seed=42, strict=False,
+        )
+        assert len(result) > 0

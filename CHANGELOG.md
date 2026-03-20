@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### 2026-03-20 — SCMSolver: robustness fixes + rigorous evaluation
+
+- **Stopping criterion**: `optimal_action()` devuelve `None` si mejor IG < 0.02
+  bits (por encima del noise floor MC ~0.01, debajo de senal real minima ~0.04).
+  Trajectories terminan antes si no hay informacion util.
+- **Strict mode**: `posterior_samples(strict=True)` y `interventional_samples(strict=True)`
+  lanzan `ValueError` cuando rejection sampling falla, en vez de caer silenciosamente
+  al marginal. Default sigue siendo `strict=False` (backward compatible).
+- **Evaluacion rigurosa** (`scripts/eval_scm_solver.py`): comparacion contra
+  posteriors analiticas cerradas (Linear Gaussian) via KS test.
+  - Posterior KS pass: B|A 83%, C|A 90%, C|B 73%
+  - Interventional con evidence: 100% KS pass
+  - IG ranking 100% estable (5 seeds, 3 grafos)
+  - Acceptance rates documentadas
+- **60 tests** en SCMSolver (6 nuevos: StoppingCriterion + StrictMode).
+- 1236 tests totales, todos pasando.
+
 ### 2026-03-20 — SCMSolver: Monte Carlo teacher for continuous worlds
 
 - **SCMSolver** (`src/sreg/solver/scm_solver.py`): teacher de Monte Carlo

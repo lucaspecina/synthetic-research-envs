@@ -62,6 +62,7 @@ class SCMSolver:
         evidence: dict[str, float] | None = None,
         n: int = 10_000,
         seed: int | None = None,
+        strict: bool = False,
     ) -> np.ndarray:
         """Estimate P(target | evidence) via rejection sampling.
 
@@ -70,12 +71,15 @@ class SCMSolver:
             evidence: Observed values {variable: value}. None returns marginal.
             n: Desired number of output samples.
             seed: Random seed.
+            strict: If True, raise ValueError when rejection sampling fails
+                instead of silently falling back to the marginal.
 
         Returns:
             1D array of samples from the conditional distribution.
 
         Raises:
-            ValueError: If target or evidence variables don't exist in the world.
+            ValueError: If target or evidence variables don't exist in the world,
+                or if strict=True and rejection sampling fails.
         """
         self._validate_variables(target, evidence)
 
@@ -87,12 +91,17 @@ class SCMSolver:
         matched = self._rejection_filter(df, evidence)
 
         if len(matched) == 0:
+            msg = (
+                f"Rejection sampling found 0 matches for evidence {evidence}. "
+                f"Cannot estimate P({target} | evidence)."
+            )
+            if strict:
+                raise ValueError(msg)
             logger.warning(
-                "Rejection sampling found 0 matches for evidence %s. "
-                "Returning marginal P(%s) as fallback — this is NOT the "
+                "%s Returning marginal P(%s) as fallback — this is NOT the "
                 "true posterior. Consider increasing n_mc or checking "
                 "evidence values.",
-                evidence,
+                msg,
                 target,
             )
             return self.world.observational_distribution(target, n=n, seed=seed)
@@ -119,6 +128,7 @@ class SCMSolver:
         evidence: dict[str, float] | None = None,
         n: int = 10_000,
         seed: int | None = None,
+        strict: bool = False,
     ) -> np.ndarray:
         """Estimate P(target | do(interventions), evidence) via sampling.
 
@@ -128,12 +138,15 @@ class SCMSolver:
             evidence: Additional conditioning (after intervention).
             n: Desired number of output samples.
             seed: Random seed.
+            strict: If True, raise ValueError when rejection sampling fails
+                instead of silently falling back.
 
         Returns:
             1D array of samples from the interventional distribution.
 
         Raises:
-            ValueError: If any variable doesn't exist in the world.
+            ValueError: If any variable doesn't exist in the world,
+                or if strict=True and rejection sampling fails.
         """
         all_vars = {target} | set(do.keys()) | set((evidence or {}).keys())
         unknown = all_vars - set(self.world.variables)
@@ -157,10 +170,16 @@ class SCMSolver:
 
         matched = self._rejection_filter(df, filter_evidence)
         if len(matched) == 0:
+            msg = (
+                f"Rejection found 0 matches for interventional evidence "
+                f"{filter_evidence}. Cannot estimate "
+                f"P({target} | do({do}), evidence)."
+            )
+            if strict:
+                raise ValueError(msg)
             logger.warning(
-                "Rejection found 0 matches for interventional evidence %s. "
-                "Returning P(%s | do(%s)) without conditioning.",
-                filter_evidence,
+                "%s Returning P(%s | do(%s)) without conditioning.",
+                msg,
                 target,
                 do,
             )
@@ -286,6 +305,17 @@ class SCMSolver:
                 best_score = score
                 best_node = node
                 best_gain = gain
+
+        # If best gain is negligible, no observation is worth making.
+        # Threshold 0.02 bits: above MC noise floor (~0.01 for independent
+        # variables) but below weakest real signal (~0.04 for distant nodes).
+        if best_gain < 0.02:
+            return TeacherOutput(
+                posterior={},
+                recommended_action=None,
+                information_gain=0.0,
+                entropy=current_h,
+            )
 
         return TeacherOutput(
             posterior={},

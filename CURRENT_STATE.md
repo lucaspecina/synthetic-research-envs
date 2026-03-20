@@ -9,7 +9,7 @@
 
 ## Resumen ejecutivo
 
-- **1230 tests**, todos pasando
+- **1236 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -61,14 +61,18 @@
 - 33 tests: validacion, grafos, d-separation, sampling, do-calculus,
   adjustment sets, scoring, E2E no lineal (threshold + sigmoid).
 - `SCMSolver`: teacher de Monte Carlo para SCMWorld.
-  - `posterior_samples(target, evidence)`: P(Y|evidencia) via rejection sampling.
-  - `interventional_samples(target, do)`: P(Y|do(X=x)) via sampling.
+  - `posterior_samples(target, evidence, strict)`: P(Y|evidencia) via rejection sampling.
+  - `interventional_samples(target, do, evidence, strict)`: P(Y|do(X=x)) via sampling.
   - `information_gain()`: IG estimado via binned MI con bins fijos del target.
   - `optimal_action()` / `generate_trajectory()`: seleccion optima de observaciones.
+    Stopping criterion: no recomienda si IG < 0.02 bits (above MC noise floor).
+  - `strict=True`: raise en vez de fallback silencioso al marginal.
   - Entropy en bits (log2), consistente con ExactBayesSolver.
   - Validacion de variables, weight normalization conservadora en IG.
-  - 54 tests: posteriors, interventions, entropy, IG, trajectories, validation,
-    multi-evidence, grafos de 10 nodos, weight normalization, bits exactos.
+  - Evaluacion rigurosa: posteriors KS-test vs analitica (83-90% pass),
+    interventional 100%, IG ranking 100% estable (5 seeds).
+  - 60 tests: posteriors, interventions, entropy, IG, trajectories, validation,
+    multi-evidence, grafos de 10 nodos, stopping criterion, strict mode.
 - Capa de datos realistas (`scm_data.py`):
   - `apply_realism()`: ruido de medicion (Gaussiano proporcional a std),
     rounding auto-inferido, outliers, missing data (MCAR/MAR).
@@ -243,7 +247,7 @@ python scripts/run_diagnostic.py
 
 ## Tests
 
-- **1230 tests** en todos los modulos
+- **1236 tests** en todos los modulos
 - Mirrors: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Coverage clave: 100 mundos por template, 50 configs E2E DAG generators,
   cross-template para los 9 eval types, rich actions, CasePlan hints,
