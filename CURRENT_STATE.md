@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-20
+> Actualizado: 2026-03-20 (SCMSolver)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1176 tests**, todos pasando
+- **1230 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -60,6 +60,15 @@
   `wasserstein_distance`.
 - 33 tests: validacion, grafos, d-separation, sampling, do-calculus,
   adjustment sets, scoring, E2E no lineal (threshold + sigmoid).
+- `SCMSolver`: teacher de Monte Carlo para SCMWorld.
+  - `posterior_samples(target, evidence)`: P(Y|evidencia) via rejection sampling.
+  - `interventional_samples(target, do)`: P(Y|do(X=x)) via sampling.
+  - `information_gain()`: IG estimado via binned MI con bins fijos del target.
+  - `optimal_action()` / `generate_trajectory()`: seleccion optima de observaciones.
+  - Entropy en bits (log2), consistente con ExactBayesSolver.
+  - Validacion de variables, weight normalization conservadora en IG.
+  - 54 tests: posteriors, interventions, entropy, IG, trajectories, validation,
+    multi-evidence, grafos de 10 nodos, weight normalization, bits exactos.
 - Capa de datos realistas (`scm_data.py`):
   - `apply_realism()`: ruido de medicion (Gaussiano proporcional a std),
     rounding auto-inferido, outliers, missing data (MCAR/MAR).
@@ -70,9 +79,11 @@
   - MAR: probabilidad de missing depende de valores extremos del padre
     (z-score > 1.5 duplica la tasa). Target nunca missing.
   - 40 tests: transformaciones individuales, multi-dataset, helpers, E2E.
-- **Pendiente:** integracion con pipeline (TaskGen, Solver, EpisodeRunner).
+- **Pendiente:** integracion con pipeline (TaskGen, EpisodeRunner, ProblemBuilder).
   Mediciones indirectas (senales proxy) documentadas como patron de diseno
   para cuando el orchestrator diseñe SCMs (Fase 3).
+- **Limitacion conocida:** rejection sampling escala mal con >5 evidence variables.
+  Futuro: importance weighting con ESS monitoring.
 
 ### Diseno del caso / orchestrator — Estable
 
@@ -232,7 +243,7 @@ python scripts/run_diagnostic.py
 
 ## Tests
 
-- **1176 tests** en todos los modulos
+- **1230 tests** en todos los modulos
 - Mirrors: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Coverage clave: 100 mundos por template, 50 configs E2E DAG generators,
   cross-template para los 9 eval types, rich actions, CasePlan hints,

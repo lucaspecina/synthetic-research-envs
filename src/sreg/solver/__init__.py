@@ -1,5 +1,6 @@
-"""Solver: exact Bayesian inference for teacher trajectories."""
+"""Solver: teacher inference engines for BN and SCM worlds."""
 
 from sreg.solver.exact_bayes import ExactBayesSolver
+from sreg.solver.scm_solver import SCMSolver
 
-__all__ = ["ExactBayesSolver"]
+__all__ = ["ExactBayesSolver", "SCMSolver"]

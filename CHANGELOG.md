@@ -5,6 +5,37 @@
 
 ## [Unreleased]
 
+### 2026-03-20 — SCMSolver: Monte Carlo teacher for continuous worlds
+
+- **SCMSolver** (`src/sreg/solver/scm_solver.py`): teacher de Monte Carlo
+  que reemplaza ExactBayesSolver para mundos SCM continuos.
+  - `posterior_samples()`: P(Y|evidence) via rejection sampling con tolerancia adaptiva.
+  - `interventional_samples()`: P(Y|do(X=x)) via interventional sampling.
+  - `information_gain()`: IG estimado via binned mutual information.
+  - `optimal_action()` / `generate_trajectory()`: seleccion optima de observaciones.
+- **Fixed bin edges for entropy**: sin bins fijos, histogramas adaptativos
+  hacian que toda distribucion pareciera "uniforme", matando IG estimation.
+- **Entropy en bits** (log2): consistente con ExactBayesSolver.
+- **IG weight normalization**: bins sparse asumen entropy prior (conservador),
+  evitando inflacion artificial del IG. Fix encontrado via Codex review.
+- **Variable validation**: ValueError inmediato para variables inexistentes
+  en evidence, do, o target. Evita bugs silenciosos de wiring.
+- **54 tests** nuevos: posteriors, interventions, entropy, IG, trajectories,
+  validation, multi-evidence, grafos 10 nodos, bits exactos.
+- 1230 tests totales, todos pasando.
+
+### 2026-03-20 — SCM realistic datasets + indirect measurements
+
+- **scm_data.py**: capa de datos realistas para SCMWorld.
+- **indirect_measurement_design.md**: mediciones proxy como nodos del SCM.
+- Ver commit anterior para detalles completos.
+
+### 2026-03-20 — SCM engine core (Fase 1)
+
+- **SCMWorld**: grafo causal + ecuaciones Python + ruido + do-operator.
+- **Scoring continuo**: KL histogram, KL Gaussian, Wasserstein distance.
+- 33 tests. Ver commit anterior para detalles.
+
 ### 2026-03-16 — Deadline nudge + codex solver findings
 
 - **Deadline nudge**: proactive warning when 75% of iterations used and
