@@ -16,12 +16,16 @@ from sreg.inference.responses_utils import convert_tools_for_responses
 from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 from sreg.models.dag_spec import DAGNodeSpec, DAGSpec
 from sreg.models.research_problem import ResearchProblem
+from sreg.models.scm_spec import SCMSpec, SCMVariableSpec
 from sreg.models.task import TaskSpec, TaskType
 from sreg.models.world import NodeType, World
 from sreg.orchestrator.prompts import SYSTEM_PROMPT, TOOL_DEFINITIONS
 from sreg.tools.data_sampler import DataSamplerConfig
 from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
 from sreg.tools.problem_builder import ProblemBuilder
+from sreg.tools.scm_problem_builder import SCMProblemBuilder
+from sreg.tools.scm_task_gen import SCMTaskGenTool
+from sreg.tools.scm_world_gen import SCMWorldGenTool
 from sreg.tools.task_gen import TaskGenTool
 from sreg.tools.world_check import WorldCheckTool
 from sreg.tools.world_gen import CustomWorldGenConfig, WorldGenConfig, WorldGenTool
@@ -31,6 +35,8 @@ from sreg.world.dag_generators import (
     generate_preferential_attachment,
     generate_spanning_tree,
 )
+from sreg.world.expression_compiler import ExpressionError
+from sreg.world.scm import SCMWorld
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +45,7 @@ class OrchestratorResult:
     """Result of an orchestrator run."""
 
     def __init__(self):
-        self.world: World | None = None
+        self.world: World | SCMWorld | None = None
         self.problem: ResearchProblem | None = None
         self.episode: Any = None
         self.task: Any = None
@@ -80,8 +86,13 @@ class Orchestrator:
         self._episode_gen = EpisodeGenTool()
         self._task_gen = TaskGenTool()
         self._problem_builder = ProblemBuilder()
-        self._worlds: dict[str, World] = {}
+        self._scm_world_gen = SCMWorldGenTool()
+        self._scm_task_gen = SCMTaskGenTool()
+        self._scm_problem_builder = SCMProblemBuilder()
+        self._worlds: dict[str, World | SCMWorld] = {}
         self._case_plans: dict[str, CasePlan] = {}
+        self._world_seeds: dict[str, int] = {}
+        self._world_semantics: dict[str, dict] = {}
 
         # Convert tool definitions to Responses API format
         self._tools = convert_tools_for_responses(TOOL_DEFINITIONS)
@@ -182,6 +193,8 @@ class Orchestrator:
         try:
             if name == "world_gen":
                 return self._handle_world_gen(args, result)
+            elif name == "scm_construct":
+                return self._handle_scm_construct(args, result)
             elif name == "dag_generate":
                 return self._handle_dag_generate(args, result)
             elif name == "dag_construct":
@@ -350,11 +363,86 @@ class Orchestrator:
             ],
         }
 
+    def _handle_scm_construct(self, args: dict, result: OrchestratorResult) -> dict:
+        raw_vars = args.get("variables", [])
+        raw_edges = args.get("edges", [])
+        seed = args.get("seed", 42)
+
+        if not raw_vars:
+            return {"error": "variables list is empty. Provide at least 2 variables."}
+
+        try:
+            variables = [
+                SCMVariableSpec(
+                    name=v["name"],
+                    role=v["role"],
+                    unit=v.get("unit", ""),
+                    range=tuple(v["range"]) if v.get("range") else None,
+                    description=v.get("description", ""),
+                    equation=v["equation"],
+                )
+                for v in raw_vars
+            ]
+            edges = [(e["from"], e["to"]) for e in raw_edges]
+            spec = SCMSpec(variables=variables, edges=edges)
+        except (ValueError, KeyError) as e:
+            return {"error": f"Invalid SCM specification: {e}"}
+
+        try:
+            world = self._scm_world_gen.generate(spec, seed=seed)
+        except (ExpressionError, ValueError) as e:
+            return {"error": f"SCM world generation failed: {e}"}
+
+        self._worlds[world.id] = world
+        self._world_seeds[world.id] = seed
+        result.world = world
+        result.attempts += 1
+
+        # Build variable summary for the LLM
+        var_info = []
+        for v in world.variables:
+            meta = world.variable_meta.get(v)
+            role = "latent" if v in world.latent_variables else "observable"
+            # Find target from the spec
+            for sv in raw_vars:
+                if sv["name"] == v and sv["role"] == "target":
+                    role = "target"
+                    break
+            info: dict = {"name": v, "role": role}
+            if meta and meta.unit:
+                info["unit"] = meta.unit
+            var_info.append(info)
+
+        return {
+            "world_id": world.id,
+            "num_variables": len(world.variables),
+            "num_edges": len(raw_edges),
+            "variables": var_info,
+            "validation": "passed (1000 samples: no NaN, no Inf, variance OK)",
+            "next_step": (
+                "Call apply_semantics to add scenario narrative, "
+                "then design_case to define evaluation questions."
+            ),
+        }
+
     def _handle_world_check(self, args: dict, result: OrchestratorResult) -> dict:
         world_id = args["world_id"]
         world = self._worlds.get(world_id)
         if world is None:
             return {"error": f"World '{world_id}' not found"}
+
+        # SCMWorld is validated at construction time (NaN, Inf, variance, extremes)
+        if isinstance(world, SCMWorld):
+            result.validation_passed = True
+            return {
+                "passed": True,
+                "failures": [],
+                "metrics": {
+                    "num_variables": len(world.variables),
+                    "num_edges": sum(len(p) for p in world.graph.values()),
+                    "note": "SCM world was validated at construction (sampling check).",
+                },
+            }
 
         check = self._world_check.check(world)
         result.validation_passed = check.passed
@@ -418,6 +506,33 @@ class Orchestrator:
         if world is None:
             return {"error": f"World '{world_id}' not found"}
 
+        # SCMWorld: variables already have semantic names from the spec.
+        # Just store the narrative metadata for use in build_problem.
+        if isinstance(world, SCMWorld):
+            semantics = {
+                "scenario_title": args.get("scenario_title", ""),
+                "scenario_description": args.get("scenario_description", ""),
+                "domain": args.get("domain", ""),
+                "theoretical_context": args.get("theoretical_context", ""),
+            }
+            self._world_semantics[world_id] = semantics
+            return {
+                "world_id": world_id,
+                "scenario_title": semantics["scenario_title"],
+                "domain": semantics["domain"],
+                "variables": [
+                    {"name": v, "role": (
+                        "latent" if v in world.latent_variables else "observable"
+                    )}
+                    for v in world.variables
+                ],
+                "next_step": (
+                    "Now call design_case to define evaluation questions, "
+                    "then build_problem."
+                ),
+            }
+
+        # BN World: rename nodes and apply metadata
         node_renames: dict[str, str] = args.get("node_renames", {})
         node_descriptions: dict[str, str] = args.get("node_descriptions", {})
         edge_descriptions: dict[str, str] = args.get("edge_descriptions", {})
@@ -472,14 +587,21 @@ class Orchestrator:
         if world is None:
             return {"error": f"World '{world_id}' not found"}
 
-        # Build lookup maps for validation
-        world_node_names = {n.name for n in world.nodes}
-        obs_node_names = {
-            n.name for n in world.nodes if n.type == NodeType.OBSERVABLE
-        }
-        node_states: dict[str, set[str]] = {
-            n.name: set(n.states) for n in world.nodes
-        }
+        is_scm = isinstance(world, SCMWorld)
+
+        # Build lookup maps for validation (polymorphic)
+        if is_scm:
+            world_node_names = set(world.variables)
+            obs_node_names = set(world.observable_variables)
+            node_states: dict[str, set[str]] = {}  # SCM has no discrete states
+        else:
+            world_node_names = {n.name for n in world.nodes}
+            obs_node_names = {
+                n.name for n in world.nodes if n.type == NodeType.OBSERVABLE
+            }
+            node_states = {
+                n.name: set(n.states) for n in world.nodes
+            }
 
         raw_questions = args.get("questions", [])
         if not raw_questions:
@@ -544,8 +666,9 @@ class Orchestrator:
                         }
 
             # Validate desired_state against the target node's actual states
+            # (skip for SCM — continuous variables have no discrete states)
             desired = rq.get("desired_state")
-            if desired:
+            if desired and not is_scm:
                 valid_states = node_states.get(target, set())
                 if desired not in valid_states:
                     return {
@@ -583,7 +706,15 @@ class Orchestrator:
 
         # Generate tasks from the plan to validate they are computable
         try:
-            tasks = self._task_gen.generate_from_plan(world, plan, seed=world.seed)
+            if is_scm:
+                seed = self._world_seeds.get(world_id, 42)
+                tasks = self._scm_task_gen.generate_from_plan(
+                    world, plan, seed=seed
+                )
+            else:
+                tasks = self._task_gen.generate_from_plan(
+                    world, plan, seed=world.seed
+                )
         except Exception as e:
             return {"error": f"Failed to generate tasks from plan: {e}"}
 
@@ -626,7 +757,42 @@ class Orchestrator:
         budget = args.get("budget", 5)
         data_format = args.get("data_format", "tabular")
         num_rows = args.get("num_data_rows", 50)
+        case_plan = self._case_plans.get(world_id)
 
+        # SCMWorld: use SCMProblemBuilder
+        if isinstance(world, SCMWorld):
+            semantics = self._world_semantics.get(world_id, {})
+            seed = self._world_seeds.get(world_id, 42)
+
+            # Get tasks from result if available
+            tasks = result.task if isinstance(result.task, list) else None
+
+            problem = self._scm_problem_builder.build(
+                world,
+                tasks=tasks,
+                budget=budget,
+                n_rows=max(num_rows, 200),
+                multi_dataset=True,
+                case_plan=case_plan,
+                seed=seed,
+                title=semantics.get("scenario_title"),
+                description=semantics.get("scenario_description"),
+                domain=semantics.get("domain"),
+            )
+            result.problem = problem
+
+            return {
+                "title": problem.title,
+                "domain": problem.domain,
+                "budget": problem.budget,
+                "research_question": problem.research_question,
+                "num_data_assets": len(problem.data_assets),
+                "num_actions": len(problem.available_actions),
+                "target_node": problem.target_node,
+                "target_states": problem.target_states,
+            }
+
+        # BN World: use ProblemBuilder
         data_config = DataSamplerConfig(
             num_rows=max(num_rows, 200),  # Minimum 200 rows for realism
             format=data_format,
@@ -636,9 +802,6 @@ class Orchestrator:
             missing_mechanism="mar",  # Correlated with variable severity
             multi_dataset=True,  # Multiple artifacts with different quality profiles
         )
-
-        # Use CasePlan if available (for richer question + actions)
-        case_plan = self._case_plans.get(world_id)
 
         problem = self._problem_builder.build(
             world,

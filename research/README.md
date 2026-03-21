@@ -121,6 +121,18 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** Fase 3 (orchestrator diseña SCMs), LA PREGUNTA
 - **Status:** DOCUMENTADO. Implementar cuando orchestrator diseñe SCMs.
 
+### Brief vs eval separation — preguntas reales vs scoring oculto
+- **Pregunta:** como hacer que el investigador reciba un encargo de
+  investigacion real en vez de preguntas tipo benchmark.
+- **Empezar por:** `notes/brief_vs_eval_separation.md`
+- **Hallazgo clave:** el sistema confunde tres capas: brief (visible),
+  eval agenda (scoring plan), query formal (ground truth). Hoy las tres
+  estan colapsadas en CasePlan.questions.
+- **Solucion propuesta:** agregar research_brief a CasePlan, construir
+  la pregunta visible desde ahi, dejar questions como plan oculto.
+- **Conecta con:** task primitives, LA PREGUNTA
+- **Status:** HALLAZGO DOCUMENTADO. Implementar como Fase 5.
+
 ### Task primitives composicionales — expandir evaluacion SCM
 - **Pregunta:** como expandir los 9 task types fijos a una arquitectura mas
   expresiva que cubra ciencia real, sin perder reward exacto.

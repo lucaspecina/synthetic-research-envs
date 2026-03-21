@@ -15,7 +15,7 @@ def test_system_prompt_not_empty():
 
 def test_tool_definitions_complete():
     names = {t["function"]["name"] for t in TOOL_DEFINITIONS}
-    assert "world_gen" in names
+    assert "scm_construct" in names
     assert "world_check" in names
     assert "apply_semantics" in names
     assert "design_case" in names
@@ -482,10 +482,14 @@ def test_orchestrator_max_iterations():
 # --- dag_generate tool ---
 
 
-def test_tool_definitions_include_dag_tools():
+def test_tool_definitions_include_scm_tool():
+    """BN tools removed from TOOL_DEFINITIONS; only SCM exposed."""
     names = {t["function"]["name"] for t in TOOL_DEFINITIONS}
-    assert "dag_generate" in names
-    assert "dag_construct" in names
+    assert "scm_construct" in names
+    # BN tools still work via handlers but are not exposed to the LLM
+    assert "dag_generate" not in names
+    assert "dag_construct" not in names
+    assert "world_gen" not in names
 
 
 def test_dispatch_dag_generate_erdos_renyi():

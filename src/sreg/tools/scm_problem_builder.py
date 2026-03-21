@@ -34,6 +34,9 @@ class SCMProblemBuilder:
         multi_dataset: bool = False,
         case_plan: CasePlan | None = None,
         seed: int = 0,
+        title: str | None = None,
+        description: str | None = None,
+        domain: str | None = None,
     ) -> ResearchProblem:
         """Package an SCMWorld into a ResearchProblem the agent can see.
 
@@ -46,6 +49,9 @@ class SCMProblemBuilder:
             multi_dataset: If True, generate multiple datasets with varied quality.
             case_plan: If provided, use the primary question text.
             seed: Random seed for data generation.
+            title: Scenario title (from orchestrator semantics).
+            description: Scenario description (from orchestrator semantics).
+            domain: Scientific domain (from orchestrator semantics).
         """
         # Determine target variable
         if target is None and tasks:
@@ -67,9 +73,9 @@ class SCMProblemBuilder:
 
         return ResearchProblem(
             world_id=world.id or "scm_world",
-            title=f"Research problem: {world.id or 'SCM'}",
-            description=self._build_description(world, target),
-            domain="continuous_scm",
+            title=title or f"Research problem: {world.id or 'SCM'}",
+            description=description or self._build_description(world, target),
+            domain=domain or "continuous_scm",
             data_assets=data_assets,
             available_actions=actions,
             budget=budget,

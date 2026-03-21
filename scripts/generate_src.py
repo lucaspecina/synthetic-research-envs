@@ -108,9 +108,14 @@ def generate(goal: str, model: str | None = None, verbose: bool = False):
 
     _print()
     if result.world and result.problem:
-        n_nodes = len(result.world.nodes)
+        from sreg.world.scm import SCMWorld
+        if isinstance(result.world, SCMWorld):
+            n_nodes = len(result.world.variables)
+            title = result.problem.title or result.world.id
+        else:
+            n_nodes = len(result.world.nodes)
+            title = getattr(result.world, "scenario_title", None) or "?"
         n_tasks = len(result.task) if isinstance(result.task, list) else 0
-        title = result.world.scenario_title or "?"
         _print(f"  {_c(GRN, 'OK')} {_c(B, _safe(title))}")
         _print(f"  {n_nodes} nodes, {n_tasks} tasks, {len(steps)} tool calls")
     else:
@@ -142,7 +147,22 @@ def export_json(result, steps, goal: str, model: str, output_dir: str) -> str:
     }
 
     if result.world:
-        export["world"] = result.world.model_dump(mode="json")
+        from sreg.world.scm import SCMWorld
+        if isinstance(result.world, SCMWorld):
+            from dataclasses import asdict
+            export["world"] = {
+                "type": "scm",
+                "id": result.world.id,
+                "variables": result.world.variables,
+                "graph": result.world.graph,
+                "latent_variables": list(result.world.latent_variables),
+                "variable_meta": {
+                    k: {"unit": v.unit, "range": list(v.range), "description": v.description}
+                    for k, v in result.world.variable_meta.items()
+                },
+            }
+        else:
+            export["world"] = result.world.model_dump(mode="json")
 
     if result.task and isinstance(result.task, list):
         export["tasks"] = [t.model_dump(mode="json") for t in result.task]
@@ -324,10 +344,80 @@ def build_dag_section(world, tasks=None) -> list[str]:
     return lines
 
 
+def _export_scm_answer_key(result, output_dir: str) -> str | None:
+    """Export SCM answer key: graph structure + correct answers."""
+    world = result.world
+    tasks = result.task if isinstance(result.task, list) else []
+
+    lines = []
+    lines.append(f"# Answer Key: {result.problem.title}")
+    lines.append("")
+
+    # Graph structure
+    lines.append("## Causal Graph (SCM)")
+    lines.append("")
+    lines.append("```mermaid")
+    lines.append("graph TD")
+    for var in world.variables:
+        label = var.replace("_", " ")
+        if var in world.latent_variables:
+            lines.append(f'    {var}(["{label}"]):::latent')
+        else:
+            lines.append(f'    {var}["{label}"]:::observable')
+    lines.append("")
+    for child, parents in world.graph.items():
+        for parent in parents:
+            lines.append(f"    {parent} --> {child}")
+    lines.append("")
+    lines.append("    classDef latent fill:#FF6B6B,stroke:#333,color:#000,stroke-width:2px")
+    lines.append("    classDef observable fill:#51CF66,stroke:#333,color:#000")
+    lines.append("```")
+    lines.append("")
+
+    # Variable metadata
+    lines.append("## Variables")
+    lines.append("")
+    for var in world.variables:
+        meta = world.variable_meta.get(var)
+        role = "LATENT" if var in world.latent_variables else "observable"
+        unit = meta.unit if meta else ""
+        desc = meta.description if meta else ""
+        eq_fn = world.equations.get(var)
+        eq_str = eq_fn.__doc__ if eq_fn and eq_fn.__doc__ else "?"
+        lines.append(f"- **{var}** [{role}] ({unit}): {desc}")
+        lines.append(f"  Equation: `{eq_str}`")
+    lines.append("")
+
+    # Correct answers
+    if tasks:
+        lines.append("## Correct Answers")
+        lines.append("")
+        for i, t in enumerate(tasks, 1):
+            lines.append(f"### Q{i}: {t.question[:100]}")
+            lines.append(f"Type: {t.type}")
+            if t.correct_answer:
+                for k, v in t.correct_answer.items():
+                    if isinstance(v, float):
+                        lines.append(f"  {k}: {v:.4f}")
+                    else:
+                        lines.append(f"  {k}: {v}")
+            lines.append("")
+
+    path = os.path.join(output_dir, "answer_key.md")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return path
+
+
 def export_answer_key(result, output_dir: str) -> str | None:
     """Export BN truth + quick guide + correct answers."""
     if not result.world or not result.problem:
         return None
+
+    from sreg.world.scm import SCMWorld
+    if isinstance(result.world, SCMWorld):
+        # SCM answer key: simplified version (no ExactBayesSolver)
+        return _export_scm_answer_key(result, output_dir)
 
     from sreg.solver.exact_bayes import ExactBayesSolver
 
@@ -349,7 +439,8 @@ def export_answer_key(result, output_dir: str) -> str | None:
     lines = []
 
     # --- Header ---
-    lines.append(f"# Answer Key: {world.scenario_title or world.id}")
+    _ak_title = getattr(world, "scenario_title", None) or world.id
+    lines.append(f"# Answer Key: {_ak_title}")
     lines.append("")
 
     # --- Mermaid diagram ---
@@ -516,17 +607,33 @@ def export_dag_png(result, output_dir: str) -> str | None:
     except ImportError:
         return None
 
+    from sreg.world.scm import SCMWorld as _SCMWorld
     world = result.world
 
     G = nx.DiGraph()
     node_types = {}
     node_states = {}
-    for n in world.nodes:
-        G.add_node(n.name)
-        node_types[n.name] = str(n.type)
-        node_states[n.name] = n.states
-    for e in world.edges:
-        G.add_edge(e.from_node, e.to_node)
+    if isinstance(world, _SCMWorld):
+        for var in world.variables:
+            G.add_node(var)
+            if var in world.latent_variables:
+                node_types[var] = "latent"
+            else:
+                node_types[var] = "observable"
+            node_states[var] = []
+        # Guess target from the last variable in topo order
+        if world.variables:
+            node_types[world.variables[-1]] = "target"
+        for child, parents in world.graph.items():
+            for parent in parents:
+                G.add_edge(parent, child)
+    else:
+        for n in world.nodes:
+            G.add_node(n.name)
+            node_types[n.name] = str(n.type)
+            node_states[n.name] = n.states
+        for e in world.edges:
+            G.add_edge(e.from_node, e.to_node)
 
     # Layered layout via topological sort
     layers = {}
@@ -597,7 +704,7 @@ def export_dag_png(result, output_dir: str) -> str | None:
         facecolor="#1a1a2e", edgecolor="#555", labelcolor="white", framealpha=0.9,
     )
 
-    title = world.scenario_title or "Causal DAG"
+    title = getattr(world, "scenario_title", None) or "Causal DAG"
     ax.set_title(
         f"Causal DAG: {title}", fontsize=15, fontweight="bold", color="white", pad=20,
     )
@@ -694,7 +801,8 @@ def solve_tasks(
 
     # Build full_case.md — everything in one place
     full_lines = []
-    full_lines.append(f"# Full Case Report: {world.scenario_title or world.id}")
+    _fc_title = getattr(world, "scenario_title", None) or world.id
+    full_lines.append(f"# Full Case Report: {_fc_title}")
     full_lines.append("")
     full_lines.append(f"Seed: {seed}")
     full_lines.append(f"Tools: python_exec + think + submit")
@@ -898,7 +1006,7 @@ def solve_tasks(
     solve_output = {
         "model": solver_model or os.environ.get(
             "AZURE_SOLVER_MODEL", os.environ.get("AZURE_MODEL", "unknown")),
-        "title": world.scenario_title or world.id,
+        "title": getattr(world, "scenario_title", None) or world.id,
         "avg_score": avg_score,
         "tasks": results_list,
     }
@@ -1140,10 +1248,12 @@ def main():
             _print(f"  {_c(GRN, 'v')} {solve_result} (complete report)")
 
     _print()
-    title = result.world.scenario_title or result.world.id
+    title = getattr(result.world, "scenario_title", None) or result.world.id
     n_tasks = len(result.task) if isinstance(result.task, list) else 0
     _print(f"  {_c(B, _safe(title))}")
-    _print(f"  {len(result.world.nodes)} nodes, {n_tasks} tasks")
+    from sreg.world.scm import SCMWorld as _SW
+    n_vars = len(result.world.variables) if isinstance(result.world, _SW) else len(result.world.nodes)
+    _print(f"  {n_vars} nodes, {n_tasks} tasks")
     _print()
 
 

@@ -2,30 +2,25 @@
 
 SYSTEM_PROMPT = """\
 You are SREG Orchestrator, an AI that generates realistic synthetic research \
-problems backed by formal Bayesian networks.
+problems backed by Structural Causal Models (SCMs).
 
 Your job: given a goal or topic (e.g., "generate a research problem about marine \
 ecology, medium difficulty"), produce a complete research problem that looks like \
 what a real researcher would receive — with narrative, data, and questions — backed \
-by a formally correct Bayesian network.
+by a formally correct causal model with continuous variables and structural equations.
 
-## Workflow — you MUST complete ALL 6 steps in order
+## Workflow — you MUST complete ALL steps in order
 
-1. **Generate** the formal world using ONE of these approaches:
-   - `dag_construct` — specify the exact nodes and edges manually. **Best for \
-domain-specific structures or when the goal describes specific variables.** \
-You control the causal story directly.
-   - `dag_generate` — choose an algorithm (erdos_renyi, spanning_tree, layered) \
-to generate a random DAG structure. Good for generic topics where you don't \
-need precise control.
-   - `world_gen` — use a template (latent_preference). Simple, proven structure.
-2. **Validate** by calling `world_check`. If it fails, adjust and retry (max 3).
-3. **Apply semantics** by calling `apply_semantics`. Rename ALL nodes to realistic \
-scientific variable names, write the scenario narrative, domain, and theoretical \
-context. You MUST provide `node_renames` with a mapping for EVERY node. \
-Even if nodes already have semantic names (from dag_construct), pass identity \
-mappings like `{"water_temperature": "water_temperature", ...}`. NEVER omit \
-`node_renames` or pass it empty — the call WILL fail.
+1. **Generate** the formal world by calling `scm_construct`. Specify continuous \
+variables with structural equations. Each variable has a name, unit, range, and \
+an equation defining how it depends on its parents + noise. The tool compiles \
+equations safely and validates the world by sampling.
+2. **Validate** by calling `world_check`. SCM worlds are pre-validated at \
+construction but call this to confirm.
+3. **Apply semantics** by calling `apply_semantics`. Add the scenario narrative, \
+domain, and theoretical context. For SCM worlds, node_renames is not needed \
+(variables already have semantic names), but you MUST provide scenario_title, \
+scenario_description, and domain.
 4. **Design the research case** by calling `design_case`. This is the most \
 important step — design evaluation questions that a real researcher would ask \
 given this scenario. See "Evaluation types" below for guidance on choosing \
@@ -35,9 +30,9 @@ call `emit_inspiration_manifest` to record what you understood from the seed, \
 what you preserved, what you simplified, and how seed questions map to eval types. \
 Skip this step if the goal is a free-form topic (not a seed).
 6. **Build the problem** by calling `build_problem`. This samples data from the \
-Bayesian network and produces the final research problem. It automatically uses \
-the research case you designed in step 4 (the primary question text becomes the \
-visible research question, and actions get realistic costs).
+SCM and produces the final research problem. It automatically uses the research \
+case you designed in step 4 (the primary question text becomes the visible \
+research question, and actions get realistic costs).
 7. Return a final JSON summary.
 
 ## Evaluation types — when to use each one
@@ -154,20 +149,62 @@ compare_interventions), NOT a predictive one (infer_target).
 FIRST, then map each one to the closest eval_type. Don't pick eval_types and write \
 questions around them.
 
-## How to choose a generation method
+## World design guidelines
 
-- **`dag_construct`** (PREFERRED): When the goal mentions specific variables or a \
-domain with known causal relationships. You specify exact nodes (name, type, \
-states) and edges. Node names should be semantic from the start (e.g., \
-'water_temperature', not 'v0'). When using dag_construct with semantic names, \
-use identity mappings in apply_semantics.
-- **`dag_generate`**: When you want varied topologies without a specific causal story.
-  - `erdos_renyi` — random edges, diverse structures
-  - `spanning_tree` — connected/tree-like, guaranteed connectivity
-  - `layered` — staged/pipeline processes, causes flow forward through layers
-- **`world_gen`**: Simple latent_preference template. Use only for basic structures.
+Use `scm_construct` to define the causal model. Design a realistic causal \
+structure with 8-12 continuous variables, meaningful equations, and at least \
+1 latent (hidden) variable for diagnostic reasoning.
 
-Do NOT use `preferential_attachment` — it has known quality issues.
+**Variable design:**
+- Use realistic scientific variable names in snake_case
+- Include proper units (celsius, mg/L, mmHg, hours/week, etc.)
+- Set realistic ranges based on the domain
+- Include 1+ latent variables (hidden causes the agent must reason about)
+- Exactly 1 target variable (the outcome to investigate)
+
+**Equation design — make relationships REALISTIC:**
+- Use domain-appropriate functional forms (not just linear)
+- Include noise terms in every equation (real data is noisy)
+- Use nonlinear relationships where they make scientific sense: \
+thresholds, saturation, interactions, sigmoid curves
+- Root variables (no parents) are just distributions: `normal(25, 5)`
+- Effects should have realistic magnitudes for the units involved
+
+## SCM equation syntax (for `scm_construct`)
+
+Each variable's equation defines how it depends on its parent variables and \
+random noise. Equations are compiled safely — no arbitrary code execution.
+
+**Variable references:** Use parent variable names directly.
+  `temperature`, `pollution_level`, `enzyme_concentration`
+
+**Arithmetic:** +, -, *, /, **, //, %
+  `0.5 * X + 2.0`, `X ** 2`, `(X + Y) / Z`
+
+**Math functions:** exp, log, sqrt, sin, cos, abs, min, max, pow, log2, log10, \
+ceil, floor, round
+  `exp(-0.5 * X)`, `sqrt(abs(Y))`, `max(0, X - threshold)`
+
+**Distributions (noise terms):**
+  `normal(mean, std)` — Gaussian: `normal(0, 1)`, `normal(25, 5)`
+  `uniform(low, high)` — Uniform: `uniform(0, 1)`
+  `exponential(scale)` — Exponential: `exponential(0.5)`
+  `lognormal(mean, sigma)` — Log-normal: `lognormal(0, 0.5)`
+  `beta(a, b)` — Beta: `beta(2, 5)`
+  `gamma(shape, scale)` — Gamma: `gamma(2, 1)`
+
+**Conditional/piecewise:**
+  `10.0 if X > threshold else 2.0`
+  `max(0, X - 3.0)` (ReLU-like)
+
+**Example equations for realistic research:**
+  Root cause (no parents): `normal(25, 5)` — temperature ~25C
+  Linear effect: `0.3 * temperature - 0.1 * pollution + normal(0, 0.5)`
+  Sigmoid/saturation: `100 / (1 + exp(-0.5 * (stress - 50))) + normal(0, 3)`
+  Threshold: `20.0 if temperature > 35 else 5.0 + normal(0, 1)`
+  Interaction: `0.5 * nutrients * light_exposure + normal(0, 0.2)`
+
+**Restrictions:** No imports, strings, lists, lambdas, or attribute access.
 
 ## How to choose semantic names
 
@@ -217,224 +254,29 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
-            "name": "world_gen",
+            "name": "scm_construct",
             "description": (
-                "Generate a Bayesian network world from a predefined template. "
-                "Use this for simple, well-tested structures. The template creates "
-                "a standard latent variable problem where hidden causes drive "
-                "observable indicators. Returns a world with generic node names "
-                "(hidden_cause, indicator_1, etc.) that must be renamed via "
-                "apply_semantics. Prefer dag_construct for domain-specific cases."
+                "Construct a world using a Structural Causal Model (SCM) with "
+                "continuous variables and arbitrary mathematical equations. This is "
+                "the PREFERRED method for realistic research problems — it produces "
+                "continuous data with real units (celsius, mg/L, mmHg, etc.) and "
+                "flexible causal relationships (linear, nonlinear, threshold, "
+                "interaction effects). Each variable needs a name, role, unit, "
+                "range, and an equation string that defines how it depends on its "
+                "parents + noise. The tool compiles equations safely and validates "
+                "the world by sampling 1000 rows (checks for NaN, Inf, zero "
+                "variance, extreme values). Use 8-12 variables for good complexity."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "template_family": {
-                        "type": "string",
-                        "enum": ["latent_preference"],
-                        "description": (
-                            "latent_preference: one or more latent variables drive "
-                            "observable indicators. Agent must infer the latent to "
-                            "predict the target. This is the only available template."
-                        ),
-                    },
-                    "num_nodes": {
-                        "type": "integer",
-                        "minimum": 3,
-                        "maximum": 20,
-                        "description": (
-                            "Total number of nodes in the world. "
-                            "Recommended: 8-12 for good complexity."
-                        ),
-                    },
-                    "num_latent": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "description": "Number of latent (hidden) nodes. Default: 1.",
-                    },
-                    "num_states": {
-                        "type": "integer",
-                        "minimum": 2,
-                        "maximum": 5,
-                        "description": (
-                            "Number of discrete states per node. "
-                            "2 = binary, 3 = low/medium/high. Default: 3."
-                        ),
-                    },
-                    "edge_strength": {
-                        "type": "number",
-                        "minimum": 0.1,
-                        "maximum": 1.0,
-                        "description": (
-                            "How deterministic the causal relationships are. "
-                            "0.1 = very noisy, 0.9 = nearly deterministic. "
-                            "Recommended: 0.6-0.7 for medium difficulty."
-                        ),
-                    },
-                    "seed": {
-                        "type": "integer",
-                        "description": "Random seed for reproducibility. Always provide one.",
-                    },
-                },
-                "required": ["template_family", "num_nodes", "edge_strength", "seed"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "dag_generate",
-            "description": (
-                "Generate a Bayesian network world using an algorithmic DAG generator. "
-                "Use this when you want varied topologies without specifying exact "
-                "structure. The generator creates a random DAG, then CPDs are "
-                "auto-generated from edge_strength. Nodes are named v0, v1, v2, ... "
-                "and MUST be renamed via apply_semantics. Do NOT use "
-                "preferential_attachment (known quality issues). "
-                "Prefer dag_construct when the goal describes specific variables."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "generator": {
-                        "type": "string",
-                        "enum": [
-                            "erdos_renyi",
-                            "spanning_tree",
-                            "preferential_attachment",
-                            "layered",
-                        ],
-                        "description": (
-                            "erdos_renyi: random edges with probability edge_prob, "
-                            "good for diverse structures. "
-                            "spanning_tree: connected tree + optional extra edges, "
-                            "guarantees every node is reachable. "
-                            "layered: staged/pipeline process, causes in first layer "
-                            "flow forward to effects in last layer. "
-                            "preferential_attachment: DO NOT USE (0% quality pass rate)."
-                        ),
-                    },
-                    "num_nodes": {
-                        "type": "integer",
-                        "minimum": 3,
-                        "maximum": 20,
-                        "description": (
-                            "Total number of nodes (for erdos_renyi, spanning_tree, "
-                            "preferential_attachment). Ignored for layered. "
-                            "Recommended: 8-12."
-                        ),
-                    },
-                    "num_latent": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "description": "Number of latent (hidden) nodes. Default: 1.",
-                    },
-                    "num_target": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "description": "Number of target nodes. Default: 1.",
-                    },
-                    "num_states": {
-                        "type": "integer",
-                        "minimum": 2,
-                        "maximum": 5,
-                        "description": "Number of discrete states per node. Default: 3.",
-                    },
-                    "edge_strength": {
-                        "type": "number",
-                        "minimum": 0.1,
-                        "maximum": 1.0,
-                        "description": (
-                            "How deterministic the causal relationships are. "
-                            "Recommended: 0.6-0.7 for medium difficulty."
-                        ),
-                    },
-                    "seed": {
-                        "type": "integer",
-                        "description": "Random seed for reproducibility.",
-                    },
-                    "edge_prob": {
-                        "type": "number",
-                        "minimum": 0.0,
-                        "maximum": 1.0,
-                        "description": "Edge probability (erdos_renyi only, default 0.3)",
-                    },
-                    "extra_edge_prob": {
-                        "type": "number",
-                        "minimum": 0.0,
-                        "maximum": 1.0,
-                        "description": (
-                            "Extra edge probability beyond tree "
-                            "(spanning_tree only, default 0.1)"
-                        ),
-                    },
-                    "num_edges_per_node": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 4,
-                        "description": (
-                            "Edges per new node "
-                            "(preferential_attachment only, default 2)"
-                        ),
-                    },
-                    "num_layers": {
-                        "type": "integer",
-                        "minimum": 2,
-                        "description": "Number of layers (layered only, default 4)",
-                    },
-                    "nodes_per_layer": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "description": "Nodes per layer (layered only, default 3)",
-                    },
-                    "inter_layer_prob": {
-                        "type": "number",
-                        "minimum": 0.0,
-                        "maximum": 1.0,
-                        "description": (
-                            "Edge probability between adjacent layers "
-                            "(layered only, default 0.5)"
-                        ),
-                    },
-                    "skip_layer_prob": {
-                        "type": "number",
-                        "minimum": 0.0,
-                        "maximum": 1.0,
-                        "description": (
-                            "Edge probability skipping one layer "
-                            "(layered only, default 0.1)"
-                        ),
-                    },
-                },
-                "required": ["generator", "edge_strength", "seed"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "dag_construct",
-            "description": (
-                "Construct a Bayesian network world by specifying the exact DAG "
-                "structure: nodes (name, type, states) and directed edges. "
-                "This is the PREFERRED method when the goal describes specific "
-                "variables or a domain with known causal relationships. You have "
-                "full control over the causal story. "
-                "Constraints: DAG must be acyclic, have at least 1 target and "
-                "1 observable node, each node can have at most 4 parents. "
-                "Use semantic names directly (e.g., 'water_temperature') — "
-                "then use identity mappings in apply_semantics. "
-                "Include at least 1 latent node for diagnostic reasoning tasks."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "nodes": {
+                    "variables": {
                         "type": "array",
                         "description": (
-                            "List of nodes in the DAG. Each node needs a name, "
-                            "type, and discrete states. Use 8-12 nodes for good "
-                            "complexity. Include at least 1 latent node."
+                            "Variables in the SCM. Root variables (no parents) use "
+                            "only distributions as equations. Non-root variables "
+                            "reference parent names in their equation. Include at "
+                            "least 1 latent variable for diagnostic reasoning."
                         ),
                         "items": {
                             "type": "object",
@@ -442,85 +284,90 @@ TOOL_DEFINITIONS = [
                                 "name": {
                                     "type": "string",
                                     "description": (
-                                        "Semantic variable name using snake_case. "
-                                        "E.g., 'water_temperature', 'fracture_pressure', "
-                                        "'enzyme_concentration'. NOT 'v0' or 'indicator_1'."
+                                        "Variable name in snake_case. Must be a valid "
+                                        "Python identifier. E.g., 'water_temperature', "
+                                        "'cortisol_level'. Cannot shadow built-in "
+                                        "functions (normal, exp, log, sqrt, etc.)."
                                     ),
                                 },
-                                "type": {
+                                "role": {
                                     "type": "string",
                                     "enum": ["observable", "latent", "target"],
                                     "description": (
-                                        "observable: the agent can choose to measure this. "
-                                        "latent: hidden variable, never directly observed. "
-                                        "target: the outcome variable the agent must predict "
-                                        "(exactly 1 required)."
+                                        "observable: agent can see this variable's data. "
+                                        "latent: hidden, never directly observed. "
+                                        "target: the outcome to predict (exactly 1)."
                                     ),
                                 },
-                                "states": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
+                                "unit": {
+                                    "type": "string",
                                     "description": (
-                                        "2-4 discrete states. Use meaningful labels. "
-                                        "E.g., ['low', 'medium', 'high'] or "
-                                        "['no', 'yes'] or ['type_A', 'type_B', 'type_C']."
+                                        "Physical unit. E.g., 'celsius', 'mg/L', 'mmHg', "
+                                        "'score (0-100)', 'proportion (0-1)'. Use "
+                                        "realistic scientific units."
+                                    ),
+                                },
+                                "range": {
+                                    "type": "array",
+                                    "items": {"type": "number"},
+                                    "minItems": 2,
+                                    "maxItems": 2,
+                                    "description": (
+                                        "Expected [min, max] range for metadata. Not "
+                                        "enforced as hard bounds. E.g., [0, 100]."
+                                    ),
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "description": (
+                                        "What this variable represents in the scenario."
+                                    ),
+                                },
+                                "equation": {
+                                    "type": "string",
+                                    "description": (
+                                        "Structural equation. Root: 'normal(25, 5)'. "
+                                        "Linear: '0.3 * X + normal(0, 1)'. "
+                                        "Sigmoid: '100 / (1 + exp(-0.5 * (X - 50))) "
+                                        "+ normal(0, 3)'. "
+                                        "Threshold: '20 if X > 35 else 5 + normal(0, 1)'. "
+                                        "See SCM equation syntax in the system prompt."
                                     ),
                                 },
                             },
-                            "required": ["name", "type", "states"],
+                            "required": ["name", "role", "unit", "equation"],
                         },
                     },
                     "edges": {
                         "type": "array",
                         "description": (
-                            "Directed causal edges (cause -> effect). Each edge means "
-                            "'from' causally influences 'to'. The resulting graph must "
-                            "be a DAG (no cycles). Each node can have at most 4 parents."
+                            "Directed causal edges (cause -> effect). Must form a "
+                            "DAG (no cycles). The 'to' variable's equation can "
+                            "reference the 'from' variable name."
                         ),
                         "items": {
                             "type": "object",
                             "properties": {
                                 "from": {
                                     "type": "string",
-                                    "description": "Source node name (the cause)",
+                                    "description": "Parent variable (the cause).",
                                 },
                                 "to": {
                                     "type": "string",
-                                    "description": "Destination node name (the effect)",
-                                },
-                                "direction": {
-                                    "type": "string",
-                                    "enum": ["positive", "negative"],
-                                    "description": (
-                                        "Effect direction: 'positive' means higher "
-                                        "parent state leads to higher child state "
-                                        "(e.g., more smoking -> more cancer risk). "
-                                        "'negative' means higher parent leads to "
-                                        "lower child (e.g., more exercise -> less "
-                                        "obesity). ALWAYS specify this for ordinal "
-                                        "variables. Omit only for non-ordinal "
-                                        "variables like categories."
-                                    ),
+                                    "description": "Child variable (the effect).",
                                 },
                             },
                             "required": ["from", "to"],
                         },
                     },
-                    "edge_strength": {
-                        "type": "number",
-                        "minimum": 0.1,
-                        "maximum": 1.0,
-                        "description": (
-                            "How deterministic the causal relationships are. "
-                            "0.6-0.7 recommended for medium difficulty."
-                        ),
-                    },
                     "seed": {
                         "type": "integer",
-                        "description": "Random seed for reproducibility.",
+                        "description": (
+                            "Random seed for validation and reproducibility."
+                        ),
                     },
                 },
-                "required": ["nodes", "edges", "edge_strength", "seed"],
+                "required": ["variables", "edges", "seed"],
             },
         },
     },
@@ -529,12 +376,10 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "world_check",
             "description": (
-                "Validate a generated world for quality. Checks: DAG validity "
-                "(acyclic, connected), entropy (not too low/high), d-separation "
-                "(latent nodes provide information), path from observables to "
-                "target, max parents per node, treewidth. Returns pass/fail with "
-                "specific failure reasons and metrics. Call this immediately after "
-                "generating the world. If it fails, adjust parameters and regenerate."
+                "Validate a generated world for quality. SCM worlds are "
+                "pre-validated at construction (NaN, Inf, variance, extreme "
+                "values checked on 1000 samples), so this will confirm the "
+                "validation passed. Call this after scm_construct to confirm."
             ),
             "parameters": {
                 "type": "object",

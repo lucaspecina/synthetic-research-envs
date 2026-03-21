@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-20 (SCMWorldGenTool — Fase 3)
+> Actualizado: 2026-03-21 (Orchestrator SCM wiring — Fase 4)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1406 tests**, todos pasando
+- **1427 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -110,8 +110,22 @@
   - `SCMWorldGenTool`: spec → compile → validate (NaN/Inf/variance) → SCMWorld.
   - Pipeline E2E: SCMSpec → SCMWorldGenTool → SCMTaskGenTool → SCMProblemBuilder.
   - 92 tests: compiler (56), spec (21), world gen (15).
-- **Pendiente:** `solve()` single-task, orchestrator wiring (tool definition +
-  dispatch en orchestrator). Mediciones indirectas documentadas como patron.
+- **Orchestrator SCM wiring (Fase 4):**
+  - `scm_construct` tool en TOOL_DEFINITIONS. BN tools (world_gen, dag_generate,
+    dag_construct) removidas — orchestrator es SCM-only.
+  - Handler `_handle_scm_construct`: parse → SCMSpec → compile → validate → SCMWorld.
+  - Dispatch polimorfico: world_check (auto-pass), apply_semantics (metadata-only),
+    design_case (sin discrete states), build_problem (SCMProblemBuilder).
+  - SYSTEM_PROMPT reescrito para SCM con sintaxis de ecuaciones.
+  - generate_src.py adaptado (DAG PNG, answer key, export JSON).
+  - E2E validado: 3 runs con gpt-5.4 (free goal + Vaca Muerta seed).
+  - 21 tests: handler dispatch, validation, pipeline E2E.
+- **Hallazgo critico: brief vs eval separation.** Las preguntas generadas
+  parecen benchmark, no investigacion real. Brief, eval agenda y query formal
+  estan colapsados en CasePlan.questions. Documentado en
+  `research/notes/brief_vs_eval_separation.md`. Proximo paso critico.
+- **Pendiente:** `solve()` single-task (requiere SCMEpisodeRunner),
+  brief/eval separation, task primitives composicionales.
 - **Limitacion conocida:** rejection sampling escala mal con >5 evidence variables.
   Futuro: importance weighting con ESS monitoring.
 
@@ -273,7 +287,7 @@ python scripts/run_diagnostic.py
 
 ## Tests
 
-- **1277 tests** en todos los modulos
+- **1427 tests** en todos los modulos
 - Mirrors: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Coverage clave: 100 mundos por template, 50 configs E2E DAG generators,
   cross-template para los 9 eval types, rich actions, CasePlan hints,

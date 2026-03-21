@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+### 2026-03-21 — Orchestrator SCM wiring + BN removal (Fase 4)
+
+- **Orchestrator SCM wiring**: el orchestrator ahora genera mundos SCM via
+  `scm_construct`. Handler `_handle_scm_construct` parsea SCMSpec del LLM,
+  compila ecuaciones, valida, y almacena el mundo.
+- **Dispatch polimorfico**: world_check (auto-pass para SCM), apply_semantics
+  (metadata-only), design_case (validacion adaptada), build_problem
+  (usa SCMProblemBuilder) — todos manejan World | SCMWorld.
+- **BN tools removidas de TOOL_DEFINITIONS**: world_gen, dag_generate,
+  dag_construct ya no expuestos al LLM. El orchestrator es SCM-only.
+  Los handlers BN siguen en el codigo para uso programatico.
+- **SYSTEM_PROMPT**: reescrito para SCM. Documenta sintaxis de ecuaciones,
+  guidelines de diseno de variables y ecuaciones.
+- **SCMProblemBuilder**: acepta title/description/domain del orchestrator.
+- **generate_src.py**: adaptado para SCMWorld (export JSON, DAG PNG,
+  answer key, display).
+- **Hallazgo critico**: las preguntas generadas parecen benchmark, no
+  investigacion real. Diagnostico: brief, eval agenda y query formal
+  estan colapsados en CasePlan.questions. Documentado en
+  `research/notes/brief_vs_eval_separation.md`.
+- 21 tests nuevos (test_scm_wiring.py). 1427 tests totales.
+- E2E validado: 3 runs con gpt-5.4 (free goal + Vaca Muerta seed).
+
 ### 2026-03-20 — SCMWorldGenTool: declarative SCM world generation (Fase 3)
 
 - **ExpressionCompiler** (`src/sreg/world/expression_compiler.py`): compila
