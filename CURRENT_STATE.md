@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-20 (SCM pipeline wiring)
+> Actualizado: 2026-03-20 (SCMWorldGenTool — Fase 3)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1314 tests**, todos pasando
+- **1406 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -98,9 +98,20 @@
     SCMWorld→SCMSolver. `solve_case()` acepta ambos tipos.
   - `solve()` single-task con SCMWorld: NotImplementedError (requiere SCMEpisodeRunner).
   - 37 tests nuevos: problem builder, generate_from_plan, solver dispatch, scoring, E2E.
-- **Pendiente:** `solve()` single-task, orchestrator SCM world generation (Fase 3).
-  Mediciones indirectas (senales proxy) documentadas como patron de diseno
-  para cuando el orchestrator diseñe SCMs (Fase 3).
+- **SCMWorldGenTool (Fase 3):**
+  - `ExpressionCompiler`: compila expression strings ("0.5 * X + normal(0, 2)")
+    a EquationFn via ast.parse() + whitelist. Seguro, sin eval de strings raw.
+    Soporta: aritmetica, math (exp, log, sqrt, sin, cos, etc.), distribuciones
+    (normal, uniform, beta, gamma, etc.), ternarios/piecewise.
+    Sin catalogo fijo — flexibilidad total para cualquier ecuacion matematica.
+  - `SCMSpec`: modelo Pydantic declarativo para function calling.
+    Variables (name, role, unit, range, equation), edges, validaciones
+    (DAG aciclico, no duplicados, nombres reservados bloqueados).
+  - `SCMWorldGenTool`: spec → compile → validate (NaN/Inf/variance) → SCMWorld.
+  - Pipeline E2E: SCMSpec → SCMWorldGenTool → SCMTaskGenTool → SCMProblemBuilder.
+  - 92 tests: compiler (56), spec (21), world gen (15).
+- **Pendiente:** `solve()` single-task, orchestrator wiring (tool definition +
+  dispatch en orchestrator). Mediciones indirectas documentadas como patron.
 - **Limitacion conocida:** rejection sampling escala mal con >5 evidence variables.
   Futuro: importance weighting con ESS monitoring.
 

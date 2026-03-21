@@ -5,6 +5,7 @@ from sreg.models.benchmark import BenchmarkComparison, BenchmarkResult, Benchmar
 from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 from sreg.models.code_exec import CodeExecConfig, CodeExecResult, ExecStatus
 from sreg.models.dag_spec import DAGNodeSpec, DAGSpec
+from sreg.models.scm_spec import SCMSpec, SCMVariableSpec
 from sreg.models.env_protocol import EnvAction, EnvObservation, EnvStepResult
 from sreg.models.episode import Action, ActionDef, ActionType, Episode, Observation, StepResult
 from sreg.models.research_problem import (
@@ -34,6 +35,8 @@ __all__ = [
     "CodeExecResult",
     "DAGNodeSpec",
     "DAGSpec",
+    "SCMSpec",
+    "SCMVariableSpec",
     "DataAsset",
     "DifficultyProfile",
     "Edge",

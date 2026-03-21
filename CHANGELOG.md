@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### 2026-03-20 — SCMWorldGenTool: declarative SCM world generation (Fase 3)
+
+- **ExpressionCompiler** (`src/sreg/world/expression_compiler.py`): compila
+  expression strings a EquationFn via ast.parse() + whitelist visitor.
+  Sin catalogo fijo — cualquier ecuacion matematica. Soporta funciones math,
+  distribuciones (normal, uniform, beta, gamma, etc.), y piecewise/ternarios.
+- **SCMSpec** (`src/sreg/models/scm_spec.py`): modelo Pydantic declarativo
+  para function calling. Validaciones: DAG, no duplicados, nombres reservados.
+- **SCMWorldGenTool** (`src/sreg/tools/scm_world_gen.py`): compila spec,
+  valida por sampling (NaN/Inf/varianza/extremos), construye SCMWorld.
+- **Pipeline E2E**: SCMSpec -> SCMWorldGenTool -> SCMTaskGenTool -> SCMProblemBuilder.
+- **Codex fixes**: nombres reservados bloqueados (normal, exp, etc.),
+  edges duplicados rechazados, test de sync entre listas.
+- 92 tests nuevos. 1406 tests totales, todos pasando.
+
 ### 2026-03-20 — SCM pipeline wiring (Fase 2c)
 
 - **SCMProblemBuilder** (`src/sreg/tools/scm_problem_builder.py`): construye ResearchProblem
