@@ -121,6 +121,19 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** Fase 3 (orchestrator diseña SCMs), LA PREGUNTA
 - **Status:** DOCUMENTADO. Implementar cuando orchestrator diseñe SCMs.
 
+### Task primitives composicionales — expandir evaluacion SCM
+- **Pregunta:** como expandir los 9 task types fijos a una arquitectura mas
+  expresiva que cubra ciencia real, sin perder reward exacto.
+- **Empezar por:** `notes/scm_task_primitives.md`
+- **Decision clave:** "free-form wording, closed-form semantics" — el LLM
+  escribe preguntas en NL pero compila a primitivas formales con ground truth
+  computable. Preguntas realmente libres descartadas (caen en LLM-judge).
+- **Primitivas propuestas:** marginal, interventional, ate, mediation,
+  interaction, d_separation, adjustment_set, nonlinearity, threshold,
+  dose_response, compare_interventions, etc.
+- **Conecta con:** Fase 4 (orchestrator wiring), LA PREGUNTA
+- **Status:** PROPUESTA EN DISCUSION. No implementar antes de Fase 4.
+
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
   Model) con ecuaciones arbitrarias y reward via Monte Carlo.
