@@ -774,3 +774,139 @@ class TestStrictMode:
             n=100, seed=42, strict=False,
         )
         assert len(result) > 0
+
+
+# ------------------------------------------------------------------
+# ATE, mediation, interaction primitives
+# ------------------------------------------------------------------
+
+
+def _mediation_chain() -> SCMWorld:
+    """T -> M -> Y + T -> Y.  Partial mediation with known fractions."""
+    return SCMWorld(
+        graph={"T": [], "M": ["T"], "Y": ["T", "M"]},
+        equations={
+            "T": lambda p, rng: rng.normal(10, 2),
+            # M = 1.0 * T + noise
+            "M": lambda p, rng: 1.0 * p["T"] + rng.normal(0, 0.5),
+            # Y = 0.5 * T (direct) + 1.0 * M (indirect) + noise
+            "Y": lambda p, rng: 0.5 * p["T"] + 1.0 * p["M"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+def _full_mediation() -> SCMWorld:
+    """T -> M -> Y only. Full mediation (no direct T -> Y edge)."""
+    return SCMWorld(
+        graph={"T": [], "M": ["T"], "Y": ["M"]},
+        equations={
+            "T": lambda p, rng: rng.normal(10, 2),
+            "M": lambda p, rng: 2.0 * p["T"] + rng.normal(0, 0.5),
+            "Y": lambda p, rng: 1.5 * p["M"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+def _interaction_world() -> SCMWorld:
+    """T -> Y, Z -> Y with interaction term: Y = T * Z + noise."""
+    return SCMWorld(
+        graph={"T": [], "Z": [], "Y": ["T", "Z"]},
+        equations={
+            "T": lambda p, rng: rng.normal(5, 1),
+            "Z": lambda p, rng: rng.normal(3, 1),
+            "Y": lambda p, rng: p["T"] * p["Z"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+def _additive_world() -> SCMWorld:
+    """T -> Y, Z -> Y purely additive: Y = T + Z + noise (no interaction)."""
+    return SCMWorld(
+        graph={"T": [], "Z": [], "Y": ["T", "Z"]},
+        equations={
+            "T": lambda p, rng: rng.normal(5, 1),
+            "Z": lambda p, rng: rng.normal(3, 1),
+            "Y": lambda p, rng: 2.0 * p["T"] + 3.0 * p["Z"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+class TestATE:
+    def test_positive_effect(self):
+        """Linear chain A->B->C: increasing A should increase C."""
+        world = _linear_chain()
+        solver = SCMSolver(world)
+        ate = solver.ate("A", "C", v_high=15.0, v_low=5.0, n=50_000, seed=42)
+        # A->B: B=2A, B->C: C=0.5B. So ATE = 0.5 * 2 * (15-5) = 10
+        assert ate > 0
+        assert abs(ate - 10.0) < 1.0  # within Monte Carlo noise
+
+    def test_no_effect(self):
+        """Independent variables: ATE should be ~0."""
+        world = _independent()
+        solver = SCMSolver(world)
+        ate = solver.ate("A", "B", v_high=2.0, v_low=-2.0, n=50_000, seed=42)
+        assert abs(ate) < 0.5  # near zero
+
+    def test_validates_variables(self):
+        world = _linear_chain()
+        solver = SCMSolver(world)
+        with pytest.raises(ValueError, match="Unknown"):
+            solver.ate("A", "NONEXISTENT", v_high=1.0, v_low=0.0)
+
+
+class TestMediationAnalysis:
+    def test_partial_mediation(self):
+        """T->M->Y + T->Y: fraction_mediated between 0 and 1."""
+        world = _mediation_chain()
+        solver = SCMSolver(world)
+        result = solver.mediation_analysis(
+            "T", "M", "Y", v_high=14.0, v_low=6.0, n=20_000, seed=42
+        )
+        assert result["total_effect"] != 0
+        assert 0 < result["fraction_mediated"] < 1
+        # Indirect = via M. T->M: M=T, M->Y: Y += 1.0*M. So indirect = 1.0*(14-6) = 8
+        # Direct = T->Y: 0.5*(14-6) = 4. Total = 12. Fraction = 8/12 = 0.67
+        assert abs(result["fraction_mediated"] - 0.67) < 0.15
+
+    def test_full_mediation(self):
+        """T->M->Y only: fraction_mediated should be ~1.0."""
+        world = _full_mediation()
+        solver = SCMSolver(world)
+        result = solver.mediation_analysis(
+            "T", "M", "Y", v_high=14.0, v_low=6.0, n=20_000, seed=42
+        )
+        assert result["fraction_mediated"] > 0.8  # near 1.0
+
+    def test_validates_variables(self):
+        world = _mediation_chain()
+        solver = SCMSolver(world)
+        with pytest.raises(ValueError, match="Unknown"):
+            solver.mediation_analysis("T", "NOPE", "Y", 1.0, 0.0)
+
+
+class TestDetectInteraction:
+    def test_interaction_detected(self):
+        """Y = T * Z: multiplicative interaction should be detected."""
+        world = _interaction_world()
+        solver = SCMSolver(world)
+        result = solver.detect_interaction(
+            "T", "Y", "Z", v_high=7.0, v_low=3.0, n=50_000, seed=42
+        )
+        assert result["interaction_detected"] is True
+        assert result["ate_range"] > 0
+
+    def test_no_interaction(self):
+        """Y = T + Z: additive model should show no interaction."""
+        world = _additive_world()
+        solver = SCMSolver(world)
+        result = solver.detect_interaction(
+            "T", "Y", "Z", v_high=7.0, v_low=3.0, n=50_000, seed=42
+        )
+        assert result["interaction_detected"] is False
+
+    def test_validates_variables(self):
+        world = _interaction_world()
+        solver = SCMSolver(world)
+        with pytest.raises(ValueError, match="Unknown"):
+            solver.detect_interaction("T", "Y", "NOPE", 1.0, 0.0)

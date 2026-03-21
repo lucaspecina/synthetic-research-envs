@@ -47,6 +47,12 @@ _DISTRIBUTION_TYPES = {
     TaskType.INFER_LATENT_CAUSE,
 }
 
+# Numeric types: scored by relative error (0-1, higher is better)
+_NUMERIC_TYPES = {
+    TaskType.ATE,
+    TaskType.MEDIATION,
+}
+
 # Binary/choice types: scored 0 (wrong) or 1 (correct)
 _ACCURACY_TYPES = {
     TaskType.HYPOTHESIS_SELECTION,
@@ -55,6 +61,7 @@ _ACCURACY_TYPES = {
     TaskType.BEST_INTERVENTION,
     TaskType.NEXT_BEST_OBSERVATION,
     TaskType.ADJUSTMENT_SET,
+    TaskType.INTERACTION,
 }
 
 
@@ -158,8 +165,14 @@ def compute_baseline_score(
         uniform = {s: 1.0 / n_states for s in correct_answer}
         return round(VerifierTool.kl_divergence(uniform, correct_answer), 6)
 
-    if task_type in (TaskType.COMPARE_INTERVENTIONS, TaskType.SHOULD_CONDITION):
+    if task_type in (
+        TaskType.COMPARE_INTERVENTIONS, TaskType.SHOULD_CONDITION,
+        TaskType.INTERACTION,
+    ):
         return 0.5  # Random binary choice
+
+    if task_type in _NUMERIC_TYPES:
+        return 0.0  # Random guess = no information about the true value
 
     if task_type == TaskType.HYPOTHESIS_SELECTION:
         n_hyp = len(correct_answer)

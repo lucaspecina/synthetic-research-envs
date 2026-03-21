@@ -5,6 +5,7 @@ from __future__ import annotations
 from sreg.training.types import (
     CHOICE_EVAL_TYPES,
     DISTRIBUTION_EVAL_TYPES,
+    NUMERIC_EVAL_TYPES,
     SET_EVAL_TYPES,
     SubmitPayload,
 )
@@ -16,17 +17,21 @@ def validate_submit_payload(payload: SubmitPayload, eval_type: str) -> None:
     Raises ValueError with a descriptive message if validation fails.
     """
     populated = sum(
-        v is not None for v in (payload.choice, payload.distribution, payload.adjustment_set)
+        v is not None
+        for v in (
+            payload.choice, payload.distribution,
+            payload.adjustment_set, payload.value,
+        )
     )
     if populated == 0:
         raise ValueError(
             "Submit payload is empty. Provide exactly one of: "
-            "choice, distribution, or adjustment_set."
+            "choice, distribution, adjustment_set, or value."
         )
     if populated > 1:
         raise ValueError(
             "Submit payload has multiple fields populated. "
-            "Provide exactly one of: choice, distribution, or adjustment_set."
+            "Provide exactly one of: choice, distribution, adjustment_set, or value."
         )
 
     if eval_type in DISTRIBUTION_EVAL_TYPES:
@@ -48,6 +53,13 @@ def validate_submit_payload(payload: SubmitPayload, eval_type: str) -> None:
         if payload.adjustment_set is None:
             raise ValueError(
                 f"Eval type '{eval_type}' requires an 'adjustment_set' (list of strings), "
+                f"got {_populated_field(payload)}."
+            )
+
+    elif eval_type in NUMERIC_EVAL_TYPES:
+        if payload.value is None:
+            raise ValueError(
+                f"Eval type '{eval_type}' requires a 'value' (numeric), "
                 f"got {_populated_field(payload)}."
             )
 
@@ -77,4 +89,6 @@ def _populated_field(payload: SubmitPayload) -> str:
         return "distribution"
     if payload.adjustment_set is not None:
         return "adjustment_set"
+    if payload.value is not None:
+        return "value"
     return "none"

@@ -77,6 +77,12 @@ class SCMTaskGenTool:
             return self._should_condition_task(world, spec, seed)
         if spec.type == TaskType.INFER_LATENT_CAUSE:
             return self._infer_latent_cause_task(world, spec, seed)
+        if spec.type == TaskType.ATE:
+            return self._ate_task(world, spec, seed)
+        if spec.type == TaskType.MEDIATION:
+            return self._mediation_task(world, spec, seed)
+        if spec.type == TaskType.INTERACTION:
+            return self._interaction_task(world, spec, seed)
         raise ValueError(f"Unsupported task type: {spec.type}")
 
     # ------------------------------------------------------------------
@@ -805,6 +811,276 @@ class SCMTaskGenTool:
         )
 
     # ------------------------------------------------------------------
+    # New SCM primitives: ATE, mediation, interaction
+    # ------------------------------------------------------------------
+
+    def _ate_task(
+        self, world: SCMWorld, spec: TaskSpec, seed: int
+    ) -> Task:
+        solver = SCMSolver(world)
+        target = spec.target_node
+        obs_nodes = self._obs_nodes(world)
+
+        # Select treatment node
+        hint_node = spec.intervention_node
+        if hint_node and hint_node in obs_nodes and hint_node != target:
+            treatment = hint_node
+        else:
+            treatment = self._find_best_causal_parent(
+                world, solver, target, obs_nodes, seed
+            )
+
+        # Treatment levels: 25th and 75th percentile of marginal
+        t_samples = world.observational_distribution(treatment, n=10_000, seed=seed)
+        v_low = round(float(np.percentile(t_samples, 25)), 2)
+        v_high = round(float(np.percentile(t_samples, 75)), 2)
+
+        ate_value = solver.ate(treatment, target, v_high, v_low, n=50_000, seed=seed)
+        correct_answer = {"value": round(ate_value, 4)}
+
+        question = (
+            f"Estimate the average causal effect of increasing '{treatment}' "
+            f"from {v_low:.2f} to {v_high:.2f} on '{target}'. "
+            f"How much does '{target}' change on average when '{treatment}' "
+            f"is set to {v_high:.2f} vs {v_low:.2f}? "
+            f"Submit a single numeric value (the estimated effect)."
+        )
+
+        remaining = [n for n in obs_nodes if n != treatment]
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=target,
+            available_evidence=remaining,
+            correct_answer=correct_answer,
+            scoring_method="numeric_relative_error",
+            intervention={treatment: f"{v_low:.2f}->{v_high:.2f}"},
+        )
+
+    def _mediation_task(
+        self, world: SCMWorld, spec: TaskSpec, seed: int
+    ) -> Task:
+        solver = SCMSolver(world)
+        target = spec.target_node
+        obs_nodes = self._obs_nodes(world)
+        rng = np.random.default_rng(seed)
+
+        # Select treatment node
+        hint_treatment = spec.intervention_node
+        if hint_treatment and hint_treatment in obs_nodes and hint_treatment != target:
+            treatment = hint_treatment
+        else:
+            treatment = self._find_best_causal_parent(
+                world, solver, target, obs_nodes, seed
+            )
+
+        # Select mediator
+        hint_mediator = spec.condition_variable
+        if (
+            hint_mediator
+            and hint_mediator in obs_nodes
+            and hint_mediator != treatment
+            and hint_mediator != target
+        ):
+            mediator = hint_mediator
+        else:
+            mediator = self._find_mediator(world, treatment, target, obs_nodes, rng)
+
+        if mediator is None:
+            raise ValueError(
+                f"No mediator found between '{treatment}' and '{target}'"
+            )
+
+        # Treatment levels
+        t_samples = world.observational_distribution(treatment, n=10_000, seed=seed)
+        v_low = round(float(np.percentile(t_samples, 25)), 2)
+        v_high = round(float(np.percentile(t_samples, 75)), 2)
+
+        result = solver.mediation_analysis(
+            treatment, mediator, target, v_high, v_low, n=20_000, seed=seed
+        )
+        correct_answer = {"value": round(result["fraction_mediated"], 4)}
+
+        question = (
+            f"What fraction of the effect of '{treatment}' on '{target}' "
+            f"is mediated through '{mediator}'? "
+            f"Consider the treatment change from {v_low:.2f} to {v_high:.2f}. "
+            f"Submit a value between 0 and 1 representing the proportion "
+            f"of the total effect that goes through '{mediator}'."
+        )
+
+        remaining = [n for n in obs_nodes if n != treatment]
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=target,
+            available_evidence=remaining,
+            correct_answer=correct_answer,
+            scoring_method="numeric_relative_error",
+            intervention={treatment: mediator},
+        )
+
+    def _interaction_task(
+        self, world: SCMWorld, spec: TaskSpec, seed: int
+    ) -> Task:
+        solver = SCMSolver(world)
+        target = spec.target_node
+        obs_nodes = self._obs_nodes(world)
+        rng = np.random.default_rng(seed)
+
+        # Select treatment node
+        hint_treatment = spec.intervention_node
+        if hint_treatment and hint_treatment in obs_nodes and hint_treatment != target:
+            treatment = hint_treatment
+        else:
+            treatment = self._find_best_causal_parent(
+                world, solver, target, obs_nodes, seed
+            )
+
+        # Select modifier
+        hint_modifier = spec.condition_variable
+        if (
+            hint_modifier
+            and hint_modifier in obs_nodes
+            and hint_modifier != treatment
+            and hint_modifier != target
+        ):
+            modifier = hint_modifier
+        else:
+            modifier = self._find_modifier(
+                world, treatment, target, obs_nodes, rng
+            )
+
+        if modifier is None:
+            raise ValueError(
+                f"No suitable modifier found for '{treatment}' -> '{target}'"
+            )
+
+        # Treatment levels
+        t_samples = world.observational_distribution(treatment, n=10_000, seed=seed)
+        v_low = round(float(np.percentile(t_samples, 25)), 2)
+        v_high = round(float(np.percentile(t_samples, 75)), 2)
+
+        result = solver.detect_interaction(
+            treatment, target, modifier, v_high, v_low, n=50_000, seed=seed
+        )
+        correct_answer = (
+            {"yes": 1.0} if result["interaction_detected"] else {"no": 1.0}
+        )
+
+        question = (
+            f"Does the effect of '{treatment}' on '{target}' depend on "
+            f"the level of '{modifier}'? In other words, does '{modifier}' "
+            f"modify the relationship between '{treatment}' and '{target}'? "
+            f"Answer 'yes' if the effect varies meaningfully across different "
+            f"levels of '{modifier}', or 'no' if it remains roughly constant."
+        )
+
+        return Task(
+            id=f"task-{world.id}-{spec.type}",
+            type=spec.type,
+            world_id=world.id,
+            question=question,
+            target_node=target,
+            available_evidence=obs_nodes,
+            correct_answer=correct_answer,
+            scoring_method="should_condition",
+            intervention={treatment: modifier},
+        )
+
+    # ------------------------------------------------------------------
+    # Helpers for new primitives
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _find_best_causal_parent(
+        world: SCMWorld,
+        solver: SCMSolver,
+        target: str,
+        obs_nodes: list[str],
+        seed: int,
+    ) -> str:
+        """Find observable node with strongest causal effect on target."""
+        best_node = obs_nodes[0] if obs_nodes[0] != target else obs_nodes[1]
+        best_effect = 0.0
+        for node in obs_nodes:
+            if node == target:
+                continue
+            node_samples = world.observational_distribution(node, n=5_000, seed=seed)
+            lo = float(np.percentile(node_samples, 25))
+            hi = float(np.percentile(node_samples, 75))
+            do_lo = solver.interventional_samples(
+                target, do={node: lo}, n=5_000, seed=seed
+            )
+            do_hi = solver.interventional_samples(
+                target, do={node: hi}, n=5_000, seed=seed
+            )
+            effect = abs(float(np.mean(do_hi)) - float(np.mean(do_lo)))
+            if effect > best_effect:
+                best_effect = effect
+                best_node = node
+        return best_node
+
+    @staticmethod
+    def _find_mediator(
+        world: SCMWorld,
+        treatment: str,
+        outcome: str,
+        obs_nodes: list[str],
+        rng: np.random.Generator,
+    ) -> str | None:
+        """Find a node on a directed path from treatment to outcome."""
+        dag = world.dag
+        try:
+            paths = list(nx.all_simple_paths(dag, treatment, outcome))
+        except nx.NetworkXError:
+            return None
+        intermediates = set()
+        for path in paths:
+            for node in path[1:-1]:
+                if node in obs_nodes:
+                    intermediates.add(node)
+        if not intermediates:
+            return None
+        candidates = sorted(intermediates)
+        return candidates[rng.choice(len(candidates))]
+
+    @staticmethod
+    def _find_modifier(
+        world: SCMWorld,
+        treatment: str,
+        outcome: str,
+        obs_nodes: list[str],
+        rng: np.random.Generator,
+    ) -> str | None:
+        """Find a node suitable as effect modifier (not on treatment->outcome path)."""
+        dag = world.dag
+        try:
+            paths = list(nx.all_simple_paths(dag, treatment, outcome))
+        except nx.NetworkXError:
+            paths = []
+        path_nodes = set()
+        for path in paths:
+            path_nodes.update(path)
+
+        candidates = [
+            n for n in obs_nodes
+            if n != treatment and n != outcome and n not in path_nodes
+        ]
+        # Prefer parents of outcome
+        outcome_parents = set(dag.predecessors(outcome))
+        preferred = [n for n in candidates if n in outcome_parents]
+        pool = preferred if preferred else candidates
+        if not pool:
+            return None
+        pool_sorted = sorted(pool)
+        return pool_sorted[rng.choice(len(pool_sorted))]
+
+    # ------------------------------------------------------------------
     # Plan-driven generation
     # ------------------------------------------------------------------
 
@@ -815,11 +1091,14 @@ class SCMTaskGenTool:
         TaskType.NEXT_BEST_OBSERVATION,
         TaskType.HYPOTHESIS_SELECTION,
         TaskType.INFER_LATENT_CAUSE,
+        TaskType.INTERACTION,
     })
 
     # Types where overriding the question risks semantic inversion.
     _NEVER_OVERRIDE_QUESTION_TYPES = frozenset({
         TaskType.COMPARE_INTERVENTIONS,
+        TaskType.ATE,
+        TaskType.MEDIATION,
     })
 
     def generate_from_plan(
@@ -894,7 +1173,9 @@ class SCMTaskGenTool:
         nodes_to_check: list[str] = []
 
         if eval_type in (
-            TaskType.CAUSAL_EFFECT, TaskType.ADJUSTMENT_SET, TaskType.SHOULD_CONDITION,
+            TaskType.CAUSAL_EFFECT, TaskType.ADJUSTMENT_SET,
+            TaskType.SHOULD_CONDITION, TaskType.ATE,
+            TaskType.MEDIATION, TaskType.INTERACTION,
         ):
             if task.intervention:
                 nodes_to_check = list(task.intervention.keys())
@@ -943,6 +1224,16 @@ class SCMTaskGenTool:
             if not (q.intervention_node and q.condition_variable):
                 return False
             return inv == {q.intervention_node: q.condition_variable}
+
+        if et == TaskType.ATE:
+            return bool(q.intervention_node and q.intervention_node in inv)
+
+        if et in (TaskType.MEDIATION, TaskType.INTERACTION):
+            return bool(
+                q.intervention_node
+                and q.condition_variable
+                and q.intervention_node in inv
+            )
 
         return False
 

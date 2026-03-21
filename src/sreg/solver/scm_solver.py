@@ -390,6 +390,180 @@ class SCMSolver:
         return true_state, trajectory
 
     # ------------------------------------------------------------------
+    # Causal effect primitives
+    # ------------------------------------------------------------------
+
+    def ate(
+        self,
+        treatment: str,
+        outcome: str,
+        v_high: float,
+        v_low: float,
+        n: int = 50_000,
+        seed: int | None = None,
+    ) -> float:
+        """Average Treatment Effect: E[Y|do(X=high)] - E[Y|do(X=low)]."""
+        self._validate_variables(outcome, None, treatment)
+        y_high = self.interventional_samples(
+            outcome, do={treatment: v_high}, n=n, seed=seed
+        )
+        seed_lo = (seed + 1_000_003) if seed is not None else None
+        y_low = self.interventional_samples(
+            outcome, do={treatment: v_low}, n=n, seed=seed_lo
+        )
+        return float(np.mean(y_high) - np.mean(y_low))
+
+    def mediation_analysis(
+        self,
+        treatment: str,
+        mediator: str,
+        outcome: str,
+        v_high: float,
+        v_low: float,
+        n: int = 50_000,
+        n_bins: int = 20,
+        seed: int | None = None,
+    ) -> dict[str, float]:
+        """Decompose effect into direct (NDE) and indirect (NIE) via mediator.
+
+        Uses binned nested counterfactual: samples mediator distribution
+        under do(treatment=low), bins it, then for each bin computes
+        E[outcome | do(treatment=high, mediator=mid)] in batch.
+
+        Returns dict with: total_effect, direct_effect, indirect_effect,
+        fraction_mediated.
+        """
+        self._validate_variables(outcome, None, treatment, mediator)
+
+        # Total effect
+        te = self.ate(treatment, outcome, v_high, v_low, n=n, seed=seed)
+
+        # Distribution of mediator under do(treatment=low)
+        seed_m = (seed + 2_000_003) if seed is not None else None
+        m_under_low = self.interventional_samples(
+            mediator, do={treatment: v_low}, n=n, seed=seed_m
+        )
+
+        # Bin the mediator values for batch computation
+        percentiles = np.linspace(0, 100, n_bins + 1)
+        boundaries = np.percentile(m_under_low, percentiles)
+
+        # E[Y(high, M(low))] via binned expectation
+        weighted_sum = 0.0
+        total_weight = 0.0
+        seed_base = (seed or 0) + 3_000_000
+        for i in range(n_bins):
+            lo, hi = float(boundaries[i]), float(boundaries[i + 1])
+            if i < n_bins - 1:
+                mask = (m_under_low >= lo) & (m_under_low < hi)
+            else:
+                mask = (m_under_low >= lo) & (m_under_low <= hi)
+            weight = float(np.sum(mask))
+            if weight < 1:
+                continue
+            m_mid = float(np.mean(m_under_low[mask]))
+            y_samples = self.interventional_samples(
+                outcome,
+                do={treatment: v_high, mediator: m_mid},
+                n=max(1000, n // n_bins),
+                seed=seed_base + i,
+            )
+            weighted_sum += weight * float(np.mean(y_samples))
+            total_weight += weight
+
+        if total_weight > 0:
+            e_y_counterfactual = weighted_sum / total_weight
+        else:
+            e_y_counterfactual = 0.0
+
+        # E[Y|do(treatment=low)]
+        seed_ylo = (seed + 4_000_003) if seed is not None else None
+        y_low = self.interventional_samples(
+            outcome, do={treatment: v_low}, n=n, seed=seed_ylo
+        )
+        e_y_low = float(np.mean(y_low))
+
+        nde = e_y_counterfactual - e_y_low
+        nie = te - nde
+        frac = nie / te if abs(te) > 1e-8 else 0.0
+
+        return {
+            "total_effect": round(te, 6),
+            "direct_effect": round(nde, 6),
+            "indirect_effect": round(nie, 6),
+            "fraction_mediated": round(max(0.0, min(1.0, frac)), 6),
+        }
+
+    def detect_interaction(
+        self,
+        treatment: str,
+        outcome: str,
+        modifier: str,
+        v_high: float,
+        v_low: float,
+        n_strata: int = 4,
+        n: int = 50_000,
+        seed: int | None = None,
+        threshold: float = 0.3,
+    ) -> dict:
+        """Detect effect modification: does ATE vary across strata of modifier?
+
+        Computes ATE within strata of the modifier, then checks if the
+        range of stratum-ATEs exceeds threshold (relative to overall ATE).
+
+        Returns dict with: stratum_ates, interaction_detected, ate_range,
+        relative_range, overall_ate.
+        """
+        self._validate_variables(outcome, None, treatment, modifier)
+
+        # Modifier distribution for stratification
+        mod_samples = self.world.observational_distribution(
+            modifier, n=n, seed=seed
+        )
+        percentiles = np.linspace(0, 100, n_strata + 1)
+        boundaries = np.percentile(mod_samples, percentiles)
+
+        stratum_ates: dict[str, float] = {}
+        seed_base = (seed or 0) + 5_000_000
+        for i in range(n_strata):
+            lo, hi = float(boundaries[i]), float(boundaries[i + 1])
+            m_mid = (lo + hi) / 2.0
+
+            seed_hi = seed_base + i * 100_003
+            seed_lo = seed_hi + 50_001
+            y_hi = self.interventional_samples(
+                outcome,
+                do={treatment: v_high, modifier: m_mid},
+                n=n // n_strata,
+                seed=seed_hi,
+            )
+            y_lo = self.interventional_samples(
+                outcome,
+                do={treatment: v_low, modifier: m_mid},
+                n=n // n_strata,
+                seed=seed_lo,
+            )
+            ate_stratum = float(np.mean(y_hi) - np.mean(y_lo))
+            label = f"[{lo:.2f}, {hi:.2f})"
+            stratum_ates[label] = round(ate_stratum, 6)
+
+        ate_values = list(stratum_ates.values())
+        ate_range = max(ate_values) - min(ate_values) if ate_values else 0.0
+
+        overall_ate = self.ate(treatment, outcome, v_high, v_low, n=n, seed=seed)
+        relative_range = (
+            ate_range / abs(overall_ate) if abs(overall_ate) > 1e-8 else 0.0
+        )
+
+        return {
+            "stratum_ates": stratum_ates,
+            "interaction_detected": relative_range > threshold,
+            "ate_range": round(ate_range, 6),
+            "relative_range": round(relative_range, 6),
+            "overall_ate": round(overall_ate, 6),
+        }
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 

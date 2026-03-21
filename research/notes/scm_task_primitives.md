@@ -1,7 +1,8 @@
 # SCM Task Primitives: Architectural Decision
 
-> Status: propuesta en discusion (2026-03-20)
-> Contexto: Fase 3 SCM completada, evaluando como expandir task types
+> Status: PARCIALMENTE IMPLEMENTADO (2026-03-21, Fase 6)
+> Contexto: ate, mediation, interaction implementados. Resta: dose_response,
+> threshold, instrument_validity, collider_bias, etc.
 
 ## El problema
 
@@ -97,9 +98,15 @@ al mundo (los nodos existen, las relaciones existen, el ground truth es computab
 **El reward exacto es innegociable.** Si una pregunta no puede mapearse a una
 primitiva con ground truth computable, se RECHAZA. Nunca LLM-judge.
 
-## Proximo paso
+## Estado de implementacion (Fase 6, 2026-03-21)
 
-Implementacion no inmediata. Primero:
-1. Wiring de SCMWorldGenTool al orchestrator (Fase 4)
-2. Expandir SCMTaskGenTool con las primitivas mas criticas
-3. Luego refactorizar a la arquitectura composicional
+Implementadas como task types en SCMTaskGenTool + SCMSolver:
+- `ate` (Average Treatment Effect) — numeric scoring
+- `mediation` (NDE/NIE decomposition) — numeric scoring
+- `interaction` (effect modification detection) — yes/no scoring
+
+Pendientes (futuras fases):
+- `dose_response`, `threshold`, `saturation` — curvas de efecto
+- `instrument_validity`, `collider_bias` — estructura causal avanzada
+- `cate` (Conditional ATE) — efecto heterogeneo cuantitativo
+- Arquitectura composicional completa (primitiva + parametros como query formal)

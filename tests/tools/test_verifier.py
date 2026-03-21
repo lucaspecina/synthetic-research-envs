@@ -100,3 +100,36 @@ def test_budget_tracking(verifier):
     )
     assert score.budget_used == 3
     assert score.budget_total == 5
+
+
+# ------------------------------------------------------------------
+# score_numeric
+# ------------------------------------------------------------------
+
+
+def test_score_numeric_perfect(verifier):
+    assert verifier.score_numeric(2.35, 2.35) == 1.0
+
+
+def test_score_numeric_half_error(verifier):
+    # |4 - 2| / |2| = 1.0 -> score = 0.0? No: |agent-true|/|true| = 2/2 = 1 -> 0.0
+    # Let's use: agent=3, true=2 -> error=1, scale=2, score=1-0.5=0.5
+    assert abs(verifier.score_numeric(3.0, 2.0) - 0.5) < 1e-9
+
+
+def test_score_numeric_total_error(verifier):
+    # Error >= |true| -> score = 0.0
+    assert verifier.score_numeric(0.0, 5.0) == 0.0
+
+
+def test_score_numeric_near_zero_true(verifier):
+    # True value near zero: eps protects from division by zero
+    score = verifier.score_numeric(0.0001, 0.0)
+    assert 0.0 <= score <= 1.0
+
+
+def test_score_numeric_negative_values(verifier):
+    # ATE can be negative
+    score = verifier.score_numeric(-3.0, -4.0)
+    # error=1, scale=4, score=1-0.25=0.75
+    assert abs(score - 0.75) < 1e-9

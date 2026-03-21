@@ -16,6 +16,7 @@ load_dotenv()
 from sreg.agent.prompts import (
     CHOICE_TYPES,
     DISTRIBUTION_TYPES,
+    NUMERIC_TYPES,
     build_agent_system_prompt,
     build_agent_tools,
     build_case_system_prompt,
@@ -444,6 +445,8 @@ class AgentSolver:
             return self._submit_distribution(args, runner, problem, result, task)
         elif task_type in CHOICE_TYPES or task_type == TaskType.NEXT_BEST_OBSERVATION:
             return self._submit_choice(args, result, task_type)
+        elif task_type in NUMERIC_TYPES:
+            return self._submit_numeric(args, result)
         elif task_type == TaskType.BEST_INTERVENTION:
             return self._submit_intervention(args, result)
         elif task_type == TaskType.ADJUSTMENT_SET:
@@ -591,6 +594,23 @@ class AgentSolver:
 
         return {"status": "submitted", "variables": result.submitted_answer}
 
+    def _submit_numeric(self, args: dict, result: AgentResult) -> dict:
+        """Handle numeric submission (ATE, mediation)."""
+        value = args.get("value")
+        if value is None:
+            return {
+                "error": (
+                    "You must provide 'value' (a numeric estimate). "
+                    'Example: {"value": 2.35}'
+                ),
+            }
+        if not isinstance(value, (int, float)):
+            return {"error": "'value' must be a number."}
+        result.submitted_answer = float(value)
+        result.confidence = args.get("confidence")
+        result.reasoning = args.get("reasoning")
+        return {"status": "submitted", "value": result.submitted_answer}
+
     def _score_result(
         self,
         result: AgentResult,
@@ -649,6 +669,9 @@ class AgentSolver:
             score_val = verifier.score_nbo(
                 result.submitted_answer, task.correct_answer
             )
+        elif task_type in NUMERIC_TYPES:
+            true_value = task.correct_answer.get("value", 0.0)
+            score_val = verifier.score_numeric(result.submitted_answer, true_value)
 
         return Score(
             functional_score=score_val,
@@ -984,6 +1007,14 @@ class AgentSolver:
             if variables is None:
                 return {"error": f"Question {q_num} needs 'variables' (list)."}
             tr.submitted_answer = sorted(variables)
+
+        elif task_type in NUMERIC_TYPES:
+            value = args.get("value")
+            if value is None:
+                return {"error": f"Question {q_num} needs a 'value' (numeric)."}
+            if not isinstance(value, (int, float)):
+                return {"error": f"Question {q_num}: 'value' must be a number."}
+            tr.submitted_answer = float(value)
 
         else:
             # Fallback to distribution

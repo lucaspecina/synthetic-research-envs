@@ -5,6 +5,30 @@
 
 ## [Unreleased]
 
+### 2026-03-21 — Task primitives: ATE, mediation, interaction (Fase 6)
+
+- **3 nuevos task types**: `ate` (average treatment effect), `mediation`
+  (effect decomposition), `interaction` (effect modification). De 9 a 12
+  eval types totales.
+- **SCMSolver**: +`ate()`, +`mediation_analysis()`, +`detect_interaction()`.
+  Mediation usa binned nested counterfactual (20 bins). Interaction detecta
+  heterogeneidad via ATE estratificado (threshold 30% relativo).
+- **VerifierTool**: +`score_numeric()` — scoring por error relativo (0-1).
+  Unico scoring nuevo; interaction reutiliza `should_condition`.
+- **SCMTaskGenTool**: 3 generadores + 3 helpers (`_find_best_causal_parent`,
+  `_find_mediator`, `_find_modifier`). Seleccion automatica de nodos con
+  fallback a hints del orchestrator.
+- **Agent layer**: `NUMERIC_TYPES` format (`{"value": float}`), submit tool,
+  parsing, scoring dispatch. Interaction usa CHOICE_TYPES existente.
+- **Orchestrator prompts**: 3 tipos en SYSTEM_PROMPT con guidance y ejemplos.
+  `design_case` enum ampliado. Hints documentados. Mediation y effect
+  modification removidos de "What we CANNOT represent yet".
+- **Diagnostic harness**: `_NUMERIC_TYPES` set, baselines (0.0 para numeric,
+  0.5 para interaction).
+- **Training layer**: `EvalType` Literal ampliado, `NUMERIC_EVAL_TYPES`,
+  `SubmitPayload.value`, validator actualizado.
+- 23 tests nuevos (solver, task gen, verifier, training). 1459 tests totales.
+
 ### 2026-03-21 — Brief/eval separation (Fase 5)
 
 - **Brief/eval separation**: el investigador ahora recibe un encargo de

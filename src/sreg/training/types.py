@@ -16,6 +16,9 @@ EvalType = Literal[
     "compare_interventions",
     "should_condition",
     "infer_latent_cause",
+    "ate",
+    "mediation",
+    "interaction",
 ]
 
 # Eval types that expect a probability distribution as answer
@@ -32,6 +35,13 @@ CHOICE_EVAL_TYPES: set[str] = {
     "best_intervention",
     "compare_interventions",
     "should_condition",
+    "interaction",
+}
+
+# Eval types that expect a single numeric value as answer
+NUMERIC_EVAL_TYPES: set[str] = {
+    "ate",
+    "mediation",
 }
 
 # Eval types that expect a set of variable names
@@ -54,4 +64,8 @@ class SubmitPayload(BaseModel):
     adjustment_set: list[str] | None = Field(
         default=None,
         description="Set of variable names to condition on",
+    )
+    value: float | None = Field(
+        default=None,
+        description="Numeric answer (ATE estimate, fraction mediated)",
     )

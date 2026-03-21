@@ -117,6 +117,31 @@ mortality — is that safe, or does it introduce bias?" Use when there is a \
 specific variable that LOOKS like it should be controlled for but might be \
 a collider or mediator. This is about avoiding a methodological trap.
 
+### Quantitative and mechanistic questions — important for SCM worlds
+
+These leverage the continuous SCM engine's ability to compute exact effect \
+sizes and decompose causal pathways:
+
+- **`ate`**: A researcher wants a concrete NUMBER for the causal effect — not \
+just "does X affect Y" but "by HOW MUCH." "What is the average effect of \
+increasing fertilizer dose from low to high on crop yield?" "How much does \
+reducing pollution level change respiratory hospitalizations on average?" \
+Use when the case needs a quantitative estimate of effect magnitude, not \
+just a distributional shift (which `causal_effect` provides).
+
+- **`mediation`**: A researcher wants to decompose WHY an effect occurs. \
+"How much of the effect of education on income goes through job skills vs \
+through social networks?" "What fraction of the treatment benefit is explained \
+by the biological pathway?" Use when there is an identifiable intermediate \
+mechanism between cause and effect, and the question is about how much goes \
+through that pathway.
+
+- **`interaction`**: A researcher suspects the treatment effect varies across \
+subgroups. "Does the drug work differently for young vs old patients?" "Is \
+the environmental policy more effective in urban vs rural areas?" Use when \
+heterogeneous treatment effects are scientifically important. The answer is \
+yes/no: does the effect meaningfully change across levels of the modifier?
+
 ### Diagnostic and exploratory questions — complementary, not primary
 
 These are supporting questions. They enrich the case but should NOT be the \
@@ -146,14 +171,12 @@ diagnose or identify a hidden factor from its observable consequences.
 
 Some important scientific question types do not have eval_types yet. If the \
 seed asks about these, choose the closest available type:
-- **Mediation** ("Does X affect Y *through* Z?"): closest is `should_condition` \
-or `causal_effect` on the mediator, but neither fully captures mediation.
-- **Effect modification** ("Is the effect of X on Y different for group A vs B?"): \
-no direct equivalent. Consider `compare_interventions` as a rough proxy.
 - **Selection bias** ("Is the apparent effect real or driven by who is in the sample?"): \
 no direct equivalent. `should_condition` can partially capture this.
 - **Source attribution** ("Which of several possible sources is responsible?"): \
 closest is `best_intervention` or `hypothesis_selection`.
+- **Dose-response curves** ("What is the shape of the effect across levels?"): \
+use `ate` at a specific contrast, or multiple `causal_effect` questions.
 
 **Node hints — REQUIRED for node-sensitive eval types:**
 Some eval types need you to specify WHICH nodes the question is about, so the \
@@ -169,6 +192,11 @@ e.g. "high" for crop_yield).
 - **`adjustment_set`**: set `intervention_node` (the treatment/exposure variable).
 - **`should_condition`**: set `intervention_node` (the treatment) AND \
 `condition_variable` (the variable someone suggests controlling for).
+- **`ate`**: set `intervention_node` (the treatment variable).
+- **`mediation`**: set `intervention_node` (the treatment) AND \
+`condition_variable` (the mediator through which the effect passes).
+- **`interaction`**: set `intervention_node` (the treatment) AND \
+`condition_variable` (the effect modifier / subgroup variable).
 
 For `infer_target`, `next_best_observation`, `hypothesis_selection`, and \
 `infer_latent_cause`, no hints are needed — just question_text and target_node.
@@ -623,15 +651,21 @@ TOOL_DEFINITIONS = [
                                         "compare_interventions",
                                         "should_condition",
                                         "infer_latent_cause",
+                                        "ate",
+                                        "mediation",
+                                        "interaction",
                                     ],
                                     "description": (
                                         "Type of evaluation. The PRIMARY question should almost "
                                         "always be causal (causal_effect, best_intervention, "
-                                        "compare_interventions). Use infer_target only as a "
+                                        "compare_interventions, ate). Use infer_target only as a "
                                         "complementary descriptive question, not the main one. "
                                         "causal_effect: what happens if we intervene on X? "
                                         "best_intervention: which intervention maximizes Y? "
                                         "compare_interventions: is do(X) better than do(Z)? "
+                                        "ate: how MUCH does Y change when we set X high vs low? "
+                                        "mediation: what fraction of X->Y goes through M? "
+                                        "interaction: does the effect of X on Y depend on Z? "
                                         "adjustment_set: what to control for in analysis? "
                                         "should_condition: is controlling for Z correct? "
                                         "infer_target: descriptive baseline (complementary). "

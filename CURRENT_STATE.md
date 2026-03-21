@@ -3,15 +3,15 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-21 (Brief/eval separation — Fase 5)
+> Actualizado: 2026-03-21 (Task primitives — Fase 6)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1436 tests**, todos pasando
+- **1459 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
-- 9 eval types implementados con scoring
+- 12 eval types implementados con scoring (9 originales + ate, mediation, interaction)
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
 - Paper-seeded SRCs funcionando (PDF + markdown)
 - **Responses API**: toda la codebase migrada de Chat Completions a Responses API,
@@ -71,8 +71,12 @@
   - Validacion de variables, weight normalization conservadora en IG.
   - Evaluacion rigurosa: posteriors KS-test vs analitica (83-90% pass),
     interventional 100%, IG ranking 100% estable (5 seeds).
-  - 60 tests: posteriors, interventions, entropy, IG, trajectories, validation,
-    multi-evidence, grafos de 10 nodos, stopping criterion, strict mode.
+  - **Causal primitives (Fase 6)**: `ate()` (ATE via do-calculus),
+    `mediation_analysis()` (NDE/NIE via binned nested counterfactual),
+    `detect_interaction()` (ATE estratificado por modifier).
+  - 69 tests: posteriors, interventions, entropy, IG, trajectories, validation,
+    multi-evidence, grafos de 10 nodos, stopping criterion, strict mode,
+    ATE, mediation, interaction.
 - Capa de datos realistas (`scm_data.py`):
   - `apply_realism()`: ruido de medicion (Gaussiano proporcional a std),
     rounding auto-inferido, outliers, missing data (MCAR/MAR).
@@ -83,13 +87,15 @@
   - MAR: probabilidad de missing depende de valores extremos del padre
     (z-score > 1.5 duplica la tasa). Target nunca missing.
   - 40 tests: transformaciones individuales, multi-dataset, helpers, E2E.
-- `SCMTaskGenTool`: genera los 9 eval types desde SCMWorld + SCMSolver.
+- `SCMTaskGenTool`: genera 12 eval types desde SCMWorld + SCMSolver.
   - Distribuciones continuas discretizadas como histogramas (equal-width bins,
     mean +/- 4*std). Compatible con VerifierTool.kl_divergence sin cambios.
   - Intervenciones: "low" (p25) y "high" (p75) por variable.
   - Graph tasks (should_condition, adjustment_set) via SCMWorld.dag.
   - `get_all_backdoor_adjustment_sets()`: enumeracion exhaustiva de sets minimales.
-  - 41 tests: 9 eval types + scoring + consistency.
+  - **Task primitives (Fase 6)**: ate, mediation, interaction.
+    Helpers: `_find_best_causal_parent`, `_find_mediator`, `_find_modifier`.
+  - 50 tests: 12 eval types + scoring + consistency.
 - **Pipeline wiring (Fase 2c):**
   - `SCMTaskGenTool.generate_from_plan()`: genera tasks desde CasePlan con hints.
   - `SCMProblemBuilder`: SCMWorld + tasks → ResearchProblem con data realista.
@@ -243,6 +249,9 @@
 | compare_interventions | Match | Estable | Beats baseline 71% |
 | should_condition | Match | Estable | Respondido desde priors |
 | infer_latent_cause | KL divergence | Estable | 0% beats baseline |
+| ate | Numeric relative error | Nuevo (Fase 6) | Efecto cuantitativo |
+| mediation | Numeric relative error | Nuevo (Fase 6) | Fraccion mediada |
+| interaction | Match (yes/no) | Nuevo (Fase 6) | Modificacion de efecto |
 
 **Hallazgo critico**: los tipos distribution (infer_target, causal_effect)
 fuerzan analisis de datos. Los tipos structural-causal (should_condition,
@@ -254,10 +263,9 @@ adjustment_set) se responden desde conocimiento de dominio sin investigar.
 
 - **Preguntas no data-indexed**: las preguntas causales no fuerzan investigacion.
   El solver responde desde priors de pretraining.
-- **Eval types insuficientes**: faltan mediacion, effect modification, selection
-  bias assessment y source attribution. Los papers reales preguntan estos tipos
-  y el orchestrator los fuerza en los 9 tipos existentes, perdiendo lo mas
-  interesante. (Hallazgo de inspiration reports 2026-03-16.)
+- **Eval types parcialmente cubiertos**: mediacion e interaction ahora
+  implementados (Fase 6). Faltan: selection bias assessment, source attribution,
+  dose-response, threshold detection.
 - **Solver no usa research_actions**: budget y acciones existen en la
   infraestructura pero estan desactivadas en el solver por ser artificiales.
 - Orchestrator ignora dificultad pedida (siempre genera "easy").
@@ -296,7 +304,7 @@ python scripts/run_diagnostic.py
 
 ## Tests
 
-- **1427 tests** en todos los modulos
+- **1459 tests** en todos los modulos
 - Mirrors: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
 - Coverage clave: 100 mundos por template, 50 configs E2E DAG generators,
   cross-template para los 9 eval types, rich actions, CasePlan hints,

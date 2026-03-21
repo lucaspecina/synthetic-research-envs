@@ -21,6 +21,13 @@ CHOICE_TYPES = {
     TaskType.HYPOTHESIS_SELECTION,
     TaskType.COMPARE_INTERVENTIONS,
     TaskType.SHOULD_CONDITION,
+    TaskType.INTERACTION,
+}
+
+# Types where the agent submits a single numeric value
+NUMERIC_TYPES = {
+    TaskType.ATE,
+    TaskType.MEDIATION,
 }
 
 # ---------------------------------------------------------------------------
@@ -246,6 +253,29 @@ def _variable_set_submit_tool() -> dict:
     }
 
 
+def _numeric_submit_tool(description: str) -> dict:
+    """Submit tool for numeric answers (ATE, mediation)."""
+    return {
+        "type": "function",
+        "name": "submit",
+        "description": (
+            f"Submit your numeric answer. {description}"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "type": "number",
+                    "description": "Your numeric estimate",
+                },
+                "confidence": _CONFIDENCE_PROP,
+                "reasoning": _REASONING_PROP,
+            },
+            "required": ["value"],
+        },
+    }
+
+
 def build_submit_tool(
     task: Task | None = None, target_states: list[str] | None = None
 ) -> dict:
@@ -271,6 +301,15 @@ def build_submit_tool(
     elif task.type == TaskType.SHOULD_CONDITION:
         return _choice_submit_tool(
             ["yes", "no"], "Answer whether you should control for this variable."
+        )
+    elif task.type == TaskType.INTERACTION:
+        return _choice_submit_tool(
+            ["yes", "no"],
+            "Answer whether the treatment effect depends on the modifier.",
+        )
+    elif task.type in NUMERIC_TYPES:
+        return _numeric_submit_tool(
+            "Submit your estimated numeric value."
         )
     elif task.type == TaskType.BEST_INTERVENTION:
         return _intervention_submit_tool()
@@ -332,6 +371,16 @@ def _submit_instruction(task: Task | None, problem: ResearchProblem) -> str:
     elif task.type == TaskType.SHOULD_CONDITION:
         return (
             '4. When ready, use the `submit` tool with your `choice` ("yes" or "no").'
+        )
+    elif task.type == TaskType.INTERACTION:
+        return (
+            '4. When ready, use the `submit` tool with your `choice` ("yes" or "no"). '
+            "Answer whether the treatment effect depends on the modifier."
+        )
+    elif task.type in NUMERIC_TYPES:
+        return (
+            "4. When ready, use the `submit` tool with `value` -- "
+            "your estimated numeric value (a single number)."
         )
     elif task.type == TaskType.BEST_INTERVENTION:
         return (
@@ -508,7 +557,8 @@ _MULTI_SUBMIT_TOOL = {
             "Submit your answer to ONE of the research questions. "
             "Call this once per question. You MUST include 'question' (the question number). "
             "Then provide exactly ONE of: 'distribution' (JSON string mapping states to "
-            "probabilities), 'choice' (a single option), or 'variables' (list of variable names)."
+            "probabilities), 'choice' (a single option), 'value' (a number), "
+            "or 'variables' (list of variable names)."
         ),
         "parameters": {
             "type": "object",
@@ -535,6 +585,13 @@ _MULTI_SUBMIT_TOOL = {
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "List of variable names (for adjustment set questions)",
+                },
+                "value": {
+                    "type": "number",
+                    "description": (
+                        "Numeric answer (e.g. estimated treatment effect, "
+                        "fraction mediated)"
+                    ),
                 },
                 "node": {
                     "type": "string",
@@ -588,6 +645,11 @@ def _format_question(i: int, task: Task, problem: ResearchProblem) -> str:
         lines.append(f"Answer format: `submit(question={i}, choice=\"A\" or \"B\")`")
     elif task.type == TaskType.SHOULD_CONDITION:
         lines.append(f"Answer format: `submit(question={i}, choice=\"yes\" or \"no\")`")
+    elif task.type == TaskType.INTERACTION:
+        lines.append(f"Answer format: `submit(question={i}, choice=\"yes\" or \"no\")`")
+    elif task.type in NUMERIC_TYPES:
+        lines.append(f"Target: **{target_node}**")
+        lines.append(f"Answer format: `submit(question={i}, value=...)`")
     elif task.type == TaskType.BEST_INTERVENTION:
         lines.append(
             f"Answer format: `submit(question={i}, node=\"...\", state=\"...\")`"
@@ -652,8 +714,10 @@ def build_case_system_prompt(
         if tt in DISTRIBUTION_TYPES and task.correct_answer:
             keys = ", ".join(task.correct_answer.keys())
             fmt = f'`submit(question={i}, distribution={{"{keys.split(", ")[0]}": 0.X, ...}})`'
-        elif tt == TaskType.SHOULD_CONDITION:
+        elif tt in (TaskType.SHOULD_CONDITION, TaskType.INTERACTION):
             fmt = f'`submit(question={i}, choice="yes")` or `choice="no"`'
+        elif tt in NUMERIC_TYPES:
+            fmt = f'`submit(question={i}, value=2.35)`'
         elif tt == TaskType.COMPARE_INTERVENTIONS:
             fmt = f'`submit(question={i}, choice="A")` or `choice="B"`'
         elif tt == TaskType.BEST_INTERVENTION:

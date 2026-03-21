@@ -17,6 +17,9 @@ class TaskType(StrEnum):
     COMPARE_INTERVENTIONS = "compare_interventions"
     SHOULD_CONDITION = "should_condition"
     INFER_LATENT_CAUSE = "infer_latent_cause"
+    ATE = "ate"
+    MEDIATION = "mediation"
+    INTERACTION = "interaction"
 
 
 class TaskSpec(BaseModel):

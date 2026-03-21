@@ -564,3 +564,143 @@ class TestCrossTaskConsistency:
         spec = TaskSpec(type=TaskType.INFER_LATENT_CAUSE, target_node="C", max_budget=5)
         task = gen.generate(world_latent, spec, seed=42)
         assert task.type == TaskType.INFER_LATENT_CAUSE
+
+
+# ------------------------------------------------------------------
+# Test worlds for new primitives
+# ------------------------------------------------------------------
+
+
+def _mediation_world() -> SCMWorld:
+    """T -> M -> Y + T -> Y. Partial mediation."""
+    return SCMWorld(
+        id="test-mediation",
+        graph={"T": [], "M": ["T"], "Y": ["T", "M"]},
+        equations={
+            "T": lambda p, rng: rng.normal(10, 2),
+            "M": lambda p, rng: 1.0 * p["T"] + rng.normal(0, 0.5),
+            "Y": lambda p, rng: 0.5 * p["T"] + 1.0 * p["M"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+def _interaction_world() -> SCMWorld:
+    """T -> Y, Z -> Y with interaction: Y = T * Z + noise."""
+    return SCMWorld(
+        id="test-interaction",
+        graph={"T": [], "Z": [], "Y": ["T", "Z"]},
+        equations={
+            "T": lambda p, rng: rng.normal(5, 1),
+            "Z": lambda p, rng: rng.normal(3, 1),
+            "Y": lambda p, rng: p["T"] * p["Z"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+# ------------------------------------------------------------------
+# ATE
+# ------------------------------------------------------------------
+
+
+class TestATE:
+    def test_generates_task(self):
+        world = _linear_chain()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.ATE, target_node="C", max_budget=5)
+        task = gen.generate(world, spec, seed=42)
+        assert task.type == TaskType.ATE
+        assert task.scoring_method == "numeric_relative_error"
+
+    def test_correct_answer_has_value_key(self):
+        world = _linear_chain()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.ATE, target_node="C", max_budget=5)
+        task = gen.generate(world, spec, seed=42)
+        assert "value" in task.correct_answer
+        assert isinstance(task.correct_answer["value"], float)
+
+    def test_respects_intervention_node_hint(self):
+        world = _linear_chain()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.ATE, target_node="C", max_budget=5,
+            intervention_node="A",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert "A" in task.intervention
+
+
+# ------------------------------------------------------------------
+# Mediation
+# ------------------------------------------------------------------
+
+
+class TestMediation:
+    def test_generates_task(self):
+        world = _mediation_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.MEDIATION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="M",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert task.type == TaskType.MEDIATION
+        assert task.scoring_method == "numeric_relative_error"
+
+    def test_fraction_bounded(self):
+        world = _mediation_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.MEDIATION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="M",
+        )
+        task = gen.generate(world, spec, seed=42)
+        frac = task.correct_answer["value"]
+        assert 0.0 <= frac <= 1.0
+
+    def test_raises_without_mediator(self):
+        """Independent world has no directed paths."""
+        world = _independent()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.MEDIATION, target_node="B", max_budget=5)
+        with pytest.raises(ValueError, match="No mediator"):
+            gen.generate(world, spec, seed=42)
+
+
+# ------------------------------------------------------------------
+# Interaction
+# ------------------------------------------------------------------
+
+
+class TestInteraction:
+    def test_generates_task(self):
+        world = _interaction_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.INTERACTION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="Z",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert task.type == TaskType.INTERACTION
+        assert task.scoring_method == "should_condition"
+
+    def test_correct_answer_is_yes_or_no(self):
+        world = _interaction_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.INTERACTION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="Z",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert set(task.correct_answer.keys()).issubset({"yes", "no"})
+
+    def test_respects_hints(self):
+        world = _interaction_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.INTERACTION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="Z",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert "T" in task.intervention
+        assert task.intervention["T"] == "Z"

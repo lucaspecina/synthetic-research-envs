@@ -89,6 +89,21 @@ class VerifierTool:
             return 1.0
         return 0.0
 
+    def score_numeric(
+        self,
+        agent_value: float,
+        correct_value: float,
+        eps: float = 1e-6,
+    ) -> float:
+        """Score a numeric answer using relative error.
+
+        Returns 1.0 for perfect match, 0.0 when error >= 100% of true value.
+        Formula: max(0, 1 - |agent - true| / max(|true|, eps))
+        """
+        error = abs(agent_value - correct_value)
+        scale = max(abs(correct_value), eps)
+        return max(0.0, 1.0 - error / scale)
+
     def score_compare_interventions(
         self,
         agent_choice: str,

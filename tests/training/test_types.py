@@ -3,6 +3,7 @@
 from sreg.training.types import (
     CHOICE_EVAL_TYPES,
     DISTRIBUTION_EVAL_TYPES,
+    NUMERIC_EVAL_TYPES,
     SET_EVAL_TYPES,
     SubmitPayload,
 )
@@ -38,8 +39,14 @@ class TestEvalTypeSets:
         assert not (DISTRIBUTION_EVAL_TYPES & CHOICE_EVAL_TYPES)
         assert not (DISTRIBUTION_EVAL_TYPES & SET_EVAL_TYPES)
         assert not (CHOICE_EVAL_TYPES & SET_EVAL_TYPES)
+        assert not (DISTRIBUTION_EVAL_TYPES & NUMERIC_EVAL_TYPES)
+        assert not (CHOICE_EVAL_TYPES & NUMERIC_EVAL_TYPES)
+        assert not (SET_EVAL_TYPES & NUMERIC_EVAL_TYPES)
 
-    def test_all_nine_covered(self):
-        """All 9 eval types must be in exactly one set."""
-        all_types = DISTRIBUTION_EVAL_TYPES | CHOICE_EVAL_TYPES | SET_EVAL_TYPES
-        assert len(all_types) == 9
+    def test_all_twelve_covered(self):
+        """All 12 eval types must be in exactly one set."""
+        all_types = (
+            DISTRIBUTION_EVAL_TYPES | CHOICE_EVAL_TYPES
+            | SET_EVAL_TYPES | NUMERIC_EVAL_TYPES
+        )
+        assert len(all_types) == 12
