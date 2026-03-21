@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-21 (Orchestrator SCM wiring — Fase 4)
+> Actualizado: 2026-03-21 (Brief/eval separation — Fase 5)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1427 tests**, todos pasando
+- **1436 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 9 eval types implementados con scoring
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -120,12 +120,21 @@
   - generate_src.py adaptado (DAG PNG, answer key, export JSON).
   - E2E validado: 3 runs con gpt-5.4 (free goal + Vaca Muerta seed).
   - 21 tests: handler dispatch, validation, pipeline E2E.
-- **Hallazgo critico: brief vs eval separation.** Las preguntas generadas
-  parecen benchmark, no investigacion real. Brief, eval agenda y query formal
-  estan colapsados en CasePlan.questions. Documentado en
-  `research/notes/brief_vs_eval_separation.md`. Proximo paso critico.
+- **Brief/eval separation (Fase 5):**
+  - `CasePlan.research_brief` y `CasePlan.deliverables`: el orchestrator
+    escribe un encargo de investigacion real (sin variables ni eval types).
+  - `SCMProblemBuilder._build_question()`: prioriza brief sobre questions[0].
+  - `design_case` tool: `research_brief` y `deliverables` requeridos para SCM.
+    Validacion runtime rechaza brief vacio.
+  - SYSTEM_PROMPT: seccion "Brief vs eval separation" con guidelines y
+    ejemplos buenos/malos.
+  - Prompt del solver: muestra "Research Brief" como seccion visible.
+  - Backward compatible: CasePlans sin brief caen a fallback (questions[0]).
+  - E2E validado: 2 runs (free goal + Vaca Muerta). Briefs naturales.
+  - 9 tests nuevos. 1436 tests totales.
+  - Hallazgo documentado en `research/notes/brief_vs_eval_separation.md`.
 - **Pendiente:** `solve()` single-task (requiere SCMEpisodeRunner),
-  brief/eval separation, task primitives composicionales.
+  task primitives composicionales.
 - **Limitacion conocida:** rejection sampling escala mal con >5 evidence variables.
   Futuro: importance weighting con ESS monitoring.
 

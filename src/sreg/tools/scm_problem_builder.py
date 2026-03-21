@@ -197,9 +197,25 @@ class SCMProblemBuilder:
         target_states: list[str],
         case_plan: CasePlan | None,
     ) -> str:
-        """Build the research question."""
+        """Build the research question visible to the investigator.
+
+        Priority:
+        1. If case_plan has a research_brief, use it (+ deliverables).
+        2. Else fall back to questions[0].question_text (legacy).
+        3. Else generate a generic question from the world.
+        """
         states_str = ", ".join(target_states)
 
+        # Use research brief when available (Fase 5: brief/eval separation)
+        if case_plan and case_plan.research_brief:
+            parts = [case_plan.research_brief]
+            if case_plan.deliverables:
+                parts.append("\nDeliverables:")
+                for d in case_plan.deliverables:
+                    parts.append(f"- {d}")
+            return "\n".join(parts)
+
+        # Legacy fallback: use first question's text
         if case_plan and case_plan.questions:
             primary = case_plan.questions[0]
             return (

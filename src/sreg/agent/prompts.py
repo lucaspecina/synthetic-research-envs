@@ -682,6 +682,15 @@ def build_case_system_prompt(
             "interpreter — it has ALL rows, not just the preview shown below."
         )
 
+    # Research brief section (Fase 5: brief/eval separation)
+    brief_section = ""
+    if problem.research_question:
+        brief_section = f"""
+## Research Brief
+
+{problem.research_question}
+"""
+
     return f"""\
 You are a research scientist analyzing datasets to answer research questions. \
 You have historical datasets from multiple sources and a Python interpreter \
@@ -690,7 +699,7 @@ for data analysis. {dataset_intro}
 ## Research Problem: {problem.title}
 
 {problem.description}
-{theoretical}
+{theoretical}{brief_section}
 ## Available Data
 
 The following datasets contain historical records from the research domain. \

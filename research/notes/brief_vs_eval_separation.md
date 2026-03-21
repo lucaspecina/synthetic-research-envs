@@ -1,8 +1,11 @@
 # Brief vs Eval Separation: Architectural Finding
 
-> Status: hallazgo critico (2026-03-21)
+> Status: IMPLEMENTADO (Fase 5, 2026-03-21)
 > Contexto: Fase 4 SCM wiring completada, prueba E2E con Vaca Muerta
 > Participantes: Claude, Codex (gpt-5.2), usuario
+> Implementacion: CasePlan.research_brief + deliverables, SCMProblemBuilder,
+> orchestrator prompts. Validado E2E. Pendiente: task questions individuales
+> siguen siendo semi-mecanicas (futuro: task primitives).
 
 ## El problema
 

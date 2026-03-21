@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### 2026-03-21 — Brief/eval separation (Fase 5)
+
+- **Brief/eval separation**: el investigador ahora recibe un encargo de
+  investigacion real en vez de preguntas tipo benchmark. `CasePlan` tiene
+  `research_brief` (visible) y `deliverables` separados de `questions`
+  (eval agenda oculta).
+- **CasePlan model**: +`research_brief: str`, +`deliverables: list[str]`.
+  Backward compatible (defaults vacios, fallback a questions[0]).
+- **SCMProblemBuilder**: `_build_question()` prioriza brief sobre questions[0].
+- **Orchestrator prompts**: seccion "Brief vs eval separation" con guidelines
+  y ejemplos buenos/malos. `design_case` requiere research_brief y deliverables.
+  `build_problem` description actualizada. Validacion runtime: brief vacio
+  rechazado para SCM worlds.
+- **Agent prompts**: `build_case_system_prompt()` muestra "Research Brief"
+  como seccion visible antes de las preguntas individuales.
+- **Codex review**: prompt contradictorio arreglado, validacion de brief
+  vacio agregada, test de prompt-level agregado.
+- 9 tests nuevos (case_plan, scm_problem_builder, scm_wiring). 1436 tests.
+- E2E validado: 2 runs con gpt-5.4 (free goal + Vaca Muerta seed).
+
 ### 2026-03-21 — Orchestrator SCM wiring + BN removal (Fase 4)
 
 - **Orchestrator SCM wiring**: el orchestrator ahora genera mundos SCM via

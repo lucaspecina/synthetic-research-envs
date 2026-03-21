@@ -603,6 +603,18 @@ class Orchestrator:
                 n.name: set(n.states) for n in world.nodes
             }
 
+        # Validate research_brief for SCM worlds (required for proper separation)
+        research_brief = args.get("research_brief", "")
+        if is_scm and not research_brief.strip():
+            return {
+                "error": (
+                    "research_brief is required for SCM worlds. Write a 2-3 paragraph "
+                    "research assignment in natural language, WITHOUT naming specific "
+                    "model variables or eval types. See 'Brief vs eval separation' in "
+                    "the system prompt."
+                )
+            }
+
         raw_questions = args.get("questions", [])
         if not raw_questions:
             return {"error": "questions list is empty. Provide at least one question."}
@@ -697,6 +709,8 @@ class Orchestrator:
             plan = CasePlan(
                 title=args.get("title", ""),
                 research_context=args.get("research_context", ""),
+                research_brief=args.get("research_brief", ""),
+                deliverables=args.get("deliverables", []),
                 questions=questions,
                 shared_budget=args.get("shared_budget", 5),
                 rationale=args.get("rationale", ""),

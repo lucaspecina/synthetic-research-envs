@@ -290,3 +290,56 @@ class TestCasePlan:
         json_str = basic_plan.model_dump_json()
         restored = CasePlan.model_validate_json(json_str)
         assert restored == basic_plan
+
+    def test_research_brief_defaults_empty(self, basic_plan):
+        """research_brief defaults to empty string for backward compat."""
+        assert basic_plan.research_brief == ""
+        assert basic_plan.deliverables == []
+
+    def test_research_brief_and_deliverables(self):
+        plan = CasePlan(
+            title="Sanding risk investigation",
+            research_context="Investigating sanding in the Vaca Muerta formation.",
+            research_brief=(
+                "Investigate why some fracture interference events result "
+                "in sanding while others do not. Identify key operational "
+                "and geomechanical factors."
+            ),
+            deliverables=[
+                "Identify the main causal drivers of sanding",
+                "Evaluate preventive interventions",
+                "Recommend changes for next campaign",
+            ],
+            questions=[
+                EvalQuestionPlan(
+                    question_text="What factors affect sanding probability?",
+                    eval_type=TaskType.CAUSAL_EFFECT,
+                    target_node="sanding_risk",
+                    intervention_node="pad_spacing",
+                ),
+            ],
+            shared_budget=5,
+        )
+        assert "fracture interference" in plan.research_brief
+        assert len(plan.deliverables) == 3
+        assert "causal drivers" in plan.deliverables[0]
+
+    def test_brief_serialization_roundtrip(self):
+        plan = CasePlan(
+            title="Test with brief",
+            research_context="Testing brief serialization works correctly.",
+            research_brief="Investigate the phenomenon.",
+            deliverables=["Identify causes", "Recommend solutions"],
+            questions=[
+                EvalQuestionPlan(
+                    question_text="What is the distribution?",
+                    eval_type=TaskType.INFER_TARGET,
+                    target_node="outcome",
+                ),
+            ],
+            shared_budget=3,
+        )
+        data = plan.model_dump()
+        restored = CasePlan.model_validate(data)
+        assert restored.research_brief == plan.research_brief
+        assert restored.deliverables == plan.deliverables

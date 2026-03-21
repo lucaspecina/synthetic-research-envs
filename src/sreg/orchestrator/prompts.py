@@ -22,18 +22,55 @@ domain, and theoretical context. For SCM worlds, node_renames is not needed \
 (variables already have semantic names), but you MUST provide scenario_title, \
 scenario_description, and domain.
 4. **Design the research case** by calling `design_case`. This is the most \
-important step — design evaluation questions that a real researcher would ask \
-given this scenario. See "Evaluation types" below for guidance on choosing \
-the right eval_type for each question.
+important step. You must write TWO things:
+   a. A **research_brief**: the assignment a real investigator would receive. \
+Written in natural language, open-ended, WITHOUT naming specific variables \
+or eval types. Think: "what would a PI write in an email to a research assistant?"
+   b. **Evaluation questions** (hidden): how the system will score the investigator's \
+work. These are NOT visible to the investigator — they are the internal eval agenda.
+See "Brief vs eval separation" and "Evaluation types" below.
 5. **Inspiration manifest** (ONLY when generating from a research seed/paper): \
 call `emit_inspiration_manifest` to record what you understood from the seed, \
 what you preserved, what you simplified, and how seed questions map to eval types. \
 Skip this step if the goal is a free-form topic (not a seed).
 6. **Build the problem** by calling `build_problem`. This samples data from the \
 SCM and produces the final research problem. It automatically uses the research \
-case you designed in step 4 (the primary question text becomes the visible \
-research question, and actions get realistic costs).
+brief you wrote in step 4 as the visible research question (the eval questions \
+remain hidden for scoring).
 7. Return a final JSON summary.
+
+## Brief vs eval separation — CRITICAL
+
+The research_brief is what the investigator sees. The eval questions are how \
+the system scores. These are SEPARATE layers:
+
+1. **Research brief** (visible): A 2-3 paragraph assignment written as a real \
+research task. Open-ended, natural language. Does NOT name specific variables, \
+does NOT mention eval types, does NOT say "estimate the distribution" or \
+"which intervention maximizes X". Think: what would a PI or project manager \
+write when assigning this investigation?
+
+   Good brief: "Investigate why some fracture interference events in the Vaca \
+Muerta formation result in sanding while others do not. Identify the key \
+operational and geomechanical factors, evaluate whether changes to current \
+practices could reduce sanding risk, and recommend preventive measures for \
+the next drilling campaign."
+
+   Bad brief: "How would changing pad_spacing affect the probability of sanding? \
+Which controllable intervention maximizes sanding_risk being above 0.35?"
+
+2. **Deliverables** (visible): 3-5 concrete things the investigator should deliver. \
+Written as action items, not as eval types.
+
+   Good: "Identify the main causal drivers of sanding", "Evaluate whether \
+spacing or fluid intensity changes would be more effective"
+   Bad: "Submit a causal_effect distribution", "Answer the compare_interventions question"
+
+3. **Eval questions** (hidden): The `questions` array in design_case. These are \
+the internal scoring plan. The investigator does NOT see the eval_type or the \
+exact variable names from here. Write question_text as natural sub-questions \
+that a researcher would ask, but you CAN reference variables since this is \
+internal.
 
 ## Evaluation types — when to use each one
 
@@ -138,16 +175,17 @@ For `infer_target`, `next_best_observation`, `hypothesis_selection`, and \
 
 **Guidelines for question design:**
 - Use 3-5 questions per case. Don't use all types — pick the ones that fit naturally.
-- The first question is the PRIMARY one (shown to the agent as the main research question). \
-It should almost always be a causal question (causal_effect, best_intervention, or \
-compare_interventions), NOT a predictive one (infer_target).
 - Every question must feel like something a scientist would ask, not a graph theory exercise.
 - Don't repeat the same eval_type + target_node combination.
-- Write question_text as a natural research question, not as a formal instruction.
+- Write question_text as a natural research question, not as a formal instruction. \
+These are internal (the investigator sees the brief, not these), but they still \
+guide the scoring and should be well-written.
 - For node-sensitive types, always provide the required hints (see above).
 - When generating from a seed/paper: identify the paper's ACTUAL research questions \
 FIRST, then map each one to the closest eval_type. Don't pick eval_types and write \
 questions around them.
+- The research_brief MUST be written BEFORE the questions — start from the real \
+research problem and then decompose it into scorable questions.
 
 ## World design guidelines
 
@@ -495,13 +533,11 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "design_case",
             "description": (
-                "Design a research case with evaluation questions for a specific "
-                "world. This is the most important step — you choose WHAT questions "
-                "to ask and WHY. Each question has an eval_type that determines how "
-                "it will be scored mathematically. The tool validates that questions "
-                "are computable from the Bayesian network and non-degenerate. "
-                "The first question is the PRIMARY one — its question_text becomes "
-                "the visible research question the agent sees. "
+                "Design a research case with a research brief and evaluation "
+                "questions. The brief is what the investigator sees — a real "
+                "research assignment. The questions are the HIDDEN eval agenda "
+                "for scoring. The tool validates that questions are computable "
+                "from the causal model and non-degenerate. "
                 "Call this AFTER apply_semantics and BEFORE build_problem. "
                 "Use 3-5 questions. Don't use all eval types — pick the ones that "
                 "fit the scenario naturally."
@@ -528,13 +564,39 @@ TOOL_DEFINITIONS = [
                             "domain and motivates why they matter."
                         ),
                     },
+                    "research_brief": {
+                        "type": "string",
+                        "description": (
+                            "The research assignment the investigator receives. "
+                            "2-3 paragraphs, written as a real research task. "
+                            "Open-ended, natural language. Does NOT name specific "
+                            "model variables, eval types, or scoring formats. "
+                            "Think: what would a PI write when assigning this "
+                            "investigation? Example: 'Investigate why some fracture "
+                            "interference events result in sanding while others do "
+                            "not. Identify the key factors and evaluate whether "
+                            "operational changes could reduce the risk.'"
+                        ),
+                    },
+                    "deliverables": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "3-5 concrete things the investigator should deliver. "
+                            "Written as action items in natural language. "
+                            "Good: 'Identify the main causal drivers of the outcome'. "
+                            "Bad: 'Submit a causal_effect distribution'."
+                        ),
+                    },
                     "questions": {
                         "type": "array",
                         "description": (
-                            "Evaluation questions. First question is the PRIMARY one "
-                            "(its text becomes the agent's visible research question). "
-                            "Each must specify question_text, eval_type, and target_node. "
-                            "Use 3-5 questions with different eval_types."
+                            "Hidden evaluation questions (the scoring agenda). The "
+                            "investigator sees the research_brief, NOT these. Each "
+                            "must specify question_text, eval_type, and target_node. "
+                            "Use 3-5 questions with different eval_types. Write "
+                            "question_text as natural sub-questions a researcher "
+                            "would ask."
                         ),
                         "items": {
                             "type": "object",
@@ -653,6 +715,8 @@ TOOL_DEFINITIONS = [
                     "world_id",
                     "title",
                     "research_context",
+                    "research_brief",
+                    "deliverables",
                     "questions",
                     "shared_budget",
                 ],
@@ -665,11 +729,10 @@ TOOL_DEFINITIONS = [
             "name": "build_problem",
             "description": (
                 "Build the final ResearchProblem that the agent will see. Samples "
-                "data from the Bayesian network and packages narrative, datasets, "
+                "data from the causal model and packages narrative, datasets, "
                 "available actions, and budget. If you called design_case first "
-                "(recommended), this tool automatically uses your research case: "
-                "the primary question text becomes the visible research question, "
-                "and actions get realistic varied costs based on the DAG structure. "
+                "(recommended), the research_brief becomes the visible research "
+                "question, and the eval questions remain hidden for scoring. "
                 "This is the LAST tool you must call — do NOT stop before this step."
             ),
             "parameters": {

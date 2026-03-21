@@ -334,6 +334,11 @@ def test_design_case_scm_basic():
             "world_id": world_id,
             "title": "Air pollution health impact",
             "research_context": "Investigating respiratory disease drivers",
+            "research_brief": (
+                "Investigate the relationship between environmental pollution "
+                "and respiratory health outcomes in this community."
+            ),
+            "deliverables": ["Identify causal drivers", "Recommend interventions"],
             "questions": [
                 {
                     "question_text": (
@@ -373,8 +378,9 @@ def test_design_case_scm_validates_node_names():
         "design_case",
         {
             "world_id": world_id,
-            "title": "Test",
-            "research_context": "Test",
+            "title": "Test case title",
+            "research_context": "Testing node name validation in SCM.",
+            "research_brief": "Investigate the causal system.",
             "questions": [
                 {
                     "question_text": "What about nonexistent_var?",
@@ -403,8 +409,9 @@ def test_design_case_scm_validates_observable_hints():
         "design_case",
         {
             "world_id": world_id,
-            "title": "Test",
-            "research_context": "Test",
+            "title": "Test case title",
+            "research_context": "Testing observable hint validation in SCM.",
+            "research_brief": "Investigate the causal system.",
             "questions": [
                 {
                     "question_text": "Effect of Z?",
@@ -435,8 +442,9 @@ def test_design_case_scm_skips_desired_state_validation():
         "design_case",
         {
             "world_id": world_id,
-            "title": "Test",
-            "research_context": "Test",
+            "title": "Test case title",
+            "research_context": "Testing desired state validation skip for SCM.",
+            "research_brief": "Investigate which intervention maximizes health.",
             "questions": [
                 {
                     "question_text": "Which intervention maximizes health?",
@@ -555,6 +563,11 @@ def test_build_problem_scm_with_case_plan():
             "world_id": world_id,
             "title": "Pollution impact on health",
             "research_context": "Understanding respiratory disease drivers",
+            "research_brief": (
+                "Investigate the relationship between environmental pollution "
+                "and respiratory health in the Newara district."
+            ),
+            "deliverables": ["Identify drivers", "Recommend actions"],
             "questions": [
                 {
                     "question_text": "Effect of air quality on disease?",
@@ -594,6 +607,170 @@ def test_build_problem_scm_with_case_plan():
 # ---------------------------------------------------------------------------
 # E2E pipeline validation
 # ---------------------------------------------------------------------------
+
+
+def test_build_problem_scm_uses_research_brief():
+    """When CasePlan has research_brief, it becomes the visible research question."""
+    orch = _make_orch()
+    result = OrchestratorResult()
+
+    # 1. Create world
+    create_out = orch._dispatch_tool("scm_construct", _epi_spec_args(), result)
+    world_id = create_out["world_id"]
+
+    # 2. Apply semantics
+    orch._dispatch_tool(
+        "apply_semantics",
+        {
+            "world_id": world_id,
+            "scenario_title": "Respiratory health in Newara",
+            "scenario_description": "Pollution study",
+            "domain": "epidemiology",
+            "node_renames": {},
+            "node_descriptions": {},
+        },
+        result,
+    )
+
+    # 3. Design case WITH research_brief
+    design_out = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Pollution impact on health",
+            "research_context": "Understanding respiratory disease drivers",
+            "research_brief": (
+                "Investigate the relationship between environmental pollution "
+                "and respiratory health outcomes in the Newara district. "
+                "Determine which factors are most important and whether "
+                "interventions could reduce disease burden."
+            ),
+            "deliverables": [
+                "Identify primary environmental drivers of respiratory disease",
+                "Evaluate potential intervention strategies",
+                "Recommend monitoring priorities",
+            ],
+            "questions": [
+                {
+                    "question_text": "Effect of air quality on disease?",
+                    "eval_type": "causal_effect",
+                    "target_node": "respiratory_disease",
+                    "intervention_node": "air_quality",
+                },
+            ],
+            "shared_budget": 5,
+        },
+        result,
+    )
+    assert "error" not in design_out
+
+    # 4. Build problem
+    prob_out = orch._dispatch_tool(
+        "build_problem",
+        {
+            "world_id": world_id,
+            "budget": 5,
+            "data_format": "tabular",
+        },
+        result,
+    )
+
+    assert "error" not in prob_out
+    problem = result.problem
+    assert problem is not None
+    # Brief should be visible, not the eval question
+    assert "environmental pollution" in problem.research_question
+    assert "respiratory health" in problem.research_question
+    # Deliverables should appear
+    assert "environmental drivers" in problem.research_question
+    assert "monitoring priorities" in problem.research_question
+    # The eval question should NOT be the visible question
+    assert "Effect of air quality on disease" not in problem.research_question
+
+
+def test_design_case_stores_brief_in_plan():
+    """Verify research_brief and deliverables are stored in CasePlan."""
+    orch = _make_orch()
+    result = OrchestratorResult()
+
+    create_out = orch._dispatch_tool("scm_construct", _minimal_spec_args(), result)
+    world_id = create_out["world_id"]
+
+    orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Simple test case",
+            "research_context": "Testing brief storage in the plan.",
+            "research_brief": "Investigate the causal chain from X to Y.",
+            "deliverables": ["Identify drivers", "Recommend actions"],
+            "questions": [
+                {
+                    "question_text": "What is the distribution of Y?",
+                    "eval_type": "infer_target",
+                    "target_node": "Y",
+                },
+            ],
+            "shared_budget": 3,
+        },
+        result,
+    )
+
+    plan = orch._case_plans.get(world_id)
+    assert plan is not None
+    assert plan.research_brief == "Investigate the causal chain from X to Y."
+    assert plan.deliverables == ["Identify drivers", "Recommend actions"]
+
+
+def test_design_case_scm_rejects_empty_brief():
+    """SCM worlds require a non-empty research_brief."""
+    orch = _make_orch()
+    result = OrchestratorResult()
+
+    create_out = orch._dispatch_tool("scm_construct", _minimal_spec_args(), result)
+    world_id = create_out["world_id"]
+
+    # No research_brief
+    out = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Test case",
+            "research_context": "Testing empty brief rejection.",
+            "questions": [
+                {
+                    "question_text": "What is the distribution of Y?",
+                    "eval_type": "infer_target",
+                    "target_node": "Y",
+                },
+            ],
+            "shared_budget": 3,
+        },
+        result,
+    )
+    assert "error" in out
+    assert "research_brief" in out["error"]
+
+    # Empty string brief
+    out2 = orch._dispatch_tool(
+        "design_case",
+        {
+            "world_id": world_id,
+            "title": "Test case",
+            "research_context": "Testing empty brief rejection.",
+            "research_brief": "   ",
+            "questions": [
+                {
+                    "question_text": "What is the distribution of Y?",
+                    "eval_type": "infer_target",
+                    "target_node": "Y",
+                },
+            ],
+            "shared_budget": 3,
+        },
+        result,
+    )
+    assert "error" in out2
 
 
 def test_e2e_scm_pipeline_data_quality():

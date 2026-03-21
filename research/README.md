@@ -128,10 +128,12 @@ desplazandose hacia `synthesis/`.
 - **Hallazgo clave:** el sistema confunde tres capas: brief (visible),
   eval agenda (scoring plan), query formal (ground truth). Hoy las tres
   estan colapsadas en CasePlan.questions.
-- **Solucion propuesta:** agregar research_brief a CasePlan, construir
-  la pregunta visible desde ahi, dejar questions como plan oculto.
+- **Solucion implementada:** `CasePlan.research_brief` + `deliverables`.
+  `SCMProblemBuilder` prioriza brief. Orchestrator requiere brief para SCM.
+  Prompt del solver muestra "Research Brief" como seccion visible.
 - **Conecta con:** task primitives, LA PREGUNTA
-- **Status:** HALLAZGO DOCUMENTADO. Implementar como Fase 5.
+- **Status:** IMPLEMENTADO (Fase 5). Pendiente: task questions individuales
+  siguen semi-mecanicas (futuro: task primitives).
 
 ### Task primitives composicionales — expandir evaluacion SCM
 - **Pregunta:** como expandir los 9 task types fijos a una arquitectura mas

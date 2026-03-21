@@ -81,6 +81,10 @@ class CasePlan(BaseModel):
 
     The orchestrator proposes the plan (questions, budget, rationale).
     Tools validate that questions are computable and non-degenerate.
+
+    The research_brief is what the investigator sees — a real research
+    assignment written in natural language. The questions list is the
+    hidden eval agenda used for scoring.
     """
 
     title: str = Field(
@@ -90,6 +94,23 @@ class CasePlan(BaseModel):
     research_context: str = Field(
         min_length=20,
         description="Narrative context explaining the research scenario",
+    )
+    research_brief: str = Field(
+        default="",
+        description=(
+            "The research brief the investigator receives. Written as a real "
+            "research assignment: open-ended, natural language, no variable "
+            "names or eval types. This is what the agent sees as the main "
+            "research question."
+        ),
+    )
+    deliverables: list[str] = Field(
+        default_factory=list,
+        description=(
+            "What the investigator should deliver. E.g., 'Identify the main "
+            "causal factors', 'Evaluate preventive interventions'. Shown as "
+            "a bullet list after the brief."
+        ),
     )
     questions: list[EvalQuestionPlan] = Field(
         min_length=1,
