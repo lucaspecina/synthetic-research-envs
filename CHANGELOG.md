@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### 2026-03-23 — Estimand separation + quality fixes (Fase 6b)
+
+- **Estimand separation**: nuevo campo `Task.estimand` con parametros
+  estructurados (treatment, outcome, v_low, v_high, mediator, modifier).
+  Las preguntas de ATE/mediation ahora son naturales — sin boilerplate
+  mecanico ("Submit a single numeric value"). El orchestrator's question_text
+  tiene prioridad via override.
+- **Entity-match gating**: override de pregunta solo se aplica cuando las
+  entidades del estimand (treatment, mediator, modifier) aparecen en el
+  question_text del orchestrator. Evita preguntas misleading.
+- **Contrast sharing**: tasks del mismo treatment comparten v_low/v_high
+  identicos via cache en `generate_from_plan()`.
+- **Interaction scoring fix**: `_score_result()` ahora scorea INTERACTION
+  via `score_should_condition` (antes score=0.0 silencioso).
+- **Hint validation**: ATE, MEDIATION, INTERACTION agregados a
+  `_HINT_REQUIRED_TYPES` del orchestrator.
+- **Agent prompts**: nueva seccion "Analysis specification" renderiza el
+  estimand como bloque separado de la pregunta natural.
+- 5 tests nuevos (estimand + natural question). 1464 tests totales.
+
 ### 2026-03-21 — Task primitives: ATE, mediation, interaction (Fase 6)
 
 - **3 nuevos task types**: `ate` (average treatment effect), `mediation`

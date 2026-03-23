@@ -57,8 +57,23 @@ class SCMTaskGenTool:
             tasks=tasks,
         )
 
-    def generate(self, world: SCMWorld, spec: TaskSpec, seed: int = 0) -> Task:
-        """Generate a task from an SCMWorld and specification."""
+    def generate(
+        self,
+        world: SCMWorld,
+        spec: TaskSpec,
+        seed: int = 0,
+        treatment_contrasts: dict[str, tuple[float, float]] | None = None,
+    ) -> Task:
+        """Generate a task from an SCMWorld and specification.
+
+        Parameters
+        ----------
+        treatment_contrasts : optional mutable cache
+            ``{node_name: (v_low, v_high)}``.  When provided, ATE / mediation /
+            interaction tasks reuse cached treatment levels for the same node
+            (and populate the cache on first use).  This keeps contrasts
+            consistent across tasks that share a treatment variable.
+        """
         if spec.type == TaskType.INFER_TARGET:
             return self._infer_target_task(world, spec, seed)
         if spec.type == TaskType.NEXT_BEST_OBSERVATION:
@@ -78,11 +93,11 @@ class SCMTaskGenTool:
         if spec.type == TaskType.INFER_LATENT_CAUSE:
             return self._infer_latent_cause_task(world, spec, seed)
         if spec.type == TaskType.ATE:
-            return self._ate_task(world, spec, seed)
+            return self._ate_task(world, spec, seed, treatment_contrasts)
         if spec.type == TaskType.MEDIATION:
-            return self._mediation_task(world, spec, seed)
+            return self._mediation_task(world, spec, seed, treatment_contrasts)
         if spec.type == TaskType.INTERACTION:
-            return self._interaction_task(world, spec, seed)
+            return self._interaction_task(world, spec, seed, treatment_contrasts)
         raise ValueError(f"Unsupported task type: {spec.type}")
 
     # ------------------------------------------------------------------
@@ -815,7 +830,11 @@ class SCMTaskGenTool:
     # ------------------------------------------------------------------
 
     def _ate_task(
-        self, world: SCMWorld, spec: TaskSpec, seed: int
+        self,
+        world: SCMWorld,
+        spec: TaskSpec,
+        seed: int,
+        treatment_contrasts: dict[str, tuple[float, float]] | None = None,
     ) -> Task:
         solver = SCMSolver(world)
         target = spec.target_node
@@ -830,20 +849,18 @@ class SCMTaskGenTool:
                 world, solver, target, obs_nodes, seed
             )
 
-        # Treatment levels: 25th and 75th percentile of marginal
-        t_samples = world.observational_distribution(treatment, n=10_000, seed=seed)
-        v_low = round(float(np.percentile(t_samples, 25)), 2)
-        v_high = round(float(np.percentile(t_samples, 75)), 2)
+        # Treatment levels: 25th and 75th percentile (shared cache)
+        v_low, v_high = self._resolve_contrast(
+            world, treatment, seed, treatment_contrasts
+        )
 
         ate_value = solver.ate(treatment, target, v_high, v_low, n=50_000, seed=seed)
         correct_answer = {"value": round(ate_value, 4)}
 
         question = (
-            f"Estimate the average causal effect of increasing '{treatment}' "
-            f"from {v_low:.2f} to {v_high:.2f} on '{target}'. "
-            f"How much does '{target}' change on average when '{treatment}' "
-            f"is set to {v_high:.2f} vs {v_low:.2f}? "
-            f"Submit a single numeric value (the estimated effect)."
+            f"What is the average causal effect of '{treatment}' on "
+            f"'{target}'? Estimate how much '{target}' would change, on "
+            f"average, if '{treatment}' were shifted from a low to a high level."
         )
 
         remaining = [n for n in obs_nodes if n != treatment]
@@ -857,10 +874,21 @@ class SCMTaskGenTool:
             correct_answer=correct_answer,
             scoring_method="numeric_relative_error",
             intervention={treatment: f"{v_low:.2f}->{v_high:.2f}"},
+            estimand={
+                "type": "ate",
+                "treatment": treatment,
+                "outcome": target,
+                "v_low": v_low,
+                "v_high": v_high,
+            },
         )
 
     def _mediation_task(
-        self, world: SCMWorld, spec: TaskSpec, seed: int
+        self,
+        world: SCMWorld,
+        spec: TaskSpec,
+        seed: int,
+        treatment_contrasts: dict[str, tuple[float, float]] | None = None,
     ) -> Task:
         solver = SCMSolver(world)
         target = spec.target_node
@@ -893,10 +921,10 @@ class SCMTaskGenTool:
                 f"No mediator found between '{treatment}' and '{target}'"
             )
 
-        # Treatment levels
-        t_samples = world.observational_distribution(treatment, n=10_000, seed=seed)
-        v_low = round(float(np.percentile(t_samples, 25)), 2)
-        v_high = round(float(np.percentile(t_samples, 75)), 2)
+        # Treatment levels (shared cache)
+        v_low, v_high = self._resolve_contrast(
+            world, treatment, seed, treatment_contrasts
+        )
 
         result = solver.mediation_analysis(
             treatment, mediator, target, v_high, v_low, n=20_000, seed=seed
@@ -904,11 +932,9 @@ class SCMTaskGenTool:
         correct_answer = {"value": round(result["fraction_mediated"], 4)}
 
         question = (
-            f"What fraction of the effect of '{treatment}' on '{target}' "
-            f"is mediated through '{mediator}'? "
-            f"Consider the treatment change from {v_low:.2f} to {v_high:.2f}. "
-            f"Submit a value between 0 and 1 representing the proportion "
-            f"of the total effect that goes through '{mediator}'."
+            f"What fraction of the causal effect of '{treatment}' on "
+            f"'{target}' is mediated through '{mediator}'? Estimate the "
+            f"proportion of the total effect that operates via '{mediator}'."
         )
 
         remaining = [n for n in obs_nodes if n != treatment]
@@ -922,10 +948,22 @@ class SCMTaskGenTool:
             correct_answer=correct_answer,
             scoring_method="numeric_relative_error",
             intervention={treatment: mediator},
+            estimand={
+                "type": "mediation",
+                "treatment": treatment,
+                "mediator": mediator,
+                "outcome": target,
+                "v_low": v_low,
+                "v_high": v_high,
+            },
         )
 
     def _interaction_task(
-        self, world: SCMWorld, spec: TaskSpec, seed: int
+        self,
+        world: SCMWorld,
+        spec: TaskSpec,
+        seed: int,
+        treatment_contrasts: dict[str, tuple[float, float]] | None = None,
     ) -> Task:
         solver = SCMSolver(world)
         target = spec.target_node
@@ -960,10 +998,10 @@ class SCMTaskGenTool:
                 f"No suitable modifier found for '{treatment}' -> '{target}'"
             )
 
-        # Treatment levels
-        t_samples = world.observational_distribution(treatment, n=10_000, seed=seed)
-        v_low = round(float(np.percentile(t_samples, 25)), 2)
-        v_high = round(float(np.percentile(t_samples, 75)), 2)
+        # Treatment levels (shared cache)
+        v_low, v_high = self._resolve_contrast(
+            world, treatment, seed, treatment_contrasts
+        )
 
         result = solver.detect_interaction(
             treatment, target, modifier, v_high, v_low, n=50_000, seed=seed
@@ -990,11 +1028,36 @@ class SCMTaskGenTool:
             correct_answer=correct_answer,
             scoring_method="should_condition",
             intervention={treatment: modifier},
+            estimand={
+                "type": "interaction",
+                "treatment": treatment,
+                "modifier": modifier,
+                "outcome": target,
+                "v_low": v_low,
+                "v_high": v_high,
+            },
         )
 
     # ------------------------------------------------------------------
     # Helpers for new primitives
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _resolve_contrast(
+        world: SCMWorld,
+        treatment: str,
+        seed: int,
+        cache: dict[str, tuple[float, float]] | None = None,
+    ) -> tuple[float, float]:
+        """Return (v_low, v_high) for a treatment, using cache when available."""
+        if cache is not None and treatment in cache:
+            return cache[treatment]
+        t_samples = world.observational_distribution(treatment, n=10_000, seed=seed)
+        v_low = round(float(np.percentile(t_samples, 25)), 2)
+        v_high = round(float(np.percentile(t_samples, 75)), 2)
+        if cache is not None:
+            cache[treatment] = (v_low, v_high)
+        return v_low, v_high
 
     @staticmethod
     def _find_best_causal_parent(
@@ -1092,13 +1155,13 @@ class SCMTaskGenTool:
         TaskType.HYPOTHESIS_SELECTION,
         TaskType.INFER_LATENT_CAUSE,
         TaskType.INTERACTION,
+        TaskType.ATE,
+        TaskType.MEDIATION,
     })
 
     # Types where overriding the question risks semantic inversion.
     _NEVER_OVERRIDE_QUESTION_TYPES = frozenset({
         TaskType.COMPARE_INTERVENTIONS,
-        TaskType.ATE,
-        TaskType.MEDIATION,
     })
 
     def generate_from_plan(
@@ -1119,6 +1182,8 @@ class SCMTaskGenTool:
         """
         tasks: list[Task] = []
         errors: list[str] = []
+        # Shared contrast cache: same treatment → same (v_low, v_high)
+        contrast_cache: dict[str, tuple[float, float]] = {}
 
         for i, q in enumerate(plan.questions):
             spec = TaskSpec(
@@ -1131,7 +1196,10 @@ class SCMTaskGenTool:
                 condition_variable=q.condition_variable,
             )
             try:
-                task = self.generate(world, spec, seed=seed + i)
+                task = self.generate(
+                    world, spec, seed=seed + i,
+                    treatment_contrasts=contrast_cache,
+                )
             except Exception as e:
                 logger.warning(
                     "Skipping question %d (%s): %s", i + 1, q.eval_type, e
@@ -1143,7 +1211,19 @@ class SCMTaskGenTool:
             if q.eval_type in self._NEVER_OVERRIDE_QUESTION_TYPES:
                 pass
             elif q.eval_type in self._SAFE_QUESTION_OVERRIDE_TYPES:
-                task = task.model_copy(update={"question": q.question_text})
+                # For estimand-bearing types, only override when the
+                # orchestrator's question actually names the key entities.
+                if task.estimand and not self._entities_match_question(
+                    q.question_text, task
+                ):
+                    logger.warning(
+                        "Question override rejected for %s: question text "
+                        "does not mention key entities. Keeping generated "
+                        "question. (question: '%.80s...', estimand: %s)",
+                        q.eval_type.value, q.question_text, task.estimand,
+                    )
+                else:
+                    task = task.model_copy(update={"question": q.question_text})
             elif self._hints_honored(q, task):
                 task = task.model_copy(update={"question": q.question_text})
 
@@ -1236,6 +1316,38 @@ class SCMTaskGenTool:
             )
 
         return False
+
+    @staticmethod
+    def _entities_match_question(question_text: str, task: Task) -> bool:
+        """Check whether key estimand entities appear in the question text.
+
+        For ATE the treatment must appear; for mediation the treatment AND
+        mediator; for interaction the treatment AND modifier.  Names are
+        matched with underscores replaced by spaces (``ambient_pm25`` matches
+        ``ambient pm25``).  Returns True for types without an estimand.
+        """
+        if not task.estimand or not question_text:
+            return True
+
+        q_lower = question_text.lower()
+
+        def _present(name: str | float) -> bool:
+            if not isinstance(name, str):
+                return True
+            return name.lower() in q_lower or name.replace("_", " ").lower() in q_lower
+
+        etype = task.estimand.get("type", "")
+        if etype == "ate":
+            return _present(task.estimand.get("treatment", ""))
+        if etype == "mediation":
+            return _present(task.estimand.get("treatment", "")) and _present(
+                task.estimand.get("mediator", "")
+            )
+        if etype == "interaction":
+            return _present(task.estimand.get("treatment", "")) and _present(
+                task.estimand.get("modifier", "")
+            )
+        return True
 
 
 __all__ = ["SCMTaskGenTool"]

@@ -619,6 +619,25 @@ class TestATE:
         assert "value" in task.correct_answer
         assert isinstance(task.correct_answer["value"], float)
 
+    def test_estimand_populated(self):
+        world = _linear_chain()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.ATE, target_node="C", max_budget=5)
+        task = gen.generate(world, spec, seed=42)
+        assert task.estimand["type"] == "ate"
+        assert "treatment" in task.estimand
+        assert "outcome" in task.estimand
+        assert isinstance(task.estimand["v_low"], float)
+        assert isinstance(task.estimand["v_high"], float)
+
+    def test_question_is_natural(self):
+        world = _linear_chain()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.ATE, target_node="C", max_budget=5)
+        task = gen.generate(world, spec, seed=42)
+        assert "Submit" not in task.question
+        assert "->" not in task.question
+
     def test_respects_intervention_node_hint(self):
         world = _linear_chain()
         gen = SCMTaskGenTool()
@@ -658,6 +677,30 @@ class TestMediation:
         frac = task.correct_answer["value"]
         assert 0.0 <= frac <= 1.0
 
+    def test_estimand_populated(self):
+        world = _mediation_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.MEDIATION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="M",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert task.estimand["type"] == "mediation"
+        assert task.estimand["mediator"] == "M"
+        assert task.estimand["treatment"] == "T"
+        assert task.estimand["outcome"] == "Y"
+
+    def test_question_is_natural(self):
+        world = _mediation_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.MEDIATION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="M",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert "Submit" not in task.question
+        assert "between 0 and 1" not in task.question
+
     def test_raises_without_mediator(self):
         """Independent world has no directed paths."""
         world = _independent()
@@ -693,6 +736,18 @@ class TestInteraction:
         )
         task = gen.generate(world, spec, seed=42)
         assert set(task.correct_answer.keys()).issubset({"yes", "no"})
+
+    def test_estimand_populated(self):
+        world = _interaction_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.INTERACTION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="Z",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert task.estimand["type"] == "interaction"
+        assert task.estimand["modifier"] == "Z"
+        assert task.estimand["treatment"] == "T"
 
     def test_respects_hints(self):
         world = _interaction_world()

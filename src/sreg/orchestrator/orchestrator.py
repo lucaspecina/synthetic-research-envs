@@ -579,6 +579,9 @@ class Orchestrator:
         TaskType.COMPARE_INTERVENTIONS: ["compare_nodes", "desired_state"],
         TaskType.ADJUSTMENT_SET: ["intervention_node"],
         TaskType.SHOULD_CONDITION: ["intervention_node", "condition_variable"],
+        TaskType.ATE: ["intervention_node"],
+        TaskType.MEDIATION: ["intervention_node", "condition_variable"],
+        TaskType.INTERACTION: ["intervention_node", "condition_variable"],
     }
 
     def _handle_design_case(self, args: dict, result: OrchestratorResult) -> dict:

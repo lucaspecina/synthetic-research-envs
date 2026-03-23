@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-21 (Task primitives — Fase 6)
+> Actualizado: 2026-03-23 (Estimand separation — Fase 6b)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1459 tests**, todos pasando
+- **1464 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 12 eval types implementados con scoring (9 originales + ate, mediation, interaction)
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)

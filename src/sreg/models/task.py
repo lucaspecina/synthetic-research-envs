@@ -72,6 +72,14 @@ class Task(BaseModel):
         default_factory=dict,
         description="Intervention for causal_effect: {node: state} (the do() operation)",
     )
+    estimand: dict[str, float | str] = Field(
+        default_factory=dict,
+        description=(
+            "Structured estimand parameters — treatment levels, mediator, modifier, "
+            "etc.  Visible to the agent as an 'analysis specification' section, "
+            "separate from the natural-language question."
+        ),
+    )
 
 
 class TaskBundle(BaseModel):

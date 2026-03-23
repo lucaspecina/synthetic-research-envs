@@ -648,7 +648,7 @@ class AgentSolver:
             score_val = verifier.score_compare_interventions(
                 result.submitted_answer, task.correct_answer
             )
-        elif task_type == TaskType.SHOULD_CONDITION:
+        elif task_type in (TaskType.SHOULD_CONDITION, TaskType.INTERACTION):
             score_val = verifier.score_should_condition(
                 result.submitted_answer, task.correct_answer
             )

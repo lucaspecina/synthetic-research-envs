@@ -125,6 +125,45 @@ _REASONING_PROP = {
 }
 
 
+def _estimand_section(task: Task) -> str:
+    """Format the estimand as an 'Analysis specification' block.
+
+    Returns empty string when the task has no estimand.
+    """
+    est = task.estimand
+    if not est:
+        return ""
+    etype = est.get("type", "")
+    lines: list[str] = []
+    lines.append("**Analysis specification:**")
+    if etype == "ate":
+        lines.append(
+            f"- Treatment variable: `{est['treatment']}` "
+            f"(contrast: {est['v_low']} to {est['v_high']})"
+        )
+        lines.append(f"- Outcome variable: `{est['outcome']}`")
+        lines.append("- Submit a single numeric value (the estimated ATE).")
+    elif etype == "mediation":
+        lines.append(
+            f"- Treatment variable: `{est['treatment']}` "
+            f"(contrast: {est['v_low']} to {est['v_high']})"
+        )
+        lines.append(f"- Mediator: `{est['mediator']}`")
+        lines.append(f"- Outcome variable: `{est['outcome']}`")
+        lines.append(
+            "- Submit a value between 0 and 1 (fraction of total effect "
+            "mediated)."
+        )
+    elif etype == "interaction":
+        lines.append(
+            f"- Treatment variable: `{est['treatment']}` "
+            f"(contrast: {est['v_low']} to {est['v_high']})"
+        )
+        lines.append(f"- Potential modifier: `{est['modifier']}`")
+        lines.append(f"- Outcome variable: `{est['outcome']}`")
+    return "\n".join(lines)
+
+
 def _distribution_submit_tool(states: list[str]) -> dict:
     """Submit tool for distribution answers (infer_target, causal_effect, etc.)."""
     example_parts = ", ".join(f'"{s}": {1/len(states):.2f}' for s in states[:3])
@@ -459,6 +498,13 @@ def build_agent_system_prompt(
     # Use task question if provided, otherwise problem's research_question
     research_question = task.question if task else problem.research_question
 
+    # Estimand specification for numeric/interaction types (single-task mode)
+    estimand_block = ""
+    if task:
+        est_text = _estimand_section(task)
+        if est_text:
+            estimand_block = f"\n\n{est_text}"
+
     # For hypothesis_selection: append the candidate distributions to the question
     # so the agent sees them even when the orchestrator overwrote the question
     # with a narrative version that omits the distributions.
@@ -517,7 +563,7 @@ units (see the action list below — costs may vary).
 ## Research Question
 
 {research_question}
-{hypotheses_section}
+{hypotheses_section}{estimand_block}
 
 Your target variable is **{target_node}** with possible states: \
 {states_str}.
@@ -646,9 +692,16 @@ def _format_question(i: int, task: Task, problem: ResearchProblem) -> str:
     elif task.type == TaskType.SHOULD_CONDITION:
         lines.append(f"Answer format: `submit(question={i}, choice=\"yes\" or \"no\")`")
     elif task.type == TaskType.INTERACTION:
+        est_text = _estimand_section(task)
+        if est_text:
+            lines.append(est_text)
         lines.append(f"Answer format: `submit(question={i}, choice=\"yes\" or \"no\")`")
     elif task.type in NUMERIC_TYPES:
-        lines.append(f"Target: **{target_node}**")
+        est_text = _estimand_section(task)
+        if est_text:
+            lines.append(est_text)
+        else:
+            lines.append(f"Target: **{target_node}**")
         lines.append(f"Answer format: `submit(question={i}, value=...)`")
     elif task.type == TaskType.BEST_INTERVENTION:
         lines.append(
