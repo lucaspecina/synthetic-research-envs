@@ -778,23 +778,33 @@ class Orchestrator:
 
         # SCMWorld: use SCMProblemBuilder
         if isinstance(world, SCMWorld):
+            from sreg.world.scm_data import PanelConfig
+
             semantics = self._world_semantics.get(world_id, {})
             seed = self._world_seeds.get(world_id, 42)
 
             # Get tasks from result if available
             tasks = result.task if isinstance(result.task, list) else None
 
+            effective_rows = max(num_rows, 200)
+            panel_config = PanelConfig(
+                n_sites=max(4, effective_rows // 50),
+                n_waves=3,
+                seed=seed,
+            )
+
             problem = self._scm_problem_builder.build(
                 world,
                 tasks=tasks,
                 budget=budget,
-                n_rows=max(num_rows, 200),
+                n_rows=effective_rows,
                 multi_dataset=True,
                 case_plan=case_plan,
                 seed=seed,
                 title=semantics.get("scenario_title"),
                 description=semantics.get("scenario_description"),
                 domain=semantics.get("domain"),
+                panel=panel_config,
             )
             result.problem = problem
 

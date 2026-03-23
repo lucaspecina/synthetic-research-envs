@@ -215,6 +215,26 @@ questions around them.
 - The research_brief MUST be written BEFORE the questions — start from the real \
 research problem and then decompose it into scorable questions.
 
+## Data structure awareness -- CRITICAL for the research brief
+
+The data the investigator receives has realistic observational structure:
+- A main dataset with site/cluster identifiers and measurement waves \
+(multi-site, repeated observations).
+- Smaller supplementary datasets from independent surveys (flat, no panel).
+- Some columns that are proxy measurements -- correlated with real variables \
+but not part of the causal model. The investigator must identify which are useful.
+- Missing data patterns that vary by wave (later waves have more missing) and \
+by site (some sites drop out entirely).
+
+When writing the **research_brief**:
+- DO mention the general study design: "multi-site observational study", \
+"data collected across multiple sites over several measurement periods."
+- DO mention that some measurements may be incomplete in certain periods.
+- Do NOT promise specific data structure that does not exist (e.g., do not \
+describe individual patient-level follow-up if the data is area-level).
+- Do NOT name specific proxy columns -- let the investigator discover them.
+- Do NOT specify exact numbers of sites, waves, or columns in the brief.
+
 ## World design guidelines
 
 Use `scm_construct` to define the causal model. Design a realistic causal \

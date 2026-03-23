@@ -51,6 +51,42 @@ class RealisticDataConfig:
 
 
 @dataclass
+class PanelConfig:
+    """Configuration for panel / longitudinal structure.
+
+    Transforms IID samples into data that looks like it was collected
+    across multiple sites over multiple measurement waves.  Adds
+    within-site clustering (random effects), temporal drift, site
+    dropout, and proxy (nuisance) columns.
+    """
+
+    n_sites: int = 8
+    """Number of collection sites / clusters."""
+
+    n_waves: int = 3
+    """Number of measurement waves (time periods)."""
+
+    site_effect_std: float = 0.3
+    """Std of site random intercept as fraction of variable std.
+    Loading varies per variable (multiplied by a per-var factor in [0.5, 1.5]).
+    0.3 yields ICC ~ 0.08 on average."""
+
+    wave_trend: float = 0.0
+    """Linear drift per wave as fraction of variable std. 0 = none."""
+
+    dropout_rate: float = 0.10
+    """Per-wave probability that a site drops out (cumulative)."""
+
+    n_proxy_columns: int = 2
+    """Number of correlated proxy / nuisance columns to inject."""
+
+    proxy_noise_std: float = 0.5
+    """Noise level for proxy columns relative to source std."""
+
+    seed: int = 0
+
+
+@dataclass
 class DatasetArtifact:
     """A dataset with metadata, representing one data source."""
 
@@ -76,6 +112,7 @@ def apply_realism(
     outlier_magnitude: float = 3.0,
     target: str | None = None,
     rounding: dict[str, int] | None = None,
+    structural_cols: list[str] | None = None,
     seed: int = 0,
 ) -> pd.DataFrame:
     """Apply realistic measurement imperfections to clean SCM samples.
@@ -94,6 +131,7 @@ def apply_realism(
         outlier_magnitude: Outlier distance in std deviations.
         target: Variable to protect from missing data. Last in topo order if None.
         rounding: Override decimal places. Auto-inferred if None.
+        structural_cols: Extra columns to skip (e.g. site_id, wave, proxies).
         seed: Random seed.
 
     Returns:
@@ -102,7 +140,8 @@ def apply_realism(
     result = df.copy()
     rng = np.random.default_rng(seed)
     target = target or world.variables[-1]
-    data_cols = [c for c in result.columns if c != "sample_id"]
+    skip = {"sample_id"} | set(structural_cols or [])
+    data_cols = [c for c in result.columns if c not in skip]
 
     result = _apply_noise(result, data_cols, world, noise_fraction, rng)
     result = _apply_outliers(result, data_cols, outlier_fraction, outlier_magnitude, rng)
@@ -146,32 +185,190 @@ def realistic_sample(
     )
 
 
+def apply_panel_structure(
+    df: pd.DataFrame,
+    world: SCMWorld,
+    config: PanelConfig,
+    target: str | None = None,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Transform IID samples into panel-structured data.
+
+    Assigns rows to (site, wave) cells, adds site-level random effects
+    for within-cluster correlation, applies wave trend and site dropout,
+    and injects proxy columns.
+
+    Returns:
+        (panel_df, proxy_column_names).  panel_df has ``site_id`` and
+        ``wave`` as the first two columns plus any proxy columns.
+    """
+    rng = np.random.default_rng(config.seed)
+    target = target or world.variables[-1]
+    data_cols = [c for c in df.columns if c != "sample_id"]
+    n = len(df)
+    n_cells = config.n_sites * config.n_waves
+
+    # --- 1. Assign rows to (site, wave) cells ---
+    indices = rng.permutation(n)
+    site_ids = np.empty(n, dtype=object)
+    wave_ids = np.empty(n, dtype=int)
+    for i, idx in enumerate(indices):
+        cell = i % n_cells
+        site_ids[idx] = f"S{(cell % config.n_sites) + 1:02d}"
+        wave_ids[idx] = cell // config.n_sites
+
+    result = df.copy()
+    result["site_id"] = site_ids
+    result["wave"] = wave_ids
+
+    # --- 2. Site random effects (variable-specific loadings) ---
+    var_loadings = {
+        col: rng.uniform(0.5, 1.5) for col in data_cols
+    }
+    for s in range(config.n_sites):
+        site_label = f"S{s + 1:02d}"
+        site_mask = result["site_id"] == site_label
+        for col in data_cols:
+            col_std = df[col].std()
+            if col_std <= 0 or pd.isna(col_std):
+                continue
+            effect = rng.normal(
+                0, config.site_effect_std * var_loadings[col] * col_std
+            )
+            result.loc[site_mask, col] += effect
+
+    # --- 3. Wave trend ---
+    if config.wave_trend != 0:
+        for col in data_cols:
+            col_std = df[col].std()
+            if col_std <= 0 or pd.isna(col_std):
+                continue
+            for w in range(config.n_waves):
+                wave_mask = result["wave"] == w
+                result.loc[wave_mask, col] += config.wave_trend * w * col_std
+
+    # --- 4. Clip to variable ranges ---
+    for col in data_cols:
+        meta = world.variable_meta.get(col)
+        if meta:
+            result[col] = result[col].clip(meta.range[0], meta.range[1])
+
+    # --- 5. Site dropout ---
+    if config.dropout_rate > 0:
+        for s in range(config.n_sites):
+            site_label = f"S{s + 1:02d}"
+            dropped = False
+            for w in range(1, config.n_waves):
+                if dropped or rng.random() < config.dropout_rate:
+                    dropped = True
+                    mask = (result["site_id"] == site_label) & (result["wave"] == w)
+                    for col in data_cols:
+                        if col != target:
+                            result.loc[mask, col] = np.nan
+
+    # --- 6. Proxy columns ---
+    proxy_names: list[str] = []
+    if config.n_proxy_columns > 0:
+        result, proxy_names = _add_proxy_columns(
+            result, world, config.n_proxy_columns,
+            config.proxy_noise_std, target, rng,
+        )
+
+    # --- 7. Reorder columns ---
+    front = ["site_id", "wave"]
+    rest = [c for c in result.columns if c not in front]
+    result = result[front + rest]
+    result = result.sort_values(["site_id", "wave"]).reset_index(drop=True)
+
+    return result, proxy_names
+
+
+def _add_proxy_columns(
+    df: pd.DataFrame,
+    world: SCMWorld,
+    n_proxies: int,
+    noise_std: float,
+    target: str,
+    rng: np.random.Generator,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Add correlated proxy / nuisance columns.
+
+    Each proxy is ``alpha * source + noise`` where source is a randomly
+    selected SCM variable and alpha ~ U(0.3, 0.9).
+    """
+    _SUFFIXES = ["_index", "_reading", "_score", "_level", "_measure"]
+    obs = [v for v in world.observable_variables if v != target]
+    if not obs:
+        return df, []
+
+    sources = list(rng.choice(obs, size=min(n_proxies, len(obs)), replace=False))
+    while len(sources) < n_proxies:
+        sources.append(rng.choice(obs))
+
+    proxy_names: list[str] = []
+    for src in sources:
+        alpha = float(rng.uniform(0.3, 0.9))
+        col_std = df[src].std()
+        if pd.isna(col_std) or col_std <= 0:
+            continue
+        noise = rng.normal(0, noise_std * col_std, size=len(df))
+        values = alpha * df[src].values + noise
+        meta = world.variable_meta.get(src)
+        if meta:
+            values = np.clip(values, meta.range[0], meta.range[1])
+
+        suffix = rng.choice(_SUFFIXES)
+        name = f"{src}{suffix}"
+        # Avoid collision (bounded attempts)
+        for _attempt in range(20):
+            if name not in df.columns and name not in proxy_names:
+                break
+            suffix = rng.choice(_SUFFIXES)
+            name = f"{src}_{_attempt}{suffix}"
+        if name in df.columns or name in proxy_names:
+            continue  # skip this proxy if still colliding
+        proxy_names.append(name)
+
+        # Insert at random position (not always at the end)
+        pos = int(rng.integers(2, len(df.columns)))
+        df.insert(pos, name, values)
+
+    return df, proxy_names
+
+
 def multi_dataset_sample(
     world: SCMWorld,
     config: RealisticDataConfig | None = None,
     target: str | None = None,
     n: int = 500,
+    panel: PanelConfig | None = None,
 ) -> list[DatasetArtifact]:
     """Generate multi-source realistic datasets from an SCMWorld.
 
-    Produces 2-3 DatasetArtifacts simulating independent data collection
-    efforts with different quality, coverage, and size -- like what a real
-    researcher would piece together.
+    Produces 2-3 DatasetArtifacts representing different views of the same
+    study.  When *panel* is provided, the **master sample** gets panel
+    structure (site_id, wave, proxy columns, informative missingness) and
+    the secondary artifacts are row/column subsets of that master -- so
+    they share observations and feel like parts of one investigation.
 
-    Artifacts:
-        1. background_records: Large, few variables, low noise, some missing.
-        2. field_survey: Medium, more variables, moderate noise + missing.
-        3. detailed_analysis: Small, specialized variables, high precision.
-           (Only if >= 2 secondary variables exist.)
-
-    Each artifact is sampled independently (different seed), not sliced from
-    the same pool.
+    Without *panel*, falls back to the legacy behaviour where each
+    artifact is sampled independently.
     """
     config = config or RealisticDataConfig()
     target = target or world.variables[-1]
     primary_cols, secondary_cols = _split_columns(world, target)
 
-    artifacts = []
+    # ----------------------------------------------------------------
+    # Panel path: shared study frame
+    # ----------------------------------------------------------------
+    if panel is not None:
+        return _multi_dataset_panel(
+            world, config, panel, target, n, primary_cols, secondary_cols,
+        )
+
+    # ----------------------------------------------------------------
+    # Legacy path (no panel): independent samples per artifact
+    # ----------------------------------------------------------------
+    artifacts: list[DatasetArtifact] = []
 
     # --- Background: large, primary columns, low noise ---
     bg_n = max(n, 500)
@@ -227,7 +424,7 @@ def multi_dataset_sample(
         )
     )
 
-    # --- Detailed: small, specialized, high precision (only if enough vars) ---
+    # --- Detailed: small, specialized, high precision ---
     if len(secondary_cols) >= 2:
         detail_n = max(n // 10, 20)
         seen: set[str] = set()
@@ -250,6 +447,123 @@ def multi_dataset_sample(
             seed=config.seed + 3000,
         )
         detail_df.insert(0, "sample_id", range(1, len(detail_df) + 1))
+        artifacts.append(
+            DatasetArtifact(
+                name="detailed_analysis",
+                data=detail_df,
+                source="detailed laboratory / specialist analysis",
+                description=_describe(detail_df),
+            )
+        )
+
+    return artifacts
+
+
+def _multi_dataset_panel(
+    world: SCMWorld,
+    config: RealisticDataConfig,
+    panel: PanelConfig,
+    target: str,
+    n: int,
+    primary_cols: list[str],
+    secondary_cols: list[str],
+) -> list[DatasetArtifact]:
+    """Panel path: one master sample, artifacts as views."""
+    # 1. Sample ONE master frame with all observable variables
+    master_n = max(n, 500)
+    obs = world.observable_variables
+    master = world.sample(n=master_n, seed=config.seed)
+    master = master[[c for c in master.columns if c in obs]]
+    master.insert(0, "sample_id", range(1, master_n + 1))
+
+    # 2. Apply panel structure to master
+    panel_df, proxy_names = apply_panel_structure(master, world, panel, target)
+
+    # Structural columns to skip in apply_realism
+    struct_cols = ["sample_id", "site_id", "wave"] + proxy_names
+
+    # 3. Background: full panel frame, moderate noise + missing
+    bg_df = panel_df.copy()
+    scm_cols = [c for c in bg_df.columns if c in obs]
+    bg_df = apply_realism(
+        bg_df,
+        world,
+        noise_fraction=config.noise_fraction * 0.3,
+        missing_rate=config.missing_rate * 3.0,  # higher for panel (target: 15%)
+        missing_mechanism=config.missing_mechanism,
+        outlier_fraction=config.outlier_fraction * 0.5,
+        outlier_magnitude=config.outlier_magnitude,
+        target=target,
+        rounding=config.rounding,
+        structural_cols=struct_cols,
+        seed=config.seed + 1000,
+    )
+    artifacts: list[DatasetArtifact] = [
+        DatasetArtifact(
+            name="background_records",
+            data=bg_df,
+            source="multi-site longitudinal study / administrative records",
+            description=_describe(bg_df),
+        )
+    ]
+
+    # 4. Field survey: subset of rows from post-panel data, flat view
+    rng = np.random.default_rng(config.seed + 5000)
+    survey_n = max(n // 3, 50)
+    survey_ids = sorted(rng.choice(master_n, size=min(survey_n, master_n), replace=False))
+
+    overlap = secondary_cols[:1] if secondary_cols else []
+    survey_want = ["sample_id"] + primary_cols + overlap
+    # Use post-panel values (site effects baked in) but drop panel columns
+    survey_avail = [c for c in survey_want if c in panel_df.columns]
+    survey_df = panel_df.iloc[survey_ids][survey_avail].copy().reset_index(drop=True)
+    survey_df = apply_realism(
+        survey_df,
+        world,
+        noise_fraction=config.noise_fraction,
+        missing_rate=config.missing_rate,
+        missing_mechanism=config.missing_mechanism,
+        outlier_fraction=config.outlier_fraction,
+        outlier_magnitude=config.outlier_magnitude,
+        target=target,
+        rounding=config.rounding,
+        seed=config.seed + 2000,
+    )
+    artifacts.append(
+        DatasetArtifact(
+            name="field_survey",
+            data=survey_df,
+            source="field survey / direct measurement campaign",
+            description=_describe(survey_df),
+        )
+    )
+
+    # 5. Detailed: smaller subset, secondary cols + target
+    if len(secondary_cols) >= 2:
+        detail_n = max(n // 10, 20)
+        detail_ids = sorted(
+            rng.choice(master_n, size=min(detail_n, master_n), replace=False)
+        )
+        seen: set[str] = set()
+        detail_cols_ordered: list[str] = ["sample_id"]
+        for c in secondary_cols + [target]:
+            if c not in seen and c in master.columns:
+                detail_cols_ordered.append(c)
+                seen.add(c)
+
+        detail_avail = [c for c in detail_cols_ordered if c in panel_df.columns]
+        detail_df = panel_df.iloc[detail_ids][detail_avail].copy()
+        detail_df = detail_df.reset_index(drop=True)
+        detail_df = apply_realism(
+            detail_df,
+            world,
+            noise_fraction=config.noise_fraction * 0.2,
+            missing_rate=0.0,
+            outlier_fraction=0.0,
+            target=target,
+            rounding=config.rounding,
+            seed=config.seed + 3000,
+        )
         artifacts.append(
             DatasetArtifact(
                 name="detailed_analysis",
@@ -427,13 +741,21 @@ def _apply_outliers(
 
 def _describe(df: pd.DataFrame) -> str:
     """Generate a human-readable description for a dataset artifact."""
-    cols = [c for c in df.columns if c != "sample_id"]
+    _STRUCTURAL = {"sample_id", "site_id", "wave"}
+    cols = [c for c in df.columns if c not in _STRUCTURAL]
     n_rows = len(df)
+
+    desc = f"Dataset with {n_rows} observations."
+    if "site_id" in df.columns:
+        desc += f" Collected from {df['site_id'].nunique()} sites."
+    if "wave" in df.columns:
+        desc += f" {df['wave'].nunique()} measurement waves."
+
+    desc += f" Columns: {', '.join(cols)}."
+
     total_cells = n_rows * len(cols)
     missing_cells = df[cols].isna().sum().sum()
     missing_pct = (missing_cells / total_cells * 100) if total_cells > 0 else 0
-
-    desc = f"Dataset with {n_rows} samples. Columns: {', '.join(cols)}."
     if missing_pct > 1:
         desc += f" Missing data: {missing_pct:.0f}%."
     return desc
@@ -441,7 +763,9 @@ def _describe(df: pd.DataFrame) -> str:
 
 __all__ = [
     "DatasetArtifact",
+    "PanelConfig",
     "RealisticDataConfig",
+    "apply_panel_structure",
     "apply_realism",
     "multi_dataset_sample",
     "realistic_sample",

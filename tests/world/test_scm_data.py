@@ -7,10 +7,12 @@ import pytest
 from sreg.world.scm import SCMWorld, VariableMeta
 from sreg.world.scm_data import (
     DatasetArtifact,
+    PanelConfig,
     RealisticDataConfig,
     _describe,
     _infer_precision,
     _split_columns,
+    apply_panel_structure,
     apply_realism,
     multi_dataset_sample,
     realistic_sample,
@@ -443,7 +445,7 @@ class TestHelpers:
             "Y": [np.nan, 2.0, np.nan],
         })
         desc = _describe(df)
-        assert "3 samples" in desc
+        assert "3 observations" in desc
         assert "Missing data:" in desc
 
     def test_describe_without_missing(self):
@@ -453,7 +455,7 @@ class TestHelpers:
             "Y": [4.0, 5.0, 6.0],
         })
         desc = _describe(df)
-        assert "3 samples" in desc
+        assert "3 observations" in desc
         assert "Missing" not in desc
 
 
@@ -528,3 +530,187 @@ class TestE2E:
         noisy_corr = valid["A"].corr(valid["B"])
         # Correlation should remain high (> 0.8 original was ~0.97)
         assert noisy_corr > 0.8
+
+
+# ------------------------------------------------------------------
+# Panel structure
+# ------------------------------------------------------------------
+
+
+class TestPanelStructure:
+    def test_adds_site_and_wave_columns(self):
+        world = _linear_5node()
+        df = world.sample(n=200, seed=42)
+        panel_df, _ = apply_panel_structure(df, world, PanelConfig(seed=42))
+        assert "site_id" in panel_df.columns
+        assert "wave" in panel_df.columns
+
+    def test_correct_number_of_sites(self):
+        world = _linear_5node()
+        df = world.sample(n=200, seed=42)
+        panel_df, _ = apply_panel_structure(
+            df, world, PanelConfig(n_sites=5, seed=42)
+        )
+        assert panel_df["site_id"].nunique() == 5
+
+    def test_correct_number_of_waves(self):
+        world = _linear_5node()
+        df = world.sample(n=200, seed=42)
+        panel_df, _ = apply_panel_structure(
+            df, world, PanelConfig(n_waves=4, seed=42)
+        )
+        assert panel_df["wave"].nunique() == 4
+
+    def test_within_site_correlation(self):
+        """Rows within a site should be more similar than across sites."""
+        world = _linear_5node()
+        df = world.sample(n=500, seed=42)
+        panel_df, _ = apply_panel_structure(
+            df, world, PanelConfig(n_sites=5, site_effect_std=0.5, seed=42)
+        )
+        # ICC: variance of site means / total variance
+        col = "A"
+        site_means = panel_df.groupby("site_id")[col].mean()
+        between_var = site_means.var()
+        total_var = panel_df[col].var()
+        icc = between_var / total_var if total_var > 0 else 0
+        assert icc > 0.01  # some clustering effect
+
+    def test_dropout_reduces_later_waves(self):
+        world = _linear_5node()
+        df = world.sample(n=300, seed=42)
+        panel_df, _ = apply_panel_structure(
+            df, world, PanelConfig(n_sites=6, n_waves=3, dropout_rate=0.5, seed=42)
+        )
+        wave_counts = panel_df.groupby("wave")["A"].apply(
+            lambda s: s.notna().sum()
+        )
+        # Wave 0 should have more valid observations than wave 2
+        assert wave_counts.iloc[0] >= wave_counts.iloc[-1]
+
+    def test_reproducible_with_seed(self):
+        world = _linear_5node()
+        df = world.sample(n=100, seed=42)
+        cfg = PanelConfig(seed=99)
+        df1, _ = apply_panel_structure(df.copy(), world, cfg)
+        df2, _ = apply_panel_structure(df.copy(), world, cfg)
+        pd.testing.assert_frame_equal(df1, df2)
+
+    def test_values_clipped_to_range(self):
+        world = _linear_5node()
+        df = world.sample(n=200, seed=42)
+        panel_df, _ = apply_panel_structure(
+            df, world, PanelConfig(site_effect_std=0.8, seed=42)
+        )
+        for var in world.variables:
+            meta = world.variable_meta.get(var)
+            if meta and var in panel_df.columns:
+                valid = panel_df[var].dropna()
+                assert valid.min() >= meta.range[0] - 0.01
+                assert valid.max() <= meta.range[1] + 0.01
+
+
+class TestProxyColumns:
+    def test_proxy_columns_added(self):
+        world = _linear_5node()
+        df = world.sample(n=100, seed=42)
+        panel_df, proxy_names = apply_panel_structure(
+            df, world, PanelConfig(n_proxy_columns=3, seed=42)
+        )
+        assert len(proxy_names) == 3
+        for name in proxy_names:
+            assert name in panel_df.columns
+
+    def test_proxy_correlated_with_source(self):
+        world = _linear_5node()
+        df = world.sample(n=500, seed=42)
+        panel_df, proxy_names = apply_panel_structure(
+            df, world, PanelConfig(n_proxy_columns=2, proxy_noise_std=0.3, seed=42)
+        )
+        # At least one proxy should correlate > 0.3 with some real variable
+        max_corr = 0
+        for pname in proxy_names:
+            for var in world.variables:
+                if var in panel_df.columns:
+                    valid = panel_df[[pname, var]].dropna()
+                    if len(valid) > 10:
+                        c = abs(valid[pname].corr(valid[var]))
+                        max_corr = max(max_corr, c)
+        assert max_corr > 0.3
+
+    def test_proxy_names_not_in_scm(self):
+        world = _linear_5node()
+        df = world.sample(n=100, seed=42)
+        _, proxy_names = apply_panel_structure(
+            df, world, PanelConfig(n_proxy_columns=2, seed=42)
+        )
+        for name in proxy_names:
+            assert name not in world.variables
+
+    def test_zero_proxies(self):
+        world = _linear_5node()
+        df = world.sample(n=100, seed=42)
+        _, proxy_names = apply_panel_structure(
+            df, world, PanelConfig(n_proxy_columns=0, seed=42)
+        )
+        assert len(proxy_names) == 0
+
+
+class TestPanelMultiDataset:
+    def test_background_has_panel_columns(self):
+        world = _wide_7node()
+        config = RealisticDataConfig(seed=42)
+        panel = PanelConfig(n_sites=4, n_waves=2, seed=42)
+        artifacts = multi_dataset_sample(
+            world, config=config, target="G", n=200, panel=panel,
+        )
+        bg = artifacts[0]
+        assert "site_id" in bg.data.columns
+        assert "wave" in bg.data.columns
+
+    def test_survey_flat_no_panel(self):
+        world = _wide_7node()
+        config = RealisticDataConfig(seed=42)
+        panel = PanelConfig(seed=42)
+        artifacts = multi_dataset_sample(
+            world, config=config, target="G", n=200, panel=panel,
+        )
+        survey = artifacts[1]
+        assert "site_id" not in survey.data.columns
+        assert "wave" not in survey.data.columns
+
+    def test_shared_sample_ids(self):
+        """Survey rows should be a subset of the master sample."""
+        world = _wide_7node()
+        config = RealisticDataConfig(seed=42)
+        panel = PanelConfig(seed=42)
+        artifacts = multi_dataset_sample(
+            world, config=config, target="G", n=200, panel=panel,
+        )
+        bg_ids = set(artifacts[0].data["sample_id"].dropna())
+        survey_ids = set(artifacts[1].data["sample_id"].dropna())
+        # Survey IDs should be a subset of background IDs
+        assert survey_ids.issubset(bg_ids)
+
+    def test_panel_missing_higher(self):
+        """Panel background should have higher missing than legacy mode."""
+        world = _wide_7node()
+        config = RealisticDataConfig(seed=42)
+        panel = PanelConfig(seed=42)
+        arts_panel = multi_dataset_sample(
+            world, config=config, target="G", n=300, panel=panel,
+        )
+        arts_legacy = multi_dataset_sample(
+            world, config=config, target="G", n=300, panel=None,
+        )
+        bg_panel = arts_panel[0]
+        bg_legacy = arts_legacy[0]
+        data_cols_p = [
+            c for c in bg_panel.data.columns
+            if c not in {"sample_id", "site_id", "wave"}
+            and not c.endswith(("_index", "_reading", "_score", "_level", "_measure"))
+        ]
+        data_cols_l = [c for c in bg_legacy.data.columns if c != "sample_id"]
+        miss_panel = bg_panel.data[data_cols_p].isna().mean().mean()
+        miss_legacy = bg_legacy.data[data_cols_l].isna().mean().mean()
+        assert miss_panel > miss_legacy

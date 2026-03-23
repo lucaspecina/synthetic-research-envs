@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### 2026-03-23 — Realistic observational data structure (Fase 7)
+
+- **Panel structure**: `PanelConfig` + `apply_panel_structure()`. Datos con
+  `site_id` y `wave`, random effects por sitio (variable-specific loadings),
+  wave trend, dropout cumulativo. ICC realista (~0.08).
+- **Proxy columns**: `_add_proxy_columns()` inyecta columnas correlacionadas
+  con variables reales pero no causales. El solver debe distinguir signal de
+  ruido.
+- **Shared study frame**: `_multi_dataset_panel()` samplea UNA muestra
+  maestra. Los 3 artifacts son vistas del mismo estudio (comparten
+  sample_id), no muestras independientes.
+- **Informative missingness**: 15-25% en background (vs 2% anterior). Mas
+  missing en waves tardios. Dropout de sitios completos.
+- **Narrative guard**: seccion "Data structure awareness" en orchestrator
+  prompts. El brief menciona estudio multi-sitio y datos incompletos.
+- 15 tests nuevos (panel, proxies, shared frame, missingness). 1479 totales.
+
 ### 2026-03-23 — Estimand separation + quality fixes (Fase 6b)
 
 - **Estimand separation**: nuevo campo `Task.estimand` con parametros

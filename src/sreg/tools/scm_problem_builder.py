@@ -14,7 +14,12 @@ from typing import TYPE_CHECKING
 from sreg.models.research_problem import AvailableAction, DataAsset, ResearchProblem
 from sreg.tools.scm_task_gen import SCMTaskGenTool
 from sreg.world.scm import SCMWorld
-from sreg.world.scm_data import RealisticDataConfig, multi_dataset_sample, realistic_sample
+from sreg.world.scm_data import (
+    PanelConfig,
+    RealisticDataConfig,
+    multi_dataset_sample,
+    realistic_sample,
+)
 
 if TYPE_CHECKING:
     from sreg.models.case_plan import CasePlan
@@ -37,6 +42,7 @@ class SCMProblemBuilder:
         title: str | None = None,
         description: str | None = None,
         domain: str | None = None,
+        panel: PanelConfig | None = None,
     ) -> ResearchProblem:
         """Package an SCMWorld into a ResearchProblem the agent can see.
 
@@ -60,7 +66,9 @@ class SCMProblemBuilder:
             target = world.variables[-1]
 
         # Generate data
-        data_assets = self._build_data(world, target, n_rows, multi_dataset, seed)
+        data_assets = self._build_data(
+            world, target, n_rows, multi_dataset, seed, panel
+        )
 
         # Build actions from observable variables
         actions = self._build_actions(world, target)
@@ -91,28 +99,34 @@ class SCMProblemBuilder:
         n_rows: int,
         multi_dataset: bool,
         seed: int,
+        panel: PanelConfig | None = None,
     ) -> list[DataAsset]:
         """Generate data assets from SCMWorld."""
         obs_vars = world.observable_variables
+        # Structural + proxy columns that should be kept alongside obs vars
+        _STRUCTURAL = {"sample_id", "site_id", "wave"}
 
         if multi_dataset:
             config = RealisticDataConfig(seed=seed)
-            artifacts = multi_dataset_sample(world, config=config, target=target, n=n_rows)
+            artifacts = multi_dataset_sample(
+                world, config=config, target=target, n=n_rows, panel=panel,
+            )
             assets = []
             for art in artifacts:
-                # Convert DataFrame to list[dict] (DataAsset format)
-                # Filter to observable variables only (latents excluded)
-                keep = [c for c in art.data.columns if c in obs_vars or c == "sample_id"]
+                # Keep obs variables + structural + proxy columns
+                keep = [
+                    c for c in art.data.columns
+                    if c in obs_vars or c in _STRUCTURAL
+                    or c not in world.variables  # proxy columns
+                ]
                 df_obs = art.data[keep]
                 rows = df_obs.to_dict(orient="records")
-                cols = [c for c in df_obs.columns if c != "sample_id"]
-                # Regenerate description from filtered columns (original
-                # description may mention latent variables)
+                cols = [c for c in df_obs.columns if c not in _STRUCTURAL]
                 desc = self._describe_dataset(df_obs, cols)
                 assets.append(
                     DataAsset(
                         name=art.name,
-                        description=desc,
+                        description=art.description,
                         format="tabular",
                         data=rows,
                         source=art.source,
