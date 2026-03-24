@@ -5,6 +5,48 @@
 
 ## [Unreleased]
 
+### 2026-03-24 — P2: Semantic question naturalization (I10 Fase 2c)
+
+- **Semantic name helpers**: `_semantic_name()`, `_semantic_aliases()`,
+  `_semantic_evidence_desc()`, `_semantic_node_list()` in SCMTaskGenTool.
+  Converts node_ids to human-readable names using variable_meta.description
+  (if <80 chars) or node_id.replace('_', ' ').
+- **12 task templates naturalized**: all `_*_task()` methods now use semantic
+  names without single quotes. "setting X to Y" replaced with natural
+  counterfactuals ("if X were at Y", "changing X to Y levels").
+- **Entity matching updated**: `_entities_match_question()` and
+  `_check_question_answer_consistency()` accept `world` param and match
+  against semantic aliases (node_id, spaces version, description).
+- **Problem builder updated**: `_build_question()` and `_build_description()`
+  use semantic names without single quotes.
+- **Orchestrator prompt updated**: `question_text` explicitly marked as visible
+  in briefing. Prohibits snake_case, single quotes, "setting X to Y".
+  Good/bad examples added.
+- **Research note**: `research/notes/p2_semantic_question_naturalization.md`
+  with full plan, Codex review, priority map, and metrics.
+- Reviewed with Codex (2 rounds). 1479 tests.
+
+### 2026-03-24 — First formal qualitative evaluation: 3 SRCs, 8 findings
+
+- Applied qualitative rubric to 3 SRCs (football=current, coral_reef/vaca_muerta=old).
+- Football scored 1.14/2.0 (Codex-adjusted), CF4 only. Old SRCs: DEFECTIVE.
+- 8 findings registered (H1-H8): variable names as code, "setting X to Y",
+  clean answers, metadata leak, causal warrant, measurement provenance,
+  indexing realism, eval ontology leak.
+- Root cause: questions born from scorer ontology, not from investigation.
+- 4-priority action plan: P1 (root), P2 (naming), P3 (epistemic), P4 (metadata).
+- Codex review identified 4 additional findings and stricter scoring.
+- See `research/synthesis/qualitative_eval_2026_03_24.md`.
+
+### 2026-03-24 — Formalize evaluation harness (I11 Fase 1b)
+
+- **CLAUDE.md**: added "Harness de evaluacion" section with 3 levels,
+  qualitative component, rubric evolution protocol, reference table.
+- **/eval skill rewritten**: 8-step protocol covering quantitative +
+  qualitative + no-data baseline probe + open discovery + registration.
+- **Rubric evolution protocol**: discovery -> register -> promote (2+ SRCs).
+- See `research/synthesis/qualitative_eval_rubric.md`.
+
 ### 2026-03-24 — Template rewrites + qualitative eval rubric (Fase 9 / I10 Fase 2)
 
 - **compare_interventions template rewritten**: removed numeric threshold

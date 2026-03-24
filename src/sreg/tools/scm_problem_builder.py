@@ -230,20 +230,24 @@ class SCMProblemBuilder:
             return "\n".join(parts)
 
         # Legacy fallback: use first question's text
+        meta = world.variable_meta.get(target)
+        target_label = target.replace("_", " ")
+        if meta and meta.description and len(meta.description) < 80:
+            target_label = meta.description
+
         if case_plan and case_plan.questions:
             primary = case_plan.questions[0]
             return (
                 f"{primary.question_text}\n\n"
-                f"Target variable: '{target}' "
+                f"Target variable: {target_label} "
                 f"(ranges: {states_str}). "
                 f"Analyze the data to estimate the distribution."
             )
 
-        meta = world.variable_meta.get(target)
         unit_str = f" ({meta.unit})" if meta and meta.unit else ""
         return (
             f"Based on the available data, estimate the probability distribution "
-            f"over '{target}'{unit_str} across these ranges: {states_str}. "
+            f"over {target_label}{unit_str} across these ranges: {states_str}. "
             f"Analyze the data to refine your estimate."
         )
 
@@ -263,13 +267,18 @@ class SCMProblemBuilder:
     def _build_description(self, world: SCMWorld, target: str) -> str:
         """Build a narrative description from variable metadata."""
         obs_vars = world.observable_variables
-        parts = [f"Investigate the factors affecting '{target}'."]
+        target_label = target.replace("_", " ")
+        meta_t = world.variable_meta.get(target)
+        if meta_t and meta_t.description and len(meta_t.description) < 60:
+            target_label = meta_t.description
+        parts = [f"Investigate the factors affecting {target_label}."]
 
         described = []
         for var in obs_vars:
             meta = world.variable_meta.get(var)
             if meta and meta.description:
-                described.append(f"'{var}': {meta.description}")
+                label = var.replace("_", " ")
+                described.append(f"{label}: {meta.description}")
 
         if described:
             parts.append("Available measurements include: " + "; ".join(described) + ".")

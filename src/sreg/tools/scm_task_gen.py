@@ -147,6 +147,44 @@ class SCMTaskGenTool:
         """Observable variables (all except latent)."""
         return world.observable_variables
 
+    @staticmethod
+    def _semantic_name(world: SCMWorld, node_id: str) -> str:
+        """Human-readable name for a variable, suitable for the investigator.
+
+        Priority:
+        1. variable_meta[node].description if short (<60 chars)
+        2. node_id with underscores replaced by spaces
+        """
+        meta = world.variable_meta.get(node_id)
+        if meta and meta.description and len(meta.description) < 80:
+            return meta.description
+        return node_id.replace("_", " ")
+
+    @staticmethod
+    def _semantic_aliases(world: SCMWorld, node_id: str) -> set[str]:
+        """All valid ways to refer to a variable (for entity matching)."""
+        aliases = {node_id.lower(), node_id.replace("_", " ").lower()}
+        meta = world.variable_meta.get(node_id)
+        if meta and meta.description:
+            aliases.add(meta.description.lower())
+        return aliases
+
+    def _semantic_evidence_desc(
+        self, world: SCMWorld, given_evidence: dict[str, str]
+    ) -> str:
+        """Format evidence dict using semantic names."""
+        parts = []
+        for k, v in given_evidence.items():
+            name = self._semantic_name(world, k)
+            parts.append(f"{name} = {v}")
+        return ", ".join(parts)
+
+    def _semantic_node_list(
+        self, world: SCMWorld, nodes: list[str]
+    ) -> str:
+        """Format a list of node IDs as semantic names."""
+        return ", ".join(self._semantic_name(world, n) for n in nodes)
+
     # ------------------------------------------------------------------
     # Task generators
     # ------------------------------------------------------------------
@@ -163,9 +201,10 @@ class SCMTaskGenTool:
         correct_answer = self._discretize(samples, bin_edges)
 
         bins_desc = ", ".join(correct_answer.keys())
+        target_name = self._semantic_name(world, target)
         question = (
-            f"Based on the available data, estimate the distribution of '{target}' "
-            f"across these ranges: {bins_desc}. "
+            f"Based on the available data, estimate the distribution of "
+            f"{target_name} across these ranges: {bins_desc}. "
             f"Analyze the data to refine your estimate, "
             f"then submit probabilities for each range (summing to 1.0)."
         )
@@ -210,11 +249,13 @@ class SCMTaskGenTool:
             ig = solver.information_gain(target, evidence_floats, node, seed=seed)
             ig_ranking[node] = round(ig, 6)
 
-        evidence_desc = ", ".join(f"{k}={v}" for k, v in given_evidence.items())
+        evidence_desc = self._semantic_evidence_desc(world, given_evidence)
+        remaining_desc = self._semantic_node_list(world, remaining_nodes)
+        target_name = self._semantic_name(world, target)
         question = (
-            f"You are investigating '{target}'. "
+            f"You are investigating {target_name}. "
             f"You have already observed: {evidence_desc}. "
-            f"You can measure one more variable from: {remaining_nodes}. "
+            f"You can measure one more variable from: {remaining_desc}. "
             f"Which variable would be most informative to observe next?"
         )
 
@@ -305,7 +346,8 @@ class SCMTaskGenTool:
             kl_scores[label] = round(kl, 6)
 
         # Build question text
-        evidence_desc = ", ".join(f"{k}={v}" for k, v in given_evidence.items())
+        evidence_desc = self._semantic_evidence_desc(world, given_evidence)
+        target_name = self._semantic_name(world, target)
         hyp_lines = []
         for label, dist in shuffled_hypotheses.items():
             dist_str = ", ".join(f"{s}={p:.2f}" for s, p in dist.items())
@@ -313,9 +355,10 @@ class SCMTaskGenTool:
         hyp_text = "\n".join(hyp_lines)
 
         question = (
-            f"You are investigating '{target}'. "
+            f"You are investigating {target_name}. "
             f"You have observed: {evidence_desc}.\n\n"
-            f"Which of these hypotheses best describes the distribution of '{target}'?\n"
+            f"Which of these hypotheses best describes the distribution "
+            f"of {target_name}?\n"
             f"{hyp_text}\n\n"
             f"Choose the most plausible hypothesis (A, B, C, or D)."
         )
@@ -387,10 +430,12 @@ class SCMTaskGenTool:
 
         remaining = [n for n in obs_nodes if n != intervention_node]
         bins_desc = ", ".join(correct_answer.keys())
+        int_name = self._semantic_name(world, intervention_node)
+        target_name = self._semantic_name(world, target)
 
         question = (
-            f"If '{intervention_node}' were set to {int_value:.2f}, "
-            f"what would be the resulting distribution of '{target}' "
+            f"If {int_name} were at {int_value:.2f}, "
+            f"what would be the resulting distribution of {target_name} "
             f"across these ranges: {bins_desc}? "
             f"Consider how this change would propagate through the system, "
             f"not just the statistical association in the data."
@@ -443,19 +488,21 @@ class SCMTaskGenTool:
         best_node, best_label = best_key.split(":", 1)
 
         # Build available interventions description
+        target_name = self._semantic_name(world, target)
         int_desc_lines = []
         for node_name in obs_nodes:
             if node_name == target:
                 continue
             lo_key = f"{node_name}:low"
             if lo_key in intervention_effects:
-                int_desc_lines.append(f"  '{node_name}': 'low' or 'high'")
+                name = self._semantic_name(world, node_name)
+                int_desc_lines.append(f"  {name}: low or high")
 
         int_desc = "\n".join(int_desc_lines)
         question = (
-            f"You want to maximize the probability of '{target}' being "
+            f"You want to maximize the probability of {target_name} being "
             f"above {target_median:.2f} (current baseline: {baseline:.2f}). "
-            f"You can change ONE variable by setting it to 'low' or 'high'.\n"
+            f"You can change one variable to either low or high levels.\n"
             f"Available interventions:\n{int_desc}\n"
             f"Which variable would you change, and to what level?"
         )
@@ -547,10 +594,13 @@ class SCMTaskGenTool:
         else:
             better_node, better_label = node_b, label_b
 
+        target_name = self._semantic_name(world, target)
+        name_a = self._semantic_name(world, node_a)
+        name_b = self._semantic_name(world, node_b)
         question = (
             f"Which of these two changes would have a greater impact on "
-            f"'{target}': setting '{node_a}' to '{label_a}', or setting "
-            f"'{node_b}' to '{label_b}'?"
+            f"{target_name}: changing {name_a} to {label_a} levels, or "
+            f"changing {name_b} to {label_b} levels?"
         )
 
         return Task(
@@ -641,11 +691,14 @@ class SCMTaskGenTool:
                 treatment, suggested = candidates_yes[0]
                 correct_answer = {"yes": 1.0}
 
+        treatment_name = self._semantic_name(world, treatment)
+        target_name = self._semantic_name(world, target)
+        suggested_name = self._semantic_name(world, suggested)
         question = (
-            f"You are studying the effect of '{treatment}' on '{target}'. "
-            f"A colleague suggests accounting for '{suggested}' in the analysis. "
-            f"Is this a good idea, or could it distort the results? "
-            f"Answer 'yes' or 'no', and explain your reasoning."
+            f"You are studying the effect of {treatment_name} on {target_name}. "
+            f"A colleague suggests accounting for {suggested_name} in the "
+            f"analysis. Is this a good idea, or could it distort the results? "
+            f"Explain your reasoning."
         )
 
         return Task(
@@ -726,35 +779,38 @@ class SCMTaskGenTool:
                 correct_answer["_empty_"] = 1.0
 
         available = [n for n in obs_nodes if n != treatment_node and n != target]
+        treat_name = self._semantic_name(world, treatment_node)
+        target_name = self._semantic_name(world, target)
+        avail_desc = self._semantic_node_list(world, available)
 
         is_identifiable_confounded = chosen[2] == 3
         is_not_identifiable = "_not_identifiable_" in correct_answer
         if is_identifiable_confounded:
             question = (
-                f"You want to estimate the true effect of '{treatment_node}' on "
-                f"'{target}' from the data. Some variables may create misleading "
-                f"associations if not accounted for. Which variables should you "
-                f"include in your analysis to get a fair estimate? "
-                f"Available variables: {available}. "
+                f"You want to estimate the true effect of {treat_name} on "
+                f"{target_name} from the data. Some variables may create "
+                f"misleading associations if not accounted for. Which "
+                f"variables should you include in your analysis to get a fair "
+                f"estimate? Available variables: {avail_desc}. "
                 f"Provide the minimal set needed for an unbiased estimate."
             )
         elif is_not_identifiable:
             question = (
-                f"You want to estimate the true effect of '{treatment_node}' on "
-                f"'{target}' from the data. "
-                f"Available variables: {available}. "
+                f"You want to estimate the true effect of {treat_name} on "
+                f"{target_name} from the data. "
+                f"Available variables: {avail_desc}. "
                 f"Determine whether this effect can be reliably estimated "
                 f"by accounting for available variables, or whether there are "
                 f"unmeasured factors that make it impossible."
             )
         else:
             question = (
-                f"You want to estimate the true effect of '{treatment_node}' on "
-                f"'{target}' from the data. "
+                f"You want to estimate the true effect of {treat_name} on "
+                f"{target_name} from the data. "
                 f"Which variables should you account for in your analysis? "
-                f"Available variables: {available}. "
-                f"If the relationship is already direct, no additional variables "
-                f"may be needed."
+                f"Available variables: {avail_desc}. "
+                f"If the relationship is already direct, no additional "
+                f"variables may be needed."
             )
 
         return Task(
@@ -810,10 +866,11 @@ class SCMTaskGenTool:
         correct_answer = self._discretize(post_samples, bin_edges)
 
         bins_desc = ", ".join(correct_answer.keys())
-        evidence_desc = ", ".join(f"'{k}' = {v}" for k, v in given_evidence.items())
+        evidence_desc = self._semantic_evidence_desc(world, given_evidence)
+        latent_name = self._semantic_name(world, latent_node)
         question = (
             f"Based on the observed data ({evidence_desc}), estimate the "
-            f"distribution of '{latent_node}' across these ranges: {bins_desc}. "
+            f"distribution of {latent_name} across these ranges: {bins_desc}. "
             f"This factor is not directly measured in the datasets -- you must "
             f"infer it from the available evidence. "
             f"Submit probabilities for each range (summing to 1.0)."
@@ -863,10 +920,13 @@ class SCMTaskGenTool:
         ate_value = solver.ate(treatment, target, v_high, v_low, n=50_000, seed=seed)
         correct_answer = {"value": round(ate_value, 4)}
 
+        treat_name = self._semantic_name(world, treatment)
+        target_name = self._semantic_name(world, target)
         question = (
-            f"What is the average causal effect of '{treatment}' on "
-            f"'{target}'? Estimate how much '{target}' would change, on "
-            f"average, if '{treatment}' were shifted from a low to a high level."
+            f"What is the average causal effect of {treat_name} on "
+            f"{target_name}? Estimate how much {target_name} would change, "
+            f"on average, if {treat_name} were shifted from a low to a "
+            f"high level."
         )
 
         remaining = [n for n in obs_nodes if n != treatment]
@@ -937,10 +997,13 @@ class SCMTaskGenTool:
         )
         correct_answer = {"value": round(result["fraction_mediated"], 4)}
 
+        treat_name = self._semantic_name(world, treatment)
+        target_name = self._semantic_name(world, target)
+        med_name = self._semantic_name(world, mediator)
         question = (
-            f"What fraction of the causal effect of '{treatment}' on "
-            f"'{target}' is mediated through '{mediator}'? Estimate the "
-            f"proportion of the total effect that operates via '{mediator}'."
+            f"What fraction of the causal effect of {treat_name} on "
+            f"{target_name} is mediated through {med_name}? Estimate the "
+            f"proportion of the total effect that operates via {med_name}."
         )
 
         remaining = [n for n in obs_nodes if n != treatment]
@@ -1016,10 +1079,14 @@ class SCMTaskGenTool:
             {"yes": 1.0} if result["interaction_detected"] else {"no": 1.0}
         )
 
+        treat_name = self._semantic_name(world, treatment)
+        target_name = self._semantic_name(world, target)
+        mod_name = self._semantic_name(world, modifier)
         question = (
-            f"Does the effect of '{treatment}' on '{target}' depend on "
-            f"the level of '{modifier}'? In other words, does '{modifier}' "
-            f"modify the relationship between '{treatment}' and '{target}'?"
+            f"Does the effect of {treat_name} on {target_name} depend on "
+            f"the level of {mod_name}? In other words, does {mod_name} "
+            f"modify the relationship between {treat_name} and "
+            f"{target_name}?"
         )
 
         return Task(
@@ -1217,7 +1284,7 @@ class SCMTaskGenTool:
                 # For estimand-bearing types, only override when the
                 # orchestrator's question actually names the key entities.
                 if task.estimand and not self._entities_match_question(
-                    q.question_text, task
+                    q.question_text, task, world=world
                 ):
                     logger.warning(
                         "Question override rejected for %s: question text "
@@ -1230,7 +1297,7 @@ class SCMTaskGenTool:
             elif self._hints_honored(q, task):
                 task = task.model_copy(update={"question": q.question_text})
 
-            self._check_question_answer_consistency(task, q.eval_type)
+            self._check_question_answer_consistency(task, q.eval_type, world=world)
             tasks.append(task)
 
         if not tasks:
@@ -1246,9 +1313,13 @@ class SCMTaskGenTool:
 
     @staticmethod
     def _check_question_answer_consistency(
-        task: Task, eval_type: TaskType
+        task: Task, eval_type: TaskType, world: SCMWorld | None = None
     ) -> None:
-        """Log a warning if the question text doesn't mention nodes from the answer."""
+        """Log a warning if the question text doesn't mention nodes from the answer.
+
+        Checks against all semantic aliases (node_id, spaces version,
+        variable_meta description) when world is available.
+        """
         if not task.correct_answer or not task.question:
             return
 
@@ -1269,7 +1340,13 @@ class SCMTaskGenTool:
         else:
             return
 
-        missing = [n for n in nodes_to_check if n.lower() not in question_lower]
+        def _found(node_id: str) -> bool:
+            if world:
+                aliases = SCMTaskGenTool._semantic_aliases(world, node_id)
+                return any(a in question_lower for a in aliases)
+            return node_id.lower() in question_lower
+
+        missing = [n for n in nodes_to_check if not _found(n)]
         if missing:
             logger.warning(
                 "Question/answer consistency: task %s (%s) -- question does not "
@@ -1321,13 +1398,16 @@ class SCMTaskGenTool:
         return False
 
     @staticmethod
-    def _entities_match_question(question_text: str, task: Task) -> bool:
+    def _entities_match_question(
+        question_text: str, task: Task, world: SCMWorld | None = None
+    ) -> bool:
         """Check whether key estimand entities appear in the question text.
 
         For ATE the treatment must appear; for mediation the treatment AND
         mediator; for interaction the treatment AND modifier.  Names are
-        matched with underscores replaced by spaces (``ambient_pm25`` matches
-        ``ambient pm25``).  Returns True for types without an estimand.
+        matched against all semantic aliases (node_id, spaces version,
+        variable_meta description).  Returns True for types without an
+        estimand.
         """
         if not task.estimand or not question_text:
             return True
@@ -1337,7 +1417,14 @@ class SCMTaskGenTool:
         def _present(name: str | float) -> bool:
             if not isinstance(name, str):
                 return True
-            return name.lower() in q_lower or name.replace("_", " ").lower() in q_lower
+            # Check all semantic aliases if world is available
+            if world:
+                aliases = SCMTaskGenTool._semantic_aliases(world, name)
+                return any(a in q_lower for a in aliases)
+            return (
+                name.lower() in q_lower
+                or name.replace("_", " ").lower() in q_lower
+            )
 
         etype = task.estimand.get("type", "")
         if etype == "ate":

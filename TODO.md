@@ -445,8 +445,18 @@ para scoring y debugging.
 - [ ] `should_condition` en SCM todavia tiene formato "Answer yes or no".
 - [ ] Faltan tests: `test_question_is_natural` para `compare_interventions`
   e `interaction`, test de rechazo de override con entities equivocados.
-- [ ] Fallback templates usan `snake_case` crudo. Considerar
-  `replace("_", " ")` para nombres de variables en templates.
+- [x] Fallback templates usan `snake_case` crudo → RESUELTO por P2
+  (`_semantic_name()` + templates naturalizados).
+
+**Fase 2c: naturalizacion de preguntas (P2)** HECHO
+Variables como codigo + framing "setting X to Y" → nombres semanticos +
+contrafactuales naturales. 3 piezas: helper semantico + templates + entity
+matching + prompt. Ver `research/notes/p2_semantic_question_naturalization.md`.
+- [x] Helper `_semantic_name()` / `_semantic_aliases()` en `scm_task_gen.py`
+- [x] Naturalizar templates en los 12 metodos `_*_task()`
+- [x] Actualizar `_entities_match_question` y `_check_question_answer_consistency`
+- [x] Prompt de orchestrator: `question_text` ES visible, prohibir snake_case
+- [ ] E2E con 3 SRCs nuevos (pendiente: I11 Fase 2)
 
 **Fase 3: preguntas desde el paper, no desde el menu**
 - [ ] El orchestrator deberia pensar primero "que preguntaria un investigador"

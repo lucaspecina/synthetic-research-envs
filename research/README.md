@@ -125,6 +125,14 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** Fase 3 (orchestrator diseña SCMs), LA PREGUNTA
 - **Status:** DOCUMENTADO. Implementar cuando orchestrator diseñe SCMs.
 
+### P2: Naturalizacion de preguntas
+- **Pregunta:** como eliminar node_ids como codigo y framing de do-calculus
+  de las preguntas visibles al investigador.
+- **Empezar por:** `notes/p2_semantic_question_naturalization.md`
+- **Conecta con:** I10 Fase 2c en `TODO.md`, hallazgos H1/H2/CF4 de evaluacion
+  cualitativa (`synthesis/qualitative_eval_2026_03_24.md`)
+- **Status:** IMPLEMENTADO. Pendiente: E2E con 3 SRCs nuevos.
+
 ### Brief vs eval separation — preguntas reales vs scoring oculto
 - **Pregunta:** como hacer que el investigador reciba un encargo de
   investigacion real en vez de preguntas tipo benchmark.

@@ -66,11 +66,20 @@ Written as action items, not as eval types.
 spacing or fluid intensity changes would be more effective"
    Bad: "Submit a causal_effect distribution", "Answer the compare_interventions question"
 
-3. **Eval questions** (hidden): The `questions` array in design_case. These are \
-the internal scoring plan. The investigator does NOT see the eval_type or the \
-exact variable names from here. Write question_text as natural sub-questions \
-that a researcher would ask, but you CAN reference variables since this is \
-internal.
+3. **Eval questions** (visible as sub-questions): The `questions` array in \
+design_case. The eval_type and node hints are internal, but each question's \
+`question_text` IS SHOWN to the investigator in the briefing. Therefore:
+   - Write question_text as natural research sub-questions a scientist would ask.
+   - Use natural variable names (spaces, no underscores): "training load" not \
+"training_load_7d", "recovery quality" not "recovery_quality".
+   - NEVER wrap variable names in single quotes: "the effect of training load" \
+not "the effect of 'training_load'".
+   - NEVER use do-calculus framing: "if recovery quality improved" not \
+"setting recovery_quality to high".
+   - Counterfactuals should sound natural: "what would happen if we increased X" \
+not "if X were set to 0.75".
+   - The node hints (intervention_node, condition_variable, etc.) still use \
+internal node IDs — those are NOT visible.
 
 ## Evaluation types — when to use each one
 
@@ -206,9 +215,14 @@ For `infer_target`, `next_best_observation`, `hypothesis_selection`, and \
 - Every question must feel like something a scientist would ask, not a graph theory exercise.
 - Don't repeat the same eval_type + target_node combination.
 - Write question_text as a natural research question, not as a formal instruction. \
-These are internal (the investigator sees the brief, not these), but they still \
-guide the scoring and should be well-written.
-- For node-sensitive types, always provide the required hints (see above).
+These appear in the investigator's briefing as sub-questions, so they must read \
+as real research questions. NEVER use snake_case, single-quoted variable names, \
+or "setting X to Y" framing.
+   Good: "How much does recovery quality contribute to second-half decline?"
+   Bad: "What fraction of the causal effect of 'training_load_7d' on \
+'second_half_tactical_decline' is mediated through 'second_half_physical_drop'?"
+- For node-sensitive types, always provide the required hints (see above). \
+The hints use internal node IDs; the question_text uses natural names.
 - When generating from a seed/paper: identify the paper's ACTUAL research questions \
 FIRST, then map each one to the closest eval_type. Don't pick eval_types and write \
 questions around them.
