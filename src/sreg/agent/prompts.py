@@ -674,10 +674,9 @@ def _format_question(i: int, task: Task, problem: ResearchProblem) -> str:
     lines.append(task.question)
     lines.append("")
 
-    target_node = task.target_node
     if task.type in DISTRIBUTION_TYPES and task.correct_answer:
         states = list(task.correct_answer.keys())
-        lines.append(f"Target: **{target_node}** (states: {', '.join(states)})")
+        lines.append(f"Submit a probability distribution over: {', '.join(states)}")
         lines.append(f"Answer format: `submit(question={i}, distribution={{...}})`")
     elif task.type == TaskType.HYPOTHESIS_SELECTION:
         labels = sorted(task.hypotheses.keys()) if task.hypotheses else []
@@ -700,8 +699,6 @@ def _format_question(i: int, task: Task, problem: ResearchProblem) -> str:
         est_text = _estimand_section(task)
         if est_text:
             lines.append(est_text)
-        else:
-            lines.append(f"Target: **{target_node}**")
         lines.append(f"Answer format: `submit(question={i}, value=...)`")
     elif task.type == TaskType.BEST_INTERVENTION:
         lines.append(
@@ -717,7 +714,7 @@ def _format_question(i: int, task: Task, problem: ResearchProblem) -> str:
             lines.append(f"Options: {', '.join(options)}")
         lines.append(f"Answer format: `submit(question={i}, choice=\"...\")`")
     else:
-        lines.append(f"Target: **{target_node}**")
+        lines.append(f"Answer format: `submit(question={i}, ...)`")
 
     return "\n".join(lines)
 
@@ -779,9 +776,9 @@ def build_case_system_prompt(
             fmt = f'`submit(question={i}, variables=[...])`'
         else:
             fmt = f'`submit(question={i}, choice="...")`'
-        format_rows.append(f"| Q{i} | {tt.value} | {fmt} |")
+        format_rows.append(f"| Q{i} | {fmt} |")
 
-    format_table = "| Q | Type | Required format |\n|---|---|---|\n"
+    format_table = "| Q | Required format |\n|---|---|\n"
     format_table += "\n".join(format_rows)
 
     # Count tabular datasets for the intro

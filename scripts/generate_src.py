@@ -216,20 +216,27 @@ def export_briefing(result, output_dir: str) -> str | None:
         lines.append(problem.theoretical_context)
         lines.append("")
 
+    # Research brief + deliverables (Fase 5 / I10: brief/eval separation)
+    # The research_question field contains the brief + deliverables when
+    # generated via CasePlan. Show it as the primary research assignment.
+    if problem.research_question:
+        lines.append("## Research Assignment")
+        lines.append("")
+        lines.append(problem.research_question)
+        lines.append("")
+
     if tasks:
         lines.append("## Research Questions")
         lines.append("")
         for i, t in enumerate(tasks, 1):
-            lines.append(f"### Question {i} ({t.type})")
+            lines.append(f"### Question {i}")
             lines.append("")
             lines.append(t.question)
             lines.append("")
-            lines.append(f"Target variable: {t.target_node}")
-            lines.append("")
-    else:
+    elif not problem.research_question:
         lines.append("## Research Question")
         lines.append("")
-        lines.append(problem.research_question or "")
+        lines.append("(No research question provided)")
         lines.append("")
 
     lines.append("## Dataset")
@@ -388,19 +395,24 @@ def _export_scm_answer_key(result, output_dir: str) -> str | None:
         lines.append(f"  Equation: `{eq_str}`")
     lines.append("")
 
-    # Correct answers
+    # Correct answers (internal scoring agenda)
     if tasks:
-        lines.append("## Correct Answers")
+        lines.append("## Scoring Agenda (hidden from investigator)")
         lines.append("")
         for i, t in enumerate(tasks, 1):
-            lines.append(f"### Q{i}: {t.question[:100]}")
-            lines.append(f"Type: {t.type}")
+            lines.append(f"### Q{i} [{t.type}]: {t.question[:120]}")
+            lines.append(f"- Eval type: `{t.type}`")
+            lines.append(f"- Target node: `{t.target_node}`")
+            lines.append(f"- Scoring method: `{t.scoring_method}`")
+            if t.estimand:
+                lines.append(f"- Estimand: {t.estimand}")
             if t.correct_answer:
+                lines.append("- Correct answer:")
                 for k, v in t.correct_answer.items():
                     if isinstance(v, float):
-                        lines.append(f"  {k}: {v:.4f}")
+                        lines.append(f"    {k}: {v:.4f}")
                     else:
-                        lines.append(f"  {k}: {v}")
+                        lines.append(f"    {k}: {v}")
             lines.append("")
 
     path = os.path.join(output_dir, "answer_key.md")
@@ -1198,6 +1210,10 @@ def main():
         briefing_path = export_briefing(result, args.output)
         if briefing_path:
             _print(f"  {_c(GRN, 'v')} {briefing_path}")
+
+        ak_path = export_answer_key(result, args.output)
+        if ak_path:
+            _print(f"  {_c(GRN, 'v')} {ak_path}")
 
         dag_path = export_dag_png(result, args.output)
         if dag_path:

@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### 2026-03-24 — Brief/eval visibility separation (Fase 8 / I10 Fase 1)
+
+- **Briefing shows research brief**: `export_briefing()` now displays the
+  `Research Assignment` section (CasePlan's research_brief + deliverables)
+  instead of only showing individual task questions.
+- **Eval types hidden from briefing**: question headings no longer show
+  `(eval_type)`. Was `### Question 1 (causal_effect)`, now `### Question 1`.
+- **Target variable hidden from briefing**: removed `Target variable: X`
+  line from each question in the briefing.
+- **Target node hidden from solver prompt**: `_format_question()` no longer
+  shows `Target: **{target_node}**`. Distribution types show
+  `Submit a probability distribution over: states` instead.
+- **Eval type hidden from solver format table**: removed `tt.value` column.
+- **Answer key exported for SCM**: `_export_scm_answer_key()` now called
+  in `--inspect` mode. Contains full scoring agenda (eval types, target
+  nodes, estimands, correct answers, scoring methods).
+- **TODO updated**: A2, I1, I8 marked done items. New A13 (problem analysis)
+  and I10 (3-phase fix plan) added.
+- Reviewed with Codex. 1479 tests.
+
 ### 2026-03-23 — Realistic observational data structure (Fase 7)
 
 - **Panel structure**: `PanelConfig` + `apply_panel_structure()`. Datos con

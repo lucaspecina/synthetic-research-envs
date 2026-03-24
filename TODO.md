@@ -30,19 +30,23 @@ datos. Las descriptivas (infer_target, causal_effect) si fuerzan analisis.
 
 ### A2. Faltan tipos de preguntas cientificas
 
-Los papers reales preguntan cosas que nuestros 9 eval types no pueden
+Los papers reales preguntan cosas que nuestros eval types no pueden
 representar. El orchestrator las fuerza en los tipos existentes y pierde
 lo mas interesante.
 
+**Tipos implementados (SCM engine):**
+- [x] **ATE** — "cuanto cambia Y si movemos X?" (Fase 6)
+- [x] **Mediacion** — "que fraccion del efecto pasa por M?" (Fase 6)
+- [x] **Interaccion** — "el efecto de X depende de Z?" (Fase 6)
+
 **Tipos que faltan:**
-- [ ] **Mediacion** — "por que camino llega el efecto?"
-- [ ] **Modificacion de efecto** — "para quien es diferente?"
 - [ ] **Sesgo de seleccion** — "es real o es un espejismo?"
 - [ ] **Atribucion de fuente** — "de donde viene?"
 - [ ] **Efectos heterogeneos** — "funciona igual para todos?"
+- [ ] **Inverse design** — "que combinacion produce este resultado?"
 
-**Pregunta abierta:** para cada tipo, se puede evaluar con rigor contra la
-BN? Si no, no pertenece al nucleo de SREG.
+**Pregunta abierta:** para cada tipo, se puede evaluar con rigor contra el
+SCM? Si no, no pertenece al nucleo de SREG.
 
 **Evidencia:** inspiration reports v2, NOTES.md seccion "Tipos de preguntas".
 
@@ -307,7 +311,7 @@ variables, es un error legitimo que el scoring deberia penalizar. La solucion
 a futuro es mejorar el scoring para detectar cuando la distribucion submitida
 proviene de la variable equivocada.
 
-### A12. Scores enganiosos por coincidencia estadistica
+### A12. Scores enganiosos por coincidencia estadistica (legacy BN)
 
 En algunos SRCs, la distribucion marginal de una variable observable es
 casi identica a la posterior causal de otra variable. El solver computa la
@@ -322,6 +326,38 @@ tactical_drop {moderate: 0.674} vs posterior causal de physical_drop
 - [ ] Se puede verificar que la variable computada sea la correcta?
 - [ ] Agregar una metrica de "proceso" ademas del score funcional?
 - [ ] Datos con distribuciones mas diferenciadas reducirian este problema?
+
+### A13. El brief visible muestra preguntas internas, no el research_brief
+
+**El problema central**: el sistema genera un `research_brief` natural y
+`deliverables` naturales (Fase 5), pero el briefing que ve el solver los
+IGNORA y muestra las preguntas internas de scoring directamente.
+
+En `generate_src.py:219-228`, cuando hay tasks, el codigo:
+1. Muestra `### Question N (eval_type)` — revelando el tipo de evaluacion
+2. Muestra `Task.question` — que viene de templates tipo examen
+3. Muestra `Target variable: X` — metadata interna de scoring
+
+Mientras tanto, el `research_brief` y los `deliverables` del `CasePlan`
+se guardan en `ResearchProblem.research_question` pero nunca se muestran.
+
+**Evidencia (2026-03-24):** 3 SRCs generados (football, Vaca Muerta, coral
+reef). Los backgrounds son creibles, pero las preguntas suenan a parcial:
+- "maximize X being above 45.73" (compare_interventions)
+- "Answer yes or no" (interaction)
+- "Which variables should be controlled for?" (adjustment_set)
+
+**Causa raiz (3 capas):**
+1. `export_briefing()` ignora el brief y muestra task questions (arreglo facil)
+2. Las preguntas nacen del catalogo de eval types, no del paper (arreglo medio)
+3. Los templates de preguntas son rigidos y tipo examen (arreglo medio)
+
+**Diagnosticado con Codex.** Codex confirmo que `compare_interventions` esta
+en `NEVER_OVERRIDE` (el orchestrator ni siquiera puede mejorar el wording),
+y que el prompt pide "different eval types" forzando cobertura del menu en
+vez de coherencia cientifica.
+
+**Referencia:** sesion 2026-03-24. Implementar: I10.
 
 ---
 
@@ -356,16 +392,40 @@ toda respuesta INCORRECTA se reportaba como "GOOD".
 **Fix aplicado:** generate_src.py y solve_existing.py ahora detectan el tipo
 y usan `> 0.9 = GOOD` para choice types vs `< 0.1 = GOOD` para KL types.
 
+### I10. Brief real en vez de preguntas internas — motivado por A13
+
+El solver debe ver el `research_brief` + `deliverables`, NO las preguntas
+internas de scoring. Las preguntas internas (`Task.question`) solo sirven
+para scoring y debugging.
+
+**Fase 1 (urgente): mostrar el brief real**
+- [~] `export_briefing()` en `generate_src.py`: mostrar `research_brief` +
+  `deliverables` en vez de task questions individuales
+- [~] Quitar `(eval_type)` y `Target variable:` del output visible
+- [~] Las preguntas internas van al `answer_key.md`, no al briefing
+
+**Fase 2: mejorar templates de preguntas internas**
+- [ ] Reescribir template de `compare_interventions` — quitar threshold
+  numerico, quitar "maximize algo negativo", quitar "Answer A or B"
+- [ ] Reescribir template de `interaction` — quitar "Answer yes or no"
+- [ ] Sacar `compare_interventions` de `NEVER_OVERRIDE` para permitir
+  que el orchestrator mejore el wording
+- [ ] Quitar restriccion "different eval types" del prompt de design_case
+
+**Fase 3: preguntas desde el paper, no desde el menu**
+- [ ] El orchestrator deberia pensar primero "que preguntaria un investigador"
+  y DESPUES mapear a eval types disponibles
+- [ ] Si no hay eval type que represente una pregunta natural, NO forzarla
+- [ ] Permitir que un deliverable mapee a multiples scoring atoms
+
 ### I1. Nuevos eval types — motivado por A2
 
-- [ ] Disenar `mediation_query`: "que parte del efecto de X sobre Y pasa
-  por M?". Verificar si es computable desde la BN.
-- [ ] Disenar `effect_modification`: "el efecto de X sobre Y cambia segun
-  el valor de Z?". Verificar computabilidad.
+- [x] `ate`: estimacion de ATE continuo (Fase 6, SCM engine)
+- [x] `mediation`: fraccion mediada (Fase 6, SCM engine)
+- [x] `interaction`: modificacion de efecto (Fase 6, SCM engine)
 - [ ] Disenar `subgroup_effect` o `selection_bias_assessment`.
 - [ ] Disenar `inverse_design`: "que combinacion de intervenciones produce
   este resultado?" Verificable con do-calculus multi-intervencion.
-  Potencialmente iterativo (proponer → feedback → refinar).
   Referencia: SciDesignBench (arxiv 2603.12724).
 - [ ] Para cada tipo nuevo: definir scoring, correcta ground truth, y
   agregar al teacher.
@@ -432,15 +492,17 @@ Implementacion:
 
 ### I8. Datasets mas realistas — motivado por A1
 
-Hoy los datasets tienen 5% noise y 5% missingness, pero eso es ruido
-estadistico, no complejidad de evidencia. Los papers reales tienen
-multiples fuentes que no coinciden, proxies imperfectos, datos de
-distintas epocas, variables medidas con distintos instrumentos.
+**Implementado (Fase 7, SCM engine):**
+- [x] Estructura de panel: sites + waves con random effects y trend temporal.
+- [x] Missing informativo: dropout acumulativo por wave (~18-39% total).
+- [x] Proxy columns: variables correlacionadas con noise que el solver debe
+  distinguir del signal real.
+- [x] Shared study frame: un master sample, artefactos como vistas.
 
-- [ ] Agregar datasets con estructura temporal (antes/despues).
-- [ ] Multiples fuentes con discrepancias reales.
-- [ ] Variables que son proxies imperfectos de lo que realmente importa.
+**Pendiente:**
+- [ ] Multiples fuentes con discrepancias reales (mas alla de shared frame).
 - [ ] Metadata de calidad por columna (instrumento, precision, fecha).
+- [ ] Dropout total de sites (no solo parcial).
 
 ### I9. Mejorar prompt del orchestrator para eval types — motivado por A2
 

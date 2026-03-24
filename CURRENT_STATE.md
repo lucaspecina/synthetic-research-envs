@@ -3,7 +3,7 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-23 (Realistic observational data — Fase 7)
+> Actualizado: 2026-03-24 (Brief/eval visibility separation — Fase 8)
 
 ---
 
