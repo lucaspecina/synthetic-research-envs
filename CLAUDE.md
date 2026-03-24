@@ -115,6 +115,77 @@ pasan. Si algo se parece a un juego artificial (budgets de juguete, acciones
 predefinidas, preguntas que se responden sin datos), hay que eliminarlo o
 rediseniarlo.
 
+## Harness de evaluacion — como sabemos si SREG funciona
+
+Tres niveles fundamentalmente distintos. Cada uno responde una pregunta
+diferente y se corre en momentos diferentes.
+
+### Nivel 1: Tests automaticos (`pytest`)
+
+**Pregunta:** "El codigo funciona?"
+**Cuando:** antes de cada commit. Siempre.
+**Como:** `pytest tests/ -v` + `ruff check src/ tests/`
+
+### Nivel 2: Diagnostico de entornos (`/eval`)
+
+**Pregunta:** "Los entornos generados son buenos?"
+**Cuando:** despues de cambios que afecten generacion (templates, prompts,
+orchestrator, data pipeline, problem builder).
+**Como:** generar SRCs reales con el sistema completo y evaluarlos.
+
+Tiene dos componentes igualmente importantes:
+
+#### 2a. Cuantitativo (DiagnosticRunner)
+Metricas automaticas: KL, submit rate, baseline comparison por eval type,
+budget efficiency, failure modes. Ver `/eval` skill.
+
+#### 2b. Cualitativo (Rubrica + descubrimiento abierto)
+**LEER los casos generados.** Esto no es opcional ni secundario — es donde
+se encontraron TODOS los problemas fundamentales de SREG hasta ahora.
+
+Dos fases:
+1. **Rubrica estructurada**: evaluar dimensiones conocidas (0-1-2) y
+   critical failures (si/no). Ver `research/synthesis/qualitative_eval_rubric.md`.
+2. **Descubrimiento abierto**: leer el caso con ojos frescos y buscar
+   CUALQUIER cosa que no se sienta como investigacion real. Los problemas
+   nuevos no estan en la rubrica — hay que buscarlos activamente.
+
+**No-data baseline probe**: darle el brief + preguntas a un LLM SIN dataset.
+Si responde bien, el SRC no fuerza investigacion. Es el test mas poderoso.
+
+#### Evolucion de la rubrica
+
+La rubrica es un piso, no un techo. Se evoluciona asi:
+
+1. **Descubrimiento**: durante evaluacion cualitativa se encuentra un
+   problema nuevo (no cubierto por las dimensiones/CF existentes)
+2. **Registro**: se documenta en `research/synthesis/qualitative_eval_rubric.md`
+   seccion "Registro de hallazgos" con fecha, evidencia, y caso donde aparecio
+3. **Promocion**: si el problema aparece en 2+ evaluaciones independientes,
+   se promueve a nueva dimension o critical failure
+4. **Refinamiento**: las dimensiones existentes se detallan con sub-criterios
+   cuando la escala 0-1-2 no captura suficiente matiz
+
+**Regla clave**: si encontras un problema y no esta en la rubrica, el
+problema es real y la rubrica esta incompleta. Nunca ignorar un problema
+porque "no esta en el checklist".
+
+### Nivel 3: Transfer benchmark (FUTURO, SEPARADO)
+
+**Pregunta:** "Entrenar en SREG mejora las policies?"
+**Cuando:** cuando haya policies entrenadas.
+**Como:** benchmarks externos (CLadder, QRData, DiscoveryBench).
+No es parte de SREG core. Ver `research/synthesis/benchmark_analysis.md`.
+
+### Referencia rapida
+
+| Nivel | Skill | Frecuencia | Que mide |
+|-------|-------|------------|----------|
+| L1 Tests | `/test` | Cada commit | Codigo funciona |
+| L2 Cuanti | `/eval` | Post-cambio generacion | Metricas de entornos |
+| L2 Cuali | `/eval` | Post-cambio generacion | Realismo, coherencia, problemas nuevos |
+| L3 Transfer | — | Futuro | Mejora de policies |
+
 ## Project overview
 
 SREG genera entornos sinteticos de investigacion con reward signals exactos,

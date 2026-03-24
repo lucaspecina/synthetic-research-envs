@@ -133,11 +133,104 @@ overall_verdict: NEEDS_WORK
 | **Diagnostico (L2)** | **Hogar principal.** Muestreo cualitativo estructurado como parte del diagnostico, no solo metricas numericas |
 | **Transfer (L3)** | Estratificar: si entrenar con SRCs de mala rubrica no transfiere, confirma que el scaffold era incorrecto |
 
+## Descubrimiento abierto — mas alla de la rubrica
+
+Las 7 dimensiones y 6 critical failures son el PISO de la evaluacion, no
+el techo. Los problemas mas importantes de SREG se descubrieron fuera de
+cualquier checklist — leyendo casos con ojos frescos.
+
+### Principio
+
+**Si encontras un problema y no esta en la rubrica, el problema es real y
+la rubrica esta incompleta.** Nunca ignorar algo porque "no esta en el
+checklist". La rubrica crece a medida que entendemos mejor que hace falta
+para que un SRC sea investigacion real.
+
+### Preguntas guia para descubrimiento
+
+Estas no son las unicas preguntas — son puntos de partida. Lo que importa
+es leer el caso como si fueras un investigador que lo recibe por primera vez.
+
+- Un cientifico del dominio creeria que este es un caso real?
+- Los datos se ven como un dataset real a primera vista?
+- Las variables tienen unidades correctas y rangos plausibles?
+- Hay algo que un investigador notaria como falso en 10 segundos?
+- Las preguntas de investigacion fluyen naturalmente del brief?
+- Las intervenciones propuestas son las que un equipo real propondria?
+- La narrativa y la estructura formal cuentan la misma historia?
+- Hay algo que suene a "juego" o "examen" en vez de "investigacion"?
+- El investigador tendria que pensar y explorar, o solo ejecutar?
+
+### Como registrar hallazgos nuevos
+
+Cuando encuentres un problema no cubierto por D1-D7 o CF1-CF6:
+
+1. **Documentar** en el registro de la evaluacion (ver formato en `/eval`)
+2. **Clasificar severidad**: low (cosmetic), medium (degrada realismo),
+   high (rompe la experiencia investigativa)
+3. **Evaluar recurrencia**: aparece en otros SRCs? Es sistematico o puntual?
+4. **Decidir accion**:
+   - Puntual → fix especifico + nota en el registro
+   - Recurrente → candidato a nueva dimension o critical failure
+
+## Evolucion de la rubrica
+
+### Protocolo de promocion
+
+```
+Problema nuevo encontrado
+    → Registro con fecha + evidencia + caso
+        → Aparece en 1 SRC? → Nota, no promover aun
+        → Aparece en 2+ SRCs? → Candidato a promocion
+            → Es una dimension nueva? (espectro 0-1-2)
+            → Es un critical failure? (binario, defecto grave)
+            → Es sub-criterio de dimension existente?
+        → Discutir con el equipo → Promover o descartar
+```
+
+### Criterios para promover
+
+**Nueva dimension (D8, D9...):** el problema tiene un espectro natural de
+gravedad (no es binario), es ortogonal a las dimensiones existentes, y
+aparece de forma independiente en multiples SRCs.
+
+**Nuevo critical failure (CF7, CF8...):** el problema es binario (existe o no),
+su presencia invalida el SRC para entrenamiento, y no es un sub-caso de un
+CF existente.
+
+**Sub-criterio de dimension existente:** el problema detalla un aspecto de
+una dimension ya definida. No agrega una nueva fila — refina la descripcion
+de una existente.
+
+### Versionado
+
+Cuando se agrega una dimension o CF:
+- Incrementar version de la rubrica (v1 → v1.1 para sub-criterios, v2 para
+  dimensiones/CFs nuevos)
+- Las evaluaciones anteriores NO se re-califican (snapshot en el tiempo)
+- Documentar el cambio en la seccion de historial
+
+### Historial de cambios
+
+| Version | Fecha | Cambio |
+|---------|-------|--------|
+| v1.0 | 2026-03-24 | Rubrica inicial: 7 dimensiones + 6 critical failures |
+
+## Registro de hallazgos
+
+> Aqui se documentan problemas nuevos encontrados durante evaluaciones
+> cualitativas que no estan cubiertos por las dimensiones o CFs formales.
+> Los hallazgos recurrentes se promueven a la rubrica.
+
+_Aun no hay hallazgos registrados. Se poblara durante la primera evaluacion
+formal._
+
 ## MVP y anti-over-engineering
 
 **Hacer ahora:**
 - Definir las 7 dimensiones + 6 critical failures (HECHO en este doc)
-- Protocolo de revision manual
+- Protocolo de revision manual (HECHO)
+- Protocolo de evolucion de rubrica (HECHO en este doc)
 - No-data baseline probe (script minimo)
 - Revisar 3-5 SRCs manualmente por cambio importante
 - Registrar como artifact del diagnostico
@@ -146,7 +239,7 @@ overall_verdict: NEEDS_WORK
 - LLM-judge automatizado (necesita 50-100 reviews humanas primero para calibrar)
 - Sistema de scoring ponderado sofisticado
 - Dashboard o pipeline automatizado
-- 25 metricas cualitativas — 7 dimensiones + 6 failures es suficiente
+- 25 metricas cualitativas — empezar con las 7+6, crecer organicamente
 
 **Riesgo de over-engineering:** Alto. El valor esta en LEER LOS CASOS y
 registrar que se encuentra. No en construir un sistema complicado para
