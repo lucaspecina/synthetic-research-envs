@@ -215,6 +215,7 @@ Cuando se agrega una dimension o CF:
 | Version | Fecha | Cambio |
 |---------|-------|--------|
 | v1.0 | 2026-03-24 | Rubrica inicial: 7 dimensiones + 6 critical failures |
+| v1.0 | 2026-03-24 | Primera evaluacion: 8 hallazgos registrados (H1-H4 Claude, H5-H8 Codex) |
 
 ## Registro de hallazgos
 
@@ -222,8 +223,73 @@ Cuando se agrega una dimension o CF:
 > cualitativas que no estan cubiertos por las dimensiones o CFs formales.
 > Los hallazgos recurrentes se promueven a la rubrica.
 
-_Aun no hay hallazgos registrados. Se poblara durante la primera evaluacion
-formal._
+### H1. Variables referenciadas como codigo, no como prosa (2026-03-24)
+- **Recurrente:** 3/3 SRCs (football, coral_reef, vaca_muerta)
+- **Severidad:** medium
+- **Descripcion:** las preguntas citan variables con comillas simples y snake_case
+  ("'training_load_7d' on 'second_half_tactical_decline'") en vez de lenguaje
+  natural ("recent training load on second-half tactical decline").
+- **Diferencia con CF4:** CF4 es sobre visibilidad de nombres internos. H1 es
+  sobre el ESTILO — sintaxis de programacion para referir variables.
+- **Candidato para:** sub-criterio de CF4
+
+### H2. Framing "setting X to Y" en vez de contrafactual natural (2026-03-24)
+- **Recurrente:** 3/3 SRCs
+- **Severidad:** medium
+- **Descripcion:** compare_interventions usa "setting 'recovery_quality' to 'low'"
+  cuando un investigador diria "among players with poor pre-match recovery" o
+  "if recovery protocols were improved". El verbo "set" delata el do-calculus.
+- **Candidato para:** sub-criterio de D4
+
+### H3. Respuestas artificialmente limpias (2026-03-24)
+- **Recurrente:** 1/3 SRCs (football). Pendiente verificar en otros.
+- **Severidad:** medium
+- **Descripcion:** mediacion = 1.0 exacto y interaccion = "no" exacto. En
+  investigacion real estos valores son ruidosos. Las ecuaciones del SCM pueden
+  producir relaciones demasiado limpias por construccion.
+- **Candidato para:** sub-criterio de D6
+
+### H4. Metadata del dataset revela estructura interna (2026-03-24)
+- **Recurrente:** 3/3 SRCs
+- **Severidad:** low
+- **Descripcion:** el briefing incluye "4 sites, 3 waves, 500 observations, 28%
+  missing". Un investigador real descubriria esto explorando los datos, no lo
+  sabria de antemano.
+- **Candidato para:** sub-criterio de D5
+
+### H5. causal_warrant — identificacion causal asumida sin justificar (2026-03-24, Codex)
+- **Recurrente:** 1/1 SRCs evaluados del sistema actual (football). Pendiente verificar.
+- **Severidad:** high
+- **Descripcion:** con datos observacionales de 4 sites y 28% missing, el caso salta
+  a ATE, mediacion e interaccion sin justificar la estrategia de identificacion.
+  Un investigador primero plantearia instrumentos, DiD, discontinuidad, etc.
+- **Candidato para:** nueva dimension "identification credibility"
+
+### H6. measurement_provenance — variables sin explicar como se midieron (2026-03-24, Codex)
+- **Recurrente:** 1/1 SRCs evaluados del sistema actual. Pendiente verificar.
+- **Severidad:** high
+- **Descripcion:** cognitive_fatigue, second_half_tactical_decline,
+  coach_substitution_pressure aparecen como columnas limpias sin explicar si son
+  composites, ratings, tests estandarizados o derivados. Un investigador necesita
+  esto para juzgar calidad de evidencia.
+- **Candidato para:** sub-criterio de D5 o nueva dimension
+
+### H7. indexing_realism — faltan llaves naturales del dominio (2026-03-24, Codex)
+- **Recurrente:** 1/1 SRCs evaluados del sistema actual. Pendiente verificar.
+- **Severidad:** medium
+- **Descripcion:** para un caso player-match faltan player_id, match_id, fecha,
+  rival. Aparece sample_id generico. Las llaves que un analista esperaria estan
+  ausentes.
+- **Candidato para:** sub-criterio de D5
+
+### H8. eval_ontology_leak — taxonomia de eval types visible (2026-03-24, Codex)
+- **Recurrente:** 1/1 SRCs evaluados del sistema actual. Pendiente verificar.
+- **Severidad:** high
+- **Descripcion:** Q1-Q5 mapean 1:1 a causal_effect, compare_interventions,
+  interaction, mediation, infer_latent_cause. Las preguntas parecen diseñadas
+  para cubrir la taxonomia, no para investigar el fenomeno. Codex: "las
+  preguntas nacen del scorer, no de la investigacion".
+- **Candidato para:** nuevo CF "eval_ontology_leak" — la causa raiz mas profunda
 
 ## MVP y anti-over-engineering
 

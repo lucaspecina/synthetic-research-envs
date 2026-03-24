@@ -454,10 +454,11 @@ para scoring y debugging.
 - [ ] Si no hay eval type que represente una pregunta natural, NO forzarla
 - [ ] Permitir que un deliverable mapee a multiples scoring atoms
 
-### I11. Rubrica de evaluacion cualitativa — motivado por A14
+### I11. Harness de evaluacion cualitativa — motivado por A14
 
 Formalizar la evaluacion cualitativa de SRCs como parte del workflow de
-desarrollo, no como inspeccion ad-hoc.
+desarrollo, no como inspeccion ad-hoc. La rubrica es un PISO que evoluciona
+— siempre se buscan problemas nuevos mas alla del checklist.
 
 **Fase 1: definir rubrica (HECHO)**
 - [x] 7 dimensiones con escala 0/1/2 (framing real, necesidad de datos,
@@ -467,22 +468,38 @@ desarrollo, no como inspeccion ad-hoc.
   brief_eval_mismatch, variable_name_leak, toy_comparison, narrative_as_skin)
 - [x] Documentar en `research/synthesis/qualitative_eval_rubric.md`
 
-**Fase 2: protocolo operativo**
+**Fase 1b: formalizar harness (HECHO)**
+- [x] Seccion "Harness de evaluacion" en `CLAUDE.md` — 3 niveles, cuali+cuanti,
+  evolucion de rubrica
+- [x] Reescribir skill `/eval` — 8 pasos: cuanti + rubrica + no-data probe +
+  descubrimiento abierto + registro + reporte + actualizacion de rubrica
+- [x] Protocolo de evolucion en rubrica: descubrimiento → registro → promocion
+  cuando recurrente
+- [x] Seccion "Registro de hallazgos" y versionado en rubrica
+
+**Fase 2: primera evaluacion formal** ← SIGUIENTE
+- [ ] Generar 3-5 SRCs con seeds diversos (football, oil&gas, ecology, health)
+- [ ] Aplicar rubrica completa: 7D + 6CF + descubrimiento abierto
+- [ ] Correr no-data baseline probe (manual: brief sin dataset a LLM)
+- [ ] Registrar resultados en formato estructurado
+- [ ] Analizar: donde estamos bien, donde mal, que problemas nuevos aparecen
+
+**Fase 3: protocolo operativo**
 - [ ] Definir set canonico de 5 seeds para comparacion temporal
-- [ ] Formato de registro estructurado (CSV/JSONL en experiments/qualitative/)
+- [ ] Formato de registro persistente (YAML en experiments/qualitative/)
 - [ ] Integrar en workflow post-cambio: generar N SRCs + revisar + registrar
 
-**Fase 3: no-data baseline probe**
+**Fase 4: no-data baseline probe automatizado**
 - [ ] Script que toma briefing.md, alimenta un LLM SIN dataset, compara
   con answer_key.md. Si supera random, el SRC no fuerza investigacion.
 - [ ] Integrar como paso opcional del diagnostico.
 
-**Fase 4 (futuro): automatizacion parcial**
+**Fase 5 (futuro): automatizacion parcial**
 - [ ] Checks automaticos para CF2 (regex: "Answer A or B", "Submit...") y
   CF4 (pattern match: snake_case en briefing visible)
 - [ ] LLM-judge calibrado SOLO despues de 50+ reviews humanas como ground truth
 
-**Referencia:** `research/synthesis/qualitative_eval_rubric.md`
+**Referencia:** `research/synthesis/qualitative_eval_rubric.md`, `CLAUDE.md`
 
 ### I1. Nuevos eval types — motivado por A2
 
