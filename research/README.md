@@ -24,6 +24,7 @@ Documentos de sintesis activos:
 - `synthesis/real_papers_patterns.md`
 - `synthesis/eval_types_analysis.md`
 - `synthesis/eval_strategy.md`
+- `synthesis/qualitative_eval_rubric.md`
 - `synthesis/benchmark_analysis.md`
 - `synthesis/sreg_scientific_coverage.md`
 
@@ -79,6 +80,9 @@ desplazandose hacia `synthesis/`.
 ### Estrategia de evaluacion
 - **Pregunta:** como evaluar SREG sin reducirlo a un benchmark disfrazado.
 - **Empezar por:** `synthesis/eval_strategy.md`
+- **Rubrica cualitativa:** `synthesis/qualitative_eval_rubric.md` — 7
+  dimensiones + 6 critical failures + no-data baseline probe. Formaliza la
+  evaluacion cualitativa que antes era ad-hoc.
 - **Notas de apoyo:** `notes/eval_design_notes.md`
 
 ### Benchmarks externos

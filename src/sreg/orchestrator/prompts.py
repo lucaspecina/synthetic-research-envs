@@ -642,9 +642,10 @@ TOOL_DEFINITIONS = [
                             "Hidden evaluation questions (the scoring agenda). The "
                             "investigator sees the research_brief, NOT these. Each "
                             "must specify question_text, eval_type, and target_node. "
-                            "Use 3-5 questions with different eval_types. Write "
-                            "question_text as natural sub-questions a researcher "
-                            "would ask."
+                            "Use 3-5 questions. Pick eval_types that fit the "
+                            "scenario naturally -- repeating a type is fine if "
+                            "the research warrants it. Write question_text as "
+                            "natural sub-questions a researcher would ask."
                         ),
                         "items": {
                             "type": "object",

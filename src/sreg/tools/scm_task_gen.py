@@ -548,11 +548,9 @@ class SCMTaskGenTool:
             better_node, better_label = node_b, label_b
 
         question = (
-            f"Your team is debating between two possible actions to "
-            f"maximize '{target}' being above {target_median:.2f}. "
-            f"Option A: set '{node_a}' to '{label_a}'. "
-            f"Option B: set '{node_b}' to '{label_b}'. "
-            f"Which action would be more effective? Answer 'A' or 'B'."
+            f"Which of these two changes would have a greater impact on "
+            f"'{target}': setting '{node_a}' to '{label_a}', or setting "
+            f"'{node_b}' to '{label_b}'?"
         )
 
         return Task(
@@ -565,6 +563,14 @@ class SCMTaskGenTool:
             correct_answer=correct_answer,
             scoring_method="compare_interventions",
             intervention={better_node: better_label},
+            estimand={
+                "type": "compare_interventions",
+                "option_a": node_a,
+                "label_a": label_a,
+                "option_b": node_b,
+                "label_b": label_b,
+                "outcome": target,
+            },
         )
 
     def _should_condition_task(
@@ -1013,9 +1019,7 @@ class SCMTaskGenTool:
         question = (
             f"Does the effect of '{treatment}' on '{target}' depend on "
             f"the level of '{modifier}'? In other words, does '{modifier}' "
-            f"modify the relationship between '{treatment}' and '{target}'? "
-            f"Answer 'yes' if the effect varies meaningfully across different "
-            f"levels of '{modifier}', or 'no' if it remains roughly constant."
+            f"modify the relationship between '{treatment}' and '{target}'?"
         )
 
         return Task(
@@ -1157,12 +1161,11 @@ class SCMTaskGenTool:
         TaskType.INTERACTION,
         TaskType.ATE,
         TaskType.MEDIATION,
+        TaskType.COMPARE_INTERVENTIONS,
     })
 
     # Types where overriding the question risks semantic inversion.
-    _NEVER_OVERRIDE_QUESTION_TYPES = frozenset({
-        TaskType.COMPARE_INTERVENTIONS,
-    })
+    _NEVER_OVERRIDE_QUESTION_TYPES: frozenset[TaskType] = frozenset()
 
     def generate_from_plan(
         self,
@@ -1346,6 +1349,10 @@ class SCMTaskGenTool:
         if etype == "interaction":
             return _present(task.estimand.get("treatment", "")) and _present(
                 task.estimand.get("modifier", "")
+            )
+        if etype == "compare_interventions":
+            return _present(task.estimand.get("option_a", "")) and _present(
+                task.estimand.get("option_b", "")
             )
         return True
 

@@ -359,6 +359,29 @@ vez de coherencia cientifica.
 
 **Referencia:** sesion 2026-03-24. Implementar: I10.
 
+### A14. Falta evaluacion cualitativa formal
+
+Los problemas mas graves de SREG (preguntas tipo examen, mecanicas de juego,
+framing artificial, narrativa como skin) se encontraron siempre via inspeccion
+cualitativa ad-hoc. El framework cuantitativo (KL, submit rate, verdicts)
+NO captura estos problemas — un SRC puede tener scores "GOOD" y seguir
+sintiendo como un benchmark disfrazado.
+
+**Diagnosis (con Codex, 2026-03-24):**
+- eval_strategy.md ya dice "inspeccion cualitativa sigue siendo necesaria"
+  (principio 4), pero nunca se volvio operativa.
+- eval_design_notes.md tiene P.1-P.6 (presentacion) y E.5 (litmus test
+  subjetivo), pero sin protocolo concreto ni rubrica.
+- Cada mejora se evalua con 1-3 SRCs leidos informalmente. No hay
+  comparacion sistematica ni tracking temporal.
+
+**Propuesta:** rubrica con 7 dimensiones (0/1/2) + 6 critical failures
+(binarios) + probe hibrido "no-data baseline". Revision manual de 3-20
+SRCs por cambio, formato estructurado, tracking temporal.
+
+**Referencia:** `research/synthesis/qualitative_eval_rubric.md`
+**Implementar:** I11.
+
 ---
 
 ## Implementacion y experimentos
@@ -404,19 +427,62 @@ para scoring y debugging.
 - [~] Quitar `(eval_type)` y `Target variable:` del output visible
 - [~] Las preguntas internas van al `answer_key.md`, no al briefing
 
-**Fase 2: mejorar templates de preguntas internas**
-- [ ] Reescribir template de `compare_interventions` — quitar threshold
+**Fase 2: mejorar templates de preguntas internas** (Fase 9)
+- [x] Reescribir template de `compare_interventions` — quitar threshold
   numerico, quitar "maximize algo negativo", quitar "Answer A or B"
-- [ ] Reescribir template de `interaction` — quitar "Answer yes or no"
-- [ ] Sacar `compare_interventions` de `NEVER_OVERRIDE` para permitir
-  que el orchestrator mejore el wording
-- [ ] Quitar restriccion "different eval types" del prompt de design_case
+- [x] Reescribir template de `interaction` — quitar "Answer yes or no"
+- [x] Sacar `compare_interventions` de `NEVER_OVERRIDE` → movido a
+  `SAFE_OVERRIDE` con estimand + entity check
+- [x] Quitar restriccion "different eval types" del prompt de design_case
+
+**Hallazgos de Codex (code review Fase 2, 2026-03-24):**
+- [ ] Entity check para `compare_interventions` solo verifica `option_a` y
+  `option_b` (nodos) pero no `label_a`/`label_b`/`outcome`. Podria aceptar
+  preguntas con direccion o outcome equivocados.
+- [ ] `desired_state` en el schema de `compare_interventions` es residuo BN.
+  El generador SCM no lo usa pero el prompt del orchestrator lo sigue
+  pidiendo, empujando framing "maximize state high".
+- [ ] `should_condition` en SCM todavia tiene formato "Answer yes or no".
+- [ ] Faltan tests: `test_question_is_natural` para `compare_interventions`
+  e `interaction`, test de rechazo de override con entities equivocados.
+- [ ] Fallback templates usan `snake_case` crudo. Considerar
+  `replace("_", " ")` para nombres de variables en templates.
 
 **Fase 3: preguntas desde el paper, no desde el menu**
 - [ ] El orchestrator deberia pensar primero "que preguntaria un investigador"
   y DESPUES mapear a eval types disponibles
 - [ ] Si no hay eval type que represente una pregunta natural, NO forzarla
 - [ ] Permitir que un deliverable mapee a multiples scoring atoms
+
+### I11. Rubrica de evaluacion cualitativa — motivado por A14
+
+Formalizar la evaluacion cualitativa de SRCs como parte del workflow de
+desarrollo, no como inspeccion ad-hoc.
+
+**Fase 1: definir rubrica (HECHO)**
+- [x] 7 dimensiones con escala 0/1/2 (framing real, necesidad de datos,
+  coherencia entre capas, validez de comparacion, realismo de datos,
+  riqueza epistemica, workflow investigativo)
+- [x] 6 critical failures binarios (answerable_without_data, exam_like_wording,
+  brief_eval_mismatch, variable_name_leak, toy_comparison, narrative_as_skin)
+- [x] Documentar en `research/synthesis/qualitative_eval_rubric.md`
+
+**Fase 2: protocolo operativo**
+- [ ] Definir set canonico de 5 seeds para comparacion temporal
+- [ ] Formato de registro estructurado (CSV/JSONL en experiments/qualitative/)
+- [ ] Integrar en workflow post-cambio: generar N SRCs + revisar + registrar
+
+**Fase 3: no-data baseline probe**
+- [ ] Script que toma briefing.md, alimenta un LLM SIN dataset, compara
+  con answer_key.md. Si supera random, el SRC no fuerza investigacion.
+- [ ] Integrar como paso opcional del diagnostico.
+
+**Fase 4 (futuro): automatizacion parcial**
+- [ ] Checks automaticos para CF2 (regex: "Answer A or B", "Submit...") y
+  CF4 (pattern match: snake_case en briefing visible)
+- [ ] LLM-judge calibrado SOLO despues de 50+ reviews humanas como ground truth
+
+**Referencia:** `research/synthesis/qualitative_eval_rubric.md`
 
 ### I1. Nuevos eval types — motivado por A2
 

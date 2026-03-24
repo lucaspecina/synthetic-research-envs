@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+### 2026-03-24 — Template rewrites + qualitative eval rubric (Fase 9 / I10 Fase 2)
+
+- **compare_interventions template rewritten**: removed numeric threshold
+  ("above 26.93"), "maximize", and "Answer 'A' or 'B'". Now: "Which of
+  these two changes would have a greater impact on Y: setting A to X,
+  or setting B to Z?"
+- **interaction template simplified**: removed "Answer 'yes' if...or 'no'
+  if..." exam-style instructions. Question is self-explanatory.
+- **compare_interventions override enabled**: moved from NEVER_OVERRIDE to
+  SAFE_OVERRIDE. Added estimand field (option_a, option_b, outcome) and
+  entity check so orchestrator can improve wording when it mentions the
+  correct variable names.
+- **Orchestrator prompt relaxed**: "Use 3-5 questions with different
+  eval_types" changed to "Pick eval_types that fit the scenario naturally
+  -- repeating a type is fine."
+- **Qualitative evaluation rubric**: new research synthesis doc with
+  7 dimensions (0-2 scale) + 6 critical failures + no-data baseline probe
+  protocol. Addresses A14 (ad-hoc qualitative review → formal framework).
+- **Codex review**: 5 remaining findings documented in TODO I10
+  (weak entity check, desired_state residue, should_condition wording,
+  missing tests, snake_case in fallbacks).
+- Reviewed with Codex. 1479 tests.
+
 ### 2026-03-24 — Brief/eval visibility separation (Fase 8 / I10 Fase 1)
 
 - **Briefing shows research brief**: `export_briefing()` now displays the
