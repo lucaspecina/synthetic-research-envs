@@ -212,6 +212,17 @@ a lo que enfrenta un investigador real.
 El resultado buscado no es solo "mas tasks". Es un entorno donde investigar
 bien sea necesario, medible y transferible.
 
+### Investigacion abierta (Open Investigation)
+
+A futuro, SREG deberia poder evaluar no solo si el solver RESPONDE bien, sino
+si INVESTIGA bien. El solver recibe una pregunta primaria abierta ("que causa
+el arenamiento?") y tiene que descubrir que sub-preguntas hacer, que explorar,
+y como llegar a conclusiones. El scoring mide: correctness de hallazgos,
+relevancia a la pregunta primaria, cobertura de hallazgos significativos, y
+eficiencia. Todo verificable contra el SCM sin jueces LLM.
+
+Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
+
 ---
 
 ## Tensiones estrategicas abiertas
@@ -233,6 +244,13 @@ Esto no debe resolverse por gusto. Es una pregunta experimental del proyecto.
 Cuanto mas abierto y ambiguo sea el caso, mas se parece a la ciencia real. Pero
 cuanto mas abierto sea, mas dificil puede ser verificar con exactitud lo que
 hizo el agente. SREG debe encontrar un equilibrio util entre apertura y rigor.
+
+**Direccion identificada (2026-03-25):** "Open Investigation" — el solver
+investiga libre y reporta hallazgos en lenguaje natural; un LLM translator
+(analogo al orchestrator pero en direccion inversa) compila esos hallazgos a
+queries formales; el SCM verifica cada uno con exactitud. El LLM traduce, no
+juzga. El reward siempre es contra el SCM. Ver
+`research/synthesis/open_investigation_vision.md` para la vision completa.
 
 ### Realismo investigativo vs control generativo
 

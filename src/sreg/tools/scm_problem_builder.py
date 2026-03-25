@@ -232,8 +232,10 @@ class SCMProblemBuilder:
         # Legacy fallback: use first question's text
         meta = world.variable_meta.get(target)
         target_label = target.replace("_", " ")
-        if meta and meta.description and len(meta.description) < 80:
-            target_label = meta.description
+        if meta and meta.description:
+            desc = meta.description.rstrip(".")
+            if len(desc) < 45 and len(desc.split()) <= 6:
+                target_label = desc
 
         if case_plan and case_plan.questions:
             primary = case_plan.questions[0]
@@ -269,8 +271,10 @@ class SCMProblemBuilder:
         obs_vars = world.observable_variables
         target_label = target.replace("_", " ")
         meta_t = world.variable_meta.get(target)
-        if meta_t and meta_t.description and len(meta_t.description) < 60:
-            target_label = meta_t.description
+        if meta_t and meta_t.description:
+            desc_t = meta_t.description.rstrip(".")
+            if len(desc_t) < 45 and len(desc_t.split()) <= 6:
+                target_label = desc_t
         parts = [f"Investigate the factors affecting {target_label}."]
 
         described = []

@@ -12,6 +12,7 @@ Key differences from TaskGenTool:
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -149,15 +150,20 @@ class SCMTaskGenTool:
 
     @staticmethod
     def _semantic_name(world: SCMWorld, node_id: str) -> str:
-        """Human-readable name for a variable, suitable for the investigator.
+        """Human-readable name for a variable, suitable for inline use in questions.
 
         Priority:
-        1. variable_meta[node].description if short (<60 chars)
+        1. variable_meta[node].description if concise (<45 chars AND <=6 words)
         2. node_id with underscores replaced by spaces
+
+        The threshold is intentionally tight: descriptions longer than ~5 words
+        produce verbose, mechanical-sounding questions when inserted inline.
         """
         meta = world.variable_meta.get(node_id)
-        if meta and meta.description and len(meta.description) < 80:
-            return meta.description.rstrip(".")
+        if meta and meta.description:
+            desc = meta.description.rstrip(".")
+            if len(desc) < 45 and len(desc.split()) <= 6:
+                return desc
         return node_id.replace("_", " ")
 
     @staticmethod
@@ -168,6 +174,32 @@ class SCMTaskGenTool:
         if meta and meta.description:
             aliases.add(meta.description.lower())
         return aliases
+
+    @staticmethod
+    def _sanitize_question_text(text: str, world: SCMWorld) -> str:
+        """Remove snake_case leaks from question text.
+
+        Two passes:
+        1. World-aware: replace known node_ids (longest first to avoid
+           partial matches) with their space-separated form.
+        2. Generic fallback: catch any remaining snake_case tokens that
+           aren't known node_ids (e.g. ``p_value``, ``sample_size``).
+        """
+        # Pass 1: known node_ids, longest first
+        all_nodes = sorted(world.dag.nodes, key=len, reverse=True)
+        for nid in all_nodes:
+            if "_" not in nid:
+                continue
+            pattern = r"\b" + re.escape(nid) + r"\b"
+            text = re.sub(pattern, nid.replace("_", " "), text)
+
+        # Pass 2: generic snake_case tokens (lowercase only, >=2 segments)
+        text = re.sub(
+            r"\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\b",
+            lambda m: m.group(0).replace("_", " "),
+            text,
+        )
+        return text
 
     def _semantic_evidence_desc(
         self, world: SCMWorld, given_evidence: dict[str, str]
@@ -922,12 +954,22 @@ class SCMTaskGenTool:
 
         treat_name = self._semantic_name(world, treatment)
         target_name = self._semantic_name(world, target)
-        question = (
-            f"What is the average causal effect of {treat_name} on "
-            f"{target_name}? Estimate how much {target_name} would change, "
-            f"on average, if {treat_name} were shifted from a low to a "
-            f"high level."
-        )
+        _ate_templates = [
+            (
+                f"On average, how much does {target_name} change when "
+                f"{treat_name} is higher rather than lower?"
+            ),
+            (
+                f"If {treat_name} were increased from typical low to "
+                f"high levels, what average shift would you expect in "
+                f"{target_name}?"
+            ),
+            (
+                f"Estimate the average difference in {target_name} "
+                f"between lower and higher levels of {treat_name}."
+            ),
+        ]
+        question = _ate_templates[seed % len(_ate_templates)]
 
         remaining = [n for n in obs_nodes if n != treatment]
         return Task(
@@ -1000,11 +1042,24 @@ class SCMTaskGenTool:
         treat_name = self._semantic_name(world, treatment)
         target_name = self._semantic_name(world, target)
         med_name = self._semantic_name(world, mediator)
-        question = (
-            f"What fraction of the causal effect of {treat_name} on "
-            f"{target_name} is mediated through {med_name}? Estimate the "
-            f"proportion of the total effect that operates via {med_name}."
-        )
+        _med_templates = [
+            (
+                f"Does {treat_name} affect {target_name} partly through "
+                f"{med_name}? Roughly how much of the effect seems to "
+                f"run through that pathway?"
+            ),
+            (
+                f"If {treat_name} influences {target_name}, is {med_name} "
+                f"one of the main routes? Estimate how important that "
+                f"indirect pathway is."
+            ),
+            (
+                f"How much of the relationship between {treat_name} and "
+                f"{target_name} can be explained by changes in "
+                f"{med_name}?"
+            ),
+        ]
+        question = _med_templates[seed % len(_med_templates)]
 
         remaining = [n for n in obs_nodes if n != treatment]
         return Task(
@@ -1082,12 +1137,21 @@ class SCMTaskGenTool:
         treat_name = self._semantic_name(world, treatment)
         target_name = self._semantic_name(world, target)
         mod_name = self._semantic_name(world, modifier)
-        question = (
-            f"Does the effect of {treat_name} on {target_name} depend on "
-            f"the level of {mod_name}? In other words, does {mod_name} "
-            f"modify the relationship between {treat_name} and "
-            f"{target_name}?"
-        )
+        _int_templates = [
+            (
+                f"Does {mod_name} change how much {treat_name} matters "
+                f"for {target_name}?"
+            ),
+            (
+                f"Is the effect of {treat_name} on {target_name} "
+                f"stronger or weaker depending on {mod_name}?"
+            ),
+            (
+                f"Does the impact of {treat_name} on {target_name} "
+                f"differ across levels of {mod_name}?"
+            ),
+        ]
+        question = _int_templates[seed % len(_int_templates)]
 
         return Task(
             id=f"task-{world.id}-{spec.type}",
@@ -1218,20 +1282,9 @@ class SCMTaskGenTool:
     # Plan-driven generation
     # ------------------------------------------------------------------
 
-    # Types where the auto-generated question is safe to replace with the
-    # orchestrator's question_text (answer doesn't reference specific nodes).
-    _SAFE_QUESTION_OVERRIDE_TYPES = frozenset({
-        TaskType.INFER_TARGET,
-        TaskType.NEXT_BEST_OBSERVATION,
-        TaskType.HYPOTHESIS_SELECTION,
-        TaskType.INFER_LATENT_CAUSE,
-        TaskType.INTERACTION,
-        TaskType.ATE,
-        TaskType.MEDIATION,
-        TaskType.COMPARE_INTERVENTIONS,
-    })
-
-    # Types where overriding the question risks semantic inversion.
+    # Types where overriding the question risks semantic inversion
+    # (e.g. answer encodes specific node labels that must appear verbatim).
+    # Currently empty — all types use hint-based gating instead.
     _NEVER_OVERRIDE_QUESTION_TYPES: frozenset[TaskType] = frozenset()
 
     def generate_from_plan(
@@ -1278,24 +1331,40 @@ class SCMTaskGenTool:
                 continue
 
             # Decide whether to override the auto-generated question text.
+            # Gate: structural hints (intervention_node, condition_variable)
+            # are the authority — entity matching is telemetry, not a gate.
             if q.eval_type in self._NEVER_OVERRIDE_QUESTION_TYPES:
                 pass
-            elif q.eval_type in self._SAFE_QUESTION_OVERRIDE_TYPES:
-                # For estimand-bearing types, only override when the
-                # orchestrator's question actually names the key entities.
+            elif self._hints_honored(q, task):
+                # Structural bindings match → trust orchestrator's question.
+                # Entity matching is informational only.
                 if task.estimand and not self._entities_match_question(
                     q.question_text, task, world=world
                 ):
-                    logger.warning(
-                        "Question override rejected for %s: question text "
-                        "does not mention key entities. Keeping generated "
-                        "question. (question: '%.80s...', estimand: %s)",
-                        q.eval_type.value, q.question_text, task.estimand,
+                    logger.info(
+                        "Entity match failed but hints honored for %s — "
+                        "using orchestrator question. (question: '%.80s...')",
+                        q.eval_type.value, q.question_text,
                     )
-                else:
-                    task = task.model_copy(update={"question": q.question_text})
-            elif self._hints_honored(q, task):
                 task = task.model_copy(update={"question": q.question_text})
+            elif not task.estimand:
+                # Non-estimand types (infer_target, hypothesis_selection,
+                # infer_latent_cause, nbo) — always safe to override.
+                task = task.model_copy(update={"question": q.question_text})
+            else:
+                # Has estimand but hints not honored → keep generated
+                # question to avoid semantic mismatch.
+                logger.warning(
+                    "Question override rejected for %s: structural hints "
+                    "not honored. Keeping generated question. "
+                    "(question: '%.80s...', estimand: %s)",
+                    q.eval_type.value, q.question_text, task.estimand,
+                )
+
+            # Sanitize snake_case leaks from both override and auto-template paths
+            clean_q = self._sanitize_question_text(task.question, world)
+            if clean_q != task.question:
+                task = task.model_copy(update={"question": clean_q})
 
             self._check_question_answer_consistency(task, q.eval_type, world=world)
             tasks.append(task)
@@ -1388,11 +1457,22 @@ class SCMTaskGenTool:
         if et == TaskType.ATE:
             return bool(q.intervention_node and q.intervention_node in inv)
 
-        if et in (TaskType.MEDIATION, TaskType.INTERACTION):
-            return bool(
-                q.intervention_node
-                and q.condition_variable
-                and q.intervention_node in inv
+        if et == TaskType.MEDIATION:
+            if not (q.intervention_node and q.condition_variable):
+                return False
+            est = task.estimand or {}
+            return (
+                est.get("treatment") == q.intervention_node
+                and est.get("mediator") == q.condition_variable
+            )
+
+        if et == TaskType.INTERACTION:
+            if not (q.intervention_node and q.condition_variable):
+                return False
+            est = task.estimand or {}
+            return (
+                est.get("treatment") == q.intervention_node
+                and est.get("modifier") == q.condition_variable
             )
 
         return False

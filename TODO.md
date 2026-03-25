@@ -382,6 +382,40 @@ SRCs por cambio, formato estructurado, tracking temporal.
 **Referencia:** `research/synthesis/qualitative_eval_rubric.md`
 **Implementar:** I11.
 
+### A15. Open Investigation — investigacion libre con reward exacto
+
+Hoy SREG mide si el solver RESPONDE bien, no si INVESTIGA bien. La
+estrategia investigativa (que preguntar, por que, en que orden) no se evalua.
+
+**Insight central (2026-03-25):** toda investigacion real tiene una pregunta
+primaria abierta ("que causa el arenamiento?") y sub-preguntas instrumentales
+que el investigador descubre. SREG deberia evaluar si el solver descubre
+las sub-preguntas correctas, no solo si las responde.
+
+**Arquitectura propuesta:** 3 capas — Solver (investiga libre, reporta en NL),
+LLM Translator (compila hallazgos a queries formales, NO juzga), SCM Verifier
+(computa verdad exacta). El LLM es compilador, no juez. El reward siempre es
+contra el SCM.
+
+**Scoring:** correctness (50%), relevance/conducencia (25%), coverage (15%),
+calibration (10%). Relevancia verificable via el grafo causal (es conducente a
+la pregunta primaria?). Coverage contra claims verdaderos AUTO-GENERADOS del
+SCM, no un answer key manual.
+
+**Desafio de diseno:** como dejar que el solver reporte libre sin sesgarlo
+hacia los tipos de hallazgos que esperamos. Solucion: convenciones de reporte
+(como un paper), no formato de respuesta (como un examen). El translator
+hace el bridge.
+
+**Referencia:** `research/synthesis/open_investigation_vision.md`
+**Status:** VISION EN DESARROLLO. No implementar — disenar y madurar.
+
+- [ ] Experiment minimo: 3-5 SRCs, esconder preguntas, solo brief, probar
+  translator con 4 primitivas
+- [ ] Disenar claim language (que primitivas, como compilan a query SCM)
+- [ ] Auto-claim generation (enumerar claims verdaderos significativos del SCM)
+- [ ] Prototype translator (hallazgo NL -> query formal, medir reliability)
+
 ---
 
 ## Implementacion y experimentos
@@ -727,6 +761,9 @@ Detalle historico en `CHANGELOG.md`.
   verificacion de scorability, mantener reward exacto (sin LLM-judge), bootstrap
   (el catalogo actual seria el seed), complejidad del meta-loop. Direccion correcta
   a largo plazo pero requiere avance arquitectural. → Conecta con A2, I1, I9.
+  **UPDATE 2026-03-25:** esta idea evoluciono a la vision de Open Investigation
+  (A15) donde el SOLVER (no solo el orchestrator) tambien descubre que preguntar.
+  El catalogo emergente aplica a ambos lados.
 - DISTINCION CRITICA: research actions (FUTURO) = interacciones con el
   ENTORNO. Analisis del solver (AHORA) = python_exec, asunto del solver.
 - Ejemplo real (surfactantes/petroleo): seleccion basada en teoria +

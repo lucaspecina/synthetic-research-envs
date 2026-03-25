@@ -546,6 +546,21 @@ La arquitectura debe permitir crecimiento en:
 
 sin romper coherencia ni evaluabilidad fuerte.
 
+### Direccion futura: Open Investigation (2026-03-25)
+
+La siguiente evolucion arquitectonica es separar la evaluacion en 3 capas:
+
+1. **Solver** — investiga libre, reporta hallazgos en lenguaje natural
+2. **LLM Translator** — compila hallazgos a queries formales contra el SCM
+   (analogo al orchestrator invertido; traduce, no juzga)
+3. **SCM Verifier** — computa verdad exacta para cada query (determinista)
+
+Esto permite evaluar estrategia investigativa (que preguntar, por que,
+que es conducente) ademas de accuracy de respuestas. El reward sigue siendo
+exacto porque la verificacion es contra el SCM, no un LLM judge.
+
+Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
+
 SREG incluye como responsabilidad central:
 
 - generacion de casos,

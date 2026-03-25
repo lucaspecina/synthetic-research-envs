@@ -95,7 +95,12 @@
   - `get_all_backdoor_adjustment_sets()`: enumeracion exhaustiva de sets minimales.
   - **Task primitives (Fase 6)**: ate, mediation, interaction.
     Helpers: `_find_best_causal_parent`, `_find_mediator`, `_find_modifier`.
-  - 50 tests: 12 eval types + scoring + consistency.
+  - **Question quality (Fase 4)**: `_semantic_name()` threshold <45 chars/<=6 words,
+    `_sanitize_question_text()` world-aware snake_case removal, 3 rotating natural
+    templates per type (ATE/mediation/interaction), hint-based override gating
+    (entity matching downgraded to warning).
+  - 67 tests: 12 eval types + scoring + consistency + semantic name + sanitization
+    + template rotation.
 - **Pipeline wiring (Fase 2c):**
   - `SCMTaskGenTool.generate_from_plan()`: genera tasks desde CasePlan con hints.
   - `SCMProblemBuilder`: SCMWorld + tasks → ResearchProblem con data realista.
@@ -137,7 +142,7 @@
   - Prompt del solver: muestra "Research Brief" como seccion visible.
   - Backward compatible: CasePlans sin brief caen a fallback (questions[0]).
   - E2E validado: 2 runs (free goal + Vaca Muerta). Briefs naturales.
-  - 9 tests nuevos. 1436 tests totales.
+  - 9 tests nuevos. 1491 tests totales.
   - Hallazgo documentado en `research/notes/brief_vs_eval_separation.md`.
 - **Pendiente:** `solve()` single-task (requiere SCMEpisodeRunner),
   task primitives composicionales.

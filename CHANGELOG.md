@@ -5,6 +5,47 @@
 
 ## [Unreleased]
 
+### 2026-03-25 — I10 Fase 4: Question quality + Open Investigation vision
+
+**Code: question realization quality (3 fixes + 2 architectural changes)**
+
+- **`_semantic_name()` threshold tightened**: from `<80 chars` to `<45 chars
+  AND <=6 words`. Prevents verbose descriptions (60-70 chars) from producing
+  unreadable inline question text. Docstring updated.
+- **`_sanitize_question_text()` added**: world-aware sanitization (replaces
+  known node_ids, longest first) + generic fallback for remaining snake_case
+  tokens. Applied in generation loop before consistency check.
+- **ATE/mediation/interaction templates naturalized**: 3 rotating variants per
+  type, phrased as domain researcher (not textbook). "Shifted from low to
+  high" and "What fraction of the causal effect" eliminated.
+- **Override logic refactored**: structural hints (intervention_node,
+  condition_variable) are now the gate for accepting orchestrator questions.
+  Entity matching downgraded to informational warning. Non-estimand types
+  always safe to override. Result: most questions are now natural language
+  from the orchestrator instead of mechanical templates.
+- **`_hints_honored()` strengthened**: mediation now verifies treatment AND
+  mediator match; interaction verifies treatment AND modifier.
+- **`scm_problem_builder.py` thresholds aligned**: lines 235, 274 now use
+  same `<45 chars, <=6 words` logic as `_semantic_name()`.
+- 1491 tests, 3 E2E SRCs verified (air_pollution, football_v3, coral_v2).
+  Reviewed with Codex (3 rounds).
+
+**Vision: Open Investigation — free research with exact reward**
+
+- Documented vision for future SREG evolution where the solver investigates
+  freely and reports findings in natural language. A 3-layer architecture:
+  Solver (free NL) -> LLM Translator (compiles to queries) -> SCM Verifier
+  (exact truth). The LLM translates, never judges.
+- 6 scoring dimensions: correctness, warrant (evidential justification),
+  relevance (causal + epistemic + operational), coverage (against discoverable
+  claims auto-generated from SCM), calibration, efficiency.
+- Key insight: "warrant" dimension measures whether the solver had the right
+  to make a claim based on evidence gathered, not just whether the claim is
+  true. This separates real investigation from lucky prior-based guessing.
+- Three modes: Guided (current), Scaffolded, Open. Mixed curriculum.
+- Designed with Codex (3 sessions). See `research/synthesis/open_investigation_vision.md`.
+- Tracked as A15 in TODO.md. Status: VISION, not scheduled for implementation.
+
 ### 2026-03-24 — I10 Fase 3: Break eval type monoculture
 
 - **Prompt restructured**: eval types section rewritten from hierarchical

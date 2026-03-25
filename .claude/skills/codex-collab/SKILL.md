@@ -28,9 +28,13 @@ This ensures Codex ALWAYS knows:
 - The project architecture (two-layer: formal BN + semantic)
 - How to review (alignment with PROJECT.md, trigger table, etc.)
 
-### Thread management
-- Start a new thread per session with `mcp__codex__codex` (includes base-instructions)
-- Continue with `mcp__codex__codex-reply` + `threadId` (context preserved)
+### Thread management — PREFER REPLY OVER NEW SESSIONS
+- Start ONE thread per topic/session with `mcp__codex__codex` (includes base-instructions)
+- **ALWAYS continue with `mcp__codex__codex-reply` + `threadId`** for follow-up
+  questions on the same topic. Codex retains full context — no need to re-explain.
+- Only start a NEW thread when the topic is genuinely different or unrelated.
+- Save the `threadId` from the first call and reuse it for all follow-ups.
+- This avoids redundant context-building and produces better, deeper responses.
 
 ### The prompt (task-specific context)
 The `prompt` parameter contains ONLY the specific task context:

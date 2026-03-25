@@ -27,6 +27,7 @@ Documentos de sintesis activos:
 - `synthesis/qualitative_eval_rubric.md`
 - `synthesis/benchmark_analysis.md`
 - `synthesis/sreg_scientific_coverage.md`
+- `synthesis/open_investigation_vision.md`
 
 ### archive/
 Documentos viejos, superseded o referencias heredadas. Read-only.
@@ -159,6 +160,16 @@ desplazandose hacia `synthesis/`.
   dose_response, compare_interventions, etc.
 - **Conecta con:** Fase 4 (orchestrator wiring), LA PREGUNTA
 - **Status:** PROPUESTA EN DISCUSION. No implementar antes de Fase 4.
+
+### Open Investigation — investigacion libre con reward exacto
+- **Pregunta:** como dejar que el solver investigue libremente sin perder
+  reward exacto contra el SCM.
+- **Empezar por:** `synthesis/open_investigation_vision.md`
+- **Insight clave:** usar un LLM translator (analogo al orchestrator pero
+  invertido) que compile hallazgos en NL a queries formales. El LLM traduce,
+  no juzga. El reward siempre es contra el SCM.
+- **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
+- **Status:** VISION EN DESARROLLO. No implementar — disenar y madurar.
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal

@@ -7,7 +7,7 @@ import pytest
 from sreg.models.task import TaskSpec, TaskType
 from sreg.tools.scm_task_gen import SCMTaskGenTool
 from sreg.tools.verifier import VerifierTool
-from sreg.world.scm import SCMWorld
+from sreg.world.scm import SCMWorld, VariableMeta
 
 # ------------------------------------------------------------------
 # Test worlds
@@ -759,3 +759,177 @@ class TestInteraction:
         task = gen.generate(world, spec, seed=42)
         assert "T" in task.intervention
         assert task.intervention["T"] == "Z"
+
+
+# ------------------------------------------------------------------
+# _semantic_name threshold
+# ------------------------------------------------------------------
+
+
+class TestSemanticName:
+    def test_short_description_used(self):
+        """Descriptions under 45 chars and <=6 words are used."""
+        world = SCMWorld(
+            id="test-sem",
+            graph={"X": [], "Y": ["X"]},
+            equations={
+                "X": lambda p, rng: rng.normal(0, 1),
+                "Y": lambda p, rng: p["X"] + rng.normal(0, 1),
+            },
+            variable_meta={"X": VariableMeta(description="birth weight", unit="kg")},
+        )
+        name = SCMTaskGenTool._semantic_name(world, "X")
+        assert name == "birth weight"
+
+    def test_long_description_rejected(self):
+        """Descriptions >=45 chars fall back to node_id with spaces."""
+        world = SCMWorld(
+            id="test-sem",
+            graph={"fixture_density": [], "Y": ["fixture_density"]},
+            equations={
+                "fixture_density": lambda p, rng: rng.normal(0, 1),
+                "Y": lambda p, rng: p["fixture_density"] + rng.normal(0, 1),
+            },
+            variable_meta={
+                "fixture_density": VariableMeta(
+                    description=(
+                        "Density of competitive fixtures faced by a "
+                        "club over recent match windows"
+                    ),
+                ),
+            },
+        )
+        name = SCMTaskGenTool._semantic_name(world, "fixture_density")
+        assert name == "fixture density"  # fallback, not the 70-char description
+
+    def test_too_many_words_rejected(self):
+        """Descriptions with >6 words fall back even if under 45 chars."""
+        world = SCMWorld(
+            id="test-sem",
+            graph={"X": [], "Y": ["X"]},
+            equations={
+                "X": lambda p, rng: rng.normal(0, 1),
+                "Y": lambda p, rng: p["X"] + rng.normal(0, 1),
+            },
+            variable_meta={
+                "X": VariableMeta(description="a b c d e f g"),  # 7 words, 13 chars
+            },
+        )
+        name = SCMTaskGenTool._semantic_name(world, "X")
+        assert name == "X"  # fallback to node_id (no underscore)
+
+    def test_no_meta_uses_node_id(self):
+        world = _linear_chain()
+        name = SCMTaskGenTool._semantic_name(world, "A")
+        assert name == "A"
+
+
+# ------------------------------------------------------------------
+# _sanitize_question_text
+# ------------------------------------------------------------------
+
+
+class TestSanitizeQuestionText:
+    def test_known_node_ids_replaced(self):
+        """Snake_case node_ids in the world are replaced with spaces."""
+        world = SCMWorld(
+            id="test-san",
+            graph={"birth_weight": [], "maternal_smoking": ["birth_weight"]},
+            equations={
+                "birth_weight": lambda p, rng: rng.normal(3, 0.5),
+                "maternal_smoking": lambda p, rng: rng.normal(0, 1),
+            },
+        )
+        text = "What is the effect of maternal_smoking on birth_weight?"
+        result = SCMTaskGenTool._sanitize_question_text(text, world)
+        assert "maternal_smoking" not in result
+        assert "birth_weight" not in result
+        assert "maternal smoking" in result
+        assert "birth weight" in result
+
+    def test_unknown_snake_case_also_sanitized(self):
+        """Snake_case tokens not in the world are caught by generic fallback."""
+        world = _linear_chain()  # only has A, B, C (no underscores)
+        text = "The p_value suggests sample_size matters."
+        result = SCMTaskGenTool._sanitize_question_text(text, world)
+        assert "p_value" not in result
+        assert "p value" in result
+        assert "sample_size" not in result
+        assert "sample size" in result
+
+    def test_no_false_positives_on_normal_text(self):
+        """Normal text without snake_case passes through unchanged."""
+        world = _linear_chain()
+        text = "How does variable A affect the outcome?"
+        result = SCMTaskGenTool._sanitize_question_text(text, world)
+        assert result == text
+
+    def test_longer_node_id_matched_first(self):
+        """Longer node_ids are replaced before shorter overlapping ones."""
+        world = SCMWorld(
+            id="test-san",
+            graph={"air_quality": [], "air_quality_index": ["air_quality"]},
+            equations={
+                "air_quality": lambda p, rng: rng.normal(50, 10),
+                "air_quality_index": lambda p, rng: p["air_quality"] * 2,
+            },
+        )
+        text = "Check the air_quality_index and air_quality."
+        result = SCMTaskGenTool._sanitize_question_text(text, world)
+        assert "air quality index" in result
+        assert "air quality" in result
+        assert "_" not in result
+
+
+# ------------------------------------------------------------------
+# ATE template phrasing
+# ------------------------------------------------------------------
+
+
+class TestATETemplate:
+    def test_no_shifted_phrasing(self):
+        """ATE template should not contain the old mechanical phrasing."""
+        world = _linear_chain()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.ATE, target_node="C", max_budget=5)
+        task = gen.generate(world, spec, seed=42)
+        assert "shifted from a low" not in task.question
+        assert "What fraction of the causal" not in task.question
+
+    def test_template_rotation(self):
+        """Different seeds produce different phrasings."""
+        world = _linear_chain()
+        gen = SCMTaskGenTool()
+        questions = set()
+        for s in range(6):
+            spec = TaskSpec(type=TaskType.ATE, target_node="C", max_budget=5)
+            task = gen.generate(world, spec, seed=s)
+            questions.add(task.question)
+        assert len(questions) >= 2, "Templates should rotate across seeds"
+
+
+class TestMediationTemplate:
+    def test_no_textbook_phrasing(self):
+        """Mediation template should sound like a researcher, not a textbook."""
+        world = _mediation_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.MEDIATION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="M",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert "What fraction of the causal effect" not in task.question
+        assert "proportion of the total effect" not in task.question
+
+
+class TestInteractionTemplate:
+    def test_no_textbook_phrasing(self):
+        """Interaction template should sound like a researcher."""
+        world = _interaction_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.INTERACTION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="Z",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert "In other words" not in task.question

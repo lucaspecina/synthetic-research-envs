@@ -6,6 +6,12 @@
 > Implementacion: CasePlan.research_brief + deliverables, SCMProblemBuilder,
 > orchestrator prompts. Validado E2E. Pendiente: task questions individuales
 > siguen siendo semi-mecanicas (futuro: task primitives).
+>
+> **Evolucion (2026-03-25):** las 3 capas identificadas aqui (brief visible,
+> eval agenda, query formal) se expanden en la vision de Open Investigation
+> donde el solver descubre la agenda investigativa libremente y un LLM
+> translator compila hallazgos a queries formales.
+> Ver `research/synthesis/open_investigation_vision.md`.
 
 ## El problema
 
