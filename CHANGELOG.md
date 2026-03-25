@@ -47,14 +47,16 @@
   de preguntas Guided.
 - Nuevo analisis A16 (quality gates), A17 (direccion desde priors), A18
   (datos mecanicos) en TODO.
-- Plan forward documentado en TODO seccion "Roadmap":
-  1. Fortalecer sustrato causal (branch `feature/causal-substrate`)
-  2. Open Investigation Alpha — First Compile (branch `feature/open-investigation`)
+- Roadmap refinado (consenso Claude + Codex): no hacer fase larga de fixes
+  ni ir directo a ciegas. 4 pasos: (1) no-data probe, (2) substrate minimum
+  viable gate, (3) Open Investigation Alpha con mundos curados, (4) mejorar
+  generador.
 
-**Pendiente: merge feature/scm-engine → main**
+**Merge: feature/scm-engine → main**
 
 - Migracion BN→SCM completa. 1494 tests. Orchestrator wiring funciona.
-- Merge planificado para despues de este commit.
+- Fast-forward merge, 22 commits, 56 archivos, ~14.8K lineas nuevas.
+- Docs canónicos actualizados: BN marcado legacy, SCM como engine principal.
 
 ### 2026-03-25 — I10 Fase 4: Question quality + Open Investigation vision
 

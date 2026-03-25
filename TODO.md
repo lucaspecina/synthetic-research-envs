@@ -777,8 +777,8 @@ type-fit rules). Lo que queda:
 - [x] Prompt reescrito: preguntas causales primarias, infer_target
   complementario, seed-first design. Inspiration Report v2.
 - [x] Migracion BN → SCM completa: engine, solver, tasks, pipeline wiring,
-  world gen, orchestrator wiring. 1494 tests. Branch `feature/scm-engine`.
-  Merge a `main` pendiente.
+  world gen, orchestrator wiring. 1494 tests. Branch `feature/scm-engine`
+  mergeada a `main` (2026-03-25).
 - [x] I10 preguntas reales: brief visible, naturalizar templates, override
   por hints, sanitizar snake_case, catalogo plano, two-stage process.
 - [x] I11 Fase 2: primera evaluacion cualitativa formal. 3 SRCs, rubrica
@@ -790,44 +790,41 @@ Detalle historico en `CHANGELOG.md`.
 
 ## Roadmap — como seguimos
 
-### Fase actual: Fortalecer sustrato causal (pre-Open Investigation)
+### Paso 1: No-data baseline probe (diagnostico)
 
-Fixes que sobreviven al cambio de arquitectura. Todo lo que fortalece el
-mundo oculto, los primitivos, y las defensas anti-shortcut.
+Darle briefings sin datos a un LLM y medir si acierta. Cuantifica P5
+(direccion causal obvia desde priors). Directo en main, no necesita branch.
 
-**Branch:** `feature/causal-substrate` (crear despues del merge)
+- [ ] Correr probe en los 3 SRCs de eval (football, coral, asthma)
+- [ ] Documentar resultados
 
-**Prioridad 1 — Diagnostico:**
-- [ ] **No-data baseline probe** formal (A17): darle briefings sin datos a un
-  LLM y medir si acierta. Cuantifica P5 (direccion obvia desde priors).
+### Paso 2: Substrate minimum viable gate (solo blockers)
 
-**Prioridad 2 — Quality gates de primitivos (A16):**
-- [ ] **Interaction**: verificar que la ecuacion tenga termino multiplicativo
-  entre treatment y modifier antes de generar la pregunta. Si no hay
-  interaccion real, no generar (o buscar otro par).
-- [ ] **Mediacion**: rechazar mediacion ~0 o ~1 (cadenas puras triviales).
-  Buscar pares con mediacion parcial interesante (0.2-0.8).
-- [ ] **best_intervention**: solo ofrecer variables exogenas (sin padres
-  causales) como levers. Agregar campo `exogenous` a VariableMeta o
-  inferir desde el DAG.
+Solo lo que contamina el experimento de Open Investigation. Si los mundos
+no tienen hallazgos interesantes, no podemos saber si el translator falla
+o si el mundo es pobre. Consenso Claude + Codex: no hacer fase larga de
+fixes ni ir directo a ciegas — solo limpiar lo que arruina la senal.
 
-**Prioridad 3 — Riqueza del mundo (A16, A18):**
-- [ ] **Ecuaciones mas ricas**: guiar al orchestrator para que genere
-  interacciones, umbrales, saturaciones. O post-procesamiento.
-- [ ] **Variar panel config** por SRC (3-15 sites, 2-5 waves, 200-2000 obs).
-- [ ] **Descripcion narrativa de datos**: reescribir `_describe()` o que el
-  orchestrator escriba la descripcion del dataset.
+- [ ] **Manipulabilidad**: marcar variables intervenibles vs no. Solo
+  ofrecer exogenas como levers en best_intervention.
+- [ ] **Interaction gate**: no generar interaction si no hay termino
+  multiplicativo real entre treatment y modifier.
+- [ ] **Mediation gate**: no generar mediacion si es ~0 o ~1 trivial.
 
-**NO hacer (Open Investigation lo reemplaza):**
-- Multi-atom deliverables
-- Cosmetica de templates Guided
-- Wording fino de preguntas pre-armadas
+**NO hacer todavia** (no contamina el experimento Alpha):
+- Rework de descripcion narrativa de datos
+- Campana de "ecuaciones mas ricas" en el generador
+- Cosmetica Guided, multi-atom deliverables, variar panel config
 
-### Siguiente hito: Open Investigation Alpha — First Compile
+### Paso 3: Open Investigation Alpha — First Compile
 
-Primera prueba E2E del pipeline completo de verificacion abierta.
+Primera prueba E2E del pipeline de verificacion abierta. **No necesita
+generador perfecto — necesita mundos donde haya algo real para compilar.**
 
-**Branch:** `feature/open-investigation` (crear cuando empiece)
+Usar **2-3 mundos curados a mano** (no el generador automatico):
+- Uno con interaccion real
+- Uno con mediacion parcial
+- Uno con confounding interesante
 
 **Que se prueba:**
 1. Un solver recibe SOLO el brief (sin preguntas) y reporta hallazgos en NL
@@ -835,7 +832,6 @@ Primera prueba E2E del pipeline completo de verificacion abierta.
 3. El SCM verifier ejecuta las queries y computa reward exacto
 
 **Sub-pasos (de A15):**
-- [ ] Experiment minimo: 3-5 SRCs, esconder preguntas, solo brief
 - [ ] Disenar claim language (primitivas que el translator soporta)
 - [ ] Auto-claim generation (enumerar claims verdaderos del SCM)
 - [ ] Prototype translator (hallazgo NL → query formal)
@@ -843,6 +839,14 @@ Primera prueba E2E del pipeline completo de verificacion abierta.
 
 **Criterio de exito:** al menos 1 SRC donde el pipeline completo produce
 un score significativo (no necesariamente bueno — que funcione E2E).
+
+### Paso 4: Mejorar generador (despues de Alpha)
+
+Recien despues de validar el pipeline con mundos curados, mejorar el
+generador para que produzca mundos ricos automaticamente:
+- Ecuaciones con interacciones, umbrales, saturaciones
+- Variar panel config por SRC
+- Descripcion narrativa de datos
 
 **Referencia:** `research/synthesis/open_investigation_vision.md`
 
