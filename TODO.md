@@ -458,11 +458,29 @@ matching + prompt. Ver `research/notes/p2_semantic_question_naturalization.md`.
 - [x] Prompt de orchestrator: `question_text` ES visible, prohibir snake_case
 - [ ] E2E con 3 SRCs nuevos (pendiente: I11 Fase 2)
 
-**Fase 3: preguntas desde el paper, no desde el menu**
-- [ ] El orchestrator deberia pensar primero "que preguntaria un investigador"
-  y DESPUES mapear a eval types disponibles
+**Fase 3: preguntas desde la investigacion, no desde el menu** ← SIGUIENTE
+Los 3 SRCs de P2 (football, coral, smoking) comparten EXACTAMENTE el mismo
+patron: causal_effect + best_intervention + interaction + mediation +
+infer_latent_cause. Tenemos 11 eval types usables pero el orchestrator
+siempre elige los mismos 5. El prompt los presenta como menu y el LLM
+gravita a los "flashy causales". Esto es H8 (eval_ontology_leak): las
+preguntas nacen del menu de tipos, no de lo que un investigador preguntaria.
+
+**Evidencia:** 3 SRCs post-P2 (2026-03-24). Los 3 tienen el mismo patron.
+Smoking es el mejor (8.5/10 Codex) porque las preguntas del orchestrator
+son mas naturales, pero el patron subyacente es identico.
+
+Sub-tareas:
+- [ ] El orchestrator deberia pensar primero "que preguntaria un investigador
+  sobre ESTE caso" y DESPUES mapear a eval types disponibles
 - [ ] Si no hay eval type que represente una pregunta natural, NO forzarla
 - [ ] Permitir que un deliverable mapee a multiples scoring atoms
+- [ ] Diversificar: should_condition, adjustment_set, ate, hypothesis_selection,
+  infer_target, compare_interventions aparecen poco o nunca. El prompt debe
+  dejar de jerarquizar tipos como "primary" vs "complementary"
+- [ ] "500 obs / 4 sites / 3 waves" repetido en todos — variar estructura
+- [ ] "hidden factor best explains..." clonado — el template de infer_latent
+  siempre produce la misma forma de pregunta
 
 ### I11. Harness de evaluacion cualitativa — motivado por A14
 

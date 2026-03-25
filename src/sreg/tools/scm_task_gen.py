@@ -157,7 +157,7 @@ class SCMTaskGenTool:
         """
         meta = world.variable_meta.get(node_id)
         if meta and meta.description and len(meta.description) < 80:
-            return meta.description
+            return meta.description.rstrip(".")
         return node_id.replace("_", " ")
 
     @staticmethod
