@@ -933,3 +933,95 @@ class TestInteractionTemplate:
         )
         task = gen.generate(world, spec, seed=42)
         assert "In other words" not in task.question
+
+
+# ------------------------------------------------------------------
+# Entity match checks outcome for compare_interventions
+# ------------------------------------------------------------------
+
+
+class TestEntityMatchCompareInterventions:
+    def test_outcome_present_in_question(self):
+        """Entity check requires outcome (target) to be mentioned."""
+        from sreg.models.task import Task
+
+        world = _linear_chain()
+        task = Task(
+            id="t1",
+            type=TaskType.COMPARE_INTERVENTIONS,
+            world_id="test",
+            question="Which helps C more: changing A or B?",
+            target_node="C",
+            available_evidence=["A", "B", "C"],
+            correct_answer={"A:high": 0.6, "B:low": 0.4},
+            scoring_method="compare_interventions",
+            estimand={
+                "type": "compare_interventions",
+                "option_a": "A",
+                "label_a": "high",
+                "option_b": "B",
+                "label_b": "low",
+                "outcome": "C",
+            },
+        )
+        assert SCMTaskGenTool._entities_match_question(
+            task.question, task, world=world
+        )
+
+    def test_wrong_outcome_rejected(self):
+        """If the question mentions a different outcome, check fails."""
+        from sreg.models.task import Task
+
+        world = _linear_chain()
+        task = Task(
+            id="t1",
+            type=TaskType.COMPARE_INTERVENTIONS,
+            world_id="test",
+            question="Which helps A more: changing A or B?",
+            target_node="C",
+            available_evidence=["A", "B", "C"],
+            correct_answer={"A:high": 0.6, "B:low": 0.4},
+            scoring_method="compare_interventions",
+            estimand={
+                "type": "compare_interventions",
+                "option_a": "A",
+                "label_a": "high",
+                "option_b": "B",
+                "label_b": "low",
+                "outcome": "Z_missing",  # not in question
+            },
+        )
+        assert not SCMTaskGenTool._entities_match_question(
+            task.question, task, world=world
+        )
+
+
+# ------------------------------------------------------------------
+# _hints_honored for best_intervention (no desired_state needed)
+# ------------------------------------------------------------------
+
+
+class TestHintsHonoredBestIntervention:
+    def test_best_intervention_always_honored(self):
+        """best_intervention needs no hints — always honored."""
+        from sreg.models.case_plan import EvalQuestionPlan
+        from sreg.models.task import Task
+
+        task = Task(
+            id="t1",
+            type=TaskType.BEST_INTERVENTION,
+            world_id="test",
+            question="Which single change maximizes C?",
+            target_node="C",
+            available_evidence=["A", "B", "C"],
+            correct_answer={"A:high": 0.7, "B:low": 0.3},
+            scoring_method="intervention_effect_ratio",
+            intervention={"A": "high"},
+        )
+        plan = EvalQuestionPlan(
+            question_text="What's the best lever for C?",
+            eval_type=TaskType.BEST_INTERVENTION,
+            target_node="C",
+            # No desired_state — should still work
+        )
+        assert SCMTaskGenTool._hints_honored(plan, task)

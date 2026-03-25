@@ -416,6 +416,55 @@ hace el bridge.
 - [ ] Auto-claim generation (enumerar claims verdaderos significativos del SCM)
 - [ ] Prototype translator (hallazgo NL -> query formal, medir reliability)
 
+### A16. Quality gates por task primitive — eval cualitativa 2026-03-25
+
+Evaluacion de 3 SRCs (I11 Fase 2) revelo que varios eval types producen
+respuestas que no discriminan:
+
+- **Interaction siempre "no" (2/2 SRCs)**: `_find_modifier()` elige pares
+  al azar sin verificar si la ecuacion tiene interaccion real. Las ecuaciones
+  del orchestrator tienden a ser aditivas.
+- **Mediacion = 1.0 exacto (1/3 SRCs)**: cadenas lineales puras dan mediacion
+  total trivial.
+- **best_intervention incluye downstream (1/3 SRCs)**: el sistema no
+  distingue "observable" de "intervenible".
+
+**Sub-preguntas:**
+- [ ] Interaction: como garantizar mezcla yes/no? Verificar ecuacion antes
+  de generar, o deshabilitar si no hay interaccion real?
+- [ ] Mediacion: quality gate para evitar extremos ~0 o ~1?
+- [ ] best_intervention: inferir "intervenible" desde el DAG (exogenas)?
+  O agregar campo a VariableMeta?
+
+**Evidencia:** `research/synthesis/qualitative_eval_2026_03_25.md` (P1, P3, P4)
+
+### A17. Direccion causal obvia desde priors — eval cualitativa 2026-03-25
+
+Los 3 Q1 de causal_effect piden efectos cuya direccion es sentido comun.
+Un LLM podria acertar sin datos. Es EL problema central para LA PREGUNTA.
+
+**Sub-preguntas:**
+- [ ] Cuanto afecta? Correr no-data baseline probe formal.
+- [ ] Soluciones: mundos ficcionales, Simpson's paradox, efectos no
+  monotonicos, preguntas con direccion genuinamente incierta?
+- [ ] Es un problema del SCM (relaciones intuitivas) o de la pregunta
+  (pedir direccion en vez de magnitud)?
+
+**Evidencia:** `research/synthesis/qualitative_eval_2026_03_25.md` (P5)
+**Conecta con:** A1, A3 (modos semanticos), I2 (fictional mode)
+
+### A18. Capa de datos mecanica y clonico — eval cualitativa 2026-03-25
+
+Todos los SRCs tienen metadata identica ("500 obs, 4 sites, 3 waves") y
+descripcion de dataset tipo dump tecnico. Rompe realismo.
+
+**Sub-preguntas:**
+- [ ] Variar panel config por SRC (3-15 sites, 2-5 waves, 200-2000 obs)?
+- [ ] Reescribir `_describe()` para generar descripcion narrativa?
+- [ ] Que el orchestrator escriba la descripcion del dataset?
+
+**Evidencia:** `research/synthesis/qualitative_eval_2026_03_25.md` (P2, P6)
+
 ---
 
 ## Implementacion y experimentos
@@ -470,13 +519,10 @@ para scoring y debugging.
 - [x] Quitar restriccion "different eval types" del prompt de design_case
 
 **Hallazgos de Codex (code review Fase 2, 2026-03-24):**
-- [ ] Entity check para `compare_interventions` solo verifica `option_a` y
-  `option_b` (nodos) pero no `label_a`/`label_b`/`outcome`. Podria aceptar
-  preguntas con direccion o outcome equivocados.
-- [ ] `desired_state` en el schema de `compare_interventions` es residuo BN.
-  El generador SCM no lo usa pero el prompt del orchestrator lo sigue
-  pidiendo, empujando framing "maximize state high".
-- [ ] `should_condition` en SCM todavia tiene formato "Answer yes or no".
+- [x] Entity check para `compare_interventions`: ahora verifica `outcome`.
+- [x] `desired_state` residuo BN: eliminado de hints requeridos, marcado
+  legacy en schema. Bug oculto: best_intervention override nunca se aceptaba.
+- [x] `should_condition` en SCM: ya estaba naturalizado (verificado 2026-03-25).
 - [ ] Faltan tests: `test_question_is_natural` para `compare_interventions`
   e `interaction`, test de rechazo de override con entities equivocados.
 - [x] Fallback templates usan `snake_case` crudo → RESUELTO por P2
@@ -518,12 +564,10 @@ Sub-tareas:
 - [ ] "hidden factor best explains..." clonado — el template de infer_latent
   siempre produce la misma forma de pregunta
 
-**Fase 4: calidad de realizacion de preguntas** ← SIGUIENTE
-La seleccion de tipos mejoro pero la escritura de preguntas tiene issues:
-- [ ] Descripciones verbose como nombres de variable (Football usa descripciones
-  de 60-70 chars que suenan mecanicas en preguntas)
-- [ ] Snake_case leak en question_text del orchestrator (Smoking Q2: "birth_weight")
-- [ ] Template fallback de `ate` produce texto mecanico cuando el override falla
+**Fase 4: calidad de realizacion de preguntas** HECHO (parcial)
+- [x] Descripciones verbose: threshold tightened (_semantic_name <45 chars, <=6 words)
+- [x] Snake_case leak: world-aware sanitization + generic fallback
+- [x] Templates mecanicos: 3 variantes rotantes para ate/mediation/interaction
 - [ ] Permitir que un deliverable mapee a multiples scoring atoms
 
 ### I11. Harness de evaluacion cualitativa — motivado por A14
@@ -549,12 +593,12 @@ desarrollo, no como inspeccion ad-hoc. La rubrica es un PISO que evoluciona
   cuando recurrente
 - [x] Seccion "Registro de hallazgos" y versionado en rubrica
 
-**Fase 2: primera evaluacion formal** ← SIGUIENTE
-- [ ] Generar 3-5 SRCs con seeds diversos (football, oil&gas, ecology, health)
-- [ ] Aplicar rubrica completa: 7D + 6CF + descubrimiento abierto
+**Fase 2: primera evaluacion formal** HECHO (2026-03-25)
+- [x] Generar 3 SRCs post-I10 (football, coral, asthma)
+- [x] Aplicar rubrica completa: 7D + 6CF + descubrimiento abierto
+- [x] Registrar resultados: `research/synthesis/qualitative_eval_2026_03_25.md`
+- [x] Analizar con Codex: 6 problemas nuevos (P1-P6), 3 hallazgos confirmados
 - [ ] Correr no-data baseline probe (manual: brief sin dataset a LLM)
-- [ ] Registrar resultados en formato estructurado
-- [ ] Analizar: donde estamos bien, donde mal, que problemas nuevos aparecen
 
 **Fase 3: protocolo operativo**
 - [ ] Definir set canonico de 5 seeds para comparacion temporal
@@ -732,8 +776,75 @@ type-fit rules). Lo que queda:
 - [x] Benchmarks externos integrados y backend de inferencia unificado.
 - [x] Prompt reescrito: preguntas causales primarias, infer_target
   complementario, seed-first design. Inspiration Report v2.
+- [x] Migracion BN → SCM completa: engine, solver, tasks, pipeline wiring,
+  world gen, orchestrator wiring. 1494 tests. Branch `feature/scm-engine`.
+  Merge a `main` pendiente.
+- [x] I10 preguntas reales: brief visible, naturalizar templates, override
+  por hints, sanitizar snake_case, catalogo plano, two-stage process.
+- [x] I11 Fase 2: primera evaluacion cualitativa formal. 3 SRCs, rubrica
+  completa, 6 problemas nuevos documentados. Score promedio 1.3/2.0.
 
 Detalle historico en `CHANGELOG.md`.
+
+---
+
+## Roadmap — como seguimos
+
+### Fase actual: Fortalecer sustrato causal (pre-Open Investigation)
+
+Fixes que sobreviven al cambio de arquitectura. Todo lo que fortalece el
+mundo oculto, los primitivos, y las defensas anti-shortcut.
+
+**Branch:** `feature/causal-substrate` (crear despues del merge)
+
+**Prioridad 1 — Diagnostico:**
+- [ ] **No-data baseline probe** formal (A17): darle briefings sin datos a un
+  LLM y medir si acierta. Cuantifica P5 (direccion obvia desde priors).
+
+**Prioridad 2 — Quality gates de primitivos (A16):**
+- [ ] **Interaction**: verificar que la ecuacion tenga termino multiplicativo
+  entre treatment y modifier antes de generar la pregunta. Si no hay
+  interaccion real, no generar (o buscar otro par).
+- [ ] **Mediacion**: rechazar mediacion ~0 o ~1 (cadenas puras triviales).
+  Buscar pares con mediacion parcial interesante (0.2-0.8).
+- [ ] **best_intervention**: solo ofrecer variables exogenas (sin padres
+  causales) como levers. Agregar campo `exogenous` a VariableMeta o
+  inferir desde el DAG.
+
+**Prioridad 3 — Riqueza del mundo (A16, A18):**
+- [ ] **Ecuaciones mas ricas**: guiar al orchestrator para que genere
+  interacciones, umbrales, saturaciones. O post-procesamiento.
+- [ ] **Variar panel config** por SRC (3-15 sites, 2-5 waves, 200-2000 obs).
+- [ ] **Descripcion narrativa de datos**: reescribir `_describe()` o que el
+  orchestrator escriba la descripcion del dataset.
+
+**NO hacer (Open Investigation lo reemplaza):**
+- Multi-atom deliverables
+- Cosmetica de templates Guided
+- Wording fino de preguntas pre-armadas
+
+### Siguiente hito: Open Investigation Alpha — First Compile
+
+Primera prueba E2E del pipeline completo de verificacion abierta.
+
+**Branch:** `feature/open-investigation` (crear cuando empiece)
+
+**Que se prueba:**
+1. Un solver recibe SOLO el brief (sin preguntas) y reporta hallazgos en NL
+2. Un LLM translator compila esos hallazgos a queries formales
+3. El SCM verifier ejecuta las queries y computa reward exacto
+
+**Sub-pasos (de A15):**
+- [ ] Experiment minimo: 3-5 SRCs, esconder preguntas, solo brief
+- [ ] Disenar claim language (primitivas que el translator soporta)
+- [ ] Auto-claim generation (enumerar claims verdaderos del SCM)
+- [ ] Prototype translator (hallazgo NL → query formal)
+- [ ] Medir: compile rate, precision, coverage, reward stability
+
+**Criterio de exito:** al menos 1 SRC donde el pipeline completo produce
+un score significativo (no necesariamente bueno — que funcione E2E).
+
+**Referencia:** `research/synthesis/open_investigation_vision.md`
 
 ---
 

@@ -1144,8 +1144,8 @@ def test_design_case_causal_effect_with_hints_succeeds():
     assert task.question == custom_q
 
 
-def test_design_case_best_intervention_requires_desired_state():
-    """best_intervention without desired_state should return error."""
+def test_design_case_best_intervention_no_desired_state_ok():
+    """best_intervention without desired_state should succeed (SCM: no discrete states)."""
     orch = Orchestrator(client=MagicMock())
     result = OrchestratorResult()
     world_id = _setup_world_with_semantics(orch, result)
@@ -1154,14 +1154,14 @@ def test_design_case_best_intervention_requires_desired_state():
         "design_case",
         {
             "world_id": world_id,
-            "title": "Missing Desired State",
-            "research_context": "Test required hints for best_intervention.",
+            "title": "No Desired State",
+            "research_context": "Test that best_intervention works without desired_state.",
             "questions": [
                 {
                     "question_text": "Which intervention maximizes high crop yield?",
                     "eval_type": "best_intervention",
                     "target_node": "crop_yield",
-                    # NO desired_state
+                    # NO desired_state — OK for SCM (continuous variables)
                 },
             ],
             "shared_budget": 4,
@@ -1169,8 +1169,8 @@ def test_design_case_best_intervention_requires_desired_state():
         result,
     )
 
-    assert "error" in output
-    assert "desired_state" in output["error"]
+    assert "error" not in output
+    assert output["tasks_generated"] == 1
 
 
 def test_design_case_best_intervention_with_hints_succeeds():
@@ -1202,8 +1202,8 @@ def test_design_case_best_intervention_with_hints_succeeds():
     assert output["tasks_generated"] == 1
 
 
-def test_design_case_compare_interventions_requires_hints():
-    """compare_interventions without compare_nodes + desired_state errors."""
+def test_design_case_compare_interventions_requires_compare_nodes():
+    """compare_interventions without compare_nodes errors."""
     orch = Orchestrator(client=MagicMock())
     result = OrchestratorResult()
     world_id = _setup_world_with_semantics(orch, result)
@@ -1219,7 +1219,7 @@ def test_design_case_compare_interventions_requires_hints():
                     "question_text": "Is water pH or nitrogen level more impactful?",
                     "eval_type": "compare_interventions",
                     "target_node": "crop_yield",
-                    # NO compare_nodes, NO desired_state
+                    # NO compare_nodes
                 },
             ],
             "shared_budget": 4,
@@ -1228,7 +1228,7 @@ def test_design_case_compare_interventions_requires_hints():
     )
 
     assert "error" in output
-    assert "compare_nodes" in output["error"] or "desired_state" in output["error"]
+    assert "compare_nodes" in output["error"]
 
 
 def test_design_case_compare_interventions_with_hints_succeeds():

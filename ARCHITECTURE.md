@@ -138,11 +138,12 @@ de estructura deberia poder emitir un `DAGSpec`.
 
 Contrato del mundo formal completo.
 
-Contiene nodos, edges, CPDs y metadata de dificultad. Es la fuente de verdad
-del caso.
+Contiene nodos, edges y la verdad formal del caso. Dos implementaciones:
 
-El sustrato formal esta migrando de **red bayesiana discreta** (legacy) a
-**Structural Causal Model** (SCM). Ver seccion 6.1 para detalles.
+- **`SCMWorld`** (principal): Structural Causal Model — grafo + ecuaciones
+  estructurales + ruido. Variables continuas. Ver seccion 6.1.
+- **`World`** (legacy): BN discreta — grafo + CPD tables. Variables discretas
+  (3 estados). Disponible pero no se usa en el pipeline principal.
 
 ### `CasePlan`
 
@@ -339,8 +340,9 @@ fundamentos completos de la migracion.
 #### BN discreta (legacy)
 
 La BN discreta (`World` + `ExactBayesSolver` + pgmpy) sigue disponible
-y es usada por todo el pipeline actual. Se mantiene hasta que el pipeline
-E2E funcione con SCMWorld.
+pero ya NO es el pipeline principal. El pipeline E2E (orchestrator →
+world gen → task gen → problem builder) usa SCMWorld exclusivamente.
+La BN se mantiene por backward compatibility y para tests historicos.
 
 ### 6.2 Capa de diseno del caso
 

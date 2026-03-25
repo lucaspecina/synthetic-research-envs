@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-24 (Template rewrites + qualitative eval rubric — Fase 9)
+> Actualizado: 2026-03-25 (Mini-fixes + I11 Fase 2 eval cualitativa + roadmap)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1479 tests**, todos pasando
+- **1494 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 12 eval types implementados con scoring (9 originales + ate, mediation, interaction)
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
@@ -142,7 +142,7 @@
   - Prompt del solver: muestra "Research Brief" como seccion visible.
   - Backward compatible: CasePlans sin brief caen a fallback (questions[0]).
   - E2E validado: 2 runs (free goal + Vaca Muerta). Briefs naturales.
-  - 9 tests nuevos. 1491 tests totales.
+  - 1494 tests totales.
   - Hallazgo documentado en `research/notes/brief_vs_eval_separation.md`.
 - **Pendiente:** `solve()` single-task (requiere SCMEpisodeRunner),
   task primitives composicionales.

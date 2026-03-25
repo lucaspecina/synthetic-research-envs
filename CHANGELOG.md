@@ -5,6 +5,57 @@
 
 ## [Unreleased]
 
+### 2026-03-25 — Mini-fixes + I11 Fase 2 eval + roadmap + merge to main
+
+**Code: mini-fixes pre-evaluacion**
+
+- **Entity check para `compare_interventions`**: ahora verifica `outcome`
+  (target) ademas de `option_a`/`option_b`. Antes podia aceptar preguntas
+  con outcome equivocado.
+- **`desired_state` residuo BN eliminado**: removido como hint requerido de
+  `best_intervention` y `compare_interventions`. Marcado legacy en tool schema.
+  Bug oculto resuelto: best_intervention override nunca se aceptaba porque
+  `desired_state` no matcheaba con texto "above median" del generador SCM.
+- **`_hints_honored` para `best_intervention`**: ahora retorna True (no
+  necesita hints — target_node es suficiente).
+- **Thread management de Codex**: documentado como NON-NEGOTIABLE en CLAUDE.md.
+  Siempre usar `codex-reply` con threadId existente.
+- 1494 tests (3 nuevos), 0 failures.
+
+**I11 Fase 2: primera evaluacion cualitativa formal**
+
+- 3 SRCs post-I10 generados (football, coral reef, public health/asthma).
+- Rubrica completa aplicada: 7 dimensiones + 6 critical failures.
+- Score promedio: 1.3/2.0. Mejora significativa en capa visible vs pre-I10.
+- Revisado con Codex (2 llamadas en thread continuo).
+- 6 problemas nuevos documentados (P1-P6):
+  - P1: interaction siempre "no" (task gen no busca pares con interaccion real)
+  - P2: metadata identica "4 sites, 3 waves, 500 obs" en los 3 SRCs
+  - P3: mediacion = 1.0 exacto (cadena lineal trivial)
+  - P4: best_intervention incluye variables downstream
+  - P5: direccion causal obvia desde priors (EL problema para LA PREGUNTA)
+  - P6: dataset description mecanica (dump tecnico, no narrativa)
+- 3 problemas confirmados recurrentes de eval anterior (H3, H4, H8).
+- 2 problemas resueltos confirmados (H1 snake_case, H2 "setting X to Y").
+- Registro completo: `research/synthesis/qualitative_eval_2026_03_25.md`
+- Rubrica actualizada a v1.1 con 3 hallazgos nuevos (H9-H11).
+
+**Roadmap: como seguimos**
+
+- Consenso Claude + Codex: fixear lo que sobrevive a Open Investigation
+  (sustrato causal, quality gates, anti-shortcuts). NO fixear cosmetica
+  de preguntas Guided.
+- Nuevo analisis A16 (quality gates), A17 (direccion desde priors), A18
+  (datos mecanicos) en TODO.
+- Plan forward documentado en TODO seccion "Roadmap":
+  1. Fortalecer sustrato causal (branch `feature/causal-substrate`)
+  2. Open Investigation Alpha — First Compile (branch `feature/open-investigation`)
+
+**Pendiente: merge feature/scm-engine → main**
+
+- Migracion BN→SCM completa. 1494 tests. Orchestrator wiring funciona.
+- Merge planificado para despues de este commit.
+
 ### 2026-03-25 — I10 Fase 4: Question quality + Open Investigation vision
 
 **Code: question realization quality (3 fixes + 2 architectural changes)**

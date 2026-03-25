@@ -575,8 +575,8 @@ class Orchestrator:
     # Eval types that REQUIRE node hints when used in a CasePlan.
     _HINT_REQUIRED_TYPES: dict[TaskType, list[str]] = {
         TaskType.CAUSAL_EFFECT: ["intervention_node"],
-        TaskType.BEST_INTERVENTION: ["desired_state"],
-        TaskType.COMPARE_INTERVENTIONS: ["compare_nodes", "desired_state"],
+        TaskType.BEST_INTERVENTION: [],
+        TaskType.COMPARE_INTERVENTIONS: ["compare_nodes"],
         TaskType.ADJUSTMENT_SET: ["intervention_node"],
         TaskType.SHOULD_CONDITION: ["intervention_node", "condition_variable"],
         TaskType.ATE: ["intervention_node"],

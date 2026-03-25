@@ -109,10 +109,12 @@ La vara conceptual es esta:
 ### 1. Verdad formal y reward exacto
 
 Detras de cada SRC debe existir una capa formal que permita verificar con rigor
-la calidad de respuestas, decisiones y trayectorias. Hoy esa verdad es una red
-bayesiana (DAG + CPDs) que permite computar reward signals exactos sin jueces
-ni heuristicas. Si algo no puede evaluarse contra esa verdad subyacente, no
-pertenece al nucleo de SREG.
+la calidad de respuestas, decisiones y trayectorias. Esa verdad es un modelo
+causal estructural (SCM): un grafo dirigido aciclico con ecuaciones que definen
+como cada variable depende de sus causas. Esto permite computar reward signals
+exactos sin jueces ni heuristicas — intervenciones, mediaciones, interacciones
+y mas se resuelven contra el SCM. Si algo no puede evaluarse contra esa verdad
+subyacente, no pertenece al nucleo de SREG.
 
 ### 2. El caso debe sentirse como investigacion real
 
@@ -268,9 +270,10 @@ solver recibe datasets de estaciones de monitoreo con datos faltantes, "estudios
 previos" que sugieren hipotesis rivales, y la posibilidad de solicitar analisis
 o proponer experimentos dentro de restricciones de presupuesto. Debe responder:
 cual es la causa mas probable, que conviene medir, y que pasaria si se elimina
-un compuesto del sedimento. Detras hay una red bayesiana — cada respuesta se
-evalua matematicamente. El solver no sabe que existe la BN; solo ve un problema
-de investigacion con datos y herramientas.
+un compuesto del sedimento. Detras hay un modelo causal estructural (SCM) con
+ecuaciones que definen las relaciones reales — cada respuesta se evalua
+matematicamente. El solver no sabe que existe el SCM; solo ve un problema de
+investigacion con datos y herramientas.
 
 ---
 

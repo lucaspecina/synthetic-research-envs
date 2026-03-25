@@ -216,6 +216,7 @@ Cuando se agrega una dimension o CF:
 |---------|-------|--------|
 | v1.0 | 2026-03-24 | Rubrica inicial: 7 dimensiones + 6 critical failures |
 | v1.0 | 2026-03-24 | Primera evaluacion: 8 hallazgos registrados (H1-H4 Claude, H5-H8 Codex) |
+| v1.1 | 2026-03-25 | Segunda evaluacion formal: 3 SRCs post-I10. H1/H2 verificados RESUELTOS por I10. H3/H4 confirmados recurrentes. 3 hallazgos nuevos (H9-H11): downstream levers, direccion obvia desde priors, dataset description mecanica. Registro completo en qualitative_eval_2026_03_25.md |
 
 ## Registro de hallazgos
 
@@ -225,36 +226,31 @@ Cuando se agrega una dimension o CF:
 
 ### H1. Variables referenciadas como codigo, no como prosa (2026-03-24)
 - **Recurrente:** 3/3 SRCs (football, coral_reef, vaca_muerta)
-- **Severidad:** medium
-- **Descripcion:** las preguntas citan variables con comillas simples y snake_case
-  ("'training_load_7d' on 'second_half_tactical_decline'") en vez de lenguaje
-  natural ("recent training load on second-half tactical decline").
-- **Diferencia con CF4:** CF4 es sobre visibilidad de nombres internos. H1 es
-  sobre el ESTILO — sintaxis de programacion para referir variables.
-- **Candidato para:** sub-criterio de CF4
+- **Severidad:** medium → **RESUELTO en I10 Fase 4** (semantic names + sanitization)
+- **Verificacion 2026-03-25:** 0/3 SRCs nuevos muestran snake_case en preguntas.
 
 ### H2. Framing "setting X to Y" en vez de contrafactual natural (2026-03-24)
 - **Recurrente:** 3/3 SRCs
-- **Severidad:** medium
-- **Descripcion:** compare_interventions usa "setting 'recovery_quality' to 'low'"
-  cuando un investigador diria "among players with poor pre-match recovery" o
-  "if recovery protocols were improved". El verbo "set" delata el do-calculus.
-- **Candidato para:** sub-criterio de D4
+- **Severidad:** medium → **RESUELTO en I10 Fase 2c/4** (templates naturalizados)
+- **Verificacion 2026-03-25:** preguntas usan "changing X to low levels" en vez de
+  "setting X to low". Mejora real pero todavia no 100% contrafactual natural.
 
 ### H3. Respuestas artificialmente limpias (2026-03-24)
-- **Recurrente:** 1/3 SRCs (football). Pendiente verificar en otros.
-- **Severidad:** medium
-- **Descripcion:** mediacion = 1.0 exacto y interaccion = "no" exacto. En
-  investigacion real estos valores son ruidosos. Las ecuaciones del SCM pueden
-  producir relaciones demasiado limpias por construccion.
-- **Candidato para:** sub-criterio de D6
+- **Recurrente:** 1/3 (2026-03-24) → **CONFIRMADO** 2/3 (2026-03-25): coral
+  mediacion=1.0, interaction="no" en 2/2 SRCs con interaction
+- **Severidad:** medium → **HIGH** — interaction siempre "no" es blocker
+- **Descripcion:** mediacion = 1.0 exacto y interaccion = "no" exacto. Causa raiz
+  verificada 2026-03-25: `_find_modifier()` elige pares al azar sin verificar si
+  la ecuacion tiene termino multiplicativo. Las ecuaciones del orchestrator tienden
+  a ser aditivas. La mediacion 1.0 surge de cadenas lineales puras.
+- **Candidato para:** promover a **CF7** ("non-discriminating answer")
 
 ### H4. Metadata del dataset revela estructura interna (2026-03-24)
-- **Recurrente:** 3/3 SRCs
-- **Severidad:** low
-- **Descripcion:** el briefing incluye "4 sites, 3 waves, 500 observations, 28%
-  missing". Un investigador real descubriria esto explorando los datos, no lo
-  sabria de antemano.
+- **Recurrente:** 3/3 (2026-03-24) → **CONFIRMADO** 3/3 (2026-03-25): textualmente identico
+  "500 observations. Collected from 4 sites. 3 measurement waves." en 3 dominios
+- **Severidad:** low → **MEDIUM** — clonico + mecanico
+- **Descripcion:** el briefing incluye metadata identica y mecanica. Ademas,
+  la estructura de panel (4 sites, 3 waves, 500 obs) es clonico entre SRCs.
 - **Candidato para:** sub-criterio de D5
 
 ### H5. causal_warrant — identificacion causal asumida sin justificar (2026-03-24, Codex)
@@ -290,6 +286,32 @@ Cuando se agrega una dimension o CF:
   para cubrir la taxonomia, no para investigar el fenomeno. Codex: "las
   preguntas nacen del scorer, no de la investigacion".
 - **Candidato para:** nuevo CF "eval_ontology_leak" — la causa raiz mas profunda
+
+### H9. Downstream variables como levers en best_intervention (2026-03-25)
+- **Recurrente:** 1/3 SRCs (football: second_half_physical_drop como lever)
+- **Severidad:** high
+- **Descripcion:** best_intervention lista variables downstream (outcomes
+  intermedios) como opciones de intervencion. El sistema no distingue
+  "observable" de "intervenible". Necesita ontologia de manipulabilidad.
+- **Candidato para:** sub-criterio de D4 o nuevo CF "invalid_lever"
+
+### H10. Direccion causal obvia desde priors (2026-03-25)
+- **Recurrente:** 3/3 SRCs (los 3 Q1 con direccion obvia)
+- **Severidad:** **CRITICO** — es LA PREGUNTA del proyecto
+- **Descripcion:** las preguntas causales principales piden efectos cuya
+  direccion es sentido comun ("mas carga → mas decline", "mas estres → menos
+  recuperacion"). La magnitud necesita datos pero la direccion no. Un LLM
+  podria acertar sin investigar.
+- **Candidato para:** promover a **CF** o sub-criterio de D2. Requiere no-data
+  probe formal para cuantificar.
+
+### H11. Dataset description es dump tecnico (2026-03-25)
+- **Recurrente:** 3/3 SRCs
+- **Severidad:** medium
+- **Descripcion:** "Columns: variable_a, variable_b... Missing data: 14%." en
+  vez de descripcion narrativa de provenance, limitaciones, contexto de
+  recoleccion. Rompe experiencia investigativa.
+- **Candidato para:** sub-criterio de D5
 
 ## MVP y anti-over-engineering
 

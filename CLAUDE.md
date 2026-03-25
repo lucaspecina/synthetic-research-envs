@@ -197,9 +197,10 @@ vision completa, `ARCHITECTURE.md` para el diseno del sistema.
 - **SRC** (Synthetic Research Case): la unidad de producto — world + problem + tasks + data
 - **Teacher**: policy optima (upper bound del reward)
 - **SCM** (Structural Causal Model): la verdad formal oculta de cada SRC.
-  Grafo causal + ecuaciones + ruido. Reemplaza la BN discreta anterior.
+  Grafo causal + ecuaciones + ruido. Engine principal del pipeline E2E.
   Ver `research/synthesis/scm_migration_rationale.md` para los fundamentos.
-- **BN** (legacy): red bayesiana discreta. El engine actual mientras se migra a SCM.
+- **BN** (legacy): red bayesiana discreta. Disponible pero ya no se usa en
+  el pipeline principal. Se mantiene por backward compatibility.
 
 ## Environment setup
 
@@ -291,6 +292,19 @@ ruff format src/ tests/                   # Format
 
 Claude leads, Codex advises. Present BOTH perspectives when disagreeing.
 See `/codex-collab` skill for full protocol.
+
+### Thread management — NON-NEGOTIABLE
+
+**SIEMPRE usar `codex-reply` con el `threadId` existente para continuar una
+conversacion.** Solo usar `mcp__codex__codex` (sesion nueva) cuando el tema
+sea genuinamente diferente. Codex retiene todo el contexto en el thread —
+re-explicar desperdicia tokens y produce respuestas mas superficiales.
+
+- Guardar el `threadId` de la primera llamada y reutilizarlo en TODOS los
+  follow-ups del mismo tema o sesion. El tool requiere el threadId explicito
+  — es responsabilidad de Claude trackearlo, NO del usuario.
+- Si no hay threadId previo o el tema cambio completamente → sesion nueva.
+- En caso de duda, USAR REPLY.
 
 ## Worktrees
 

@@ -1433,7 +1433,9 @@ class SCMTaskGenTool:
             return bool(q.intervention_node and q.intervention_node in inv)
 
         if et == TaskType.BEST_INTERVENTION:
-            return bool(q.desired_state and q.desired_state in task.question)
+            # No structural hints required — target_node is always honored
+            # via spec. The orchestrator's question is always acceptable.
+            return True
 
         if et == TaskType.COMPARE_INTERVENTIONS:
             if not q.compare_nodes or len(q.compare_nodes) != 2:
@@ -1441,10 +1443,7 @@ class SCMTaskGenTool:
             if len(set(q.compare_nodes)) != 2:
                 return False
             answer_nodes = {k.split(":")[0] for k in task.correct_answer}
-            nodes_match = set(q.compare_nodes) == answer_nodes
-            if q.desired_state and q.desired_state not in task.question:
-                return False
-            return nodes_match
+            return set(q.compare_nodes) == answer_nodes
 
         if et == TaskType.ADJUSTMENT_SET:
             return bool(q.intervention_node and q.intervention_node in inv)
@@ -1518,8 +1517,10 @@ class SCMTaskGenTool:
                 task.estimand.get("modifier", "")
             )
         if etype == "compare_interventions":
-            return _present(task.estimand.get("option_a", "")) and _present(
-                task.estimand.get("option_b", "")
+            return (
+                _present(task.estimand.get("option_a", ""))
+                and _present(task.estimand.get("option_b", ""))
+                and _present(task.estimand.get("outcome", ""))
             )
         return True
 

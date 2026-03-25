@@ -126,7 +126,7 @@ Not when: the question is about direction or existence of an effect \
 A decision-maker must choose among competing levers. "Which single policy \
 — improving teacher quality, reducing class size, or increasing parental \
 involvement — would most effectively raise achievement?" \
-Requires hint: `desired_state`. \
+No hints required (target_node is sufficient). \
 Use when: the question scans multiple possible actions to find the best one. \
 Not when: exactly two specific options are debated (→ compare_interventions).
 
@@ -141,7 +141,7 @@ Not when: a specific numeric magnitude is needed (→ ate).
 **`compare_interventions`** — "Which of these two options works better?" \
 Two specific interventions are being compared head-to-head. "Does reducing \
 fluid volume help more than reducing fracture pressure?" \
-Requires hints: `compare_nodes` (two nodes) and `desired_state`. \
+Requires hint: `compare_nodes` (two nodes). \
 Use when: a head-to-head debate between exactly two options. \
 Not when: more than two options are being scanned (→ best_intervention).
 
@@ -227,8 +227,8 @@ hints, the task generator picks random nodes and your question becomes mismatche
 
 Required hints by eval_type:
 - `causal_effect`: `intervention_node`
-- `best_intervention`: `desired_state`
-- `compare_interventions`: `compare_nodes` (two nodes) + `desired_state`
+- `best_intervention`: none (target_node is sufficient)
+- `compare_interventions`: `compare_nodes` (two nodes)
 - `adjustment_set`: `intervention_node`
 - `should_condition`: `intervention_node` + `condition_variable`
 - `ate`: `intervention_node`
@@ -767,10 +767,9 @@ TOOL_DEFINITIONS = [
                                 "desired_state": {
                                     "type": "string",
                                     "description": (
-                                        "Target state to maximize (e.g. 'high', 'healthy'). "
-                                        "REQUIRED for best_intervention and "
-                                        "compare_interventions. Must be a valid state of "
-                                        "the target node."
+                                        "Optional. Legacy field — ignored for SCM worlds "
+                                        "(continuous variables have no discrete states). "
+                                        "You can omit this."
                                     ),
                                 },
                                 "compare_nodes": {

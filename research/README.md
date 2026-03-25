@@ -84,6 +84,9 @@ desplazandose hacia `synthesis/`.
 - **Rubrica cualitativa:** `synthesis/qualitative_eval_rubric.md` — 7
   dimensiones + 6 critical failures + no-data baseline probe. Formaliza la
   evaluacion cualitativa que antes era ad-hoc.
+- **Segunda evaluacion formal:** `synthesis/qualitative_eval_2026_03_25.md` —
+  3 SRCs post-I10 (football, coral, asthma). 6 problemas nuevos encontrados.
+  Mejora significativa en capa visible; problemas actuales son mas profundos.
 - **Notas de apoyo:** `notes/eval_design_notes.md`
 
 ### Benchmarks externos
