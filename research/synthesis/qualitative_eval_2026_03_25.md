@@ -194,7 +194,104 @@ que inyecte complejidad.
 son mas profundos y fundamentales — ya no es "olor a examen" sino "esto
 todavia no obliga a investigar como cientifico".
 
-## Siguiente paso: no-data baseline probe
+## No-data baseline probe — RESULTADO
 
-Pendiente: darle los 3 briefings (sin datasets) a un LLM y medir si puede
-responder correctamente las preguntas. Esto cuantificaria P5.
+Se intento responder las 14 preguntas de los 3 SRCs usando SOLO el briefing
+(sin dataset, sin answer key). El evaluador fue Claude (LLM con conocimiento
+de dominio).
+
+### Resultados por pregunta
+
+| Caso | Q | Tipo | Prediccion sin datos | Verdad | Acerto? |
+|------|---|------|---------------------|--------|---------|
+| Football | Q1 | causal_effect | positivo | positivo | SI |
+| Football | Q2 | best_intervention | carga/intensidad | tactical_role_intensity | ~parcial |
+| Football | Q3 | interaction | si | no | NO |
+| Football | Q4 | mediation | 60-80% | 60.7% | SI (clavo!) |
+| Football | Q5 | infer_latent | recovery/fitness | recovery_readiness | SI |
+| Coral | Q1 | causal_effect | positivo | positivo | SI |
+| Coral | Q2 | ate | negativo | -2.91 | SI |
+| Coral | Q3 | compare_int | herbivoros | herbivoros (0.585>0.544) | SI |
+| Coral | Q4 | mediation | 70-90% | 100% | SI dir |
+| Coral | Q5 | infer_latent | tolerancia termica | thermal_tolerance | SI |
+| Asthma | Q1 | causal_effect | positivo | positivo | SI |
+| Asthma | Q2 | compare_int | capacidad salud | capacidad (0.608>0.530) | SI |
+| Asthma | Q3 | interaction | si | no | NO |
+| Asthma | Q4 | infer_latent | vulnerab social | community_risk_burden | SI |
+
+**Score: 12/14 correctas (86%) sin ver un solo dato.**
+
+### Analisis
+
+Las unicas que falla son las interaction — y las falla porque el prior dice
+"si" (intuitivamente deberia haber interaccion) pero la respuesta es "no"
+(las ecuaciones son aditivas). Esto es P1, no merito del caso.
+
+Lo mas grave: en la mediacion de football, el LLM predijo "60-80%" y la
+respuesta real es 60.7%. Sin datos. Esto no deberia ser posible si el mundo
+tuviera confounders, non-linearidades, o mecanismos no triviales.
+
+### Diagnostico: por que pasa (refinado con Codex + usuario)
+
+**Diagnostico inicial (incorrecto):** "el mundo debe ser anti-prior, todo
+contraintuitivo." Esto es demasiado extremo y no refleja la investigacion
+real.
+
+**Diagnostico refinado (correcto):** El problema NO es que la direccion sea
+adivinable — en investigacion real tambien se intuye la direccion. El
+problema es que los mundos son TAN SIMPLES que tambien se puede adivinar:
+- La magnitud exacta del efecto
+- El ranking entre factores
+- Que no hay interacciones, umbrales, ni sorpresas
+
+**Analogia con investigacion real (Vaca Muerta del usuario):** en una
+investigacion real, uno INTUYE que la presion de fractura influye en el
+arenamiento. Eso es normal. Pero necesitas datos para:
+1. Medir CUANTO influye (la magnitud)
+2. Descubrir que otro factor importa MAS de lo que pensabas (ranking)
+3. Encontrar que hay un umbral o una interaccion inesperada
+4. Controlar confounders que sesgan la estimacion naive
+
+**Los mundos actuales no tienen nada de eso.** Las ecuaciones son lineales
+aditivas, sin confounders fuertes, sin umbrales, sin interacciones reales.
+Por eso la intuicion sola alcanza.
+
+**BN vs SCM — no es una regresion:** La BN era accidentalmente mas dificil
+de adivinar (las CPD tables son numeros arbitrarios) pero a costa de datos
+irrealistas (low/medium/high). El SCM es la arquitectura correcta — lo que
+falta es riqueza en las ecuaciones. La solucion no es volver a BN sino
+hacer ecuaciones mas ricas.
+
+### Lo que necesitan los mundos (no "anti-prior" sino "ricos en hallazgos")
+
+Las ecuaciones deben producir mundos donde la intuicion da la DIRECCION
+correcta pero no la magnitud, el ranking, ni los detalles:
+
+```python
+# Hoy (adivinable):
+recovery = 68 + 0.45 * sleep - 14 * load + ruido
+
+# Necesario (requiere datos):
+recovery = 68 + 0.45 * sleep - 14 * load
+           + 3.2 * load * heat           # interaccion real
+           - 0.08 * load**2              # umbral cuadratico
+           + 12 * (fitness > 60)         # threshold discreto
+           + efecto_de_confounder_oculto # sesga correlacion naive
+           + ruido
+```
+
+Tipos de complejidad necesarios:
+- **Confounders que sesgan estimaciones naive** (Simpson's paradox)
+- **Interacciones reales** (el efecto depende del contexto)
+- **Umbrales y no-linearidades** (mas de X no siempre es mejor)
+- **Rankings no obvios** (factor B domina sobre A, contrario a la intuicion)
+- **Mediacion parcial no trivial** (no 0% ni 100%)
+
+### Impacto en el roadmap
+
+Este resultado confirma que los SRCs actuales no sirven para entrenar
+investigacion. La maquina de scoring (SCM + verifier) funciona. La
+maquina de crear mundos investigables necesita ecuaciones mas ricas.
+
+El camino: mundos curados a mano con propiedades ricas → validar Open
+Investigation sobre esos → despues mejorar el generador automatico.
