@@ -458,29 +458,39 @@ matching + prompt. Ver `research/notes/p2_semantic_question_naturalization.md`.
 - [x] Prompt de orchestrator: `question_text` ES visible, prohibir snake_case
 - [ ] E2E con 3 SRCs nuevos (pendiente: I11 Fase 2)
 
-**Fase 3: preguntas desde la investigacion, no desde el menu** ← SIGUIENTE
-Los 3 SRCs de P2 (football, coral, smoking) comparten EXACTAMENTE el mismo
-patron: causal_effect + best_intervention + interaction + mediation +
-infer_latent_cause. Tenemos 11 eval types usables pero el orchestrator
-siempre elige los mismos 5. El prompt los presenta como menu y el LLM
-gravita a los "flashy causales". Esto es H8 (eval_ontology_leak): las
-preguntas nacen del menu de tipos, no de lo que un investigador preguntaria.
+**Fase 3: preguntas desde la investigacion, no desde el menu** HECHO
+Reestructuracion del prompt de orchestrator para romper la monocultura de
+eval types. Tres cambios: (1) proceso de dos etapas (preguntas primero,
+tipos despues), (2) catalogo plano y alfabetico sin jerarquia, (3) reglas
+operativas de type-fit check en vez de auto-reflexion pasiva. Tool definition
+tambien neutralizada.
 
-**Evidencia:** 3 SRCs post-P2 (2026-03-24). Los 3 tienen el mismo patron.
-Smoking es el mejor (8.5/10 Codex) porque las preguntas del orchestrator
-son mas naturales, pero el patron subyacente es identico.
+**Evidencia ANTES (2026-03-24):** 3 SRCs post-P2 todos con el mismo patron:
+causal_effect + best_intervention + interaction + mediation + infer_latent_cause.
+**Evidencia DESPUES (2026-03-24):** 3 SRCs con mismos temas:
+- Coral: infer_target, causal_effect, compare_interventions, infer_latent_cause
+- Smoking: causal_effect, adjustment_set, mediation, best_intervention, infer_latent_cause
+- Football: ate, interaction, mediation, best_intervention, infer_latent_cause
+4 tipos nuevos aparecen (ate, adjustment_set, compare_interventions, infer_target).
+Revisado con Codex (2 rondas). 1479 tests.
 
 Sub-tareas:
-- [ ] El orchestrator deberia pensar primero "que preguntaria un investigador
-  sobre ESTE caso" y DESPUES mapear a eval types disponibles
-- [ ] Si no hay eval type que represente una pregunta natural, NO forzarla
-- [ ] Permitir que un deliverable mapee a multiples scoring atoms
-- [ ] Diversificar: should_condition, adjustment_set, ate, hypothesis_selection,
-  infer_target, compare_interventions aparecen poco o nunca. El prompt debe
-  dejar de jerarquizar tipos como "primary" vs "complementary"
+- [x] Proceso de dos etapas en el prompt (preguntas primero, tipos despues)
+- [x] Catalogo plano y alfabetico con "Use when" / "Not when" por tipo
+- [x] Quitar jerarquia "primary" vs "complementary" del prompt y tool definition
+- [x] Reglas operativas de type-fit en vez de "Quality over coverage" pasivo
+- [x] Guia de overlap entre tipos que se solapan (ambos sentidos, no solo causales)
 - [ ] "500 obs / 4 sites / 3 waves" repetido en todos — variar estructura
 - [ ] "hidden factor best explains..." clonado — el template de infer_latent
   siempre produce la misma forma de pregunta
+
+**Fase 4: calidad de realizacion de preguntas** ← SIGUIENTE
+La seleccion de tipos mejoro pero la escritura de preguntas tiene issues:
+- [ ] Descripciones verbose como nombres de variable (Football usa descripciones
+  de 60-70 chars que suenan mecanicas en preguntas)
+- [ ] Snake_case leak en question_text del orchestrator (Smoking Q2: "birth_weight")
+- [ ] Template fallback de `ate` produce texto mecanico cuando el override falla
+- [ ] Permitir que un deliverable mapee a multiples scoring atoms
 
 ### I11. Harness de evaluacion cualitativa — motivado por A14
 
@@ -617,11 +627,12 @@ Implementacion:
 
 ### I9. Mejorar prompt del orchestrator para eval types — motivado por A2
 
-El orchestrator a veces elige mal entre los eval types existentes.
-Necesita mejores descripciones y ejemplos de cuando usar cada uno.
+**Resuelto parcialmente por I10 Fase 3** (catalogo plano, two-stage process,
+type-fit rules). Lo que queda:
 
+- [x] Descripciones y "Use when" / "Not when" por tipo (I10 Fase 3).
+- [x] Instruir que si no hay tipo adecuado, no forzar (I10 Fase 3).
 - [ ] Agregar ejemplos concretos de papers para cada eval type.
-- [ ] Instruir que si no hay tipo adecuado, lo diga en vez de forzar.
 - [ ] Cuando se agreguen nuevos eval types, actualizar el prompt.
 
 ---
@@ -706,6 +717,16 @@ Detalle historico en `CHANGELOG.md`.
 - Critica: SREG solo data-driven? Necesita data + theory + literature. → ver A4
 - SciDesignBench (arxiv 2603.12724): inverse design con simuladores.
   Nuestra BN puede hacer lo mismo. → ver I1 (inverse_design)
+- CATALOGO EMERGENTE DE EVAL TYPES: en vez de un menu fijo de tipos, que el
+  orchestrator genere preguntas libres desde el caso/paper e intente resolverlas
+  contra el SCM en el momento. Si puede computar ground truth → la usa. Si no →
+  busca en el catalogo algo cercano o la descarta. Si descubre una forma nueva de
+  scoring → la agrega al catalogo. El catalogo crece organicamente con lo que los
+  casos necesitan, en vez de ser un menu predefinido. Requiere un "query engine"
+  generico sobre el SCM que evalue scorability de preguntas arbitrarias. Problemas:
+  verificacion de scorability, mantener reward exacto (sin LLM-judge), bootstrap
+  (el catalogo actual seria el seed), complejidad del meta-loop. Direccion correcta
+  a largo plazo pero requiere avance arquitectural. → Conecta con A2, I1, I9.
 - DISTINCION CRITICA: research actions (FUTURO) = interacciones con el
   ENTORNO. Analisis del solver (AHORA) = python_exec, asunto del solver.
 - Ejemplo real (surfactantes/petroleo): seleccion basada en teoria +

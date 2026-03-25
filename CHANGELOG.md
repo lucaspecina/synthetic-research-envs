@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### 2026-03-24 — I10 Fase 3: Break eval type monoculture
+
+- **Prompt restructured**: eval types section rewritten from hierarchical
+  categories ("CORE", "complementary, not primary") to flat alphabetical
+  catalog with symmetric "Use when" / "Not when" guidance per type.
+- **Two-stage workflow**: step 4 now requires drafting research questions in
+  plain domain language BEFORE consulting the eval type catalog.
+- **Operational type-fit rules**: replaced passive "re-examine if same subset"
+  with concrete gating rules (e.g., "do not assign causal type unless
+  question explicitly asks about intervention or counterfactual").
+- **Tool definition neutralized**: `eval_type` field description no longer says
+  "PRIMARY should almost always be causal" — now says "no type family is
+  preferred a priori."
+- **Overlap guidance**: boundary rules for similar types in both directions
+  (causal AND non-causal pairs).
+- **Results**: 4 previously-unused types appeared (ate, adjustment_set,
+  compare_interventions, infer_target). 3 SRCs no longer share identical
+  type patterns. Reviewed with Codex (2 rounds). 1479 tests.
+
 ### 2026-03-24 — P2: Semantic question naturalization (I10 Fase 2c)
 
 - **Semantic name helpers**: `_semantic_name()`, `_semantic_aliases()`,

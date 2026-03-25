@@ -22,12 +22,19 @@ domain, and theoretical context. For SCM worlds, node_renames is not needed \
 (variables already have semantic names), but you MUST provide scenario_title, \
 scenario_description, and domain.
 4. **Design the research case** by calling `design_case`. This is the most \
-important step. You must write TWO things:
-   a. A **research_brief**: the assignment a real investigator would receive. \
-Written in natural language, open-ended, WITHOUT naming specific variables \
-or eval types. Think: "what would a PI write in an email to a research assistant?"
-   b. **Evaluation questions** (hidden): how the system will score the investigator's \
-work. These are NOT visible to the investigator — they are the internal eval agenda.
+important step. Follow this sequence:
+   a. Write the **research_brief** FIRST — the assignment a real investigator \
+would receive. Written in natural language, open-ended, WITHOUT naming specific \
+variables or eval types. Think: "what would a PI write in an email to a research \
+assistant?"
+   b. Draft 3-5 **research questions** in plain domain language — what would a \
+scientist investigating THIS specific case naturally want to know? Think about the \
+case itself, NOT about eval types. Write these as natural questions.
+   c. Map each question to the best-fitting `eval_type` from the catalog below. \
+If no type captures a question well, drop it rather than forcing it into an \
+ill-fitting type. If a question maps to multiple types, choose the one that \
+best captures the investigator's intent.
+   d. Add the required node hints for each eval_type (see catalog below).
 See "Brief vs eval separation" and "Evaluation types" below.
 5. **Inspiration manifest** (ONLY when generating from a research seed/paper): \
 call `emit_inspiration_manifest` to record what you understood from the seed, \
@@ -81,151 +88,175 @@ not "if X were set to 0.75".
    - The node hints (intervention_node, condition_variable, etc.) still use \
 internal node IDs — those are NOT visible.
 
-## Evaluation types — when to use each one
+## Evaluation types — REFERENCE CATALOG for question mapping
 
-Each question in `design_case` must have an `eval_type`. Choose based on \
-what a researcher would naturally ask IN THE CONTEXT OF THIS CASE.
+This section is a reference catalog. Consult it AFTER you have drafted your \
+research questions in plain domain language (step 4b). Use it to find the \
+best eval_type for each question you already wrote.
 
-IMPORTANT: Start from the research questions that matter for this case, \
-then find the eval_type that best captures each one. Do NOT pick eval_types \
-from this menu and then write questions around them — that produces generic \
-questions that don't match the case.
+CRITICAL: Do NOT browse this catalog to pick types and then write questions \
+around them. That produces generic questions disconnected from the case. \
+The questions must come from the research problem; the types just classify them.
 
-### Causal questions — these should be the CORE of most cases
+### Available types (alphabetical)
 
-Real research papers almost always ask causal questions as their primary \
-contribution. The main question of a case should usually be one of these:
+Each type below describes WHEN a researcher would naturally ask that kind \
+of question. No type family is preferred a priori — choose purely by fit \
+to your specific case.
 
-- **`causal_effect`**: A researcher wants to know what would happen if they \
-could change something. "If we reduce thermal stress, does reef recovery \
-improve?" "If we eliminate smoking during pregnancy, how does mortality change?" \
-Use this as the PRIMARY question when the case is about understanding causes, \
-evaluating interventions, or reasoning about counterfactuals.
+**`adjustment_set`** — "What must I control for to get an unbiased estimate?" \
+A researcher working with observational data suspects confounding. "To \
+estimate the real effect of income on achievement, which background factors \
+must be controlled for?" Use when getting the analysis methodology right \
+matters as much as the result itself. \
+Requires hint: `intervention_node`. \
+Use when: the question is about confounding and correct covariate selection. \
+Not when: the question is about the effect itself (→ causal_effect or ate).
 
-- **`best_intervention`**: A decision-maker must choose where to act. "Which \
-single policy lever — improving teacher quality, reducing class size, or \
-increasing parental involvement — would most effectively raise achievement?" \
-Use when the case involves choosing among competing actions.
+**`ate`** — "By HOW MUCH does X affect Y?" \
+A researcher needs a concrete number for the causal effect magnitude. "What \
+is the average effect of increasing fertilizer dose from low to high on \
+crop yield?" Use when quantitative magnitude matters. \
+Requires hint: `intervention_node`. \
+Use when: the question asks for a specific numeric estimate of effect size. \
+Not when: the question is about direction or existence of an effect \
+(→ causal_effect).
 
-- **`compare_interventions`**: Two specific options are on the table. "Does \
-reducing fluid volume help more than reducing fracture pressure?" Use for \
-head-to-head comparisons between two interventions.
+**`best_intervention`** — "Where should we act?" \
+A decision-maker must choose among competing levers. "Which single policy \
+— improving teacher quality, reducing class size, or increasing parental \
+involvement — would most effectively raise achievement?" \
+Requires hint: `desired_state`. \
+Use when: the question scans multiple possible actions to find the best one. \
+Not when: exactly two specific options are debated (→ compare_interventions).
 
-### Structural questions — about HOW to reason correctly
+**`causal_effect`** — "What would happen if we changed X?" \
+A researcher wants to understand the effect of an intervention or exposure. \
+"If we reduce thermal stress, does reef recovery improve?" Use when the \
+question is about understanding causes or reasoning about counterfactuals. \
+Requires hint: `intervention_node`. \
+Use when: the question asks whether/how an intervention changes an outcome. \
+Not when: a specific numeric magnitude is needed (→ ate).
 
-These ask about the causal structure itself, not about specific effects:
+**`compare_interventions`** — "Which of these two options works better?" \
+Two specific interventions are being compared head-to-head. "Does reducing \
+fluid volume help more than reducing fracture pressure?" \
+Requires hints: `compare_nodes` (two nodes) and `desired_state`. \
+Use when: a head-to-head debate between exactly two options. \
+Not when: more than two options are being scanned (→ best_intervention).
 
-- **`adjustment_set`**: A researcher suspects confounding and needs to know \
-what to account for. "To estimate the real effect of income on achievement, \
-which background factors must be controlled for?" Use when the case involves \
-observational data where naive estimates would be biased.
+**`hypothesis_selection`** — "Multiple explanations are plausible — which fits?" \
+The case presents competing theories that the data can discriminate between. \
+"Three theories explain the outbreak pattern — seasonal vectors, water \
+contamination, or genetic susceptibility. Which best fits the evidence?" \
+Use when: data can distinguish between named alternative theories. \
+Not when: the hidden factor is unnamed and must be inferred \
+(→ infer_latent_cause).
 
-- **`should_condition`**: A common but risky analytic choice needs evaluation. \
-"A colleague suggests adjusting for birth weight when studying smoking and \
-mortality — is that safe, or does it introduce bias?" Use when there is a \
-specific variable that LOOKS like it should be controlled for but might be \
-a collider or mediator. This is about avoiding a methodological trap.
+**`infer_latent_cause`** — "Something hidden is driving what we see — what?" \
+There is a latent variable and the investigator must diagnose a hidden factor \
+from its observable consequences. "What unobserved factor best explains why \
+some patients respond while others with similar profiles do not?" \
+Use when: the question is about identifying an unnamed hidden driver. \
+Not when: the competing explanations are already named (→ hypothesis_selection).
 
-### Quantitative and mechanistic questions — important for SCM worlds
+**`infer_target`** — "What does the data tell us about the outcome?" \
+A descriptive/predictive question. "Before investigating causes, what does \
+the data suggest about recovery likelihood?" Valuable as a grounding question \
+that forces the investigator to actually look at the data before theorizing. \
+Use when: the question asks what the data shows, not why. \
+Not when: the question asks about causes or mechanisms (→ causal types).
 
-These leverage the continuous SCM engine's ability to compute exact effect \
-sizes and decompose causal pathways:
+**`interaction`** — "Does the effect depend on context or subgroup?" \
+A researcher suspects the treatment effect varies across conditions. "Does \
+the drug work differently for young vs old patients?" The answer is yes/no. \
+Requires hints: `intervention_node` (treatment) and `condition_variable` \
+(modifier). \
+Use when: heterogeneous treatment effects are scientifically important. \
+Not when: the question is about decomposing a pathway (→ mediation).
 
-- **`ate`**: A researcher wants a concrete NUMBER for the causal effect — not \
-just "does X affect Y" but "by HOW MUCH." "What is the average effect of \
-increasing fertilizer dose from low to high on crop yield?" "How much does \
-reducing pollution level change respiratory hospitalizations on average?" \
-Use when the case needs a quantitative estimate of effect magnitude, not \
-just a distributional shift (which `causal_effect` provides).
+**`mediation`** — "WHY does this effect happen? Through what pathway?" \
+A researcher wants to decompose an effect through an intermediate mechanism. \
+"How much of the effect of education on income goes through job skills?" \
+Requires hints: `intervention_node` (treatment) and `condition_variable` \
+(mediator). \
+Use when: the question asks how much of an effect is explained by a pathway. \
+Not when: the question is about whether the effect varies by subgroup \
+(→ interaction).
 
-- **`mediation`**: A researcher wants to decompose WHY an effect occurs. \
-"How much of the effect of education on income goes through job skills vs \
-through social networks?" "What fraction of the treatment benefit is explained \
-by the biological pathway?" Use when there is an identifiable intermediate \
-mechanism between cause and effect, and the question is about how much goes \
-through that pathway.
+**`should_condition`** — "Is this analysis choice safe, or does it bias results?" \
+A common but risky analytic decision needs evaluation. "A colleague suggests \
+adjusting for birth weight when studying smoking and mortality — is that safe, \
+or does it introduce collider bias?" Use when a seemingly reasonable adjustment \
+could actually be harmful. \
+Requires hints: `intervention_node` and `condition_variable`. \
+Use when: the question evaluates whether a specific conditioning choice is safe. \
+Not when: the question is about which variables to include in general \
+(→ adjustment_set).
 
-- **`interaction`**: A researcher suspects the treatment effect varies across \
-subgroups. "Does the drug work differently for young vs old patients?" "Is \
-the environmental policy more effective in urban vs rural areas?" Use when \
-heterogeneous treatment effects are scientifically important. The answer is \
-yes/no: does the effect meaningfully change across levels of the modifier?
+**`next_best_observation`** — AVOID. Tied to an unimplemented paradigm; \
+the solver cannot choose what to measure, so NBO questions score trivially.
 
-### Diagnostic and exploratory questions — complementary, not primary
+### Overlapping types — how to choose
 
-These are supporting questions. They enrich the case but should NOT be the \
-main research question:
-
-- **`infer_target`**: "Given what we observe, what is the most likely state \
-of the outcome?" This is a descriptive/predictive question. Use it as a \
-COMPLEMENTARY question to establish a baseline — e.g., "Before investigating \
-causes, what does the data suggest about recovery likelihood?" \
-Do NOT use as the primary question — real papers rarely have prediction as \
-their main contribution.
-
-- **`next_best_observation`**: AVOID for now. This eval type is tied to a \
-research-actions paradigm that is not yet implemented. The solver cannot \
-actually choose what to measure, so NBO questions score trivially. Use a \
-different eval type instead.
-
-- **`hypothesis_selection`**: "Multiple explanations are plausible — which \
-one best fits the evidence?" Use when the case presents competing theories \
-that the data can discriminate between.
-
-- **`infer_latent_cause`**: "Something unobserved is driving what we see — \
-what is it?" Use when there is a latent variable and the investigator must \
-diagnose or identify a hidden factor from its observable consequences.
+When a question could fit multiple types:
+- "Does X affect Y?" → `causal_effect`
+- "By how much?" → `ate`
+- "Where should I act?" (open field) → `best_intervention`
+- "A vs B?" (two specific options) → `compare_interventions`
+- "Through what pathway?" → `mediation`
+- "For whom / under what conditions?" → `interaction`
+- "What must I control for?" → `adjustment_set`
+- "Is this adjustment safe?" → `should_condition`
+- "Which named theory?" → `hypothesis_selection`
+- "What unnamed hidden driver?" → `infer_latent_cause`
+- "What do we observe?" → `infer_target`
 
 ### What we CANNOT represent yet
 
-Some important scientific question types do not have eval_types yet. If the \
-seed asks about these, choose the closest available type:
-- **Selection bias** ("Is the apparent effect real or driven by who is in the sample?"): \
-no direct equivalent. `should_condition` can partially capture this.
-- **Source attribution** ("Which of several possible sources is responsible?"): \
-closest is `best_intervention` or `hypothesis_selection`.
-- **Dose-response curves** ("What is the shape of the effect across levels?"): \
-use `ate` at a specific contrast, or multiple `causal_effect` questions.
+Some scientific question types have no eval_type. If the seed asks about these, \
+choose the closest available type:
+- **Selection bias**: closest is `should_condition`.
+- **Source attribution**: closest is `best_intervention` or `hypothesis_selection`.
+- **Dose-response curves**: use `ate` at a specific contrast.
 
-**Node hints — REQUIRED for node-sensitive eval types:**
-Some eval types need you to specify WHICH nodes the question is about, so the \
-generated task matches your question text. Without hints, the task generator \
-picks random nodes and your carefully written question becomes mismatched.
+### Node hints — required for node-sensitive types
+
+Some eval types need you to specify WHICH nodes the question is about. Without \
+hints, the task generator picks random nodes and your question becomes mismatched.
 
 Required hints by eval_type:
-- **`causal_effect`**: set `intervention_node` (the node you intervene on).
-- **`best_intervention`**: set `desired_state` (the target state to maximize, \
-e.g. "high" for crop_yield).
-- **`compare_interventions`**: set `compare_nodes` (two nodes to compare) AND \
-`desired_state` (the state to maximize).
-- **`adjustment_set`**: set `intervention_node` (the treatment/exposure variable).
-- **`should_condition`**: set `intervention_node` (the treatment) AND \
-`condition_variable` (the variable someone suggests controlling for).
-- **`ate`**: set `intervention_node` (the treatment variable).
-- **`mediation`**: set `intervention_node` (the treatment) AND \
-`condition_variable` (the mediator through which the effect passes).
-- **`interaction`**: set `intervention_node` (the treatment) AND \
-`condition_variable` (the effect modifier / subgroup variable).
+- `causal_effect`: `intervention_node`
+- `best_intervention`: `desired_state`
+- `compare_interventions`: `compare_nodes` (two nodes) + `desired_state`
+- `adjustment_set`: `intervention_node`
+- `should_condition`: `intervention_node` + `condition_variable`
+- `ate`: `intervention_node`
+- `mediation`: `intervention_node` + `condition_variable` (mediator)
+- `interaction`: `intervention_node` + `condition_variable` (modifier)
 
-For `infer_target`, `next_best_observation`, `hypothesis_selection`, and \
-`infer_latent_cause`, no hints are needed — just question_text and target_node.
+For `infer_target`, `hypothesis_selection`, and `infer_latent_cause`, no hints \
+are needed — just question_text and target_node.
 
-**Guidelines for question design:**
-- Use 3-5 questions per case. Don't use all types — pick the ones that fit naturally.
-- Every question must feel like something a scientist would ask, not a graph theory exercise.
+### Question design guidelines
+
+- Use 3-5 questions per case. Pick the types that fit THIS case naturally.
+- Every question must feel like something a scientist would ask, not an exercise.
 - Don't repeat the same eval_type + target_node combination.
-- Write question_text as a natural research question, not as a formal instruction. \
-These appear in the investigator's briefing as sub-questions, so they must read \
-as real research questions. NEVER use snake_case, single-quoted variable names, \
+- Write question_text as a natural research question. These appear in the \
+investigator's briefing. NEVER use snake_case, single-quoted variable names, \
 or "setting X to Y" framing.
    Good: "How much does recovery quality contribute to second-half decline?"
    Bad: "What fraction of the causal effect of 'training_load_7d' on \
 'second_half_tactical_decline' is mediated through 'second_half_physical_drop'?"
-- For node-sensitive types, always provide the required hints (see above). \
-The hints use internal node IDs; the question_text uses natural names.
-- When generating from a seed/paper: identify the paper's ACTUAL research questions \
-FIRST, then map each one to the closest eval_type. Don't pick eval_types and write \
-questions around them.
+- For node-sensitive types, always provide the required hints. The hints use \
+internal node IDs; the question_text uses natural names.
+- Type-fit check: before assigning an eval_type, verify it matches the question: \
+do not assign a causal type (causal_effect, ate) unless the question explicitly \
+asks about an intervention or counterfactual. Do not assign a structural type \
+(adjustment_set, should_condition) unless the question is about analysis \
+methodology. Do not assign hypothesis_selection unless the question names \
+competing theories. If the question is about what the data shows, use infer_target.
 - The research_brief MUST be written BEFORE the questions — start from the real \
 research problem and then decompose it into scorable questions.
 
@@ -691,22 +722,22 @@ TOOL_DEFINITIONS = [
                                         "interaction",
                                     ],
                                     "description": (
-                                        "Type of evaluation. The PRIMARY question should almost "
-                                        "always be causal (causal_effect, best_intervention, "
-                                        "compare_interventions, ate). Use infer_target only as a "
-                                        "complementary descriptive question, not the main one. "
-                                        "causal_effect: what happens if we intervene on X? "
-                                        "best_intervention: which intervention maximizes Y? "
-                                        "compare_interventions: is do(X) better than do(Z)? "
-                                        "ate: how MUCH does Y change when we set X high vs low? "
-                                        "mediation: what fraction of X->Y goes through M? "
-                                        "interaction: does the effect of X on Y depend on Z? "
-                                        "adjustment_set: what to control for in analysis? "
-                                        "should_condition: is controlling for Z correct? "
-                                        "infer_target: descriptive baseline (complementary). "
-                                        "next_best_observation: AVOID — not yet supported. "
-                                        "hypothesis_selection: which hypothesis fits best? "
-                                        "infer_latent_cause: what hidden factor explains this?"
+                                        "Type of evaluation. Choose the type that best "
+                                        "captures each research question you drafted. "
+                                        "No type family is preferred a priori — pick "
+                                        "purely by fit to the case. "
+                                        "causal_effect: what happens if we change X? "
+                                        "ate: by how much does X affect Y? "
+                                        "best_intervention: where should we act? "
+                                        "compare_interventions: A vs B, which works better? "
+                                        "mediation: through what pathway does the effect go? "
+                                        "interaction: does the effect depend on context? "
+                                        "adjustment_set: what must we control for? "
+                                        "should_condition: is this adjustment safe? "
+                                        "hypothesis_selection: which theory fits best? "
+                                        "infer_latent_cause: what hidden factor explains this? "
+                                        "infer_target: what does the data show about the outcome? "
+                                        "next_best_observation: AVOID — not yet supported."
                                     ),
                                 },
                                 "target_node": {
