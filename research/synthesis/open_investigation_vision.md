@@ -1,10 +1,94 @@
 # Open Investigation: investigacion libre con reward exacto
 
 > **Status:** VISION EN DESARROLLO. No implementar todavia — disenar y madurar.
-> **Fecha:** 2026-03-25
+> **Fecha:** 2026-03-25 (actualizado 2026-03-26 con diseno Alpha + Codex)
 > **Participantes:** Usuario, Claude, Codex (gpt-5.4)
 
-## El problema
+## Explicacion simple (empieza por aca)
+
+### Hoy: examen con preguntas
+
+Hoy SREG es como un profesor que le da un examen al alumno con preguntas
+especificas:
+
+> "Pregunta 1: cual es el efecto de la presion sobre el arenamiento?"
+> "Pregunta 2: que importa mas, la presion o la viscosidad?"
+
+El alumno responde cada pregunta, y nosotros tenemos la respuesta exacta
+(el SCM). Facil de corregir, pero **no es investigacion** — es un examen.
+
+### Lo que queremos: investigacion libre
+
+Queremos darle al solver lo que le darian a un investigador real:
+
+> "Tenes datos de pozos en Vaca Muerta. Algunos se arenan, otros no.
+> Averigua por que y que se puede hacer."
+
+El solver investiga, analiza los datos, y al final entrega un reporte:
+
+> "La presion es el factor principal. Opera a traves del colapso de
+> fracturas. La viscosidad modera el efecto."
+
+**El problema: como le ponemos nota a eso?**
+
+### El truco: traducir y verificar
+
+Nosotros tenemos la verdad completa (el SCM). El solver no lo sabe, pero
+nosotros si. Entonces:
+
+1. **El solver** investiga libre y escribe su reporte
+2. **Un traductor** (otro LLM) lee el reporte y lo convierte a preguntas
+   formales:
+   - "La presion es el factor principal" -> verificar efecto causal de presion
+   - "Opera a traves de fracturas" -> verificar mediacion
+   - "La viscosidad modera" -> verificar interaccion
+3. **El SCM** responde cada pregunta con la verdad exacta
+
+Es como tener un profesor que lee la tesis del alumno, la descompone en
+afirmaciones verificables, y las checkea contra la realidad.
+
+### Preguntas clave resueltas (sesion 2026-03-26 con Codex)
+
+**"Una nota final o varias?"** — Varias. El solver entrega 1 hallazgo
+principal + hasta 4 de soporte. Cada uno se verifica por separado.
+
+**"Y si hace mil afirmaciones a ver si alguna pega?"** — Cap de 5 claims
+maximo. Y si tira muchas cosas incorrectas, la nota baja aunque acierte
+algunas (precision gate sobre coverage).
+
+**"Y si llega al resultado correcto pero sin investigar?"** — Para eso
+esta "warrant" (fundamentacion). No alcanza con acertar — tenes que
+mostrar que usaste los datos para llegar ahi. Un solver que responde
+desde la intuicion sin mirar los datos saca mala nota en warrant.
+
+**"Y el traductor? Si traduce mal?"** — Si no esta seguro de como
+traducir algo, lo marca como "no puntuable" en vez de adivinar. Y el
+solver puede ver como se tradujo y corregir antes de la entrega final.
+
+### Orden de construccion (consenso Claude + Codex)
+
+No construir todo junto. Ir de a pasos:
+
+1. **Definir que es un "hallazgo"** formalmente (Claim, CompiledQuery,
+   ClaimFamily)
+2. **Construir el corrector sin traductor** — probar que el scoring
+   funciona cuando los hallazgos ya vienen en formato perfecto
+3. **Probar el traductor por separado** — darle textos y ver si traduce
+   bien (benchmark offline)
+4. **Recien ahi** juntar todo con un solver real (modo scaffolded, no
+   fully open)
+
+### Criterios de exito del Alpha
+
+- El no-data baseline puntua claramente peor que un solver que investiga
+- El shotgun (tirar muchos claims a ver si pegan) no puede explotar el
+  coverage
+- El score es estable ante variaciones del traductor
+- Un solver mejor realmente supera a uno peor por margen interpretable
+
+---
+
+## El problema (version tecnica)
 
 Hoy SREG le dice al solver QUE preguntar y COMO responder:
 
@@ -269,23 +353,97 @@ no fases limpias secuenciales.
 - Es la siguiente evolucion natural despues de completar el pipeline
   orchestrator -> SCM.
 
-## Proximos pasos de investigacion
+## Diseno del Alpha (sesion 2026-03-26 con Codex)
 
-1. **Experiment minimo** (propuesta de Codex): tomar 3-5 SRCs existentes,
-   esconder las preguntas, darle solo el brief al solver, soportar 4
-   primitivas (rank_effect, ate, mediation, interaction). Comparar:
-   prosa parseada por LLM vs prosa + claim cards. Medir compile rate,
-   precision, coverage, y reward stability.
+### Modo: Scaffolded Open (no fully open)
 
-2. **Disenar claim language**: que primitivas soporta el translator, como
-   se compila cada una a query SCM, que nivel de especificidad (direccional,
-   ordinal, cuantitativo).
+El Alpha NO es prosa totalmente libre. Es un modo intermedio:
+- Brief abierto con pregunta primaria y target claro
+- Solver investiga libre con las tools actuales (python_exec, etc.)
+- Entrega final estructurada: 1 main finding + hasta 4 supporting findings
+- Cada finding con: confianza y base de evidencia
+- Translator compila cada finding a 0 o 1 query formal
+- Verifier scorea contra el SCM
 
-3. **Auto-claim generation**: implementar enumeracion de claims verdaderos
-   significativos desde un SCM.
+### Primitivas del Alpha (minimas)
 
-4. **Prototype translator**: dado un hallazgo en NL, compilarlo a query
-   formal. Medir reliability.
+Solo 4 para empezar (consenso Codex):
+- `rank_effect(X1 vs X2, Y)` — cual importa mas
+- `ate(X, Y)` o `effect_direction(X, Y)` — efecto causal
+- `mediation(X, M, Y)` — fraccion mediada
+- `interaction(X, Z, Y)` — el efecto depende del contexto
+
+**NO en Alpha:** confounding (es mas de metodologia que de hallazgo).
+**SI agregar:** `null/no-material-effect` como resultado posible.
+
+### Scoring Alpha (propuesta Codex, discutida)
+
+| Dimension | Peso | Que mide |
+|-----------|------|----------|
+| Correctness | 40% | Cada claim traducido se verifica contra el SCM |
+| Warrant | 25% | Fundamentacion: uso la evidencia o adivino? |
+| Weighted coverage | 20% | Encontro los hallazgos importantes descubribles? |
+| Efficiency | 10% | No gasto budget en exploracion irrelevante? |
+| Calibration | 5% | La confianza reportada matchea la realidad? |
+
+**Gate critico:** coverage se multiplica por precision. Si tira muchos
+claims falsos, no gana coverage por los correctos.
+
+### Anti-shotgun
+
+- Cap duro: maximo K=5 claims finales
+- Deduplicacion por "familias de claims" (variantes del mismo hallazgo)
+- Coverage solo paga si precision supera umbral
+- Penalidad por claims no compilables o falsos
+- Requerir evidence basis por claim
+
+### Agenda oculta auto-generada
+
+En vez de answer key manual, auto-generar claims verdaderos significativos
+del SCM:
+
+1. Enumerar primitivas sobre pares/tripletas de variables observables
+2. Computar ground truth para cada una
+3. Filtrar por: significancia (effect size > threshold) + descubribilidad
+   (dado el budget y evidencia visible)
+4. Clusterar en familias de claims equivalentes
+5. Coverage = fraccion de familias descubiertas por el solver
+
+### Translator: sound but incomplete
+
+- Compilacion por bullet (no por reporte entero)
+- Salida tipada: status, primitive, args, span, confidence
+- Si duda: "unscorable" (nunca adivina)
+- Compile-preview loop: solver ve la compilacion y corrige antes de submit
+- Reliability medida OFFLINE antes de meter en el loop
+
+### Orden de construccion
+
+1. **Claim contract**: definir Claim, CompiledQuery, ClaimFamily como
+   modelos formales
+2. **Agenda generator + verifier**: probar scoring con claims formales
+   perfectos (sin LLM, sin translator)
+3. **Translator benchmark offline**: medir compile rate, precision,
+   abstention rate, estabilidad entre reruns
+4. **Piloto scaffolded**: solver real + translator + scoring, modo
+   scaffolded (no fully open)
+
+## Proximos pasos de investigacion (actualizado 2026-03-26)
+
+1. **Definir claim contract** (Claim, CompiledQuery, ClaimFamily) como
+   modelos Pydantic. Esto es el paso 1 del orden de construccion.
+
+2. **Implementar agenda generator**: dado un SCM, enumerar todos los
+   claims verdaderos significativos agrupados en familias.
+
+3. **Implementar verifier scoring**: dado un set de claims formales
+   (sin translator), computar correctness + coverage + los demas scores.
+
+4. **Prototype translator offline**: dado un hallazgo en NL, compilarlo
+   a query formal. Benchmark de reliability.
+
+5. **Piloto E2E**: solver investiga, entrega reporte, translator compila,
+   verifier scorea.
 
 ## Origen de esta idea
 
