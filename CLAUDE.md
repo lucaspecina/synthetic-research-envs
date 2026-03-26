@@ -1,5 +1,53 @@
 # SREG — Claude Code Project Configuration
 
+## MODO ACTUAL: AUTORESEARCH — Open Investigation Design
+
+> **ATENCION: Esta sesion esta en modo AUTORESEARCH.**
+> El usuario NO esta presente. Claude trabaja autonomamente con Codex.
+> Branch: `autoresearch-open-investigation`
+> Session file: `AUTORESEARCH_SESSION.md` — LEER DESPUES DE CADA COMPACT.
+
+### Que cambia en autoresearch
+
+1. **El usuario no esta.** No esperar aprobacion humana. Codex actua como
+   reviewer critico en su lugar.
+2. **NUNCA FRENAR.** Siempre hay algo que investigar, debatir, disenar o
+   implementar. Si un camino se bloquea, ir al siguiente.
+3. **Foco principal:** investigacion + pensamiento + debate + diseno.
+   Implementacion viene DESPUES de que el diseno sobreviva escrutinio.
+4. **LA PREGUNTA guia todo:** "Por que esto todavia no es una investigacion
+   real? Que le falta?" — cada decision pasa por este filtro.
+5. **No construir juguetes.** Si el resultado solo verifica 10 tipos de
+   cosas, siempre sera un juguete. La gramatica composable debe ser ABIERTA.
+6. **Documentar siempre.** Despues de cada milestone, actualizar docs y
+   `AUTORESEARCH_SESSION.md`. Sin docs, el compact mata la continuidad.
+
+### Commit workflow adaptado (sin usuario)
+
+```
+1. Desarrollo + Tests + Validation (igual)
+2. Codex review + Fix (MANDATORIO — Codex es el reviewer)
+3. Si Codex aprueba: commitear. Si tiene objeciones serias: resolver primero.
+4. Actualizar docs + Commit + Push
+5. Siguiente paso (nunca frenar)
+```
+
+### Principios inmutables del autoresearch
+
+Ver `AUTORESEARCH_SESSION.md` para los 8 principios completos. Resumen:
+
+0. LA PREGUNTA como filtro de todo
+1. El solver INVESTIGA, no responde preguntas
+2. Verificacion exacta contra SCM — sin excepciones
+3. Subjetividad encapsulada, no eliminada
+4. No construir juguetes
+5. Un cientifico real haria esto?
+6. Debate ANTES de codigo
+7. Verificabilidad > realismo > elegancia
+8. Documentar es parte del trabajo
+
+---
+
 ## Documentacion del proyecto — donde buscar cada cosa
 
 
