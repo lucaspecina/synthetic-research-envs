@@ -171,8 +171,11 @@ desplazandose hacia `synthesis/`.
 - **Insight clave:** usar un LLM translator (analogo al orchestrator pero
   invertido) que compile hallazgos en NL a queries formales. El LLM traduce,
   no juzga. El reward siempre es contra el SCM.
+- **Analisis de casos:** `notes/open_investigation_case_analysis.md` — 8
+  dominios reales, 24 respuestas posibles, patrones de ruptura del diseno.
+  Working doc activo para iterar el contrato de verificacion.
 - **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
-- **Status:** VISION EN DESARROLLO. No implementar — disenar y madurar.
+- **Status:** VISION EN DESARROLLO. Analisis de casos en progreso.
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
