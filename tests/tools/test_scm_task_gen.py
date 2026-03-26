@@ -1025,3 +1025,195 @@ class TestHintsHonoredBestIntervention:
             # No desired_state — should still work
         )
         assert SCMTaskGenTool._hints_honored(plan, task)
+
+
+# ------------------------------------------------------------------
+# Quality gates (Paso 2)
+# ------------------------------------------------------------------
+
+
+def _downstream_world() -> SCMWorld:
+    """A -> B -> C -> D. D is target, B and C are downstream of A.
+
+    For best_intervention on D: only A, B, C are valid levers (ancestors).
+    D itself is the target and should be excluded.
+    """
+    return SCMWorld(
+        id="test-downstream",
+        graph={"A": [], "B": ["A"], "C": ["B"], "D": ["C"]},
+        equations={
+            "A": lambda p, rng: rng.normal(10, 2),
+            "B": lambda p, rng: 0.8 * p["A"] + rng.normal(0, 1),
+            "C": lambda p, rng: 0.5 * p["B"] + rng.normal(0, 1),
+            "D": lambda p, rng: 0.3 * p["C"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+def _with_descendant_of_target() -> SCMWorld:
+    """A -> B -> Y, Y -> D.
+
+    D is a descendant of Y (target).
+    Should NOT be offered as a lever.
+    """
+    return SCMWorld(
+        id="test-desc-target",
+        graph={"A": [], "B": ["A"], "Y": ["B"], "D": ["Y"]},
+        equations={
+            "A": lambda p, rng: rng.normal(10, 2),
+            "B": lambda p, rng: 0.5 * p["A"] + rng.normal(0, 1),
+            "Y": lambda p, rng: 0.3 * p["B"] + rng.normal(0, 1),
+            "D": lambda p, rng: 0.8 * p["Y"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+def _no_interaction_world() -> SCMWorld:
+    """T -> Y, Z -> Y with additive equation (no interaction)."""
+    return SCMWorld(
+        id="test-no-interaction",
+        graph={"T": [], "Z": [], "Y": ["T", "Z"]},
+        equations={
+            "T": lambda p, rng: rng.normal(5, 1),
+            "Z": lambda p, rng: rng.normal(3, 1),
+            "Y": lambda p, rng: 2 * p["T"] + 1.5 * p["Z"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+def _full_mediation_world() -> SCMWorld:
+    """T -> M -> Y (no direct T -> Y path). Mediation = 100%."""
+    return SCMWorld(
+        id="test-full-mediation",
+        graph={"T": [], "M": ["T"], "Y": ["M"]},
+        equations={
+            "T": lambda p, rng: rng.normal(10, 2),
+            "M": lambda p, rng: 1.5 * p["T"] + rng.normal(0, 0.5),
+            "Y": lambda p, rng: 0.8 * p["M"] + rng.normal(0, 0.5),
+        },
+    )
+
+
+class TestManipulabilityGate:
+    """Only causal ancestors of target should be offered as levers."""
+
+    def test_manipulable_nodes_returns_ancestors(self):
+        world = _downstream_world()
+        gen = SCMTaskGenTool()
+        levers = gen._manipulable_nodes(world, "D")
+        assert "A" in levers
+        assert "B" in levers
+        assert "C" in levers
+        assert "D" not in levers
+
+    def test_descendant_of_target_excluded(self):
+        world = _with_descendant_of_target()
+        gen = SCMTaskGenTool()
+        levers = gen._manipulable_nodes(world, "Y")
+        assert "A" in levers
+        assert "B" in levers
+        assert "D" not in levers  # D is downstream of Y
+
+    def test_best_intervention_excludes_downstream(self):
+        world = _with_descendant_of_target()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="Y", max_budget=5)
+        task = gen.generate(world, spec, seed=42)
+        # Answer keys should only contain ancestors
+        for key in task.correct_answer:
+            node = key.split(":")[0]
+            assert node in ("A", "B", "_none_"), f"Unexpected lever: {node}"
+
+    def test_compare_interventions_uses_ancestors(self):
+        world = _downstream_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.COMPARE_INTERVENTIONS, target_node="D",
+            compare_nodes=["A", "B"], max_budget=5,
+        )
+        task = gen.generate(world, spec, seed=42)
+        nodes_in_answer = {k.split(":")[0] for k in task.correct_answer}
+        assert "D" not in nodes_in_answer
+
+    def test_compare_needs_two_ancestors(self):
+        """World with only 1 ancestor should raise."""
+        world = SCMWorld(
+            id="test-single-parent",
+            graph={"X": [], "Y": ["X"]},
+            equations={
+                "X": lambda p, rng: rng.normal(0, 1),
+                "Y": lambda p, rng: p["X"] + rng.normal(0, 0.5),
+            },
+        )
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.COMPARE_INTERVENTIONS, target_node="Y", max_budget=5)
+        with pytest.raises(ValueError, match="at least 2"):
+            gen.generate(world, spec, seed=42)
+
+
+class TestInteractionGate:
+    """Interaction tasks should only be generated when real interaction exists."""
+
+    def test_interaction_found_in_multiplicative_world(self):
+        world = _interaction_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.INTERACTION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="Z",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert task.correct_answer == {"yes": 1.0}
+
+    def test_no_interaction_answers_no(self):
+        """Purely additive world should generate task with answer 'no'."""
+        world = _no_interaction_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.INTERACTION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="Z",
+        )
+        task = gen.generate(world, spec, seed=42)
+        assert task.correct_answer == {"no": 1.0}
+
+    def test_no_interaction_without_hints_answers_no(self):
+        """Even without hints, additive world should answer 'no'."""
+        world = _no_interaction_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.INTERACTION, target_node="Y", max_budget=5)
+        task = gen.generate(world, spec, seed=42)
+        assert task.correct_answer == {"no": 1.0}
+
+
+class TestMediationGate:
+    """Mediation tasks should only be generated when fraction is non-trivial."""
+
+    def test_partial_mediation_succeeds(self):
+        """T -> M -> Y + T -> Y: partial mediation should pass gate."""
+        world = _mediation_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.MEDIATION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="M",
+        )
+        task = gen.generate(world, spec, seed=42)
+        frac = task.correct_answer["value"]
+        assert 0.05 < frac < 0.95, f"Expected partial mediation, got {frac}"
+
+    def test_full_mediation_raises(self):
+        """T -> M -> Y (no direct): fraction ~1.0 should be rejected."""
+        world = _full_mediation_world()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(
+            type=TaskType.MEDIATION, target_node="Y", max_budget=5,
+            intervention_node="T", condition_variable="M",
+        )
+        with pytest.raises(ValueError, match="trivial"):
+            gen.generate(world, spec, seed=42)
+
+    def test_raises_without_mediator(self):
+        """Independent world has no directed paths."""
+        world = _independent()
+        gen = SCMTaskGenTool()
+        spec = TaskSpec(type=TaskType.MEDIATION, target_node="B", max_budget=5)
+        with pytest.raises(ValueError, match="No mediator"):
+            gen.generate(world, spec, seed=42)

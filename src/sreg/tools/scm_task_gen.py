@@ -149,6 +149,18 @@ class SCMTaskGenTool:
         return world.observable_variables
 
     @staticmethod
+    def _manipulable_nodes(world: SCMWorld, target: str) -> list[str]:
+        """Observable ancestors of *target* — valid intervention levers.
+
+        Excludes downstream outcomes and nodes unrelated to the target.
+        A node is manipulable if there is a directed path from it to the
+        target in the DAG (i.e., it is a causal ancestor).
+        """
+        ancestors = nx.ancestors(world.dag, target)
+        obs = set(world.observable_variables)
+        return sorted(ancestors & obs)
+
+    @staticmethod
     def _semantic_name(world: SCMWorld, node_id: str) -> str:
         """Human-readable name for a variable, suitable for inline use in questions.
 
@@ -490,18 +502,20 @@ class SCMTaskGenTool:
     ) -> Task:
         solver = SCMSolver(world)
         target = spec.target_node
-        obs_nodes = self._obs_nodes(world)
+        lever_nodes = self._manipulable_nodes(world, target)
+        if not lever_nodes:
+            raise ValueError(
+                f"No manipulable ancestors found for target '{target}'"
+            )
 
         # "Desired outcome" for continuous: target above its median
         target_samples = world.observational_distribution(target, n=10_000, seed=seed)
         target_median = float(np.median(target_samples))
         baseline = float(np.mean(target_samples > target_median))  # ~0.5
 
-        # For each observable node, try low (25th) and high (75th) interventions
+        # For each manipulable ancestor, try low (25th) and high (75th) interventions
         intervention_effects: dict[str, float] = {}
-        for node_name in obs_nodes:
-            if node_name == target:
-                continue
+        for node_name in lever_nodes:
             node_samples = world.observational_distribution(node_name, n=5_000, seed=seed)
             lo_val = float(np.percentile(node_samples, 25))
             hi_val = float(np.percentile(node_samples, 75))
@@ -522,13 +536,9 @@ class SCMTaskGenTool:
         # Build available interventions description
         target_name = self._semantic_name(world, target)
         int_desc_lines = []
-        for node_name in obs_nodes:
-            if node_name == target:
-                continue
-            lo_key = f"{node_name}:low"
-            if lo_key in intervention_effects:
-                name = self._semantic_name(world, node_name)
-                int_desc_lines.append(f"  {name}: low or high")
+        for node_name in lever_nodes:
+            name = self._semantic_name(world, node_name)
+            int_desc_lines.append(f"  {name}: low or high")
 
         int_desc = "\n".join(int_desc_lines)
         question = (
@@ -545,7 +555,7 @@ class SCMTaskGenTool:
             world_id=world.id,
             question=question,
             target_node=target,
-            available_evidence=obs_nodes,
+            available_evidence=self._obs_nodes(world),
             correct_answer=intervention_effects,
             scoring_method="intervention_effect_ratio",
             intervention={best_node: best_label},
@@ -556,18 +566,22 @@ class SCMTaskGenTool:
     ) -> Task:
         solver = SCMSolver(world)
         target = spec.target_node
-        obs_nodes = self._obs_nodes(world)
+        lever_nodes = self._manipulable_nodes(world, target)
         rng = np.random.default_rng(seed)
+
+        if len(lever_nodes) < 2:
+            raise ValueError(
+                f"Need at least 2 manipulable ancestors to compare, "
+                f"found {len(lever_nodes)} for target '{target}'"
+            )
 
         # Target median for effect computation
         target_samples = world.observational_distribution(target, n=10_000, seed=seed)
         target_median = float(np.median(target_samples))
 
-        # Compute best intervention per node (same as best_intervention)
+        # Compute best intervention per manipulable node
         node_bests: list[tuple[str, float]] = []
-        for node_name in obs_nodes:
-            if node_name == target:
-                continue
+        for node_name in lever_nodes:
             node_samples = world.observational_distribution(node_name, n=5_000, seed=seed)
             lo_val = float(np.percentile(node_samples, 25))
             hi_val = float(np.percentile(node_samples, 75))
@@ -641,7 +655,7 @@ class SCMTaskGenTool:
             world_id=world.id,
             question=question,
             target_node=target,
-            available_evidence=obs_nodes,
+            available_evidence=self._obs_nodes(world),
             correct_answer=correct_answer,
             scoring_method="compare_interventions",
             intervention={better_node: better_label},
@@ -991,6 +1005,10 @@ class SCMTaskGenTool:
             },
         )
 
+    # Mediation fraction outside this range is considered trivial (not interesting).
+    _MEDIATION_TRIVIAL_LO = 0.05
+    _MEDIATION_TRIVIAL_HI = 0.95
+
     def _mediation_task(
         self,
         world: SCMWorld,
@@ -1003,41 +1021,18 @@ class SCMTaskGenTool:
         obs_nodes = self._obs_nodes(world)
         rng = np.random.default_rng(seed)
 
-        # Select treatment node
-        hint_treatment = spec.intervention_node
-        if hint_treatment and hint_treatment in obs_nodes and hint_treatment != target:
-            treatment = hint_treatment
-        else:
-            treatment = self._find_best_causal_parent(
-                world, solver, target, obs_nodes, seed
-            )
+        # Search for non-trivial mediation across multiple treatments
+        treatment, mediator, result = self._find_nontrivial_mediation(
+            world, solver, spec, target, obs_nodes, seed, rng,
+            treatment_contrasts,
+        )
 
-        # Select mediator
-        hint_mediator = spec.condition_variable
-        if (
-            hint_mediator
-            and hint_mediator in obs_nodes
-            and hint_mediator != treatment
-            and hint_mediator != target
-        ):
-            mediator = hint_mediator
-        else:
-            mediator = self._find_mediator(world, treatment, target, obs_nodes, rng)
+        correct_answer = {"value": round(result["fraction_mediated"], 4)}
 
-        if mediator is None:
-            raise ValueError(
-                f"No mediator found between '{treatment}' and '{target}'"
-            )
-
-        # Treatment levels (shared cache)
+        # Treatment levels for estimand metadata
         v_low, v_high = self._resolve_contrast(
             world, treatment, seed, treatment_contrasts
         )
-
-        result = solver.mediation_analysis(
-            treatment, mediator, target, v_high, v_low, n=20_000, seed=seed
-        )
-        correct_answer = {"value": round(result["fraction_mediated"], 4)}
 
         treat_name = self._semantic_name(world, treatment)
         target_name = self._semantic_name(world, target)
@@ -1094,42 +1089,11 @@ class SCMTaskGenTool:
         obs_nodes = self._obs_nodes(world)
         rng = np.random.default_rng(seed)
 
-        # Select treatment node
-        hint_treatment = spec.intervention_node
-        if hint_treatment and hint_treatment in obs_nodes and hint_treatment != target:
-            treatment = hint_treatment
-        else:
-            treatment = self._find_best_causal_parent(
-                world, solver, target, obs_nodes, seed
-            )
-
-        # Select modifier
-        hint_modifier = spec.condition_variable
-        if (
-            hint_modifier
-            and hint_modifier in obs_nodes
-            and hint_modifier != treatment
-            and hint_modifier != target
-        ):
-            modifier = hint_modifier
-        else:
-            modifier = self._find_modifier(
-                world, treatment, target, obs_nodes, rng
-            )
-
-        if modifier is None:
-            raise ValueError(
-                f"No suitable modifier found for '{treatment}' -> '{target}'"
-            )
-
-        # Treatment levels (shared cache)
-        v_low, v_high = self._resolve_contrast(
-            world, treatment, seed, treatment_contrasts
+        # Try hinted pair first, then search for a pair with real interaction
+        treatment, modifier, v_low, v_high, result = self._find_interacting_pair(
+            world, solver, spec, target, obs_nodes, seed, rng, treatment_contrasts
         )
 
-        result = solver.detect_interaction(
-            treatment, target, modifier, v_high, v_low, n=50_000, seed=seed
-        )
         correct_answer = (
             {"yes": 1.0} if result["interaction_detected"] else {"no": 1.0}
         )
@@ -1247,6 +1211,106 @@ class SCMTaskGenTool:
         candidates = sorted(intermediates)
         return candidates[rng.choice(len(candidates))]
 
+    def _find_nontrivial_mediation(
+        self,
+        world: SCMWorld,
+        solver: SCMSolver,
+        spec: TaskSpec,
+        target: str,
+        obs_nodes: list[str],
+        seed: int,
+        rng: np.random.Generator,
+        treatment_contrasts: dict[str, tuple[float, float]] | None = None,
+    ) -> tuple[str, str, dict]:
+        """Find a (treatment, mediator) pair with non-trivial mediation.
+
+        Non-trivial means fraction_mediated is in
+        (_MEDIATION_TRIVIAL_LO, _MEDIATION_TRIVIAL_HI).
+
+        Explores multiple treatments (hinted first, then best causal
+        parent, then all observable ancestors with mediators).  For each
+        treatment, tries hinted mediator first, then all intermediates.
+
+        Raises ValueError if all pairs are trivial.
+
+        Returns (treatment, mediator, mediation_result).
+        """
+        lo = self._MEDIATION_TRIVIAL_LO
+        hi = self._MEDIATION_TRIVIAL_HI
+        obs_set = set(obs_nodes)
+        dag = world.dag
+
+        # Build ordered treatment list: hint > best_parent > ancestors
+        treatments: list[str] = []
+        hint_t = spec.intervention_node
+        if hint_t and hint_t in obs_set and hint_t != target:
+            treatments.append(hint_t)
+        best_parent = self._find_best_causal_parent(
+            world, solver, target, obs_nodes, seed
+        )
+        if best_parent and best_parent not in treatments:
+            treatments.append(best_parent)
+        ancestors = nx.ancestors(dag, target) & obs_set
+        for p in sorted(ancestors):
+            if p not in treatments:
+                treatments.append(p)
+
+        hint_mediator = spec.condition_variable
+        best_result = None
+        best_mediator = None
+        best_treatment = None
+        best_distance = 1.0
+
+        for treatment in treatments:
+            v_low, v_high = self._resolve_contrast(
+                world, treatment, seed, treatment_contrasts
+            )
+
+            # Build mediator candidates for this treatment
+            candidates: list[str] = []
+            if (
+                hint_mediator
+                and hint_mediator in obs_set
+                and hint_mediator != treatment
+                and hint_mediator != target
+            ):
+                candidates.append(hint_mediator)
+            try:
+                paths = list(nx.all_simple_paths(dag, treatment, target))
+            except nx.NetworkXError:
+                paths = []
+            for path in paths:
+                for node in path[1:-1]:
+                    if node in obs_set and node not in candidates:
+                        candidates.append(node)
+
+            for mediator in candidates:
+                result = solver.mediation_analysis(
+                    treatment, mediator, target, v_high, v_low,
+                    n=20_000, seed=seed,
+                )
+                frac = result["fraction_mediated"]
+                if lo < frac < hi:
+                    return treatment, mediator, result
+                dist = min(abs(frac - lo), abs(frac - hi))
+                if dist < best_distance:
+                    best_distance = dist
+                    best_result = result
+                    best_mediator = mediator
+                    best_treatment = treatment
+
+        if best_result is None:
+            raise ValueError(
+                f"No mediator found for any treatment -> '{target}'"
+            )
+        raise ValueError(
+            f"All mediators for '{target}' have trivial "
+            f"fraction_mediated (outside {lo}-{hi}). Best was "
+            f"'{best_treatment}' -> '{best_mediator}' = "
+            f"{best_result['fraction_mediated']:.3f}. "
+            f"Skipping mediation task."
+        )
+
     @staticmethod
     def _find_modifier(
         world: SCMWorld,
@@ -1277,6 +1341,114 @@ class SCMTaskGenTool:
             return None
         pool_sorted = sorted(pool)
         return pool_sorted[rng.choice(len(pool_sorted))]
+
+    def _find_interacting_pair(
+        self,
+        world: SCMWorld,
+        solver: SCMSolver,
+        spec: TaskSpec,
+        target: str,
+        obs_nodes: list[str],
+        seed: int,
+        rng: np.random.Generator,
+        treatment_contrasts: dict[str, tuple[float, float]] | None = None,
+    ) -> tuple[str, str, float, float, dict]:
+        """Search for a (treatment, modifier) pair, preferring real interactions.
+
+        Explores all observable ancestors of *target* as candidate treatments
+        (hinted first, then best causal parent, then remaining ancestors).
+        For each treatment, tries all valid modifiers.
+
+        If a pair with ``interaction_detected=True`` is found, returns it
+        immediately (answer will be "yes").  Otherwise returns the pair with
+        the highest ``relative_range`` (answer will be "no") so that
+        interaction tasks have a natural mix of yes/no outcomes.
+
+        Returns (treatment, modifier, v_low, v_high, detect_result).
+        """
+        obs_set = set(obs_nodes)
+        ancestors = nx.ancestors(world.dag, target) & obs_set
+
+        # Build ordered treatment list: hint > best_parent > all ancestors
+        treatments: list[str] = []
+        hint_t = spec.intervention_node
+        if hint_t and hint_t in ancestors:
+            treatments.append(hint_t)
+        best_parent = self._find_best_causal_parent(
+            world, solver, target, obs_nodes, seed
+        )
+        if best_parent and best_parent not in treatments and best_parent in ancestors:
+            treatments.append(best_parent)
+        for p in sorted(ancestors):
+            if p not in treatments:
+                treatments.append(p)
+
+        if not treatments:
+            raise ValueError(
+                f"No observable ancestors for interaction search on '{target}'"
+            )
+
+        best_yes: tuple[str, str, float, float, dict] | None = None
+        best_yes_range = -1.0
+        best_no: tuple[str, str, float, float, dict] | None = None
+        best_no_range = -1.0
+
+        for treatment in treatments:
+            v_low, v_high = self._resolve_contrast(
+                world, treatment, seed, treatment_contrasts
+            )
+
+            # Build modifier candidates: hint first, then _find_modifier pool
+            modifiers: list[str] = []
+            hint_m = spec.condition_variable
+            if (
+                hint_m
+                and hint_m in obs_set
+                and hint_m != treatment
+                and hint_m != target
+            ):
+                modifiers.append(hint_m)
+
+            dag = world.dag
+            try:
+                paths = list(nx.all_simple_paths(dag, treatment, target))
+            except nx.NetworkXError:
+                paths = []
+            path_nodes = set()
+            for path in paths:
+                path_nodes.update(path)
+            candidates = sorted(
+                n for n in obs_nodes
+                if n != treatment and n != target and n not in path_nodes
+                and n not in modifiers
+            )
+            modifiers.extend(candidates)
+
+            for modifier in modifiers:
+                result = solver.detect_interaction(
+                    treatment, target, modifier, v_high, v_low,
+                    n=50_000, seed=seed,
+                )
+                rr = result.get("relative_range", 0.0)
+                if result["interaction_detected"]:
+                    # Track strongest "yes" (don't return first — may be FP)
+                    if rr > best_yes_range:
+                        best_yes_range = rr
+                        best_yes = (treatment, modifier, v_low, v_high, result)
+                else:
+                    if rr > best_no_range:
+                        best_no_range = rr
+                        best_no = (treatment, modifier, v_low, v_high, result)
+
+        # Prefer strongest "yes", fall back to best "no"
+        if best_yes is not None:
+            return best_yes
+        if best_no is not None:
+            return best_no
+
+        raise ValueError(
+            f"No valid treatment/modifier pairs found for '{target}'"
+        )
 
     # ------------------------------------------------------------------
     # Plan-driven generation

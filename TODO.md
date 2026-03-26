@@ -430,11 +430,10 @@ respuestas que no discriminan:
   distingue "observable" de "intervenible".
 
 **Sub-preguntas:**
-- [ ] Interaction: como garantizar mezcla yes/no? Verificar ecuacion antes
-  de generar, o deshabilitar si no hay interaccion real?
-- [ ] Mediacion: quality gate para evitar extremos ~0 o ~1?
-- [ ] best_intervention: inferir "intervenible" desde el DAG (exogenas)?
-  O agregar campo a VariableMeta?
+- [x] Interaction: mezcla yes/no garantizada. Busca strongest "yes" entre
+  todos los ancestros; si no hay, devuelve "no" con mejor par. (Paso 2)
+- [x] Mediacion: quality gate 0.05-0.95. Multi-treatment search. (Paso 2)
+- [x] best_intervention: inferido desde DAG (ancestros causales). (Paso 2)
 
 **Evidencia:** `research/synthesis/qualitative_eval_2026_03_25.md` (P1, P3, P4)
 
@@ -805,11 +804,13 @@ no tienen hallazgos interesantes, no podemos saber si el translator falla
 o si el mundo es pobre. Consenso Claude + Codex: no hacer fase larga de
 fixes ni ir directo a ciegas — solo limpiar lo que arruina la senal.
 
-- [ ] **Manipulabilidad**: marcar variables intervenibles vs no. Solo
-  ofrecer exogenas como levers en best_intervention.
-- [ ] **Interaction gate**: no generar interaction si no hay termino
-  multiplicativo real entre treatment y modifier.
-- [ ] **Mediation gate**: no generar mediacion si es ~0 o ~1 trivial.
+- [x] **Manipulabilidad**: solo ancestros causales del target como levers
+  en best_intervention y compare_interventions. Helper `_manipulable_nodes()`.
+- [x] **Interaction gate**: busca el mejor par con interaccion real entre
+  todos los ancestros. Si no hay, devuelve "no" con el par mas plausible
+  (mezcla yes/no natural, sin bias). Reviewed by Codex: strongest-yes fix.
+- [x] **Mediation gate**: prueba multiples treatments y mediadores. Solo
+  acepta fraccion parcial (0.05-0.95). Reviewed by Codex: multi-treatment fix.
 
 **NO hacer todavia** (no contamina el experimento Alpha):
 - Rework de descripcion narrativa de datos

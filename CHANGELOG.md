@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### 2026-03-26 — Paso 2: Substrate minimum viable gate (3 quality gates)
+
+**Code: quality gates en scm_task_gen.py**
+
+- **Manipulability gate** (P4 fix): `_manipulable_nodes()` filtra solo ancestros
+  causales del target como levers. `best_intervention` y `compare_interventions`
+  ya no ofrecen variables downstream o no relacionadas.
+- **Interaction gate** (P1 fix): `_find_interacting_pair()` busca exhaustivamente
+  entre todos los ancestros observables. Elige el par con interaccion mas fuerte
+  ("yes"). Si no hay interaccion real, devuelve el mejor par con "no" — mezcla
+  natural sin bias. Reviewed by Codex: strongest-yes fix (evita falsos positivos
+  con ATE ~0).
+- **Mediation gate** (P3 fix): `_find_nontrivial_mediation()` prueba multiples
+  treatments y mediadores. Solo acepta fraccion parcial (0.05-0.95). Reviewed by
+  Codex: multi-treatment fix (no se queda con un solo treatment fijo).
+- 11 nuevos tests (1505 total), lint limpio.
+
 ### 2026-03-25 — Mini-fixes + I11 Fase 2 eval + roadmap + merge to main
 
 **Code: mini-fixes pre-evaluacion**

@@ -3,15 +3,17 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-25 (Mini-fixes + I11 Fase 2 eval cualitativa + roadmap)
+> Actualizado: 2026-03-26 (Paso 2: quality gates — manipulability, interaction, mediation)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1494 tests**, todos pasando
+- **1505 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 12 eval types implementados con scoring (9 originales + ate, mediation, interaction)
+- Quality gates: manipulability (ancestors-only levers), interaction (yes/no mix),
+  mediation (non-trivial 0.05-0.95)
 - Solver diagnostico: python_exec + think + submit (sin budget ni research_actions)
 - Paper-seeded SRCs funcionando (PDF + markdown)
 - **Responses API**: toda la codebase migrada de Chat Completions a Responses API,
