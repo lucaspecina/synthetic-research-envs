@@ -548,20 +548,41 @@ La arquitectura debe permitir crecimiento en:
 
 sin romper coherencia ni evaluabilidad fuerte.
 
-### Direccion futura: Open Investigation (2026-03-25)
+### Direccion futura: Open Investigation (2026-03-25, refinada 2026-03-26)
 
 La siguiente evolucion arquitectonica es separar la evaluacion en 3 capas:
 
-1. **Solver** — investiga libre, reporta hallazgos en lenguaje natural
-2. **LLM Translator** — compila hallazgos a queries formales contra el SCM
-   (analogo al orchestrator invertido; traduce, no juzga)
-3. **SCM Verifier** — computa verdad exacta para cada query (determinista)
+1. **Solver** — investiga libre, entrega claim cards semi-estructuradas (max 5).
+   Cada card tiene: texto, variables foco, contexto, patron, confianza, evidencia.
+2. **LLM Compiler** — compila claim cards a specs ejecutables. Usa una
+   GRAMATICA COMPOSABLE de 4 piezas (Simulacion + Medicion + Comparacion +
+   Asercion), no primitivas fijas. Compile-preview loop para clarificacion
+   semantica (max 2 rondas). Si no puede compilar, marca "unscorable".
+3. **SCM Verifier** — ejecuta specs contra el SCM (determinista, sin LLM).
 
-Esto permite evaluar estrategia investigativa (que preguntar, por que,
-que es conducente) ademas de accuracy de respuestas. El reward sigue siendo
-exacto porque la verificacion es contra el SCM, no un LLM judge.
+**Gramatica composable (reemplaza primitivas fijas):**
+- ~24 piezas atomicas que se combinan en cientos de verificaciones posibles
+- Simulacion: do, do+condicion, sweep, bundle, baseline
+- Medicion: mean, variance, quantile, tail_risk, correlation, distribution
+- Comparacion: difference, ratio, ranking, piecewise_fit, gap, proportion
+- Asercion: positive, negative, near_zero, A>B, changepoint, sign_flip
+- Operadores nombrados (mean_contrast, policy_rank, etc.) = macros frecuentes
+
+**Modos de evaluacion:**
+- **Guided** (actual): preguntas pre-definidas, reward exacto end-to-end
+- **Scaffolded Open** (Alpha): brief abierto + deliverables vagos, claim cards
+- **Full Open** (futuro): solo brief, sin ninguna guia
+
+**Honestidad sobre reward:** modo Guided = exacto. Modo Open = verificacion
+SCM exacta DESPUES de compilacion. La compilacion tiene subjetividad
+encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
+
+**Stress test (30 casos, 10 dominios):** 40% funciona completo, 43% parcial,
+17% fuera de alcance (taxonomias, claims epistemicos). Las claim cards
+funcionan en 73% de los casos; el cuello es la compilacion a specs.
 
 Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
+Working doc: `research/notes/open_investigation_case_analysis.md`.
 
 SREG incluye como responsabilidad central:
 

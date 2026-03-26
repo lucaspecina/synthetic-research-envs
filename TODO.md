@@ -382,39 +382,48 @@ SRCs por cambio, formato estructurado, tracking temporal.
 **Referencia:** `research/synthesis/qualitative_eval_rubric.md`
 **Implementar:** I11.
 
-### A15. Open Investigation — investigacion libre con reward exacto
+### A15. Open Investigation — investigacion libre con verificacion SCM exacta
 
 Hoy SREG mide si el solver RESPONDE bien, no si INVESTIGA bien. La
 estrategia investigativa (que preguntar, por que, en que orden) no se evalua.
 
-**Insight central (2026-03-25):** toda investigacion real tiene una pregunta
-primaria abierta ("que causa el arenamiento?") y sub-preguntas instrumentales
-que el investigador descubre. SREG deberia evaluar si el solver descubre
-las sub-preguntas correctas, no solo si las responde.
+**Arquitectura (3 capas):** Solver (investiga libre, entrega claim cards) →
+LLM Compiler (compila a specs ejecutables, no juzga) → SCM Verifier (exacto).
 
-**Arquitectura propuesta:** 3 capas — Solver (investiga libre, reporta en NL),
-LLM Translator (compila hallazgos a queries formales, NO juzga), SCM Verifier
-(computa verdad exacta). El LLM es compilador, no juez. El reward siempre es
-contra el SCM.
+**Gramatica composable (reemplaza 4 primitivas fijas):** cada verificacion =
+Simulacion + Medicion + Comparacion + Asercion. ~24 piezas atomicas que se
+combinan en cientos de verificaciones posibles. No es catalogo fijo. Agregar
+tipo nuevo = combinar piezas o agregar pieza atomica.
 
-**Scoring:** correctness (50%), relevance/conducencia (25%), coverage (15%),
-calibration (10%). Relevancia verificable via el grafo causal (es conducente a
-la pregunta primaria?). Coverage contra claims verdaderos AUTO-GENERADOS del
-SCM, no un answer key manual.
+**Claim cards semi-estructuradas:** el solver reporta hallazgos con: texto,
+variables foco, contexto, patron, confianza, evidencia. Es un formato de
+reporte cientifico, no un formulario tecnico.
 
-**Desafio de diseno:** como dejar que el solver reporte libre sin sesgarlo
-hacia los tipos de hallazgos que esperamos. Solucion: convenciones de reporte
-(como un paper), no formato de respuesta (como un examen). El translator
-hace el bridge.
+**Compile-preview loop:** el compiler muestra parafrasis canonica, el solver
+corrige en NL (max 2 rondas). Para eval formal: loop completo. Para RL: claim
+cards explicitas + compilador local, sin preview.
+
+**Truth map algoritmico:** enumerar verdades canonicas del SCM sin LLM
+(ATEs, mediaciones, interacciones, thresholds, quantiles, d-separations).
+Clusterar en familias. Coverage = familias descubiertas.
+
+**Scoring Alpha:** correctness 60%, coverage 30% (con precision gate),
+efficiency 10%. Sin calibration ni warrant formal en Alpha.
+
+**Stress test (30 casos, 10 dominios):** 12 FUNCIONA (40%), 13 PARCIAL (43%),
+5 NO FUNCIONA (17%). Cuello: compilacion, no claim cards. Lo que rompe:
+claims epistemicos (taxonomia, subidentificacion), no causales complejos.
 
 **Referencia:** `research/synthesis/open_investigation_vision.md`
-**Status:** VISION EN DESARROLLO. No implementar — disenar y madurar.
+**Working doc:** `research/notes/open_investigation_case_analysis.md`
+**Status:** VISION EN DESARROLLO. Debate activo, no implementar todavia.
 
-- [ ] Experiment minimo: 3-5 SRCs, esconder preguntas, solo brief, probar
-  translator con 4 primitivas
-- [ ] Disenar claim language (que primitivas, como compilan a query SCM)
-- [ ] Auto-claim generation (enumerar claims verdaderos significativos del SCM)
-- [ ] Prototype translator (hallazgo NL -> query formal, medir reliability)
+- [ ] Formalizar gramatica composable como DSL ejecutable
+- [ ] Prototype truth map (enumerar verdades de un SCM real)
+- [ ] Claim card contract (Pydantic models con slots minimos)
+- [ ] Compiler benchmark offline (200+ claims, >90% precision)
+- [ ] Verifier scoring sin compiler (claims formales perfectos)
+- [ ] Piloto scaffolded (solver real + compiler + scoring)
 
 ### A16. Quality gates por task primitive — eval cualitativa 2026-03-25
 
@@ -828,18 +837,21 @@ Usar **2-3 mundos curados a mano** (no el generador automatico):
 - Uno con confounding interesante
 
 **Que se prueba:**
-1. Un solver recibe SOLO el brief (sin preguntas) y reporta hallazgos en NL
-2. Un LLM translator compila esos hallazgos a queries formales
-3. El SCM verifier ejecuta las queries y computa reward exacto
+1. Solver recibe SOLO el brief, entrega claim cards semi-estructuradas
+2. LLM compiler compila cards a specs ejecutables (gramatica composable)
+3. SCM verifier ejecuta specs y computa reward
 
-**Sub-pasos (de A15):**
-- [ ] Disenar claim language (primitivas que el translator soporta)
-- [ ] Auto-claim generation (enumerar claims verdaderos del SCM)
-- [ ] Prototype translator (hallazgo NL → query formal)
-- [ ] Medir: compile rate, precision, coverage, reward stability
+**Sub-pasos (ver A15 para detalle):**
+- [ ] Formalizar gramatica composable como DSL ejecutable
+- [ ] Prototype truth map (enumerar verdades del SCM, clusterar en familias)
+- [ ] Claim card contract (Pydantic models)
+- [ ] Compiler benchmark offline (200+ claims, >90% precision)
+- [ ] Verifier scoring sin compiler (validar correctness + coverage)
+- [ ] Piloto scaffolded E2E (solver + compiler + scoring)
 
 **Criterio de exito:** al menos 1 SRC donde el pipeline completo produce
 un score significativo (no necesariamente bueno — que funcione E2E).
+Compiler precision >90% en benchmark offline.
 
 ### Paso 4: Mejorar generador (despues de Alpha)
 

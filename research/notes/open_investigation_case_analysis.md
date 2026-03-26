@@ -592,32 +592,435 @@ Puntos donde hay acuerdo entre las 3 fuentes:
 ## Preguntas abiertas (consolidadas)
 
 ### Sobre el contrato de verificacion
-1. **Claim cards vs prosa libre:** que tanta estructura pedirle al solver
-   para que la compilacion sea confiable sin sesgar la investigacion?
-2. **Operadores extensibles:** el registro de operadores (mean, quantile,
-   bimodality_test...) debe ser finito y conocido, o puede crecer?
-3. **Threshold y no-linealidad:** como definir "hay un umbral en 0.7"
-   de forma verificable? Que tolerancia? Que test?
+1. **Claim cards vs prosa libre:** RESPONDIDA — claim cards semi-estructuradas.
+   El solver llena: texto, variables foco, contexto, tipo de patron, confianza,
+   evidencia. Es un formato de reporte cientifico, no un formulario tecnico.
+2. **Operadores extensibles:** RESPONDIDA — no hay operadores fijos. Hay una
+   GRAMATICA COMPOSABLE de 4 piezas (simulacion + medicion + comparacion +
+   asercion). Ver seccion "Gramatica composable de verificacion".
+3. **Threshold y no-linealidad:** PARCIAL — regime_change_scan + dose_response
+   cubren la mayoria. Tolerancias por definir en implementacion.
 
 ### Sobre coverage y relevancia
-4. **Cobertura vs precision:** como medir que "descubriste cosas
-   importantes" sin requerir un catalogo exhaustivo?
-5. **Facetas complementarias:** como dar credito cuando dos respuestas
-   diferentes son ambas correctas sobre facetas distintas?
-6. **Relevance contract:** como definir que familias de output son
-   valiosas para un brief especifico, sin sesgar hacia una respuesta?
+4. **Cobertura vs precision:** RESPONDIDA — coverage por FAMILIAS (no por items).
+   Family key = (brief_target, focus_signature, pattern_class, scope_class).
+   Derivadas algoritmicamente del truth map.
+5. **Facetas complementarias:** RESPONDIDA — como las familias son ortogonales,
+   claims sobre facetas distintas caen en familias distintas.
+6. **Relevance contract:** PARCIAL — contrato de TIPOS DE CONTRIBUCION, no de
+   respuestas concretas. Necesita "intent metadata" del generador del caso.
+   Sin eso, la relevancia no se puede derivar automaticamente.
 
 ### Sobre tipos de output
-7. **Outputs no-causales:** como verificar taxonomias, reformulaciones,
-   conclusiones de subidentificacion, propuestas de experimento?
-8. **Outputs mixtos:** un reporte puede tener claims causales + politica
-   + delimitacion. Como scorear un mix?
+7. **Outputs no-causales:** PARCIAL — politicas, heterogeneidad, measurement
+   artifacts SI entran. Taxonomias, reformulaciones, sintesis NO (Alpha).
+   Subidentificacion posible pero necesita operador nuevo (identifiability_check).
+8. **Outputs mixtos:** RESPONDIDA — cada finding se evalua individualmente.
+   Support graph (coherence-lite) da bonus chico por conexion entre claims.
 
 ### Sobre proceso
-9. **Warrant sin LLM judge:** puede el log check (observo evidencia
-   antes de afirmar?) capturar suficiente calidad de proceso?
-10. **Modelo de observacion:** vale la pena modelar medicion en el SCM
-    para capturar artefactos, o es overengineering para el Alpha?
+9. **Warrant sin LLM judge:** RESPONDIDA parcialmente — log check basico
+   (observo evidencia antes de afirmar) es suficiente para Alpha.
+10. **Modelo de observacion:** DEBATIBLE — vale la pena si el SCM ya modela
+    latente vs observado (como en P5/manufactura). No agregar capa extra solo
+    para esto en Alpha.
+
+---
+
+## Stress test extendido: 30 casos, 10 dominios
+
+> Sesion 2026-03-26 (segunda ronda). Objetivo: evaluar si las claim cards
+> funcionan como formato universal. 15 casos generados por Claude, 15 por Codex.
+
+### P1: Epidemiologia — Pico desigual de internaciones
+Variables SCM (12): vacunacion, movilidad_barrial, ventilacion_escolar,
+hacinamiento, humedad, PM2_5, inmunidad_previa, acceso_clinico,
+demora_testeo, edad_promedio, contagios, internaciones
+
+R1.1 (causal simple): "Vacunacion es el factor mas importante. Barrios con
+cobertura <40% tienen 3x mas internaciones."
+R1.2 (threshold + interaccion): "PM2.5 tiene un efecto no lineal — por debajo
+de cierto nivel no pasa nada, por arriba se dispara, especialmente con mala
+ventilacion."
+R1.3 (politica operativa): "Vacunacion focalizada en barrios de alta movilidad
+tiene 2x mas impacto por dosis que distribuir parejo."
+
+### P2: Economia — Programa de transferencias
+Variables SCM (12): monto, puntualidad, precios_alimentos, acceso_mercado,
+deuda, control_femenino, empleo_informal, shock_lluvia, apoyo_familiar,
+costo_transporte, inseguridad_alimentaria, diversidad_dieta
+
+R2.1 (ranking): "La puntualidad importa mas que el monto."
+R2.2 (heterogeneidad): "Funciona donde hay mercado accesible; sin acceso, solo
+amortigua."
+R2.3 (estabilizacion): "No baja mucho la media pero reduce los peores meses."
+
+### P3: Educacion — Recuperacion post-pandemia
+Variables SCM (10): horas_pantalla, apoyo_familiar, formacion_docente,
+conectividad, ingreso_hogar, desayuno_escolar, ausentismo, motivacion,
+ansiedad, score_matematica
+
+R3.1 (mediacion): "El efecto de conectividad pasa por ausentismo."
+R3.2 (reformulacion): "La pregunta no es por que cayeron sino por que la
+recuperacion es desigual. La clave es apoyo familiar."
+R3.3 (subidentificacion): "No puedo distinguir si el efecto es de conectividad
+o de ingreso — estan demasiado correlacionados."
+
+### P4: Medio ambiente — Plomo en sangre
+Variables SCM (9): antiguedad_vivienda, distancia_industrial, agua_cañeria,
+suelo_contaminado, nutricion, lactancia, ingreso, educacion_padres,
+plomo_sangre
+
+R4.1 (multi-driver): "Agua, suelo y pintura vieja explican el 80% de la
+variacion."
+R4.2 (proteccion): "Buena nutricion amortigua el impacto — misma exposicion,
+40% menos plomo."
+R4.3 (hallazgo sorprendente): "Lactancia extendida se asocia con MAS plomo.
+Hipotesis: transferencia via leche."
+
+### P5: Agricultura — Rindes divergentes
+Variables SCM (10): tipo_suelo, pH, fertilizante_N, riego, densidad_siembra,
+plaga_nivel, variedad_semilla, temperatura, precipitacion, rendimiento
+
+R5.1 (interaccion triple): "Fertilizante funciona solo con riego suficiente y
+pH 6-7. Fuera de eso, plata tirada."
+R5.2 (delimitacion): "Fertilizante y riego son drivers principales. Sobre
+variedad vs suelo, los datos no son concluyentes."
+R5.3 (recomendacion practica): "Variedad X con densidad media tiene
+consistentemente mejor rendimiento. Recomiendo esa combinacion."
+
+### P6: Manufactura — Defectos en laminado (Codex)
+Variables SCM (12): temperatura_horno, variacion_temperatura, humedad_planta,
+velocidad_linea, desgaste_rodillos, viscosidad_recubrimiento, lote_insumo,
+turno_noche, experiencia_operario, calibracion_sensor, defecto_real,
+defecto_reportado
+
+R6.1 (measurement artifact): "Parte del salto en defectos es de medicion: el
+sensor recalibrado sobredetecta."
+R6.2 (null + ranking): "La temperatura media importa mucho menos que su
+variabilidad."
+R6.3 (policy bundle): "Lo mejor es bajar velocidad y estabilizar viscosidad al
+mismo tiempo."
+
+### P7: Sociologia — Trabajo remoto (Codex)
+Variables SCM (12): remoto_dias, autonomia_equipo, claridad_objetivos,
+seniority, densidad_reuniones, interrupciones_hogar, espacio_trabajo,
+confianza_manager, burnout, productividad_real, evaluacion_manager, rotacion
+
+R7.1 (proxy mismatch): "El remoto no bajo productividad real; bajo la
+evaluacion del manager porque perdio visibilidad."
+R7.2 (heterogeneidad fuerte): "Ayuda en equipos autonomos, hunde a los de
+baja claridad. No hay efecto promedio unico."
+R7.3 (taxonomia): "No hay un solo 'equipo remoto'. Hay al menos tres regimenes:
+autonomos que mejoran, fragiles que caen, neutros."
+
+### P8: Salud clinica — Mortalidad postoperatoria (Codex)
+Variables SCM (12): complejidad_caso, experiencia_cirujano, carga_uci,
+ratio_enfermeria, demora_quirofano, adherencia_checklist, transfusion,
+infeccion, tiempo_operatorio, fragilidad_paciente, mortalidad_30d, reingreso
+
+R8.1 (selection bias): "La diferencia entre cirujanos se explica casi toda por
+case mix."
+R8.2 (bottleneck operacional): "El cuello real es la saturacion de UCI."
+R8.3 (no concluyente): "No puedo separar ratio de enfermeria de carga UCI."
+
+### P9: Transporte — Seguridad vial (Codex)
+Variables SCM (12): carril_bici_protegido, ancho_calzada,
+velocidad_percentil85, iluminacion_nocturna, fiscalizacion, flujo_peatonal,
+flujo_motos, densidad_comercial, senalizacion, lluvia, accidente_grave,
+lesion_peaton
+
+R9.1 (trade-off): "El carril protegido reduce lesiones de ciclistas pero puede
+empeorar conflictos peatonales sin cambio de senalizacion."
+R9.2 (threshold dominante): "Debajo de velocidad 85p ~35 km/h, los accidentes
+graves caen fuerte."
+R9.3 (policy con restricciones): "Fiscalizacion + iluminacion nocturna rinde
+mas que tocar el ancho de calzada."
+
+### P10: Conservacion patrimonial — Degradacion de obras (Codex)
+Variables SCM (12): lux_sala, fraccion_azul_led, ciclos_humedad,
+temperatura_vitrina, espesor_barniz, limpieza_previa, composicion_pigmento,
+microfisuras, flujo_visitantes, polvo_superficie, decoloracion, craquelado
+
+R10.1 (interaccion historica): "La luz azul pega sobre todo en obras con
+limpieza previa agresiva y barniz fino."
+R10.2 (null + driver replacement): "Los lux no son el problema; la clave son
+los ciclos de humedad."
+R10.3 (hipotesis prudente): "Dos rutas plausibles: foto-degradacion y
+microfisuras por clima. La segunda esta mejor soportada."
+
+---
+
+## Analisis de los 30 casos
+
+### Tabla de resultados
+
+| Caso | Tipo | Card | Compilable | Perdida | Veredicto |
+|------|------|------|------------|---------|-----------|
+| R1.1 | Causal simple + ranking | SI | PARCIAL | matiz | PARCIAL |
+| R1.2 | Threshold + interaccion | SI | SI | matiz | FUNCIONA |
+| R1.3 | Politica operativa | SI | SI | matiz | FUNCIONA |
+| R2.1 | Ranking de efectos | SI | PARCIAL | matiz | PARCIAL |
+| R2.2 | Heterogeneidad | SI | SI | matiz | FUNCIONA |
+| R2.3 | Estabilizacion / cola | PARCIAL | PARCIAL | matiz | PARCIAL |
+| R3.1 | Mediacion | SI | SI | nada | FUNCIONA |
+| R3.2 | Reformulacion | PARCIAL | PARCIAL | esencia | PARCIAL |
+| R3.3 | Subidentificacion | PARCIAL | NO | esencia | NO FUNCIONA |
+| R4.1 | Multi-driver | SI | PARCIAL | matiz | PARCIAL |
+| R4.2 | Proteccion / buffer | SI | SI | matiz | FUNCIONA |
+| R4.3 | Hallazgo sorprendente | PARCIAL | PARCIAL | esencia | PARCIAL |
+| R5.1 | Interaccion triple | SI | PARCIAL | matiz | PARCIAL |
+| R5.2 | Delimitacion honesta | SI | PARCIAL | esencia | PARCIAL |
+| R5.3 | Recomendacion practica | SI | SI | nada | FUNCIONA |
+| R6.1 | Measurement artifact | SI | SI | matiz | FUNCIONA |
+| R6.2 | Null + ranking | SI | PARCIAL | matiz | PARCIAL |
+| R6.3 | Policy bundle | SI | SI | nada | FUNCIONA |
+| R7.1 | Proxy mismatch | SI | SI | matiz | FUNCIONA |
+| R7.2 | Heterogeneidad fuerte | SI | SI | matiz | FUNCIONA |
+| R7.3 | Taxonomia / segmentacion | PARCIAL | NO | esencia | NO FUNCIONA |
+| R8.1 | Selection bias / ajuste | SI | PARCIAL | matiz | PARCIAL |
+| R8.2 | Bottleneck operacional | SI | SI | matiz | FUNCIONA |
+| R8.3 | No concluyente | PARCIAL | NO | esencia | NO FUNCIONA |
+| R9.1 | Trade-off multi-outcome | PARCIAL | NO | esencia | NO FUNCIONA |
+| R9.2 | Threshold dominante | SI | SI | matiz | FUNCIONA |
+| R9.3 | Policy con restricciones | SI | PARCIAL | matiz | PARCIAL |
+| R10.1 | Interaccion historica | SI | PARCIAL | matiz | PARCIAL |
+| R10.2 | Null + driver replace | SI | PARCIAL | matiz | PARCIAL |
+| R10.3 | Hipotesis prudente | PARCIAL | NO | esencia | NO FUNCIONA |
+
+### Resumen cuantitativo
+
+- **12/30 FUNCIONA** (40%) — efectos causales directos, mediacion, heterogeneidad
+  por estrato, thresholds, policies, proxy mismatch
+- **13/30 PARCIAL** (43%) — necesitan operadores nuevos o metadata extra
+- **5/30 NO FUNCIONA** (17%) — claims epistemicos, taxonomias, trade-offs incompletos
+
+### Los 5 que NO funcionan
+
+1. **R3.3 y R8.3 — Subidentificacion** ("no puedo distinguir X de Y"):
+   Necesita `identifiability_check` — verificar si dos variables son
+   distinguibles dado el grafo y los observables. Teoricamente computable
+   contra el SCM (es un check de d-separation + correlacion condicional),
+   pero requiere operador nuevo.
+
+2. **R7.3 — Taxonomia** ("hay 3 regimenes"):
+   Necesita `regime_clustering` — detectar subgrupos latentes. Dificil
+   porque el SCM no modela mezclas explicitamente. Fuera de Alpha.
+
+3. **R9.1 — Trade-off multi-outcome** ("reduce X pero empeora Y"):
+   Si el SCM tiene AMBOS outcomes, es verificable. Falla cuando un outcome
+   no esta en el SCM. Solucion: asegurar que el SCM cubra los outcomes
+   relevantes al brief.
+
+4. **R10.3 — Comparacion de evidencia** ("ruta A esta mejor soportada que B"):
+   Genuinamente subjetivo. Requiere juicio sobre fuerza de evidencia.
+   Fuera de alcance SCM.
+
+### Patron critico: el cuello NO son las claim cards
+
+Las claim cards funcionan en 22/30 (73%) de forma limpia y en 8/30 parcial.
+El cuello real es la COMPILACION A SPECS EJECUTABLES. Y los que rompen son
+claims **epistemicos/metodologicos**, no causales complejos.
+
+De los 5 que no funcionan, 3 (R3.3, R8.3, R9.1) podrian rescatarse con
+operadores nuevos o mejor cobertura del SCM. Solo R7.3 (taxonomia) y
+R10.3 (comparacion de evidencia) estan genuinamente fuera del espacio
+de verdad-local del SCM.
+
+---
+
+## Gramatica composable de verificacion
+
+> Insight clave de la sesion: NO necesitamos un catalogo fijo de operadores.
+> Necesitamos una GRAMATICA de 4 piezas composables.
+
+### El problema de los operadores fijos
+
+Si definimos 10 operadores nombrados, seguimos con el mismo problema que
+teniamos con 4 primitivas: un claim que necesite un operador que no existe
+queda unscorable. Pasamos de un juguete chico a un juguete mas grande.
+
+### La solucion: composicion de 4 piezas
+
+Toda verificacion contra un SCM se descompone en:
+
+```
+VERIFICACION = Simulacion + Medicion + Comparacion + Asercion
+```
+
+**1. Simulacion** — que "experimento" corremos en el SCM
+- `do(X=valor)` — intervencion simple
+- `do(X=valor) | Z=estrato` — intervencion condicionada
+- `sweep(X, rango)` — barrer un rango de valores
+- `do(X=a, Y=b)` — intervencion conjunta (policy bundle)
+- `baseline` — sin intervencion (observacional)
+
+**2. Medicion** — que miramos del resultado
+- `mean(Y)` — promedio del outcome
+- `variance(Y)` — variabilidad
+- `quantile(Y, q)` — percentil
+- `P(Y > umbral)` — probabilidad de superar umbral (tail risk)
+- `correlation(A, B)` — relacion entre variables
+- `distribution_shape(Y)` — test de forma (bimodalidad, etc.)
+
+**3. Comparacion** — como relacionamos dos mediciones
+- `difference` — cuanto cambia entre scenarios
+- `ratio` — cuantas veces cambia
+- `ranking` — cual tiene mas efecto
+- `piecewise_fit` — buscar puntos de quiebre
+- `gap` — diferencia entre observado y latente
+- `proportion` — fraccion del efecto total (mediacion)
+
+**4. Asercion** — que deberia ser verdad
+- `positive` / `negative` / `near_zero` — signo del efecto
+- `A > B` — ordenamiento
+- `changepoint_exists` — hay un umbral
+- `sign_changes_by_stratum` — heterogeneidad de signo
+- `gap_material` — divergencia observable vs latente
+
+### Operadores nombrados = macros de la gramatica
+
+Los operadores no son fijos — son SHORTCUTS para combinaciones frecuentes:
+
+| Macro | = Sim | + Med | + Comp | + Assert |
+|-------|-------|-------|--------|----------|
+| mean_contrast | do(X=a) vs do(X=b) | mean(Y) | difference | positive/negative |
+| tail_risk_contrast | do(X=a) vs do(X=b) | P(Y>p90) | difference | positive |
+| regime_change_scan | sweep(X, rango) | mean(Y)/level | piecewise_fit | changepoint_exists |
+| policy_rank | do(A) vs do(B) vs do(C) | mean(Y) | ranking | A > B > C |
+| mediation_decomp | do(X) directo vs via M | mean(Y) | proportion | mediacion > 0 |
+| interaction_contrast | do(X) | Z=hi vs Z=lo | mean(Y) | difference | sign_changes |
+| variance_contrast | do(X=a) vs do(X=b) | variance(Y) | difference | negative |
+| measurement_gap | baseline | mean(obs) vs mean(latente) | gap | gap_material |
+
+### Agregar un tipo de verificacion nuevo = combinar piezas
+
+Si un solver dice "la varianza de Y se estabiliza cuando intervenis X":
+```
+simulate: do(X=alto) vs baseline
+measure:  variance(Y)
+compare:  difference
+assert:   negative (varianza baja)
+```
+
+No necesitabamos un operador "variance_stabilization". Se armo de las piezas.
+
+Si dice "el efecto solo aparece arriba de cierto nivel de PM2.5":
+```
+simulate: sweep(PM2_5, deciles)
+measure:  mean(internaciones) por decil
+compare:  piecewise_fit (2 segmentos)
+assert:   lower_segment near_zero, upper_segment positive
+```
+
+### Que es realmente fijo
+
+Lo que es fijo son las PIEZAS ATOMICAS (tipos de simulacion, tipos de medicion,
+etc.), no las combinaciones. Agregar una pieza atomica nueva (ej: un nuevo tipo
+de medicion como `entropy(Y)`) extiende TODAS las combinaciones posibles.
+
+### Limitaciones honestas
+
+La gramatica NO cubre todo. Quedan fuera:
+- Claims que requieren juicio semantico (taxonomias, reformulaciones)
+- Claims sobre la fuerza relativa de evidencia (no verdad del mundo)
+- Claims sobre el proceso investigativo mismo
+
+Esto no es un bug — es el limite del SCM como verificador. El SCM sabe
+verdades del mundo, no verdades epistemologicas.
+
+---
+
+## Conclusiones del debate (actualizadas)
+
+### Consenso fuerte (acuerdo entre 3+ fuentes)
+
+1. **Claim cards semi-estructuradas** como formato de output del solver.
+   No prosa libre, no formulario tecnico. Formato de reporte cientifico.
+2. **Gramatica composable** en vez de operadores fijos. Simulacion +
+   medicion + comparacion + asercion. Extensible por piezas.
+3. **Compile-preview loop** obligatorio para eval formal, no para training.
+   Es un loop de CLARIFICACION SEMANTICA — el solver corrige claim cards,
+   nunca specs formales.
+4. **Truth map algoritmico** sin LLM. Enumerar verdades canonicas del SCM.
+   Para relevance/salience, necesita intent metadata del generador del caso.
+5. **Coverage por familias** con key hibrida: (target, focus_signature,
+   pattern_class, scope_class). Derivadas del truth map.
+6. **Parse ciego**: compilacion NO ve las referencias. Referencias guian
+   el SCORING, no la compilacion.
+7. **Novel bucket = auditoria** en Alpha, no reward online.
+8. **"Exact reward" redefinido**: exact local verification + compilacion
+   auditable + subjetividad encapsulada. No exact end-to-end.
+9. **1 claim → N atomos**: un hallazgo complejo se descompone en multiples
+   specs atomicos verificables.
+10. **Budget y observe no corren hoy**. El solver solo tiene python_exec +
+    think + submit.
+
+### PARCIAL (necesita mas trabajo)
+
+- Relevance contract: contrato de tipos de contribucion, pero sin
+  implementacion concreta. Necesita intent metadata.
+- Identifiability check: teoricamente computable, no implementado.
+- Measurement model: valioso cuando el SCM ya lo tiene, pero no agregar
+  capa extra en Alpha.
+- Compiler benchmark: se necesita >90% precision, >95% harmful-error
+  control. Threshold definido, benchmark no construido.
+
+### FUERA de Alpha
+
+- Taxonomias / segmentacion latente
+- Comparacion de fuerza de evidencia
+- Composicionalidad real (solo coherence-lite)
+- Claims negativos formales (subidentificacion)
+- Process reward mas alla de log check basico
+
+---
+
+## Preguntas abiertas (consolidadas)
+
+### Sobre el contrato de verificacion
+1. **Claim cards vs prosa libre:** RESPONDIDA — claim cards semi-estructuradas.
+   El solver llena: texto, variables foco, contexto, tipo de patron, confianza,
+   evidencia. Es un formato de reporte cientifico, no un formulario tecnico.
+2. **Operadores extensibles:** RESPONDIDA — gramatica composable de 4 piezas.
+   Agregar un tipo nuevo = combinar piezas existentes o agregar pieza atomica.
+3. **Threshold y no-linealidad:** PARCIAL — piecewise_fit + dose_response cubren
+   la mayoria. Tolerancias de asercion por definir en implementacion.
+
+### Sobre coverage y relevancia
+4. **Cobertura vs precision:** RESPONDIDA — coverage por familias con precision
+   gate. Si precision < umbral, coverage no paga.
+5. **Facetas complementarias:** RESPONDIDA — familias ortogonales, claims sobre
+   facetas distintas caen en familias distintas.
+6. **Relevance contract:** PARCIAL — necesita intent metadata del generador.
+
+### Sobre tipos de output
+7. **Outputs no-causales:** PARCIAL — policies SI, heterogeneidad SI,
+   measurement SI, taxonomias NO, reformulaciones NO.
+8. **Outputs mixtos:** RESPONDIDA — cada finding individual + coherence bonus.
+
+### Sobre proceso
+9. **Warrant sin LLM judge:** Suficiente para Alpha con log check basico.
+10. **Modelo de observacion:** Solo si el SCM ya lo modela.
+
+### Nuevas preguntas (de esta sesion)
+11. **Compiler benchmark:** como construirlo? Propuesta: 200+ claims, 15+
+    mundos, doble anotacion humana, >90% precision para usar en scoring.
+12. **Costo en RL:** compile-preview loop es caro. Para training, usar
+    claim cards explicitas + compilador local, sin preview.
+13. **Intent metadata:** que campos necesita el generador para que
+    relevance/salience sea derivable algoritmicamente?
+14. **Rescue de NO FUNCIONA:** identifiability_check y multi-outcome
+    trade-off podrian rescatarse con operadores nuevos. Priorizar?
+
+### Lineas de exploracion para profundizar
+
+- Formalizar la gramatica composable como DSL ejecutable
+- Construir prototype del truth map algoritmico (enumerar verdades de un SCM real)
+- Disenar claim cards con slots minimos de intencion verificativa
+- Benchmark de compilacion con claims disfrazados de multiples formas
+- Explorar identifiability_check como operador nuevo (d-separation + correlacion)
+- Evaluar si mixture detection es viable como operador para Alpha-2
 
 ---
 
@@ -638,6 +1041,42 @@ Puntos donde hay acuerdo entre las 3 fuentes:
      verificacion post-hoc con subjetividad encapsulada
   7. Codex reviso: SI a la direccion, alerta sobre reference lock-in,
      parse ciego obligatorio, 6 riesgos identificados
-- Consenso provisional documentado (ver seccion "Consenso emergente")
-- Proximo paso: doc de conclusiones pulidas en synthesis/ cuando el debate
-  madure lo suficiente
+- Consenso provisional documentado
+
+### 2026-03-26 — Sesion de profundizacion (3 rondas de debate)
+- Participantes: Claude, Codex (mismo thread)
+- 3 rondas de debate ida y vuelta, 8 tensiones atacadas
+
+**Ronda 1 — Riesgos existenciales:**
+- Compilador = riesgo #1. Compile-preview loop OBLIGATORIO
+- Agenda no es ground truth — es "benchmark policy"
+- 4 casos de ruptura analizados (inesperado, vago, negativo, practico)
+- Version simple (correctness-only) valida como Alpha-0 pero no como OI
+
+**Ronda 2 — Diseño concreto:**
+- Walk-through completo del compile-preview loop con Hallazgo 2 (PM2.5)
+- 1 claim → N atomos verificables (diseño de specs para threshold + interaction)
+- Family key hibrida: (brief_target, focus_signature, pattern_class, scope_class)
+- Coherence-lite via support graph (no composicionalidad completa)
+- DoAtlas-1 como precedente mas cercano (~80% executability)
+- Compiler benchmark: >90% precision, >95% harmful-error control
+
+**Ronda 3 — Operadores, costo y experiencia del solver:**
+- 10-12 operadores para Alpha, todos implementables como Monte Carlo
+- Compile-preview loop es caro para RL → claim cards + compilador local
+- El solver entrega claim cards, no prosa libre
+- "Open" = libre en investigacion, estructurado en reporte
+
+**Stress test de 30 casos:**
+- 15 Claude + 15 Codex, 10 dominios distintos
+- Resultado: 12 FUNCIONA (40%), 13 PARCIAL (43%), 5 NO FUNCIONA (17%)
+- Cuello de botella: compilacion a specs, no las claim cards
+- Lo que rompe: claims epistemicos/metodologicos (taxonomia, subidentificacion)
+
+**Insight final — Gramatica composable:**
+- NO catalogo fijo de operadores. GRAMATICA de 4 piezas composables:
+  Simulacion + Medicion + Comparacion + Asercion
+- Operadores nombrados = macros (shortcuts de combinaciones frecuentes)
+- Agregar verificacion nueva = combinar piezas existentes
+- Esto resuelve la preocupacion del usuario de quedar con "siempre los
+  mismos casos disfrazados"

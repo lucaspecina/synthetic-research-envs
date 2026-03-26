@@ -164,18 +164,19 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** Fase 4 (orchestrator wiring), LA PREGUNTA
 - **Status:** PROPUESTA EN DISCUSION. No implementar antes de Fase 4.
 
-### Open Investigation — investigacion libre con reward exacto
+### Open Investigation — investigacion libre con verificacion SCM exacta
 - **Pregunta:** como dejar que el solver investigue libremente sin perder
-  reward exacto contra el SCM.
+  verificacion exacta contra el SCM.
 - **Empezar por:** `synthesis/open_investigation_vision.md`
-- **Insight clave:** usar un LLM translator (analogo al orchestrator pero
-  invertido) que compile hallazgos en NL a queries formales. El LLM traduce,
-  no juzga. El reward siempre es contra el SCM.
-- **Analisis de casos:** `notes/open_investigation_case_analysis.md` — 8
-  dominios reales, 24 respuestas posibles, patrones de ruptura del diseno.
-  Working doc activo para iterar el contrato de verificacion.
+- **Insight clave:** gramatica composable de verificacion (Simulacion +
+  Medicion + Comparacion + Asercion). No primitivas fijas. El solver
+  entrega claim cards semi-estructuradas, un LLM compiler las traduce a
+  specs ejecutables, el SCM verifica.
+- **Analisis de casos:** `notes/open_investigation_case_analysis.md` — 10
+  dominios, 30 respuestas analizadas, patrones de ruptura, gramatica
+  composable, debate Claude-Codex-ChatGPT. Working doc activo.
 - **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
-- **Status:** VISION EN DESARROLLO. Analisis de casos en progreso.
+- **Status:** VISION EN DESARROLLO. Debate activo, diseño madurando.
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal

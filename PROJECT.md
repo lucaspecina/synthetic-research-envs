@@ -216,14 +216,31 @@ bien sea necesario, medible y transferible.
 
 ### Investigacion abierta (Open Investigation)
 
-A futuro, SREG deberia poder evaluar no solo si el solver RESPONDE bien, sino
-si INVESTIGA bien. El solver recibe una pregunta primaria abierta ("que causa
-el arenamiento?") y tiene que descubrir que sub-preguntas hacer, que explorar,
-y como llegar a conclusiones. El scoring mide: correctness de hallazgos,
-relevancia a la pregunta primaria, cobertura de hallazgos significativos, y
-eficiencia. Todo verificable contra el SCM sin jueces LLM.
+SREG debe evaluar no solo si el solver RESPONDE bien, sino si INVESTIGA bien.
+El solver recibe un brief abierto ("investiga por que las internaciones son
+desiguales") y tiene que descubrir que investigar, como, y que concluir.
+
+**Arquitectura de verificacion (3 capas):**
+1. **Solver** — investiga libre, entrega claim cards semi-estructuradas (max 5)
+2. **Compiler** — compila claims a specs ejecutables via gramatica composable
+   (no primitivas fijas). Compile-preview loop para clarificacion semantica.
+3. **SCM Verifier** — ejecuta specs contra el SCM (determinista, sin LLM)
+
+**Gramatica composable:** cada verificacion = Simulacion + Medicion + Comparacion
++ Asercion (~24 piezas atomicas que se combinan en cientos de verificaciones
+posibles). No es un catalogo fijo. Agregar un tipo nuevo = combinar piezas.
+
+**Honestidad sobre el reward:** modo Guided = reward exacto end-to-end. Modo
+Open = verificacion SCM exacta DESPUES de compilacion. La compilacion tiene
+subjetividad encapsulada (claim cards la reducen, preview loop la audita,
+abstention la acota). Es orders of magnitude mas riguroso que LLM judge, pero
+no es 100% mecanico.
+
+**Stress test (30 casos, 10 dominios):** 40% funciona completo, 43% parcial
+(rescatable), 17% fuera de alcance (taxonomias, claims epistemicos).
 
 Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
+Working doc: `research/notes/open_investigation_case_analysis.md`.
 
 ---
 
@@ -247,12 +264,11 @@ Cuanto mas abierto y ambiguo sea el caso, mas se parece a la ciencia real. Pero
 cuanto mas abierto sea, mas dificil puede ser verificar con exactitud lo que
 hizo el agente. SREG debe encontrar un equilibrio util entre apertura y rigor.
 
-**Direccion identificada (2026-03-25):** "Open Investigation" — el solver
-investiga libre y reporta hallazgos en lenguaje natural; un LLM translator
-(analogo al orchestrator pero en direccion inversa) compila esos hallazgos a
-queries formales; el SCM verifica cada uno con exactitud. El LLM traduce, no
-juzga. El reward siempre es contra el SCM. Ver
-`research/synthesis/open_investigation_vision.md` para la vision completa.
+**Direccion identificada (2026-03-25, refinada 2026-03-26):** "Open Investigation"
+resuelve esta tension via compilacion: el solver investiga libre, un LLM compiler
+traduce hallazgos a specs ejecutables (no juzga), el SCM verifica. La compilacion
+introduce subjetividad encapsulada pero el nucleo de verificacion es exacto.
+Ver seccion "Investigacion abierta" arriba para detalle.
 
 ### Realismo investigativo vs control generativo
 
