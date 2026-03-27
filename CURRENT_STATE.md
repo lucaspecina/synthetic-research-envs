@@ -3,13 +3,13 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-26 (Paso 2: quality gates — manipulability, interaction, mediation)
+> Actualizado: 2026-03-27 (OI Alpha-0 + A18 panel variety)
 
 ---
 
 ## Resumen ejecutivo
 
-- **1505 tests**, todos pasando
+- **1709 tests**, todos pasando
 - Pipeline E2E funcional: seed/goal → orchestrator → world → case → solver → score
 - 12 eval types implementados con scoring (9 originales + ate, mediation, interaction)
 - Quality gates: manipulability (ancestors-only levers), interaction (yes/no mix),
@@ -240,6 +240,58 @@
 - Dataset generation via WorldGenTool/TaskGenTool/ProblemBuilder.
 - **No testeado end-to-end con training real.** Verifiers no es dependencia
   formal en pyproject.toml.
+
+### Open Investigation (OI) — Alpha-0 (branch `autoresearch-open-investigation`)
+
+Free-form investigation with exact SCM-based reward. Solver investigates freely
+and submits ClaimCards instead of answering predefined questions. Full pipeline
+implemented E2E with mock solver; requires LLM for real solver + compiler.
+
+**Composable grammar (DSL):** `src/sreg/models/open_investigation.py`
+- AtomicSpec = QueryArm(s) + Measurement + Comparison + Assertion
+- 6 query kinds, 6 measurement kinds, 7 comparison kinds, 6 assertion kinds
+- ~24 atomic pieces combine into hundreds of verifiable specs
+
+**Salience map:** `src/sreg/tools/oi_salience.py`
+- 7 pattern types: causal_effect, mediation, heterogeneity, tail_risk,
+  variance_effect, observational_association, effect_ranking
+- Brief-anchored: starts from target + ancestors, effect-size filtered
+- Multi-atom families with qualifiers
+
+**Compiler:** `src/sreg/tools/oi_compiler.py` + `oi_extraction.py`
+- ClaimIntent IR (symbolic intermediate representation)
+- WorldSummary canonical anchors (percentiles per variable)
+- Deterministic lowering: 7 patterns to AtomicSpec(s)
+- Spec-to-family matching (Jaccard + pattern compatibility)
+- LLM extraction infrastructure: prompt builder, parser, deterministic fallback
+- Exemplar bank: `oi_exemplars.py` (hand-crafted few-shot examples)
+
+**Verifier + warrant:** `src/sreg/tools/oi_verifier.py` + `oi_warrant.py`
+- verify_atom: execute AtomicSpec against SCMWorld via Monte Carlo
+- score_episode: correctness(60%) + coverage(30%) + efficiency(10%)
+- Evidence warrant: 4 levels (exists < accessed < relevant < substantive)
+- Prior floor 0.15: claims from priors get 15%, full investigation 100%
+
+**Episode runner:** `src/sreg/tools/oi_runner.py`
+- ArtifactCatalog: base + derived with lineage tracking
+- Namespace security: closures (no __self__), helpers proxy (blocks _log)
+- Auto-compilation via extraction when no pre-compiled claims
+- Pluggable llm_call parameter
+
+**Solver prompt:** `src/sreg/tools/oi_prompts.py`
+- System, tools, briefing, strategy sections
+- Anti-overclaiming (association vs causation)
+- No scoring info leaked to solver
+
+**Instrumented helpers:** `src/sreg/tools/oi_helpers.py`
+- corr, regress, stratify, test_independence, groupby_mean
+- Auto-log AnalysisRecords for warrant
+
+**Tests:** ~180 OI-specific tests (models, verifier, salience, compiler,
+warrant, helpers, runner, extraction, prompts, pilot).
+
+**Pendiente:** LLM extraction (ClaimCard -> ClaimIntent via API), real solver
+integration, compiler benchmark (200+ claims, >90% precision), scaffolded pilot.
 
 ---
 

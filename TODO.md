@@ -416,14 +416,20 @@ claims epistemicos (taxonomia, subidentificacion), no causales complejos.
 
 **Referencia:** `research/synthesis/open_investigation_vision.md`
 **Working doc:** `research/notes/open_investigation_case_analysis.md`
-**Status:** VISION EN DESARROLLO. Debate activo, no implementar todavia.
+**Status:** ALPHA-0 COMPLETA (sin LLM). Pipeline E2E con mock solver funciona.
 
-- [ ] Formalizar gramatica composable como DSL ejecutable
-- [ ] Prototype truth map (enumerar verdades de un SCM real)
-- [ ] Claim card contract (Pydantic models con slots minimos)
-- [ ] Compiler benchmark offline (200+ claims, >90% precision)
-- [ ] Verifier scoring sin compiler (claims formales perfectos)
-- [ ] Piloto scaffolded (solver real + compiler + scoring)
+- [x] Formalizar gramatica composable como DSL ejecutable
+- [x] Prototype truth map (salience map: 7 pattern types, multi-atom families)
+- [x] Claim card contract (Pydantic models con slots minimos)
+- [x] Verifier scoring sin compiler (claims formales perfectos)
+- [x] Compiler deterministic pipeline (ClaimIntent IR + lowering + matching)
+- [x] Evidence warrant system (4 levels, prior_floor=0.15)
+- [x] Instrumented helpers (corr, regress, stratify, test_independence)
+- [x] Episode runner (artifact catalog, namespace, trace, scoring pipeline)
+- [x] Compiler LLM extraction infra (prompt builder, parser, fallback)
+- [x] Solver prompt template (system + tools + briefing + strategy)
+- [ ] Compiler benchmark offline (200+ claims, >90% precision) — requiere LLM
+- [ ] Piloto scaffolded (solver real + compiler + scoring) — requiere LLM
 
 ### A16. Quality gates por task primitive — eval cualitativa 2026-03-25
 
