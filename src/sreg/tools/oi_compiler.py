@@ -33,11 +33,14 @@ from sreg.models.open_investigation import (
     AtomicSpec,
     Comparison,
     ComparisonKind,
+    EpisodeScore,
     Measurement,
     MeasurementKind,
     QueryArm,
     QueryKind,
+    SalienceFamily,
 )
+from sreg.solver.scm_solver import SCMSolver
 from sreg.world.scm import SCMWorld
 
 logger = logging.getLogger(__name__)
@@ -532,6 +535,147 @@ def _lower_ranking(intent: ClaimIntent, summary: WorldSummary) -> list[AtomicSpe
     ]
 
 
+# ---------------------------------------------------------------------------
+# Matching: compiled specs → salience families
+# ---------------------------------------------------------------------------
+
+
+def _extract_focus_signature(spec: AtomicSpec) -> tuple[str, ...]:
+    """Extract focus variable signature from a compiled spec."""
+    variables: set[str] = set()
+    # From arms: intervention/condition variables
+    for arm in spec.arms:
+        variables.update(arm.values.keys())
+        variables.update(arm.condition_on.keys())
+    # From measurement: target, lhs, rhs
+    if spec.measurement.target:
+        if isinstance(spec.measurement.target, str):
+            variables.add(spec.measurement.target)
+        elif isinstance(spec.measurement.target, tuple):
+            variables.update(spec.measurement.target)
+    if spec.measurement.lhs:
+        variables.add(spec.measurement.lhs)
+    if spec.measurement.rhs:
+        variables.add(spec.measurement.rhs)
+    return tuple(sorted(variables))
+
+
+def _infer_pattern_class(spec: AtomicSpec) -> str:
+    """Infer pattern class from spec structure."""
+    m = spec.measurement.kind
+    c = spec.comparison.kind
+
+    if m == MeasurementKind.PARTIAL_CORRELATION:
+        return "observational_association"
+    if m == MeasurementKind.VARIANCE:
+        return "variance_effect"
+    if m == MeasurementKind.TAIL_PROB:
+        return "tail_risk"
+    if c == ComparisonKind.RANKING:
+        return "effect_ranking"
+    if c == ComparisonKind.CONTRAST_DIFF:
+        # 4 arms → mediation or heterogeneity
+        # Check if assertion is SIGN_FLIP → heterogeneity
+        if spec.assertion.kind == AssertionKind.SIGN_FLIP:
+            return "heterogeneity"
+        return "mediation"
+    if c == ComparisonKind.DIFFERENCE:
+        return "causal_effect"
+    return "causal_effect"
+
+
+def match_specs_to_families(
+    compiled_specs: list[AtomicSpec],
+    families: list[SalienceFamily],
+) -> list[tuple[str | None, AtomicSpec]]:
+    """Match compiled specs to the best salience family.
+
+    Returns list of (matched_family_id or None, spec) pairs.
+    Matching is deterministic: focus_signature overlap + pattern_class compatibility.
+    """
+
+    matches: list[tuple[str | None, AtomicSpec]] = []
+
+    for spec in compiled_specs:
+        focus_sig = set(_extract_focus_signature(spec))
+        pattern = _infer_pattern_class(spec)
+
+        best_family_id: str | None = None
+        best_score = 0.0
+
+        for family in families:
+            # Pattern class compatibility
+            family_pattern = family.key.pattern_class
+            pattern_match = 1.0 if pattern == family_pattern else 0.0
+
+            # Focus signature overlap (Jaccard similarity)
+            family_focus = set(family.key.focus_signature)
+            intersection = len(focus_sig & family_focus)
+            union = len(focus_sig | family_focus)
+            focus_overlap = intersection / max(union, 1)
+
+            # Combined matching score: pattern must match, focus is bonus
+            match_score = pattern_match * (0.5 + 0.5 * focus_overlap)
+
+            if match_score > best_score:
+                best_score = match_score
+                best_family_id = family.family_id
+
+        matches.append((best_family_id if best_score > 0 else None, spec))
+
+    return matches
+
+
+def score_compiled_episode(
+    compiled_claims: list[CompilerOutput],
+    families: list[SalienceFamily],
+    world: SCMWorld,
+    solver: SCMSolver,
+    n_mc: int = 50_000,
+    seed: int | None = None,
+) -> EpisodeScore:
+    """Score a full episode: compile → verify → match → score.
+
+    This is the main entry point for scoring compiled claims.
+    Handles abstentions per Codex design: abstention gets 0 correctness,
+    doesn't contribute to coverage, counts toward efficiency.
+    """
+    from sreg.tools.oi_verifier import score_episode, verify_atom
+
+    claim_matches: list[tuple[str, float]] = []
+    n_claims_submitted = len(compiled_claims)
+    n_abstentions = 0
+
+    for claim_output in compiled_claims:
+        if not claim_output.compiled:
+            # Abstention: 0 correctness, no family match
+            n_abstentions += 1
+            claim_matches.append(("__abstention__", 0.0))
+            continue
+
+        # Match each compiled spec to families
+        matched = match_specs_to_families(claim_output.specs, families)
+
+        for family_id, spec in matched:
+            if family_id is None:
+                # No family match: claim is irrelevant (verifiable but not salient)
+                claim_matches.append(("__unmatched__", 0.0))
+                continue
+
+            # Verify the spec against the SCM
+            verdict = verify_atom(spec, world, solver, n_mc=n_mc, seed=seed)
+            claim_matches.append((family_id, verdict.score))
+
+    # Score using existing episode scorer
+    episode = score_episode(
+        claim_matches=claim_matches,
+        families=families,
+        n_claims=n_claims_submitted,
+    )
+
+    return episode
+
+
 __all__ = [
     "ClaimIntent",
     "CompilerOutput",
@@ -541,5 +685,7 @@ __all__ = [
     "WorldSummary",
     "build_world_summary",
     "lower_intent",
+    "match_specs_to_families",
+    "score_compiled_episode",
     "validate_intent",
 ]

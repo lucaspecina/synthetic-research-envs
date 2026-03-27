@@ -146,12 +146,12 @@ que el diseno haya sobrevivido debate.
   funcionan con cualquier tipo de comparacion (DIFFERENCE, CONTRAST_DIFF,
   PROPORTION, RATIO, GAP) — antes solo leian "difference" key
 - **Pilot E2E VALIDADO:** Oracle(0.775) > No-data(0.550) > Shotgun(0.340)
-- **99 tests passing** (42 models + 22 verifier + 9 salience + 4 pilot + 22 compiler)
-- **14 commits**, todo pushed
-- **Compiler deterministic core COMPLETO:** ClaimIntent IR + WorldSummary +
-  lowering para 7 pattern types + preview validator. 22 tests inc. E2E.
-  Falta: LLM extraction (ClaimCard -> ClaimIntent) + matching compiled specs
-  a salience families.
+- **103 tests passing** (42 models + 22 verifier + 9 salience + 4 pilot + 26 compiler)
+- **16 commits**, todo pushed
+- **Compiler COMPLETO (sin LLM):** ClaimIntent IR + WorldSummary + lowering
+  (7 patterns) + preview validator + matching a salience families +
+  score_compiled_episode full pipeline. 26 tests inc. E2E pipeline.
+  Falta: LLM extraction (ClaimCard -> ClaimIntent) solamente.
 - **Docs actualizados:** case_analysis.md, vision.md, session file
 - **STATUS: Alpha-0 funcional.** Pipeline separa oracle/nodata/shotgun.
   Issues pendientes: #5 (evidence_basis no se usa), #7 (DISTRIBUTION placeholder).

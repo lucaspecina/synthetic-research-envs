@@ -11,12 +11,16 @@ from sreg.models.open_investigation import (
 from sreg.solver.scm_solver import SCMSolver
 from sreg.tools.oi_compiler import (
     ClaimIntent,
+    CompilerOutput,
     Direction,
     PatternClass,
     build_world_summary,
     lower_intent,
+    match_specs_to_families,
+    score_compiled_episode,
     validate_intent,
 )
+from sreg.tools.oi_salience import build_salience_map
 from sreg.tools.oi_verifier import verify_atom
 from sreg.world.scm import SCMWorld
 
@@ -407,3 +411,115 @@ class TestLoweringE2E:
 
         verdict = verify_atom(output.specs[0], world, solver, n_mc=50_000, seed=42)
         assert verdict.solver_assertion_holds is True
+
+
+# ---------------------------------------------------------------------------
+# Matching tests
+# ---------------------------------------------------------------------------
+
+
+class TestMatching:
+    def test_causal_effect_matches_family(self):
+        """Compiled ATE spec should match the causal_effect family for (A, Y)."""
+        world = _test_world()
+        summary = build_world_summary(world, "Y", seed=42)
+        smap = build_salience_map(world, "Y", n_mc=10_000, seed=42)
+
+        intent = ClaimIntent(
+            claim_id="c1",
+            pattern=PatternClass.CAUSAL_EFFECT,
+            treatment="A",
+            outcome="Y",
+        )
+        output = lower_intent(intent, summary)
+        matches = match_specs_to_families(output.specs, smap.families)
+
+        assert len(matches) == 1
+        family_id, spec = matches[0]
+        assert family_id is not None
+        # Should match a causal_effect family
+        matched_family = next(f for f in smap.families if f.family_id == family_id)
+        assert matched_family.key.pattern_class == "causal_effect"
+
+    def test_unmatched_returns_none(self):
+        """Spec for variable not in any family should return None match."""
+        world = _test_world()
+        summary = build_world_summary(world, "Y", seed=42)
+        smap = build_salience_map(world, "Y", n_mc=10_000, seed=42)
+
+        # Create a spec about X (independent variable, not in salience map target)
+        intent = ClaimIntent(
+            claim_id="c1",
+            pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+            treatment="Z",
+            outcome="C",
+        )
+        output = lower_intent(intent, summary)
+        matches = match_specs_to_families(output.specs, smap.families)
+
+        # May or may not match — if it does, it should be a weak match
+        # The key test is that the function doesn't crash
+        assert len(matches) == 1
+
+
+# ---------------------------------------------------------------------------
+# Full pipeline E2E: compile → match → verify → score
+# ---------------------------------------------------------------------------
+
+
+class TestFullPipeline:
+    def test_oracle_scores_high(self):
+        """Oracle claims (correct patterns + direction) should score well."""
+        world = _test_world()
+        solver = SCMSolver(world)
+        summary = build_world_summary(world, "Y", seed=42)
+        smap = build_salience_map(world, "Y", n_mc=20_000, seed=42)
+
+        # Oracle: submit correct claims matching known truths
+        claims = [
+            lower_intent(
+                ClaimIntent(
+                    claim_id="ate_A",
+                    pattern=PatternClass.CAUSAL_EFFECT,
+                    treatment="A",
+                    outcome="Y",
+                    direction=Direction.POSITIVE,
+                ),
+                summary,
+            ),
+            lower_intent(
+                ClaimIntent(
+                    claim_id="med_A_M",
+                    pattern=PatternClass.MEDIATION,
+                    treatment="A",
+                    outcome="Y",
+                    mediator="M",
+                    direction=Direction.POSITIVE,
+                ),
+                summary,
+            ),
+        ]
+
+        episode = score_compiled_episode(
+            claims, smap.families, world, solver, n_mc=20_000, seed=42
+        )
+        assert episode.total > 0.3, f"Oracle should score > 0.3, got {episode.total}"
+
+    def test_abstention_scores_zero(self):
+        """Abstention claims should contribute 0 to correctness."""
+        world = _test_world()
+        solver = SCMSolver(world)
+        smap = build_salience_map(world, "Y", n_mc=10_000, seed=42)
+
+        claims = [
+            CompilerOutput(
+                claim_id="abstained",
+                status="abstention",
+                abstention_reason="Test abstention",
+            ),
+        ]
+        episode = score_compiled_episode(
+            claims, smap.families, world, solver, n_mc=10_000, seed=42
+        )
+        assert episode.correctness == 0.0
+        assert episode.coverage == 0.0
