@@ -578,8 +578,8 @@ Sub-tareas:
 - [x] Guia de overlap entre tipos que se solapan (ambos sentidos, no solo causales)
 - [x] "500 obs / 4 sites / 3 waves" repetido en todos — variar estructura
   (A18: panel config varied per SRC, descriptions improved)
-- [ ] "hidden factor best explains..." clonado — el template de infer_latent
-  siempre produce la misma forma de pregunta
+- [x] "hidden factor best explains..." clonado — el template de infer_latent
+  siempre produce la misma forma de pregunta (3 variantes rotantes added)
 
 **Fase 4: calidad de realizacion de preguntas** HECHO (parcial)
 - [x] Descripciones verbose: threshold tightened (_semantic_name <45 chars, <=6 words)
