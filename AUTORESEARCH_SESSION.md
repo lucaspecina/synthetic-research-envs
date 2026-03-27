@@ -113,6 +113,7 @@ sigue pendiente. Para Alpha-1 necesita compiler LLM + solver adaptado.
 | Verifier | `src/sreg/tools/oi_verifier.py` |
 | Compiler (IR + lowering + matching) | `src/sreg/tools/oi_compiler.py` |
 | Warrant checker | `src/sreg/tools/oi_warrant.py` |
+| Instrumented helpers | `src/sreg/tools/oi_helpers.py` |
 | Exemplar bank | `src/sreg/tools/oi_exemplars.py` |
 | Todo list OI | `TODO.md` seccion A15 |
 | Principios del proyecto | `PROJECT.md` |
@@ -192,8 +193,12 @@ sigue pendiente. Para Alpha-1 necesita compiler LLM + solver adaptado.
   and compiler both use p25/p75 from same world. Matching doesn't
   compare arm values. Shared WorldSummary would be cleaner but not
   blocking.
-- **STATUS: Non-LLM design work complete.** Warrant, trace contract,
-  solver prompt all designed and reviewed. 134 tests. Issue #7
-  (DISTRIBUTION) documented as reserved. For Alpha-1: implement LLM
-  extraction, OI episode runner, solver prompt.
+- **Instrumented helpers implemented:** oi_helpers.py with corr, regress,
+  stratify, test_independence, groupby_mean. Auto-log AnalysisRecords.
+  tag_dataframe() for artifact provenance. 17 tests.
+- **151 tests passing** (42 models + 22 verifier + 9 salience + 4 pilot +
+  29 compiler + 28 warrant + 17 helpers)
+- **STATUS: All non-LLM infrastructure complete.** Warrant, helpers,
+  trace contract, solver prompt, artifact_id all done. 27 commits.
+  For Alpha-1: LLM extraction, OI episode runner, solver prompt impl.
 
