@@ -467,8 +467,10 @@ Todos los SRCs tienen metadata identica ("500 obs, 4 sites, 3 waves") y
 descripcion de dataset tipo dump tecnico. Rompe realismo.
 
 **Sub-preguntas:**
-- [ ] Variar panel config por SRC (3-15 sites, 2-5 waves, 200-2000 obs)?
-- [ ] Reescribir `_describe()` para generar descripcion narrativa?
+- [x] Variar panel config por SRC (3-15 sites, 2-5 waves, 200-2000 obs)?
+  HECHO: orchestrator genera PanelConfig con seed-based randomization.
+- [x] Reescribir `_describe()` para generar descripcion narrativa?
+  HECHO: panel/cross-sectional/generic phrasing, variable counts.
 - [ ] Que el orchestrator escriba la descripcion del dataset?
 
 **Evidencia:** `research/synthesis/qualitative_eval_2026_03_25.md` (P2, P6)
@@ -568,7 +570,8 @@ Sub-tareas:
 - [x] Quitar jerarquia "primary" vs "complementary" del prompt y tool definition
 - [x] Reglas operativas de type-fit en vez de "Quality over coverage" pasivo
 - [x] Guia de overlap entre tipos que se solapan (ambos sentidos, no solo causales)
-- [ ] "500 obs / 4 sites / 3 waves" repetido en todos — variar estructura
+- [x] "500 obs / 4 sites / 3 waves" repetido en todos — variar estructura
+  (A18: panel config varied per SRC, descriptions improved)
 - [ ] "hidden factor best explains..." clonado — el template de infer_latent
   siempre produce la misma forma de pregunta
 
