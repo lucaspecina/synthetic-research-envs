@@ -175,8 +175,10 @@ desplazandose hacia `synthesis/`.
 - **Analisis de casos:** `notes/open_investigation_case_analysis.md` — 10
   dominios, 30 respuestas analizadas, patrones de ruptura, gramatica
   composable, debate Claude-Codex-ChatGPT. Working doc activo.
+- **Diseno del compiler:** `notes/oi_compiler_design.md` — arquitectura
+  LLM->ClaimIntent->lowering->AtomicSpec. Debate con Codex.
 - **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
-- **Status:** VISION EN DESARROLLO. Debate activo, diseño madurando.
+- **Status:** Alpha-0 funcional (99 tests). Compiler deterministic core done.
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
