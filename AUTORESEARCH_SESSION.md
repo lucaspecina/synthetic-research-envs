@@ -134,5 +134,7 @@ que el diseno haya sobrevivido debate.
   - score_claim_against_family: specificity bonus + overclaim penalty
   - score_episode: correctness(60%) + coverage(30%) + efficiency(10%)
   - Pendiente: salience map generator, macros, docs update
+- **Issue #4 FIXED:** familias multi-atomo (1-3 atomos con qualifiers)
 - **Docs actualizados:** case_analysis.md, session file
+- **Proximo:** piloto E2E sin compiler (oracle vs no-data vs shotgun)
 
