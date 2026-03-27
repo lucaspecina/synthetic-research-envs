@@ -2,7 +2,7 @@
 # Fecha inicio: 2026-03-26
 # Branch: autoresearch-open-investigation
 # Modelo: Claude Opus 4.6 (1M context) + Codex gpt-5.4 (MCP)
-# Codex thread: 019d2ae2-9652-7d20-8da0-3b6d2f8b6418
+# Codex thread: 019d2d62-d371-7072-8b4c-319eab3fe156 (anterior expirado: 019d2ae2)
 
 > **ESTE ARCHIVO ES EL "SAVE FILE" DEL AUTORESEARCH.**
 > Despues de cada compact, leer este archivo para recuperar contexto.
@@ -118,5 +118,16 @@ que el diseno haya sobrevivido debate.
 
 ### Sesion 1 — 2026-03-26 noche
 - **Inicio:** branch creada, principios documentados, crons configurados
-- **Pendiente:** comenzar con investigacion y debate de gramatica composable
+- **Se corto:** la sesion se interrumpio antes de avanzar
+
+### Sesion 2 — 2026-03-27
+- **Continuacion:** retomado por usuario, crons reconfigurados
+- **Fase 1 COMPLETA:** 5 preocupaciones criticas investigadas (sesgo
+  interventional, Goodhart simplicidad, truth map explota, taxonomia
+  es fundamental, compiler sin evidencia)
+- **Fase 2 COMPLETA:** debate con Codex. 3 cirugias aceptadas. Spec
+  corregida entregada con QueryContext, 15 macros, salience map, scoring.
+  Thread Codex activo: 019d2d62-d371-7072-8b4c-319eab3fe156
+- **Fase 3 EN CURSO:** implementar DSL como Python en src/sreg/models/
+- **Docs actualizados:** case_analysis.md, session file
 

@@ -1080,3 +1080,36 @@ verdades del mundo, no verdades epistemologicas.
 - Agregar verificacion nueva = combinar piezas existentes
 - Esto resuelve la preocupacion del usuario de quedar con "siempre los
   mismos casos disfrazados"
+
+### 2026-03-27 — Autoresearch: 5 preocupaciones criticas + 3 cirugias
+- Participantes: Claude (autoresearch), Codex (2 threads: 019d2c96 expirado, 019d2d62 activo)
+- Branch: autoresearch-open-investigation
+
+**5 preocupaciones criticas identificadas:**
+1. Sesgo interventional — la gramatica solo tiene do(), ciencia es observacional
+2. Goodhart de simplicidad — claims crudos y sofisticados pagan parecido
+3. Truth map explota — 12 nodos pueden generar miles de verdades
+4. Taxonomia/subidentificacion son fundamentales, no edge cases
+5. Compiler >90% no tiene evidencia — no hay plan B
+
+**Codex confirmo las 5 y propuso 3 cirugias:**
+1. Primitivas observacionales de primera clase (observe, condition, adjust)
+2. Scoring anti-simplificacion (specificity bonus + overclaim penalty)
+3. Salience map brief-anchored en vez de truth map exhaustivo
+
+**Spec corregida entregada por Codex (thread 019d2d62):**
+- QueryContext con 6 ramas: baseline, intervene, observe, condition, adjust, sweep
+- 9 mediciones: mean, variance, quantile, tail_prob, prob, correlation,
+  partial_correlation, distribution, identifiability_check
+- 8 comparaciones: identity, difference, ratio, ranking, gap, proportion,
+  piecewise_fit, contrast_diff
+- 13 aserciones: positive, negative, near_zero, greater_than, less_than,
+  rank_order, changepoint_exists, sign_flip, gap_material, identifiable,
+  not_identifiable, distinguishable, not_distinguishable
+- regression_coefficient explicitamente PROHIBIDO (depende de spec del modelo)
+- 15 macros nombradas (8 originales + 7 nuevas observacionales/estructurales)
+- Scoring: SPEC_BASE=0.50, SPEC_BONUS_MAX=0.50, OVERCLAIM_MAX=0.50
+- Salience map: 10-24 familias tipico para 12 nodos, hard cap 30
+- Lazy expansion: +5 familias por claim sin match
+
+**Proximo paso:** implementar como DSL Python en src/sreg/models/
