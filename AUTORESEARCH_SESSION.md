@@ -136,10 +136,20 @@ que el diseno haya sobrevivido debate.
   - Pendiente: salience map generator, macros, docs update
 - **Issue #4 FIXED:** familias multi-atomo (1-3 atomos con qualifiers)
 - **Issue #1 FIXED:** ADJUST ahora usa stratificacion observacional
+- **Issue #6 FIXED:** 7 pattern types (was 5): added observational + ranking
+- **Issue #3 FIXED:** mediation specs ahora usan 4-arm contrast-diff (indirect
+  effect = total - controlled_direct), antes usaban PROPORTION que solo
+  calculaba ratio de medias (no verificaba mediacion en absoluto)
+- **Issue #2 FIXED:** identifiability usa DAG dirigido + backdoor criterion
+  (mutilated graph), antes usaba dag.to_undirected() que era incorrecto
+- **_extract_scalar helper:** assertions (POSITIVE, NEGATIVE, etc.) ahora
+  funcionan con cualquier tipo de comparacion (DIFFERENCE, CONTRAST_DIFF,
+  PROPORTION, RATIO, GAP) — antes solo leian "difference" key
 - **Pilot E2E VALIDADO:** Oracle(0.775) > No-data(0.550) > Shotgun(0.340)
-- **70 tests passing** (42 models + 15 verifier + 9 salience + 4 pilot)
-- **10 commits**, todo pushed
+- **77 tests passing** (42 models + 22 verifier + 9 salience + 4 pilot)
+- **12 commits**, todo pushed
 - **Docs actualizados:** case_analysis.md, vision.md, session file
 - **STATUS: Alpha-0 funcional.** Pipeline separa oracle/nodata/shotgun.
+  Issues pendientes: #5 (evidence_basis no se usa), #7 (DISTRIBUTION placeholder).
   Para Alpha-1 necesita compiler LLM + solver adaptado.
 

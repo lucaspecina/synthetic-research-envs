@@ -532,18 +532,29 @@ Ver `notes/open_investigation_case_analysis.md` para detalle completo.
 
 - ADJUST: FIXED — ahora usa stratificacion observacional, no do()
 - Multi-atom families: FIXED — causal effects tienen 1-3 atomos
-- Identifiability check: implementacion basica, no verifica candidate_causes
-- Estimand mismatch: mediacion families verifican proporcion pero no
-  fraction_mediated real
+- Salience map patterns: FIXED — 7 tipos incluyendo observacionales + ranking
+- Identifiability check: FIXED — usa backdoor criterion con mutilated graph
+  (dirigido), no dag.to_undirected(). Verifica candidate_adjust_set,
+  parents de treatment, y non-descendant ancestors como fallback.
+  Incluye check de observabilidad: candidate_adjust_set con variables
+  latentes es rechazado.
+- Estimand mismatch: FIXED — mediacion ahora usa 4-arm contrast-diff spec
+  (total_hi, total_lo, direct_hi, direct_lo). Indirect = total - controlled_direct.
+  Antes usaba PROPORTION (ratio de medias) que no verificaba mediacion.
+  **Limitacion conocida (Codex review #2):** CDE-at-mean != natural indirect
+  effect para modelos con X*M interaccion. El gate usa mediation_analysis()
+  (natural-effect-style) pero el spec verifica CDE. Para SCMs lineales/aditivos
+  (la mayoria en SREG) coinciden. Para nonlinear, pueden divergir.
+  Direccion de mediacion ahora viene del sign de fraction_mediated (soporta
+  suppressor mediation, no solo positive).
+- _extract_scalar: FIXED — assertions funcionan con cualquier ComparisonKind,
+  no solo DIFFERENCE.
 - evidence_basis no se usa en scoring (solver sin datos puede ganar)
-- Salience map solo tiene patterns interventionales
 - DISTRIBUTION measurement es placeholder
 
 ### Lineas de exploracion abiertas
 
-- Identifiability check robusto (rescata 2/5 NO FUNCIONA del stress test)
-- Multi-outcome trade-offs (rescata 1/5)
-- Patterns observacionales en salience map
+- Multi-outcome trade-offs (rescata 1/5 NO FUNCIONA del stress test)
 - Warrant via log check (evidence_basis)
 - Coherence-lite via support graph (bonus 5-10%)
 - Intent metadata del generador para relevance algoritmico

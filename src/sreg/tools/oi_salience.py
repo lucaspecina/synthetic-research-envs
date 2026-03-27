@@ -339,7 +339,12 @@ def _find_strongest_mediation(
     dag: nx.DiGraph,
     seed: int,
 ) -> FamilyAtom | None:
-    """Find the strongest mediation path for X->target."""
+    """Find the strongest mediation path for X->target.
+
+    Mediation = part of X's effect on Y goes through M. Verified by comparing
+    total effect (do(X)) vs controlled direct effect (do(X) + do(M=fixed)).
+    If holding M fixed reduces the effect, mediation is confirmed.
+    """
     children_of_x = set(dag.successors(x))
     ancestors_of_target = nx.ancestors(dag, target)
     mediators = children_of_x & ancestors_of_target & set(world.observable_variables)
@@ -357,19 +362,44 @@ def _find_strongest_mediation(
                 v_low=v_lo,
                 seed=seed,
             )
-            frac = abs(result.get("fraction_mediated", 0))
+            raw_frac = result.get("fraction_mediated", 0)
+            frac = abs(raw_frac)
             if frac > best_frac and frac > 0.15:
                 best_frac = frac
-                # Mediation atom: bonus (not material — discovering it is extra credit)
+                # Reference value for M: its expected value under control (do(X=lo))
+                m_samples = solver.interventional_samples(
+                    m, do={x: v_lo}, n=10_000, seed=seed
+                )
+                m_ref = float(np.mean(m_samples))
+
+                # Direction from mediation_analysis sign (supports suppressor mediation)
+                direction = AssertionKind.POSITIVE if raw_frac > 0 else AssertionKind.NEGATIVE
+
+                # 4-arm spec: total effect vs controlled direct effect
+                # Indirect = (total_hi - total_lo) - (direct_hi - direct_lo)
                 med_spec = AtomicSpec(
                     spec_id=f"med_{x}_{m}_{target}",
                     arms=(
-                        QueryArm(label="total", kind=QueryKind.INTERVENE, values={x: v_hi}),
-                        QueryArm(label="base", kind=QueryKind.INTERVENE, values={x: v_lo}),
+                        QueryArm(
+                            label="total_hi", kind=QueryKind.INTERVENE, values={x: v_hi}
+                        ),
+                        QueryArm(
+                            label="total_lo", kind=QueryKind.INTERVENE, values={x: v_lo}
+                        ),
+                        QueryArm(
+                            label="direct_hi",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_hi, m: m_ref},
+                        ),
+                        QueryArm(
+                            label="direct_lo",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_lo, m: m_ref},
+                        ),
                     ),
                     measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
-                    comparison=Comparison(kind=ComparisonKind.PROPORTION),
-                    assertion=Assertion(kind=AssertionKind.POSITIVE),
+                    comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+                    assertion=Assertion(kind=direction),
                 )
                 best_atom = FamilyAtom(
                     atom_id=med_spec.spec_id, spec=med_spec, weight=0.5, material=False
@@ -515,7 +545,11 @@ def _enumerate_mediations(
     y_std: float,
     seed: int,
 ) -> list[CandidateTruth]:
-    """Find mediation effects: X -> M -> target."""
+    """Find mediation effects: X -> M -> target.
+
+    Mediation verified via controlled direct effect: fix M at reference value
+    and compare total vs direct effect. Indirect = total - direct.
+    """
     candidates = []
     dag = world.dag
 
@@ -536,19 +570,49 @@ def _enumerate_mediations(
                 result = solver.mediation_analysis(
                     treatment=x, mediator=m, outcome=target, v_high=v_hi, v_low=v_lo, seed=seed
                 )
-                frac = result.get("fraction_mediated", 0)
-                if abs(frac) < EFFECT_THRESHOLDS["mediation"]:
+                raw_frac = result.get("fraction_mediated", 0)
+                if abs(raw_frac) < EFFECT_THRESHOLDS["mediation"]:
                     continue
 
+                # Reference value for M: expected under control condition
+                m_samples = solver.interventional_samples(
+                    m, do={x: v_lo}, n=10_000, seed=seed
+                )
+                m_ref = float(np.mean(m_samples))
+
+                # Direction from mediation_analysis sign
+                direction = (
+                    AssertionKind.POSITIVE if raw_frac > 0 else AssertionKind.NEGATIVE
+                )
+
+                # 4-arm spec: total effect vs controlled direct effect
+                # Indirect = (total_hi - total_lo) - (direct_hi - direct_lo)
+                # NOTE: This is CDE-at-mean, which equals the natural indirect
+                # effect for linear/additive SCMs. For nonlinear X*M interactions,
+                # these estimands can diverge — documented as known limitation.
                 spec = AtomicSpec(
                     spec_id=f"med_{x}_{m}_{target}",
                     arms=(
-                        QueryArm(label="total", kind=QueryKind.INTERVENE, values={x: v_hi}),
-                        QueryArm(label="base", kind=QueryKind.INTERVENE, values={x: v_lo}),
+                        QueryArm(
+                            label="total_hi", kind=QueryKind.INTERVENE, values={x: v_hi}
+                        ),
+                        QueryArm(
+                            label="total_lo", kind=QueryKind.INTERVENE, values={x: v_lo}
+                        ),
+                        QueryArm(
+                            label="direct_hi",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_hi, m: m_ref},
+                        ),
+                        QueryArm(
+                            label="direct_lo",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_lo, m: m_ref},
+                        ),
                     ),
                     measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
-                    comparison=Comparison(kind=ComparisonKind.PROPORTION),
-                    assertion=Assertion(kind=AssertionKind.POSITIVE),
+                    comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+                    assertion=Assertion(kind=direction),
                 )
 
                 candidates.append(
@@ -560,9 +624,11 @@ def _enumerate_mediations(
                             scope_class=f"via_{m}",
                         ),
                         atoms=[
-                            FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
+                            FamilyAtom(
+                                atom_id=spec.spec_id, spec=spec, weight=1.0, material=True
+                            )
                         ],
-                        effect_size=abs(frac),
+                        effect_size=abs(raw_frac),
                         pattern_class="mediation",
                     )
                 )

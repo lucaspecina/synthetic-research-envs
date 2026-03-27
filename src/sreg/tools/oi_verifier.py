@@ -414,7 +414,13 @@ def _measure_partial_correlation(measurement: Measurement, df: pd.DataFrame) -> 
 
 
 def _measure_identifiability(measurement: Measurement, world: SCMWorld) -> bool:
-    """Check if a causal effect is identifiable from the DAG + observed vars."""
+    """Check if a causal effect is identifiable from the DAG + observed vars.
+
+    Uses the backdoor criterion: Z is a valid adjustment set if it blocks all
+    backdoor paths (non-causal paths into treatment) WITHOUT blocking causal paths.
+    This requires d-separation in a *mutilated* graph (outgoing edges from treatment
+    removed), NOT the undirected graph.
+    """
     import networkx as nx
 
     if not measurement.treatment or not measurement.outcome:
@@ -422,32 +428,53 @@ def _measure_identifiability(measurement: Measurement, world: SCMWorld) -> bool:
 
     dag = world.dag
     obs = set(world.observable_variables)
-
-    # Basic check: is there a backdoor adjustment set among observables?
-    # A sufficient condition: all backdoor paths can be blocked
     treatment = measurement.treatment
     outcome = measurement.outcome
 
     if treatment not in dag.nodes or outcome not in dag.nodes:
         return False
 
-    # Check if candidate_adjust_set blocks all backdoor paths
-    if measurement.candidate_adjust_set:
-        adjust = set(measurement.candidate_adjust_set)
-        # Verify it's a valid adjustment set (blocks all non-causal paths)
+    # Build mutilated graph: remove all outgoing edges from treatment
+    # This graph is used to check backdoor criterion via d-separation
+    mutilated = dag.copy()
+    out_edges = list(mutilated.out_edges(treatment))
+    mutilated.remove_edges_from(out_edges)
+
+    def _is_valid_backdoor(z_set: set[str]) -> bool:
+        """Check if z_set satisfies backdoor criterion in the mutilated graph."""
+        # Z must not contain descendants of treatment (in the original graph)
+        desc_treatment = nx.descendants(dag, treatment)
+        if z_set & desc_treatment:
+            return False
+        # Z must d-separate treatment from outcome in the mutilated graph
         try:
-            return nx.is_d_separator(dag.to_undirected(), {treatment}, {outcome}, adjust)
+            return nx.is_d_separator(mutilated, {treatment}, {outcome}, z_set)
         except Exception:
             return False
 
-    # Without candidate set: check if ANY observable subset works
-    # Simple heuristic: parents of treatment that are observable
-    parents = set(dag.predecessors(treatment)) & obs
-    if parents:
-        try:
-            return nx.is_d_separator(dag.to_undirected(), {treatment}, {outcome}, parents)
-        except Exception:
+    # Check candidate set if provided
+    if measurement.candidate_adjust_set:
+        adjust = set(measurement.candidate_adjust_set)
+        # Adjustment set must only contain observable variables
+        if not adjust.issubset(obs):
             return False
+        return _is_valid_backdoor(adjust)
+
+    # Without candidate set: try parents of treatment (common sufficient set)
+    parents = set(dag.predecessors(treatment)) & obs
+    if parents and _is_valid_backdoor(parents):
+        return True
+
+    # Try: all non-descendant observable ancestors of outcome
+    desc_treatment = nx.descendants(dag, treatment)
+    anc_outcome = nx.ancestors(dag, outcome) & obs
+    candidate = anc_outcome - desc_treatment - {treatment}
+    if candidate and _is_valid_backdoor(candidate):
+        return True
+
+    # No backdoor path at all? (treatment has no parents → always identifiable)
+    if not list(dag.predecessors(treatment)):
+        return True
 
     return False
 
@@ -569,6 +596,19 @@ def _detect_changepoint(sweep_data: dict[float, float]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def _extract_scalar(comparison_result: dict[str, Any]) -> float:
+    """Extract the main scalar value from any comparison result.
+
+    Checks keys in priority order so assertions work with all comparison types
+    (DIFFERENCE, CONTRAST_DIFF, PROPORTION, RATIO, GAP, IDENTITY).
+    """
+    for key in ("difference", "contrast_diff", "proportion", "ratio", "gap", "value"):
+        v = comparison_result.get(key)
+        if isinstance(v, (int, float)):
+            return float(v)
+    return 0.0
+
+
 def _assert(
     assertion: Assertion, comparison_result: dict[str, Any]
 ) -> tuple[bool, float | bool | str]:
@@ -577,30 +617,26 @@ def _assert(
     tol = assertion.tolerance
 
     if kind == AssertionKind.POSITIVE:
-        diff = comparison_result.get("difference", comparison_result.get("value", 0))
-        if isinstance(diff, bool):
-            return diff, diff
-        val = float(diff) if diff is not None else 0.0
+        val = comparison_result.get("value")
+        if isinstance(val, bool):
+            return val, val
+        val = _extract_scalar(comparison_result)
         return val > tol, val
 
     if kind == AssertionKind.NEGATIVE:
-        diff = comparison_result.get("difference", comparison_result.get("value", 0))
-        val = float(diff) if diff is not None else 0.0
+        val = _extract_scalar(comparison_result)
         return val < -tol, val
 
     if kind == AssertionKind.NEAR_ZERO:
-        diff = comparison_result.get("difference", comparison_result.get("value", 0))
-        val = float(diff) if diff is not None else 0.0
+        val = _extract_scalar(comparison_result)
         return abs(val) <= tol, val
 
     if kind == AssertionKind.GREATER_THAN:
-        diff = comparison_result.get("difference", 0)
-        val = float(diff) if diff is not None else 0.0
+        val = _extract_scalar(comparison_result)
         return val > assertion.threshold, val
 
     if kind == AssertionKind.LESS_THAN:
-        diff = comparison_result.get("difference", 0)
-        val = float(diff) if diff is not None else 0.0
+        val = _extract_scalar(comparison_result)
         return val < assertion.threshold, val
 
     if kind == AssertionKind.RANK_ORDER:

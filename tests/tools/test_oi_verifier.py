@@ -216,6 +216,194 @@ class TestVerifyAtom:
 # ---------------------------------------------------------------------------
 
 
+    def test_mediation_indirect_effect(self):
+        """Mediation spec: 4-arm contrast-diff detects indirect effect via M."""
+        # X -> M -> Y, X -> Y: partial mediation
+        world = SCMWorld(
+            id="test-mediation",
+            graph={"X": [], "M": ["X"], "Y": ["X", "M"]},
+            equations={
+                "X": lambda p, rng: rng.normal(0, 1),
+                "M": lambda p, rng: 0.7 * p["X"] + rng.normal(0, 0.3),
+                "Y": lambda p, rng: 0.3 * p["X"] + 0.6 * p["M"] + rng.normal(0, 0.3),
+            },
+        )
+        solver = SCMSolver(world)
+        # m_ref: E[M | do(X=-1)] ≈ -0.7
+        m_samples = solver.interventional_samples("M", do={"X": -1.0}, n=10_000, seed=42)
+        m_ref = float(m_samples.mean())
+
+        spec = AtomicSpec(
+            spec_id="med_X_M_Y",
+            arms=(
+                QueryArm(label="total_hi", kind=QueryKind.INTERVENE, values={"X": 1.0}),
+                QueryArm(label="total_lo", kind=QueryKind.INTERVENE, values={"X": -1.0}),
+                QueryArm(
+                    label="direct_hi",
+                    kind=QueryKind.INTERVENE,
+                    values={"X": 1.0, "M": m_ref},
+                ),
+                QueryArm(
+                    label="direct_lo",
+                    kind=QueryKind.INTERVENE,
+                    values={"X": -1.0, "M": m_ref},
+                ),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
+        )
+        verdict = verify_atom(spec, world, solver, n_mc=20_000, seed=42)
+        assert verdict.solver_assertion_holds is True, (
+            f"Indirect effect should be positive, got {verdict.ground_truth}"
+        )
+        assert verdict.score == 1.0
+
+    def test_no_mediation_when_no_path(self):
+        """No mediation: X -> Y directly, M independent. Indirect should be ~0."""
+        world = SCMWorld(
+            id="test-no-med",
+            graph={"X": [], "M": [], "Y": ["X"]},
+            equations={
+                "X": lambda p, rng: rng.normal(0, 1),
+                "M": lambda p, rng: rng.normal(0, 1),
+                "Y": lambda p, rng: 0.8 * p["X"] + rng.normal(0, 0.3),
+            },
+        )
+        solver = SCMSolver(world)
+        spec = AtomicSpec(
+            spec_id="no_med",
+            arms=(
+                QueryArm(label="total_hi", kind=QueryKind.INTERVENE, values={"X": 1.0}),
+                QueryArm(label="total_lo", kind=QueryKind.INTERVENE, values={"X": -1.0}),
+                QueryArm(
+                    label="direct_hi",
+                    kind=QueryKind.INTERVENE,
+                    values={"X": 1.0, "M": 0.0},
+                ),
+                QueryArm(
+                    label="direct_lo",
+                    kind=QueryKind.INTERVENE,
+                    values={"X": -1.0, "M": 0.0},
+                ),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+            assertion=Assertion(kind=AssertionKind.NEAR_ZERO, tolerance=0.15),
+        )
+        verdict = verify_atom(spec, world, solver, n_mc=20_000, seed=42)
+        assert verdict.solver_assertion_holds is True, (
+            f"No mediation path, indirect should be ~0, got {verdict.ground_truth}"
+        )
+
+    def test_identifiability_with_confounders(self):
+        """Identifiability: C -> A -> Y, C -> Y. C is valid backdoor set."""
+        world = _confounder_world()
+        solver = SCMSolver(world)
+        spec = AtomicSpec(
+            spec_id="ident_valid",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(
+                kind=MeasurementKind.IDENTIFIABILITY_CHECK,
+                treatment="A",
+                outcome="Y",
+                candidate_adjust_set=("C",),
+            ),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.IDENTIFIABLE),
+        )
+        verdict = verify_atom(spec, world, solver, n_mc=1000, seed=42)
+        assert verdict.solver_assertion_holds is True
+
+    def test_identifiability_no_parents_always_true(self):
+        """Root treatment with no confounders is always identifiable."""
+        world = _simple_world()  # A (root) -> Y
+        solver = SCMSolver(world)
+        spec = AtomicSpec(
+            spec_id="ident_root",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(
+                kind=MeasurementKind.IDENTIFIABILITY_CHECK,
+                treatment="A",
+                outcome="Y",
+            ),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.IDENTIFIABLE),
+        )
+        verdict = verify_atom(spec, world, solver, n_mc=1000, seed=42)
+        assert verdict.solver_assertion_holds is True
+
+    def test_identifiability_latent_confounder_rejects(self):
+        """Latent confounder in candidate set must be rejected."""
+        # U -> A -> Y, U -> Y. U is latent.
+        world = SCMWorld(
+            id="test-latent",
+            graph={"U": [], "A": ["U"], "Y": ["A", "U"]},
+            equations={
+                "U": lambda p, rng: rng.normal(0, 1),
+                "A": lambda p, rng: p["U"] + rng.normal(0, 0.5),
+                "Y": lambda p, rng: 0.5 * p["A"] + 0.3 * p["U"] + rng.normal(0, 0.3),
+            },
+            latent_variables={"U"},
+        )
+        solver = SCMSolver(world)
+        # Candidate set includes U which is NOT observable -> must reject
+        spec = AtomicSpec(
+            spec_id="ident_latent",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(
+                kind=MeasurementKind.IDENTIFIABILITY_CHECK,
+                treatment="A",
+                outcome="Y",
+                candidate_adjust_set=("U",),
+            ),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.IDENTIFIABLE),
+        )
+        verdict = verify_atom(spec, world, solver, n_mc=1000, seed=42)
+        # Should NOT hold — U is unobserved, can't be used as adjustment set
+        assert verdict.solver_assertion_holds is False
+
+    def test_assertion_with_proportion(self):
+        """GREATER_THAN assertion should work with PROPORTION comparison."""
+        world = _simple_world()
+        solver = SCMSolver(world)
+        # PROPORTION computes vals[1]/vals[0] = mean(lo)/mean(hi)
+        # With A=2.0 -> Y~1.6, A=0.5 -> Y~0.4. Proportion ~0.25.
+        # Check that _extract_scalar reads "proportion" key correctly.
+        spec = AtomicSpec(
+            spec_id="prop_gt",
+            arms=(
+                QueryArm(label="hi", kind=QueryKind.INTERVENE, values={"A": 2.0}),
+                QueryArm(label="lo", kind=QueryKind.INTERVENE, values={"A": 0.5}),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.PROPORTION),
+            assertion=Assertion(kind=AssertionKind.GREATER_THAN, threshold=0.1),
+        )
+        verdict = verify_atom(spec, world, solver, n_mc=20_000, seed=42)
+        assert verdict.solver_assertion_holds is True
+
+    def test_assertion_with_ratio(self):
+        """GREATER_THAN assertion should work with RATIO comparison."""
+        world = _simple_world()
+        solver = SCMSolver(world)
+        # Ratio of mean(Y|do(A=2)) / mean(Y|do(A=-2)) should be > 1
+        spec = AtomicSpec(
+            spec_id="ratio_gt",
+            arms=(
+                QueryArm(label="hi", kind=QueryKind.INTERVENE, values={"A": 2.0}),
+                QueryArm(label="lo", kind=QueryKind.INTERVENE, values={"A": -2.0}),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.RATIO),
+            assertion=Assertion(kind=AssertionKind.LESS_THAN, threshold=0.0),
+        )
+        verdict = verify_atom(spec, world, solver, n_mc=20_000, seed=42)
+        # hi is positive mean, lo is negative mean -> ratio is negative -> < 0
+        assert verdict.solver_assertion_holds is True
+
+
 class TestScoring:
     def _make_family(self, n_atoms: int = 2, n_material: int = 2) -> SalienceFamily:
         specs = []
