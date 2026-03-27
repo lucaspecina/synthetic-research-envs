@@ -230,3 +230,30 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 - **1709 total tests passing** (was 1656 + 53 new)
 - **STATUS: Full OI pipeline end-to-end.** Solo falta conectar LLM real.
 
+### Sesion 5 — 2026-03-27 (con usuario presente)
+- **Primer piloto real OI** con LLM (gpt-5.2-codex solver + gpt-5.4 compiler)
+  contra treatment world curado
+- **Hallazgo 1:** Warrant demasiado agresivo mataba claims correctos
+  (0.167 con warrant → 0.619 sin warrant). Warrant deshabilitado para Alpha.
+  No estaba en el plan Alpha original ("sin warrant formal").
+- **Hallazgo 2:** LLM compiler funciona — traduce mediacion a 2 specs,
+  detecta confounding como abstention. Score mejoro de 0.078 a 0.750
+  correctness con compiler LLM.
+- **Hallazgo 3:** Solver investiga de verdad (correlaciones, regresion,
+  estratificacion, Baron & Kenny para mediacion). Anti-overclaiming del
+  prompt funciona — dice "association" no "causal effect".
+- **Debate fundamental sobre scoring:** salience map como techo vs piso.
+  4 AIs + usuario coinciden: salience map no puede ser el arbitro.
+  Documentado en `research/synthesis/oi_scoring_fundamentals.md`.
+- **Framework mental clave:** pregunta vaga = multiples outputs valiosos
+  (no multiples verdades arbitrarias). Sub-preguntas con pesos como
+  mecanismo de relevancia: el brief implica que es mas/menos importante.
+- **Decision:** no redisenar scoring sin datos. Correr 3 mundos primero,
+  identificar problemas reales, iterar despues.
+- **Cambios en codigo:** warrant disabled en oi_runner.py, oi_pilot.py
+  (script de piloto, removido post-uso).
+- **Codex threads:** 019d2f29 (test), 019d2f6d (analisis piloto, expirado),
+  019d305a (critica scoring)
+- **STATUS:** Principios de scoring documentados. Proximo: correr pilotos
+  en 3 mundos con pipeline actual.
+

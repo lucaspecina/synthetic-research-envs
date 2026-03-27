@@ -349,6 +349,10 @@ class OIEpisodeRunner:
         all_asset_ids = self.catalog.all_ids
 
         # Score the episode
+        # Warrant disabled for Alpha-0: pass trace=None to give full credit.
+        # Original Alpha design: "Sin warrant formal (solo log check basico)"
+        # The warrant system exists but is too aggressive for initial pilots.
+        # Re-enable by passing trace=self.trace once warrant is calibrated.
         score = score_compiled_episode(
             compiled_claims=compiled,
             families=salience.families,
@@ -357,7 +361,7 @@ class OIEpisodeRunner:
             n_mc=self.n_mc,
             seed=self.seed,
             claim_cards=claims,
-            trace=self.trace,
+            trace=None,
             data_asset_ids=all_asset_ids,
         )
 

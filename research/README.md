@@ -182,6 +182,11 @@ desplazandose hacia `synthesis/`.
   4 niveles, multiplicador claim-level, debate con Codex.
 - **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
 - **Status:** Alpha-0 funcional (129 tests). Warrant system implemented.
+- **Scoring fundamentals:** `synthesis/oi_scoring_fundamentals.md` — framework
+  mental para el scoring de OI. Pregunta precisa = una respuesta. Pregunta
+  vaga = multiples outputs valiosos. Salience map = piso, no techo. Verdad
+  se verifica contra SCM directamente, no contra lista precomputada.
+  Consenso de 4 perspectivas (usuario, Claude, Codex, ChatGPT).
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
