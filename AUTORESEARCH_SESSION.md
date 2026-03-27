@@ -135,6 +135,11 @@ que el diseno haya sobrevivido debate.
   - score_episode: correctness(60%) + coverage(30%) + efficiency(10%)
   - Pendiente: salience map generator, macros, docs update
 - **Issue #4 FIXED:** familias multi-atomo (1-3 atomos con qualifiers)
-- **Docs actualizados:** case_analysis.md, session file
-- **Proximo:** piloto E2E sin compiler (oracle vs no-data vs shotgun)
+- **Issue #1 FIXED:** ADJUST ahora usa stratificacion observacional
+- **Pilot E2E VALIDADO:** Oracle(0.775) > No-data(0.550) > Shotgun(0.340)
+- **70 tests passing** (42 models + 15 verifier + 9 salience + 4 pilot)
+- **10 commits**, todo pushed
+- **Docs actualizados:** case_analysis.md, vision.md, session file
+- **STATUS: Alpha-0 funcional.** Pipeline separa oracle/nodata/shotgun.
+  Para Alpha-1 necesita compiler LLM + solver adaptado.
 
