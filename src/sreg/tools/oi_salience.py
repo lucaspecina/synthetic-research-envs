@@ -43,23 +43,25 @@ logger = logging.getLogger(__name__)
 
 EFFECT_THRESHOLDS: dict[str, float] = {
     "causal_effect": 0.15,
-    "observational_effect": 0.10,
+    "observational_association": 0.15,
     "heterogeneity": 0.10,
     "interaction": 0.10,
     "mediation": 0.15,
     "tail_risk": 0.05,
     "variance_effect": 0.10,
+    "effect_ranking": 0.10,
 }
 
 # Max families per pattern class
 PATTERN_CAPS: dict[str, int] = {
     "causal_effect": 8,
-    "observational_effect": 4,
+    "observational_association": 3,
     "heterogeneity": 4,
     "interaction": 3,
     "mediation": 3,
     "tail_risk": 2,
     "variance_effect": 2,
+    "effect_ranking": 1,
 }
 
 
@@ -123,6 +125,12 @@ def build_salience_map(
 
     # 5. Variance effects: interventions that change variability
     candidates.extend(_enumerate_variance_effects(world, solver, frontier, target, y_std, seed))
+
+    # 6. Observational associations: partial correlations
+    candidates.extend(_enumerate_observational_associations(world, frontier, target, n_mc, seed))
+
+    # 7. Effect ranking: which ancestor has strongest effect on target
+    candidates.extend(_enumerate_effect_ranking(world, solver, frontier, target, y_std, seed))
 
     # Filter by effect size threshold
     candidates = [
@@ -213,9 +221,7 @@ def _enumerate_causal_effects(
             )
 
             atoms = [
-                FamilyAtom(
-                    atom_id=main_spec.spec_id, spec=main_spec, weight=1.0, material=True
-                )
+                FamilyAtom(atom_id=main_spec.spec_id, spec=main_spec, weight=1.0, material=True)
             ]
 
             # Enrich: look for strongest heterogeneity qualifier
@@ -268,8 +274,12 @@ def _find_strongest_heterogeneity(
             continue
         try:
             result = solver.detect_interaction(
-                treatment=x, outcome=target, modifier=z,
-                v_high=v_hi, v_low=v_lo, seed=seed,
+                treatment=x,
+                outcome=target,
+                modifier=z,
+                v_high=v_hi,
+                v_low=v_lo,
+                seed=seed,
             )
             rel_range = result.get("relative_range", 0)
             if rel_range > best_range and rel_range > 0.10:
@@ -281,14 +291,30 @@ def _find_strongest_heterogeneity(
                 het_spec = AtomicSpec(
                     spec_id=f"het_{x}_{z}_{target}",
                     arms=(
-                        QueryArm(label="hi_zhi", kind=QueryKind.INTERVENE,
-                                 values={x: v_hi}, condition_on={z: z_hi}),
-                        QueryArm(label="lo_zhi", kind=QueryKind.INTERVENE,
-                                 values={x: v_lo}, condition_on={z: z_hi}),
-                        QueryArm(label="hi_zlo", kind=QueryKind.INTERVENE,
-                                 values={x: v_hi}, condition_on={z: z_lo}),
-                        QueryArm(label="lo_zlo", kind=QueryKind.INTERVENE,
-                                 values={x: v_lo}, condition_on={z: z_lo}),
+                        QueryArm(
+                            label="hi_zhi",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_hi},
+                            condition_on={z: z_hi},
+                        ),
+                        QueryArm(
+                            label="lo_zhi",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_lo},
+                            condition_on={z: z_hi},
+                        ),
+                        QueryArm(
+                            label="hi_zlo",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_hi},
+                            condition_on={z: z_lo},
+                        ),
+                        QueryArm(
+                            label="lo_zlo",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_lo},
+                            condition_on={z: z_lo},
+                        ),
                     ),
                     measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
                     comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
@@ -324,8 +350,12 @@ def _find_strongest_mediation(
     for m in mediators:
         try:
             result = solver.mediation_analysis(
-                treatment=x, mediator=m, outcome=target,
-                v_high=v_hi, v_low=v_lo, seed=seed,
+                treatment=x,
+                mediator=m,
+                outcome=target,
+                v_high=v_hi,
+                v_low=v_lo,
+                seed=seed,
             )
             frac = abs(result.get("fraction_mediated", 0))
             if frac > best_frac and frac > 0.15:
@@ -396,33 +426,49 @@ def _enumerate_heterogeneity(
                             label="hi_hi",
                             kind=QueryKind.INTERVENE,
                             values={x: v_hi_x},
-                            condition_on={z: float(np.percentile(
-                                world.observational_distribution(z, n=5000, seed=seed), 75
-                            ))},
+                            condition_on={
+                                z: float(
+                                    np.percentile(
+                                        world.observational_distribution(z, n=5000, seed=seed), 75
+                                    )
+                                )
+                            },
                         ),
                         QueryArm(
                             label="lo_hi",
                             kind=QueryKind.INTERVENE,
                             values={x: v_lo_x},
-                            condition_on={z: float(np.percentile(
-                                world.observational_distribution(z, n=5000, seed=seed), 75
-                            ))},
+                            condition_on={
+                                z: float(
+                                    np.percentile(
+                                        world.observational_distribution(z, n=5000, seed=seed), 75
+                                    )
+                                )
+                            },
                         ),
                         QueryArm(
                             label="hi_lo",
                             kind=QueryKind.INTERVENE,
                             values={x: v_hi_x},
-                            condition_on={z: float(np.percentile(
-                                world.observational_distribution(z, n=5000, seed=seed), 25
-                            ))},
+                            condition_on={
+                                z: float(
+                                    np.percentile(
+                                        world.observational_distribution(z, n=5000, seed=seed), 25
+                                    )
+                                )
+                            },
                         ),
                         QueryArm(
                             label="lo_lo",
                             kind=QueryKind.INTERVENE,
                             values={x: v_lo_x},
-                            condition_on={z: float(np.percentile(
-                                world.observational_distribution(z, n=5000, seed=seed), 25
-                            ))},
+                            condition_on={
+                                z: float(
+                                    np.percentile(
+                                        world.observational_distribution(z, n=5000, seed=seed), 25
+                                    )
+                                )
+                            },
                         ),
                     ),
                     measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
@@ -444,9 +490,7 @@ def _enumerate_heterogeneity(
                             scope_class=f"by_{z}",
                         ),
                         atoms=[
-                            FamilyAtom(
-                                atom_id=spec.spec_id, spec=spec, weight=1.0, material=True
-                            )
+                            FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
                         ],
                         effect_size=rel_range,
                         pattern_class="heterogeneity",
@@ -516,9 +560,7 @@ def _enumerate_mediations(
                             scope_class=f"via_{m}",
                         ),
                         atoms=[
-                            FamilyAtom(
-                                atom_id=spec.spec_id, spec=spec, weight=1.0, material=True
-                            )
+                            FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
                         ],
                         effect_size=abs(frac),
                         pattern_class="mediation",
@@ -589,9 +631,7 @@ def _enumerate_tail_risks(
                         pattern_class="tail_risk",
                         scope_class="p90",
                     ),
-                    atoms=[
-                        FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
-                    ],
+                    atoms=[FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)],
                     effect_size=tail_diff,
                     pattern_class="tail_risk",
                 )
@@ -658,9 +698,7 @@ def _enumerate_variance_effects(
                         pattern_class="variance_effect",
                         scope_class="global",
                     ),
-                    atoms=[
-                        FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
-                    ],
+                    atoms=[FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)],
                     effect_size=var_diff,
                     pattern_class="variance_effect",
                 )
@@ -697,12 +735,13 @@ def _compute_salience(candidate: CandidateTruth, world: SCMWorld, target: str) -
     # Combine: 50% effect size + 30% proximity + 20% pattern novelty
     pattern_novelty = {
         "causal_effect": 0.3,
-        "observational_effect": 0.4,
+        "observational_association": 0.5,
         "heterogeneity": 0.7,
         "interaction": 0.7,
         "mediation": 0.6,
         "tail_risk": 0.8,
         "variance_effect": 0.8,
+        "effect_ranking": 0.4,
     }.get(candidate.pattern_class, 0.5)
 
     effect_norm = min(candidate.effect_size / 0.5, 1.0)  # normalize to [0,1]
@@ -720,6 +759,176 @@ def _apply_pattern_caps(candidates: list[CandidateTruth]) -> list[CandidateTruth
             result.append(c)
             counts[c.pattern_class] = current + 1
     return result
+
+
+# ---------------------------------------------------------------------------
+# Enumeration: observational associations
+# ---------------------------------------------------------------------------
+
+
+def _enumerate_observational_associations(
+    world: SCMWorld,
+    frontier: list[str],
+    target: str,
+    n_mc: int,
+    seed: int,
+) -> list[CandidateTruth]:
+    """Find significant partial correlations between ancestors and target.
+
+    These are OBSERVATIONAL claims: "X and Y are correlated controlling for Z".
+    This is first-class observational science, not interventional.
+    """
+    candidates = []
+    df = world.sample(n=n_mc, seed=seed)
+
+    for x in frontier:
+        if x not in df.columns or target not in df.columns:
+            continue
+        # Simple correlation first
+        raw_corr = abs(float(df[x].corr(df[target])))
+        if raw_corr < EFFECT_THRESHOLDS["observational_association"]:
+            continue
+
+        # Find conditioning set: other ancestors that could confound
+        other_ancestors = [z for z in frontier if z != x]
+        cond_set = tuple(other_ancestors[:3])  # limit to 3 for tractability
+
+        # Compute partial correlation
+        if cond_set:
+            from numpy.linalg import lstsq
+
+            cols = [x, target] + list(cond_set)
+            sub = df[cols].dropna()
+            if len(sub) < 50:
+                continue
+            Z = sub[list(cond_set)].values
+            Z = np.column_stack([Z, np.ones(len(Z))])
+            x_vals = sub[x].values
+            y_vals = sub[target].values
+            coef_x, _, _, _ = lstsq(Z, x_vals, rcond=None)
+            coef_y, _, _, _ = lstsq(Z, y_vals, rcond=None)
+            resid_x = x_vals - Z @ coef_x
+            resid_y = y_vals - Z @ coef_y
+            denom = np.std(resid_x) * np.std(resid_y)
+            if denom < 1e-10:
+                continue
+            pcorr = float(np.corrcoef(resid_x, resid_y)[0, 1])
+        else:
+            pcorr = float(df[x].corr(df[target]))
+
+        if abs(pcorr) < EFFECT_THRESHOLDS["observational_association"]:
+            continue
+
+        direction = AssertionKind.POSITIVE if pcorr > 0 else AssertionKind.NEGATIVE
+        spec = AtomicSpec(
+            spec_id=f"pcor_{x}_{target}",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(
+                kind=MeasurementKind.PARTIAL_CORRELATION,
+                lhs=x,
+                rhs=target,
+                cond_set=cond_set,
+            ),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=direction),
+        )
+
+        candidates.append(
+            CandidateTruth(
+                family_key=FamilyKey(
+                    brief_target=target,
+                    focus_signature=tuple(sorted([x, target])),
+                    pattern_class="observational_association",
+                    scope_class=f"controlling_{','.join(cond_set)}" if cond_set else "marginal",
+                ),
+                atoms=[FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)],
+                effect_size=abs(pcorr),
+                pattern_class="observational_association",
+            )
+        )
+
+    return candidates
+
+
+# ---------------------------------------------------------------------------
+# Enumeration: effect ranking
+# ---------------------------------------------------------------------------
+
+
+def _enumerate_effect_ranking(
+    world: SCMWorld,
+    solver: SCMSolver,
+    frontier: list[str],
+    target: str,
+    y_std: float,
+    seed: int,
+) -> list[CandidateTruth]:
+    """Find the ranking of ancestor effects on target.
+
+    Produces one family: "which variable has the strongest effect on Y?"
+    This is a meta-claim that a good investigator should make.
+    """
+    if len(frontier) < 2:
+        return []
+
+    effect_sizes = {}
+    for x in frontier:
+        try:
+            x_samples = world.observational_distribution(x, n=10_000, seed=seed)
+            v_lo = float(np.percentile(x_samples, 25))
+            v_hi = float(np.percentile(x_samples, 75))
+            if abs(v_hi - v_lo) < 1e-6:
+                continue
+            ate_val = solver.ate(x, target, v_hi, v_lo, seed=seed)
+            effect_sizes[x] = abs(ate_val) / y_std
+        except Exception:
+            continue
+
+    if len(effect_sizes) < 2:
+        return []
+
+    # Sort by effect size descending
+    ranked = sorted(effect_sizes.items(), key=lambda kv: kv[1], reverse=True)
+    top_2 = ranked[:2]
+
+    # Only create ranking if the gap between #1 and #2 is meaningful
+    gap = top_2[0][1] - top_2[1][1]
+    if gap < EFFECT_THRESHOLDS["effect_ranking"]:
+        return []
+
+    # Create a ranking spec: compare top 2-3 effects
+    top_vars = [v for v, _ in ranked[:3]]
+    arms = []
+    for v in top_vars:
+        x_samples = world.observational_distribution(v, n=5000, seed=seed)
+        v_hi = float(np.percentile(x_samples, 75))
+        v_lo = float(np.percentile(x_samples, 25))
+        arms.append(QueryArm(label=f"ate_{v}", kind=QueryKind.INTERVENE, values={v: v_hi}))
+
+    spec = AtomicSpec(
+        spec_id=f"rank_{'_'.join(top_vars)}_{target}",
+        arms=tuple(arms),
+        measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
+        comparison=Comparison(kind=ComparisonKind.RANKING),
+        assertion=Assertion(
+            kind=AssertionKind.RANK_ORDER,
+            order=tuple(f"ate_{v}" for v in top_vars),
+        ),
+    )
+
+    return [
+        CandidateTruth(
+            family_key=FamilyKey(
+                brief_target=target,
+                focus_signature=tuple(sorted(top_vars + [target])),
+                pattern_class="effect_ranking",
+                scope_class="global",
+            ),
+            atoms=[FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)],
+            effect_size=gap,
+            pattern_class="effect_ranking",
+        )
+    ]
 
 
 __all__ = ["build_salience_map", "CandidateTruth"]
