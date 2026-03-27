@@ -120,6 +120,7 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 | Exemplar bank | `src/sreg/tools/oi_exemplars.py` |
 | Episode runner | `src/sreg/tools/oi_runner.py` |
 | LLM extraction | `src/sreg/tools/oi_extraction.py` |
+| Solver prompt template | `src/sreg/tools/oi_prompts.py` |
 | Todo list OI | `TODO.md` seccion A15 |
 | Principios del proyecto | `PROJECT.md` |
 
