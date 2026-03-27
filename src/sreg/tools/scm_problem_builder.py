@@ -25,6 +25,21 @@ if TYPE_CHECKING:
     from sreg.models.case_plan import CasePlan
     from sreg.models.task import Task
 
+_STRUCTURAL = {"sample_id", "site_id", "wave"}
+
+# Map artifact names to stable IDs for trace/warrant
+_ARTIFACT_ID_MAP = {
+    "background_records": "dataset_bg",
+    "field_survey": "dataset_survey",
+    "detailed_analysis": "dataset_detail",
+    "research_data": "dataset_main",
+}
+
+
+def _artifact_id_from_name(name: str) -> str:
+    """Derive a stable artifact_id from a dataset name."""
+    return _ARTIFACT_ID_MAP.get(name, f"dataset_{name.replace(' ', '_').lower()}")
+
 
 class SCMProblemBuilder:
     """Build a ResearchProblem from a semantically enriched SCMWorld."""
@@ -103,8 +118,6 @@ class SCMProblemBuilder:
     ) -> list[DataAsset]:
         """Generate data assets from SCMWorld."""
         obs_vars = world.observable_variables
-        # Structural + proxy columns that should be kept alongside obs vars
-        _STRUCTURAL = {"sample_id", "site_id", "wave"}
 
         if multi_dataset:
             config = RealisticDataConfig(seed=seed)
@@ -122,9 +135,11 @@ class SCMProblemBuilder:
                 df_obs = art.data[keep]
                 rows = df_obs.to_dict(orient="records")
                 cols = [c for c in df_obs.columns if c not in _STRUCTURAL]
-                desc = self._describe_dataset(df_obs, cols)
+                # Derive stable artifact_id from name (e.g. "background_records" → "dataset_bg")
+                aid = _artifact_id_from_name(art.name)
                 assets.append(
                     DataAsset(
+                        artifact_id=aid,
                         name=art.name,
                         description=art.description,
                         format="tabular",
@@ -147,6 +162,7 @@ class SCMProblemBuilder:
         rows = df.to_dict(orient="records")
         return [
             DataAsset(
+                artifact_id="dataset_main",
                 name="research_data",
                 description=f"Dataset with {n_rows} samples. "
                 f"Columns: {', '.join(keep_cols)}.",

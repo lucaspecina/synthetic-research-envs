@@ -70,6 +70,10 @@ class AvailableAction(BaseModel):
 class DataAsset(BaseModel):
     """A data asset available to the agent."""
 
+    artifact_id: str | None = Field(
+        default=None,
+        description="Stable ID for trace/warrant (e.g. 'dataset_bg', 'dataset_survey')",
+    )
     name: str = Field(description="Name of the dataset or observation set")
     description: str = Field(description="What this data contains")
     format: str = Field(description="'tabular', 'observations', or 'narrative'")
