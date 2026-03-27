@@ -87,15 +87,16 @@ INVESTIGAR (que problema resolver?)
 ## Build order de Open Investigation Alpha (A15)
 
 1. [x] Formalizar gramatica composable como DSL ejecutable
-2. [ ] Prototype salience map (enumerar verdades de un SCM real)
+2. [x] Prototype salience map (7 pattern types, multi-atom families)
 3. [x] Claim card contract (Pydantic models con slots minimos)
-4. [ ] Compiler benchmark offline (200+ claims, >90% precision)
+4. [~] Compiler: deterministic pipeline DONE (ClaimIntent IR + lowering +
+   matching + scoring). Solo falta LLM extraction (ClaimCard -> ClaimIntent).
 5. [x] Verifier scoring sin compiler (claims formales perfectos)
-6. [ ] Piloto scaffolded (solver real + compiler + scoring)
+6. [ ] Piloto scaffolded (solver real + compiler + scoring) — requiere LLM
 
-**IMPORTANTE:** Pasos 1-3 son los mas concretos. Pasos 4-6 requieren LLM.
-Pero el FOCO PRINCIPAL es investigacion y diseno — no saltar a codigo sin
-que el diseno haya sobrevivido debate.
+**STATUS:** Todo lo que no requiere LLM esta implementado y testeado (103 tests).
+El unico paso restante que no necesita LLM es el LLM extraction, ironicamente.
+Para avanzar al Alpha-1 se necesita Azure API access.
 
 ---
 
@@ -105,12 +106,14 @@ que el diseno haya sobrevivido debate.
 |------------|-------|
 | Vision OI | `research/synthesis/open_investigation_vision.md` |
 | Working doc (30 casos, debate) | `research/notes/open_investigation_case_analysis.md` |
+| Compiler design | `research/notes/oi_compiler_design.md` |
+| DSL models | `src/sreg/models/open_investigation.py` |
+| Salience map | `src/sreg/tools/oi_salience.py` |
+| Verifier | `src/sreg/tools/oi_verifier.py` |
+| Compiler (IR + lowering + matching) | `src/sreg/tools/oi_compiler.py` |
+| Exemplar bank | `src/sreg/tools/oi_exemplars.py` |
 | Todo list OI | `TODO.md` seccion A15 |
 | Principios del proyecto | `PROJECT.md` |
-| Arquitectura | `ARCHITECTURE.md` |
-| Rubrica cualitativa | `research/synthesis/qualitative_eval_rubric.md` |
-| Cobertura cientifica | `research/synthesis/sreg_scientific_coverage.md` |
-| SCM migration | `research/synthesis/scm_migration_rationale.md` |
 
 ---
 
