@@ -184,15 +184,79 @@ def _run_adjustment(
     n_mc: int,
     seed: int | None,
 ) -> dict[str, Any]:
-    """Backdoor adjustment: E[Y | do(X=x)] via sum_z P(Y|X=x,Z=z)P(Z=z)."""
+    """Backdoor adjustment: E[Y | do(X=x)] = sum_z P(Y|X=x,Z=z) P(Z=z).
+
+    Uses OBSERVATIONAL data + stratification by adjust_set, NOT do().
+    This is the key distinction from INTERVENE: adjust estimates the causal
+    effect from observational data using the backdoor formula.
+    """
     if not arm.treatment or not arm.outcome:
         raise ValueError("adjust arm requires treatment and outcome")
+    if not arm.adjust_set:
+        raise ValueError("adjust arm requires adjust_set (backdoor variables)")
+
     x_val = float(arm.values.get(arm.treatment, 0.0))
-    # Use interventional_samples which already computes do()
-    samples = solver.interventional_samples(
-        arm.outcome, do={arm.treatment: x_val}, n=n_mc, seed=seed
-    )
-    return {"samples": samples, "kind": "adjust", "treatment_val": x_val}
+    outcome = arm.outcome
+    adjust_vars = list(arm.adjust_set)
+
+    # Sample observational data (NO interventions)
+    df = world.sample(n=n_mc, seed=seed)
+
+    # Filter to observations where X is near the desired value
+    df_x = _filter_condition(df, {arm.treatment: x_val})
+    if len(df_x) < 30:
+        logger.warning(
+            "Adjustment: only %d obs with %s~%.2f. Falling back to interventional.",
+            len(df_x),
+            arm.treatment,
+            x_val,
+        )
+        samples = solver.interventional_samples(
+            outcome, do={arm.treatment: x_val}, n=n_mc, seed=seed
+        )
+        return {"samples": samples, "kind": "adjust_fallback", "treatment_val": x_val}
+
+    # Stratified estimation: for each stratum of Z, compute E[Y|X=x, Z=z]
+    # then weight by P(Z=z) from the full population
+    n_strata = min(5, max(2, len(df_x) // 50))
+    adjusted_values = []
+
+    for z_var in adjust_vars:
+        if z_var not in df.columns:
+            continue
+        # Create strata based on quantiles of Z in the full population
+        quantiles = np.quantile(df[z_var].values, np.linspace(0, 1, n_strata + 1))
+        for i in range(n_strata):
+            z_lo, z_hi = quantiles[i], quantiles[i + 1]
+            # P(Z in stratum) from full population
+            mask_pop = (df[z_var] >= z_lo) & (df[z_var] <= z_hi)
+            p_stratum = mask_pop.mean()
+            if p_stratum < 0.01:
+                continue
+            # E[Y | X=x, Z in stratum] from filtered data
+            mask_x_z = (df_x[z_var] >= z_lo) & (df_x[z_var] <= z_hi)
+            stratum_y = df_x.loc[mask_x_z, outcome]
+            if len(stratum_y) < 5:
+                continue
+            adjusted_values.append(float(stratum_y.mean()) * p_stratum)
+
+    if not adjusted_values:
+        # Fallback to simple conditional mean
+        adjusted_mean = float(df_x[outcome].mean())
+    else:
+        adjusted_mean = (
+            sum(adjusted_values) / sum(1 for _ in adjusted_values) if adjusted_values else 0.0
+        )
+        # Renormalize by total weight
+        adjusted_mean = sum(adjusted_values)
+
+    return {
+        "samples": np.array([adjusted_mean]),
+        "kind": "adjust",
+        "treatment_val": x_val,
+        "n_strata": n_strata,
+        "n_obs": len(df_x),
+    }
 
 
 def _run_sweep(
@@ -381,9 +445,7 @@ def _measure_identifiability(measurement: Measurement, world: SCMWorld) -> bool:
     parents = set(dag.predecessors(treatment)) & obs
     if parents:
         try:
-            return nx.is_d_separator(
-                dag.to_undirected(), {treatment}, {outcome}, parents
-            )
+            return nx.is_d_separator(dag.to_undirected(), {treatment}, {outcome}, parents)
         except Exception:
             return False
 
