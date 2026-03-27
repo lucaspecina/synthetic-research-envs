@@ -176,8 +176,12 @@ sigue pendiente. Para Alpha-1 necesita compiler LLM + solver adaptado.
   - 28 tests (4 trace + 12 warrant + 3 episode + 7 scoring + 2 pipeline)
   - Codex review: 4 fixes applied (cross-analysis, ops tightened, ValueError, temporal)
   - Design note: research/notes/oi_warrant_design.md
-- **131 tests passing** (42 models + 22 verifier + 9 salience + 4 pilot +
-  26 compiler + 28 warrant)
-- **STATUS: Issue #5 resuelto.** Solo queda #7 (DISTRIBUTION) de issues no-LLM.
-  Siguiente paso posible: DISTRIBUTION fix o Codex debate sobre next priorities.
+- **Warrant wired into score_compiled_episode():** multi-spec claims
+  (mediation → 2 specs) share same warrant. Pipeline: compile → verify →
+  match → warrant → score. 3 new E2E pipeline tests added.
+- **134 tests passing** (42 models + 22 verifier + 9 salience + 4 pilot +
+  29 compiler + 28 warrant)
+- **STATUS: Issue #5 fully integrated.** Warrant flows through real
+  scoring pipeline. Solo queda #7 (DISTRIBUTION, low priority). Next:
+  solver prompt design or trace contract definition.
 
