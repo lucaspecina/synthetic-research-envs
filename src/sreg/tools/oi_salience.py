@@ -1,0 +1,595 @@
+"""Salience map generator: enumerate significant truths from an SCMWorld.
+
+Given an SCMWorld + a brief (target variable + research question), this module
+enumerates the significant true claims, groups them into families, and builds
+a SalienceMap for coverage scoring.
+
+The map is brief-anchored (starts from target + ancestors), effect-size filtered,
+and capped at ~30 families. No LLM needed — pure algorithmic enumeration.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+
+import networkx as nx
+import numpy as np
+
+from sreg.models.open_investigation import (
+    MAX_FAMILIES,
+    Assertion,
+    AssertionKind,
+    AtomicSpec,
+    Comparison,
+    ComparisonKind,
+    FamilyAtom,
+    FamilyKey,
+    Measurement,
+    MeasurementKind,
+    QueryArm,
+    QueryKind,
+    SalienceFamily,
+    SalienceMap,
+)
+from sreg.solver.scm_solver import SCMSolver
+from sreg.world.scm import SCMWorld
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Effect size thresholds (normalized by sd(Y))
+# ---------------------------------------------------------------------------
+
+EFFECT_THRESHOLDS: dict[str, float] = {
+    "causal_effect": 0.15,
+    "observational_effect": 0.10,
+    "heterogeneity": 0.10,
+    "interaction": 0.10,
+    "mediation": 0.15,
+    "tail_risk": 0.05,
+    "variance_effect": 0.10,
+}
+
+# Max families per pattern class
+PATTERN_CAPS: dict[str, int] = {
+    "causal_effect": 8,
+    "observational_effect": 4,
+    "heterogeneity": 4,
+    "interaction": 3,
+    "mediation": 3,
+    "tail_risk": 2,
+    "variance_effect": 2,
+}
+
+
+@dataclass
+class CandidateTruth:
+    """A candidate truth discovered by enumeration."""
+
+    family_key: FamilyKey
+    atoms: list[FamilyAtom]
+    effect_size: float
+    pattern_class: str
+    salience: float = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+
+def build_salience_map(
+    world: SCMWorld,
+    target: str,
+    n_mc: int = 50_000,
+    seed: int = 42,
+    max_families: int = MAX_FAMILIES,
+) -> SalienceMap:
+    """Build a brief-anchored salience map for an SCMWorld.
+
+    Args:
+        world: The SCMWorld to analyze.
+        target: The primary target variable (from the brief).
+        n_mc: Monte Carlo samples per estimation.
+        seed: Random seed for reproducibility.
+        max_families: Maximum families in the map.
+
+    Returns:
+        A SalienceMap with significant, grouped truths.
+    """
+    solver = SCMSolver(world, n_mc=n_mc)
+    obs = set(world.observable_variables)
+    ancestors = nx.ancestors(world.dag, target) & obs
+    frontier = sorted(ancestors)
+
+    # Compute baseline stats for normalization
+    y_samples = world.observational_distribution(target, n=n_mc, seed=seed)
+    y_std = max(float(np.std(y_samples)), 1e-6)
+
+    candidates: list[CandidateTruth] = []
+
+    # 1. Causal effects: ATE for each ancestor -> target
+    candidates.extend(_enumerate_causal_effects(world, solver, frontier, target, y_std, seed))
+
+    # 2. Heterogeneity: ATE varies by stratum of another ancestor
+    candidates.extend(_enumerate_heterogeneity(world, solver, frontier, target, y_std, seed))
+
+    # 3. Mediation: indirect effects through intermediate nodes
+    candidates.extend(_enumerate_mediations(world, solver, frontier, target, y_std, seed))
+
+    # 4. Tail risk: effect on extreme outcomes
+    candidates.extend(_enumerate_tail_risks(world, solver, frontier, target, y_std, seed))
+
+    # 5. Variance effects: interventions that change variability
+    candidates.extend(_enumerate_variance_effects(world, solver, frontier, target, y_std, seed))
+
+    # Filter by effect size threshold
+    candidates = [
+        c for c in candidates if c.effect_size >= EFFECT_THRESHOLDS.get(c.pattern_class, 0.10)
+    ]
+
+    # Compute salience scores
+    for c in candidates:
+        c.salience = _compute_salience(c, world, target)
+
+    # Sort by salience descending
+    candidates.sort(key=lambda c: c.salience, reverse=True)
+
+    # Apply pattern caps
+    candidates = _apply_pattern_caps(candidates)
+
+    # Take top N
+    candidates = candidates[:max_families]
+
+    # Convert to SalienceFamily
+    families = [
+        SalienceFamily(
+            family_id=f"f_{i}_{c.pattern_class}",
+            key=c.family_key,
+            atoms=tuple(c.atoms),
+            salience=c.salience,
+        )
+        for i, c in enumerate(candidates)
+    ]
+
+    return SalienceMap(
+        world_id=world.id,
+        brief_target=target,
+        families=families,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Enumeration: causal effects
+# ---------------------------------------------------------------------------
+
+
+def _enumerate_causal_effects(
+    world: SCMWorld,
+    solver: SCMSolver,
+    frontier: list[str],
+    target: str,
+    y_std: float,
+    seed: int,
+) -> list[CandidateTruth]:
+    """Enumerate ATEs for each ancestor -> target."""
+    candidates = []
+    for x in frontier:
+        try:
+            # Use p25/p75 as contrast
+            x_samples = world.observational_distribution(x, n=10_000, seed=seed)
+            v_lo = float(np.percentile(x_samples, 25))
+            v_hi = float(np.percentile(x_samples, 75))
+            if abs(v_hi - v_lo) < 1e-6:
+                continue
+
+            ate_val = solver.ate(x, target, v_hi, v_lo, seed=seed)
+            effect_size = abs(ate_val) / y_std
+
+            direction = AssertionKind.POSITIVE if ate_val > 0 else AssertionKind.NEGATIVE
+            spec = AtomicSpec(
+                spec_id=f"ate_{x}_{target}",
+                arms=(
+                    QueryArm(label="hi", kind=QueryKind.INTERVENE, values={x: v_hi}),
+                    QueryArm(label="lo", kind=QueryKind.INTERVENE, values={x: v_lo}),
+                ),
+                measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
+                comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+                assertion=Assertion(kind=direction),
+            )
+
+            candidates.append(
+                CandidateTruth(
+                    family_key=FamilyKey(
+                        brief_target=target,
+                        focus_signature=tuple(sorted([x, target])),
+                        pattern_class="causal_effect",
+                        scope_class="global",
+                    ),
+                    atoms=[
+                        FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
+                    ],
+                    effect_size=effect_size,
+                    pattern_class="causal_effect",
+                )
+            )
+        except Exception as e:
+            logger.debug("Skipping causal effect %s->%s: %s", x, target, e)
+
+    return candidates
+
+
+# ---------------------------------------------------------------------------
+# Enumeration: heterogeneity
+# ---------------------------------------------------------------------------
+
+
+def _enumerate_heterogeneity(
+    world: SCMWorld,
+    solver: SCMSolver,
+    frontier: list[str],
+    target: str,
+    y_std: float,
+    seed: int,
+) -> list[CandidateTruth]:
+    """Find treatment effects that vary by stratum of a modifier."""
+    candidates = []
+
+    for x in frontier:
+        x_samples = world.observational_distribution(x, n=10_000, seed=seed)
+        v_lo_x = float(np.percentile(x_samples, 25))
+        v_hi_x = float(np.percentile(x_samples, 75))
+        if abs(v_hi_x - v_lo_x) < 1e-6:
+            continue
+
+        for z in frontier:
+            if z == x:
+                continue
+            try:
+                result = solver.detect_interaction(
+                    treatment=x,
+                    outcome=target,
+                    modifier=z,
+                    v_high=v_hi_x,
+                    v_low=v_lo_x,
+                    seed=seed,
+                )
+                rel_range = result.get("relative_range", 0)
+                if rel_range < EFFECT_THRESHOLDS["heterogeneity"]:
+                    continue
+
+                spec = AtomicSpec(
+                    spec_id=f"het_{x}_{z}_{target}",
+                    arms=(
+                        QueryArm(
+                            label="hi_hi",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_hi_x},
+                            condition_on={z: float(np.percentile(
+                                world.observational_distribution(z, n=5000, seed=seed), 75
+                            ))},
+                        ),
+                        QueryArm(
+                            label="lo_hi",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_lo_x},
+                            condition_on={z: float(np.percentile(
+                                world.observational_distribution(z, n=5000, seed=seed), 75
+                            ))},
+                        ),
+                        QueryArm(
+                            label="hi_lo",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_hi_x},
+                            condition_on={z: float(np.percentile(
+                                world.observational_distribution(z, n=5000, seed=seed), 25
+                            ))},
+                        ),
+                        QueryArm(
+                            label="lo_lo",
+                            kind=QueryKind.INTERVENE,
+                            values={x: v_lo_x},
+                            condition_on={z: float(np.percentile(
+                                world.observational_distribution(z, n=5000, seed=seed), 25
+                            ))},
+                        ),
+                    ),
+                    measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
+                    comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+                    assertion=Assertion(
+                        kind=AssertionKind.SIGN_FLIP
+                        if result.get("interaction_detected", False)
+                        else AssertionKind.NEAR_ZERO,
+                        tolerance=0.05,
+                    ),
+                )
+
+                candidates.append(
+                    CandidateTruth(
+                        family_key=FamilyKey(
+                            brief_target=target,
+                            focus_signature=tuple(sorted([x, z, target])),
+                            pattern_class="heterogeneity",
+                            scope_class=f"by_{z}",
+                        ),
+                        atoms=[
+                            FamilyAtom(
+                                atom_id=spec.spec_id, spec=spec, weight=1.0, material=True
+                            )
+                        ],
+                        effect_size=rel_range,
+                        pattern_class="heterogeneity",
+                    )
+                )
+            except Exception as e:
+                logger.debug("Skipping heterogeneity %s|%s->%s: %s", x, z, target, e)
+
+    return candidates
+
+
+# ---------------------------------------------------------------------------
+# Enumeration: mediation
+# ---------------------------------------------------------------------------
+
+
+def _enumerate_mediations(
+    world: SCMWorld,
+    solver: SCMSolver,
+    frontier: list[str],
+    target: str,
+    y_std: float,
+    seed: int,
+) -> list[CandidateTruth]:
+    """Find mediation effects: X -> M -> target."""
+    candidates = []
+    dag = world.dag
+
+    for x in frontier:
+        x_samples = world.observational_distribution(x, n=10_000, seed=seed)
+        v_lo = float(np.percentile(x_samples, 25))
+        v_hi = float(np.percentile(x_samples, 75))
+        if abs(v_hi - v_lo) < 1e-6:
+            continue
+
+        # Find potential mediators: children of x that are ancestors of target
+        children_of_x = set(dag.successors(x))
+        ancestors_of_target = nx.ancestors(dag, target)
+        mediators = children_of_x & ancestors_of_target & set(world.observable_variables)
+
+        for m in mediators:
+            try:
+                result = solver.mediation_analysis(
+                    treatment=x, mediator=m, outcome=target, v_high=v_hi, v_low=v_lo, seed=seed
+                )
+                frac = result.get("fraction_mediated", 0)
+                if abs(frac) < EFFECT_THRESHOLDS["mediation"]:
+                    continue
+
+                spec = AtomicSpec(
+                    spec_id=f"med_{x}_{m}_{target}",
+                    arms=(
+                        QueryArm(label="total", kind=QueryKind.INTERVENE, values={x: v_hi}),
+                        QueryArm(label="base", kind=QueryKind.INTERVENE, values={x: v_lo}),
+                    ),
+                    measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
+                    comparison=Comparison(kind=ComparisonKind.PROPORTION),
+                    assertion=Assertion(kind=AssertionKind.POSITIVE),
+                )
+
+                candidates.append(
+                    CandidateTruth(
+                        family_key=FamilyKey(
+                            brief_target=target,
+                            focus_signature=tuple(sorted([x, m, target])),
+                            pattern_class="mediation",
+                            scope_class=f"via_{m}",
+                        ),
+                        atoms=[
+                            FamilyAtom(
+                                atom_id=spec.spec_id, spec=spec, weight=1.0, material=True
+                            )
+                        ],
+                        effect_size=abs(frac),
+                        pattern_class="mediation",
+                    )
+                )
+            except Exception as e:
+                logger.debug("Skipping mediation %s->%s->%s: %s", x, m, target, e)
+
+    return candidates
+
+
+# ---------------------------------------------------------------------------
+# Enumeration: tail risk
+# ---------------------------------------------------------------------------
+
+
+def _enumerate_tail_risks(
+    world: SCMWorld,
+    solver: SCMSolver,
+    frontier: list[str],
+    target: str,
+    y_std: float,
+    seed: int,
+) -> list[CandidateTruth]:
+    """Find interventions that change extreme outcome probability."""
+    candidates = []
+    y_samples = world.observational_distribution(target, n=50_000, seed=seed)
+    p90 = float(np.percentile(y_samples, 90))
+
+    for x in frontier:
+        try:
+            x_samples = world.observational_distribution(x, n=10_000, seed=seed)
+            v_lo = float(np.percentile(x_samples, 25))
+            v_hi = float(np.percentile(x_samples, 75))
+            if abs(v_hi - v_lo) < 1e-6:
+                continue
+
+            y_hi = solver.interventional_samples(target, do={x: v_hi}, n=20_000, seed=seed)
+            seed_lo = (seed + 7) if seed is not None else None
+            y_lo = solver.interventional_samples(target, do={x: v_lo}, n=20_000, seed=seed_lo)
+
+            p_tail_hi = float(np.mean(y_hi > p90))
+            p_tail_lo = float(np.mean(y_lo > p90))
+            tail_diff = abs(p_tail_hi - p_tail_lo)
+
+            if tail_diff < EFFECT_THRESHOLDS["tail_risk"]:
+                continue
+
+            direction = AssertionKind.POSITIVE if p_tail_hi > p_tail_lo else AssertionKind.NEGATIVE
+            spec = AtomicSpec(
+                spec_id=f"tail_{x}_{target}",
+                arms=(
+                    QueryArm(label="hi", kind=QueryKind.INTERVENE, values={x: v_hi}),
+                    QueryArm(label="lo", kind=QueryKind.INTERVENE, values={x: v_lo}),
+                ),
+                measurement=Measurement(
+                    kind=MeasurementKind.TAIL_PROB, target=target, threshold=p90
+                ),
+                comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+                assertion=Assertion(kind=direction),
+            )
+
+            candidates.append(
+                CandidateTruth(
+                    family_key=FamilyKey(
+                        brief_target=target,
+                        focus_signature=tuple(sorted([x, target])),
+                        pattern_class="tail_risk",
+                        scope_class="p90",
+                    ),
+                    atoms=[
+                        FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
+                    ],
+                    effect_size=tail_diff,
+                    pattern_class="tail_risk",
+                )
+            )
+        except Exception as e:
+            logger.debug("Skipping tail risk %s->%s: %s", x, target, e)
+
+    return candidates
+
+
+# ---------------------------------------------------------------------------
+# Enumeration: variance effects
+# ---------------------------------------------------------------------------
+
+
+def _enumerate_variance_effects(
+    world: SCMWorld,
+    solver: SCMSolver,
+    frontier: list[str],
+    target: str,
+    y_std: float,
+    seed: int,
+) -> list[CandidateTruth]:
+    """Find interventions that change outcome variability."""
+    candidates = []
+    y_base_var = float(y_std**2)
+
+    for x in frontier:
+        try:
+            x_samples = world.observational_distribution(x, n=10_000, seed=seed)
+            v_lo = float(np.percentile(x_samples, 25))
+            v_hi = float(np.percentile(x_samples, 75))
+            if abs(v_hi - v_lo) < 1e-6:
+                continue
+
+            y_hi = solver.interventional_samples(target, do={x: v_hi}, n=20_000, seed=seed)
+            seed_lo = (seed + 11) if seed is not None else None
+            y_lo = solver.interventional_samples(target, do={x: v_lo}, n=20_000, seed=seed_lo)
+
+            var_hi = float(np.var(y_hi))
+            var_lo = float(np.var(y_lo))
+            var_diff = abs(var_hi - var_lo) / max(y_base_var, 1e-6)
+
+            if var_diff < EFFECT_THRESHOLDS["variance_effect"]:
+                continue
+
+            direction = AssertionKind.POSITIVE if var_hi > var_lo else AssertionKind.NEGATIVE
+            spec = AtomicSpec(
+                spec_id=f"var_{x}_{target}",
+                arms=(
+                    QueryArm(label="hi", kind=QueryKind.INTERVENE, values={x: v_hi}),
+                    QueryArm(label="lo", kind=QueryKind.INTERVENE, values={x: v_lo}),
+                ),
+                measurement=Measurement(kind=MeasurementKind.VARIANCE, target=target),
+                comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+                assertion=Assertion(kind=direction),
+            )
+
+            candidates.append(
+                CandidateTruth(
+                    family_key=FamilyKey(
+                        brief_target=target,
+                        focus_signature=tuple(sorted([x, target])),
+                        pattern_class="variance_effect",
+                        scope_class="global",
+                    ),
+                    atoms=[
+                        FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
+                    ],
+                    effect_size=var_diff,
+                    pattern_class="variance_effect",
+                )
+            )
+        except Exception as e:
+            logger.debug("Skipping variance effect %s->%s: %s", x, target, e)
+
+    return candidates
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _compute_salience(candidate: CandidateTruth, world: SCMWorld, target: str) -> float:
+    """Compute salience score for a candidate truth.
+
+    Combines effect size, proximity to target, and actionability.
+    """
+    dag = world.dag
+    focus_vars = set(candidate.family_key.focus_signature) - {target}
+
+    # Proximity: average shortest path to target
+    proximities = []
+    for v in focus_vars:
+        try:
+            path_len = nx.shortest_path_length(dag, v, target)
+            proximities.append(1.0 / (1.0 + path_len))
+        except nx.NetworkXNoPath:
+            proximities.append(0.1)
+    proximity = sum(proximities) / max(len(proximities), 1)
+
+    # Combine: 50% effect size + 30% proximity + 20% pattern novelty
+    pattern_novelty = {
+        "causal_effect": 0.3,
+        "observational_effect": 0.4,
+        "heterogeneity": 0.7,
+        "interaction": 0.7,
+        "mediation": 0.6,
+        "tail_risk": 0.8,
+        "variance_effect": 0.8,
+    }.get(candidate.pattern_class, 0.5)
+
+    effect_norm = min(candidate.effect_size / 0.5, 1.0)  # normalize to [0,1]
+    return 0.50 * effect_norm + 0.30 * proximity + 0.20 * pattern_novelty
+
+
+def _apply_pattern_caps(candidates: list[CandidateTruth]) -> list[CandidateTruth]:
+    """Apply per-pattern-class caps to candidate list."""
+    counts: dict[str, int] = {}
+    result = []
+    for c in candidates:
+        cap = PATTERN_CAPS.get(c.pattern_class, 4)
+        current = counts.get(c.pattern_class, 0)
+        if current < cap:
+            result.append(c)
+            counts[c.pattern_class] = current + 1
+    return result
+
+
+__all__ = ["build_salience_map", "CandidateTruth"]
