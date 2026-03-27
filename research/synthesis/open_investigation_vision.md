@@ -502,31 +502,51 @@ Ver `notes/open_investigation_case_analysis.md` para detalle completo.
 
 ## Estado de implementacion (actualizado 2026-03-27)
 
-### Implementado y testeado (70 tests passing)
+### Pipeline completo (103 tests, solo falta LLM extraction)
+
+```
+Solver → ClaimCard (NL)
+  → [LLM + exemplars] → ClaimIntent (symbolic IR)    ← FALTA ESTE PASO
+  → [validate_intent] → preview check
+  → [lower_intent] → AtomicSpec(s) con canonical anchors
+  → [match_specs_to_families] → family matches
+  → [verify_atom vs SCM] → verdicts
+  → [score_compiled_episode] → EpisodeScore
+```
 
 1. **[DONE] DSL grammar** — `src/sreg/models/open_investigation.py`
    42 tests. QueryContext (6 kinds incl observe/adjust), Measurement (9),
    Comparison (8), Assertion (13). ClaimCard, SalienceMap, scoring models.
 
 2. **[DONE] Salience map generator** — `src/sreg/tools/oi_salience.py`
-   9 tests. Brief-anchored, 5 pattern types, multi-atom families with
-   heterogeneity/mediation qualifiers. 10-24 families for 12-node SCM.
+   9 tests. 7 pattern types (causal, mediation, heterogeneity, tail,
+   variance, observational, ranking), multi-atom families with qualifiers.
 
 3. **[DONE] Verifier + scoring** — `src/sreg/tools/oi_verifier.py`
-   15 tests. verify_atom pipeline, specificity bonus + overclaim penalty,
-   episode scoring (correctness 60% + coverage 30% + efficiency 10%).
+   22 tests. verify_atom pipeline, _extract_scalar for any comparison,
+   mediation via 4-arm CDE, identifiability via backdoor criterion,
+   specificity bonus + overclaim penalty, precision gate.
 
 4. **[DONE] Pilot E2E** — `tests/tools/test_oi_pilot.py`
    4 tests. Oracle(0.775) > No-data(0.550) > Shotgun(0.340).
-   Precision gate blocks shotgun coverage. Margins interpretable.
 
-### Pendiente
+5. **[DONE] Compiler (deterministic)** — `src/sreg/tools/oi_compiler.py`
+   26 tests. ClaimIntent IR + WorldSummary anchors + lowering (7 patterns)
+   + preview validator + matching to families + full episode scorer.
+   Multi-part claims (mediation, heterogeneity) → 2 specs per Codex design.
 
-5. **Compiler benchmark offline**: 200+ claims, 15+ mundos, >90%
-   precision, >95% harmful-error control. Requiere LLM.
+6. **[DONE] Exemplar bank** — `src/sreg/tools/oi_exemplars.py`
+   14 positive (all 7 patterns) + 5 negative (abstention). Hand-crafted.
 
-6. **Piloto scaffolded**: solver real + compiler + scoring. Requiere
-   LLM + solver adaptado.
+### Pendiente (requiere LLM)
+
+7. **LLM extraction**: ClaimCard → ClaimIntent via few-shot prompting.
+   El unico paso que necesita LLM en todo el pipeline.
+
+8. **Compiler benchmark offline**: 200+ claims, 15+ mundos, >90%
+   precision, >95% harmful-error control.
+
+9. **Piloto scaffolded**: solver real + compiler + scoring.
 
 ### Issues conocidos (Codex review 2026-03-27)
 
