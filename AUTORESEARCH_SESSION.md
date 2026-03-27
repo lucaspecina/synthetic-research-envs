@@ -181,7 +181,19 @@ sigue pendiente. Para Alpha-1 necesita compiler LLM + solver adaptado.
   match → warrant → score. 3 new E2E pipeline tests added.
 - **134 tests passing** (42 models + 22 verifier + 9 salience + 4 pilot +
   29 compiler + 28 warrant)
-- **STATUS: Issue #5 fully integrated.** Warrant flows through real
-  scoring pipeline. Solo queda #7 (DISTRIBUTION, low priority). Next:
-  solver prompt design or trace contract definition.
+- **Trace contract designed:** research/notes/oi_trace_contract.md
+  Hybrid instrumentation: load_artifact() mandatory, helpers preferred,
+  raw pandas allowed. DataAsset.artifact_id added to model + builder.
+- **Solver prompt designed:** research/notes/oi_solver_prompt_design.md
+  Association vs causation guidance, instrumented helpers exposed,
+  epistemological closure criteria. Codex-reviewed (anti-overclaiming,
+  anti-shotgun, metadata in catalog).
+- **WorldSummary consistency audit:** No structural problem. Salience map
+  and compiler both use p25/p75 from same world. Matching doesn't
+  compare arm values. Shared WorldSummary would be cleaner but not
+  blocking.
+- **STATUS: Non-LLM design work complete.** Warrant, trace contract,
+  solver prompt all designed and reviewed. 134 tests. Issue #7
+  (DISTRIBUTION) documented as reserved. For Alpha-1: implement LLM
+  extraction, OI episode runner, solver prompt.
 
