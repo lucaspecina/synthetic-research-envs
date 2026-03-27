@@ -500,32 +500,54 @@ De 30 respuestas diversas en 10 dominios:
 Los que rompen son claims EPISTEMICOS, no causales complejos.
 Ver `notes/open_investigation_case_analysis.md` para detalle completo.
 
-## Proximos pasos de investigacion (actualizado 2026-03-26)
+## Estado de implementacion (actualizado 2026-03-27)
 
-1. **Formalizar la gramatica composable** como DSL ejecutable con las 4
-   piezas + macros nombradas.
+### Implementado y testeado (70 tests passing)
 
-2. **Prototype truth map**: dado un SCM real, enumerar verdades canonicas
-   agrupadas en familias. Verificar que el volumen es manejable.
+1. **[DONE] DSL grammar** — `src/sreg/models/open_investigation.py`
+   42 tests. QueryContext (6 kinds incl observe/adjust), Measurement (9),
+   Comparison (8), Assertion (13). ClaimCard, SalienceMap, scoring models.
 
-3. **Disenar claim card contract**: Pydantic models con slots minimos.
-   Probar si el formato es natural para un solver.
+2. **[DONE] Salience map generator** — `src/sreg/tools/oi_salience.py`
+   9 tests. Brief-anchored, 5 pattern types, multi-atom families with
+   heterogeneity/mediation qualifiers. 10-24 families for 12-node SCM.
 
-4. **Compiler benchmark offline**: 200+ claims, 15+ mundos, multiples
-   estilos. Target: >90% precision, >95% harmful-error control.
+3. **[DONE] Verifier + scoring** — `src/sreg/tools/oi_verifier.py`
+   15 tests. verify_atom pipeline, specificity bonus + overclaim penalty,
+   episode scoring (correctness 60% + coverage 30% + efficiency 10%).
 
-5. **Verifier scoring sin compiler**: probar scoring con claims formales
-   perfectos. Validar que correctness + coverage separan buenos de malos.
+4. **[DONE] Pilot E2E** — `tests/tools/test_oi_pilot.py`
+   4 tests. Oracle(0.775) > No-data(0.550) > Shotgun(0.340).
+   Precision gate blocks shotgun coverage. Margins interpretable.
 
-6. **Piloto scaffolded**: solver real + compiler + scoring.
+### Pendiente
+
+5. **Compiler benchmark offline**: 200+ claims, 15+ mundos, >90%
+   precision, >95% harmful-error control. Requiere LLM.
+
+6. **Piloto scaffolded**: solver real + compiler + scoring. Requiere
+   LLM + solver adaptado.
+
+### Issues conocidos (Codex review 2026-03-27)
+
+- ADJUST: FIXED — ahora usa stratificacion observacional, no do()
+- Multi-atom families: FIXED — causal effects tienen 1-3 atomos
+- Identifiability check: implementacion basica, no verifica candidate_causes
+- Estimand mismatch: mediacion families verifican proporcion pero no
+  fraction_mediated real
+- evidence_basis no se usa en scoring (solver sin datos puede ganar)
+- Salience map solo tiene patterns interventionales
+- DISTRIBUTION measurement es placeholder
 
 ### Lineas de exploracion abiertas
 
-- Identifiability check como operador nuevo (rescata 2/5 NO FUNCIONA)
-- Multi-outcome trade-offs (rescata 1/5 si SCM tiene ambos outcomes)
+- Identifiability check robusto (rescata 2/5 NO FUNCIONA del stress test)
+- Multi-outcome trade-offs (rescata 1/5)
+- Patterns observacionales en salience map
+- Warrant via log check (evidence_basis)
 - Coherence-lite via support graph (bonus 5-10%)
 - Intent metadata del generador para relevance algoritmico
-- Compilador fino-tuneado local para reducir costo en RL
+- Compilador local para reducir costo en RL
 
 ## Origen de esta idea
 
