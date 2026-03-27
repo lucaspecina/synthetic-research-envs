@@ -1113,3 +1113,20 @@ verdades del mundo, no verdades epistemologicas.
 - Lazy expansion: +5 familias por claim sin match
 
 **Proximo paso:** implementar como DSL Python en src/sreg/models/
+
+### 2026-03-27 — Autoresearch: implementacion + review Codex
+- 3 modulos implementados: open_investigation.py, oi_verifier.py, oi_salience.py
+- 66 tests passing
+- **Review de Codex encontro 7 issues:**
+  1. CRITICO: ADJUST usa do() en vez de backdoor adjustment real
+  2. CRITICO: IDENTIFIABILITY_CHECK no verifica lo que promete
+  3. CRITICO: familias heterogeneidad/mediacion generan con un estimando
+     y verifican con otro (rompe exactitud local)
+  4. IMPORTANTE: familias son mono-atomo → anti-simplificacion no opera
+  5. IMPORTANTE: evidence_basis/confidence no se usan en scoring
+  6. IMPORTANTE: salience map solo tiene 5 patterns interventionales
+  7. MENOR: DISTRIBUTION placeholder, GAP_MATERIAL hardcodeado
+- Conclusion de Codex: "esto todavia no pasa LA PREGUNTA — scorea verdad,
+  no investigacion. Un solver sin datos pero con priors gana."
+- **Plan:** fixear #3 y #4 (esenciales para scoring), luego piloto E2E
+  sin compiler (oracle → verify → compare baselines)

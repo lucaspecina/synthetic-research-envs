@@ -173,11 +173,22 @@ def _enumerate_causal_effects(
     y_std: float,
     seed: int,
 ) -> list[CandidateTruth]:
-    """Enumerate ATEs for each ancestor -> target."""
+    """Enumerate ATEs for each ancestor -> target.
+
+    Each family is ENRICHED with qualifier atoms:
+    - Main atom: the ATE itself (material=True)
+    - Heterogeneity atom: if ATE varies by some modifier (material=True)
+    - Mediation atom: if effect operates through a mediator (material=False, bonus)
+
+    This enables the anti-simplification scoring to operate:
+    "X causes Y" covers 1 atom; "X causes Y, especially when Z is high,
+    operating through M" covers 3 atoms and scores higher.
+    """
     candidates = []
+    dag = world.dag
+
     for x in frontier:
         try:
-            # Use p25/p75 as contrast
             x_samples = world.observational_distribution(x, n=10_000, seed=seed)
             v_lo = float(np.percentile(x_samples, 25))
             v_hi = float(np.percentile(x_samples, 75))
@@ -186,9 +197,11 @@ def _enumerate_causal_effects(
 
             ate_val = solver.ate(x, target, v_hi, v_lo, seed=seed)
             effect_size = abs(ate_val) / y_std
+            if effect_size < EFFECT_THRESHOLDS["causal_effect"]:
+                continue
 
             direction = AssertionKind.POSITIVE if ate_val > 0 else AssertionKind.NEGATIVE
-            spec = AtomicSpec(
+            main_spec = AtomicSpec(
                 spec_id=f"ate_{x}_{target}",
                 arms=(
                     QueryArm(label="hi", kind=QueryKind.INTERVENE, values={x: v_hi}),
@@ -199,6 +212,24 @@ def _enumerate_causal_effects(
                 assertion=Assertion(kind=direction),
             )
 
+            atoms = [
+                FamilyAtom(
+                    atom_id=main_spec.spec_id, spec=main_spec, weight=1.0, material=True
+                )
+            ]
+
+            # Enrich: look for strongest heterogeneity qualifier
+            best_het = _find_strongest_heterogeneity(
+                world, solver, x, target, v_hi, v_lo, frontier, seed
+            )
+            if best_het is not None:
+                atoms.append(best_het)
+
+            # Enrich: look for mediation qualifier
+            best_med = _find_strongest_mediation(world, solver, x, target, v_hi, v_lo, dag, seed)
+            if best_med is not None:
+                atoms.append(best_med)
+
             candidates.append(
                 CandidateTruth(
                     family_key=FamilyKey(
@@ -207,9 +238,7 @@ def _enumerate_causal_effects(
                         pattern_class="causal_effect",
                         scope_class="global",
                     ),
-                    atoms=[
-                        FamilyAtom(atom_id=spec.spec_id, spec=spec, weight=1.0, material=True)
-                    ],
+                    atoms=atoms,
                     effect_size=effect_size,
                     pattern_class="causal_effect",
                 )
@@ -218,6 +247,107 @@ def _enumerate_causal_effects(
             logger.debug("Skipping causal effect %s->%s: %s", x, target, e)
 
     return candidates
+
+
+def _find_strongest_heterogeneity(
+    world: SCMWorld,
+    solver: SCMSolver,
+    x: str,
+    target: str,
+    v_hi: float,
+    v_lo: float,
+    frontier: list[str],
+    seed: int,
+) -> FamilyAtom | None:
+    """Find the strongest heterogeneity qualifier for X->target."""
+    best_range = 0.0
+    best_atom = None
+
+    for z in frontier:
+        if z == x:
+            continue
+        try:
+            result = solver.detect_interaction(
+                treatment=x, outcome=target, modifier=z,
+                v_high=v_hi, v_low=v_lo, seed=seed,
+            )
+            rel_range = result.get("relative_range", 0)
+            if rel_range > best_range and rel_range > 0.10:
+                best_range = rel_range
+                z_samples = world.observational_distribution(z, n=5000, seed=seed)
+                z_hi = float(np.percentile(z_samples, 75))
+                z_lo = float(np.percentile(z_samples, 25))
+
+                het_spec = AtomicSpec(
+                    spec_id=f"het_{x}_{z}_{target}",
+                    arms=(
+                        QueryArm(label="hi_zhi", kind=QueryKind.INTERVENE,
+                                 values={x: v_hi}, condition_on={z: z_hi}),
+                        QueryArm(label="lo_zhi", kind=QueryKind.INTERVENE,
+                                 values={x: v_lo}, condition_on={z: z_hi}),
+                        QueryArm(label="hi_zlo", kind=QueryKind.INTERVENE,
+                                 values={x: v_hi}, condition_on={z: z_lo}),
+                        QueryArm(label="lo_zlo", kind=QueryKind.INTERVENE,
+                                 values={x: v_lo}, condition_on={z: z_lo}),
+                    ),
+                    measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
+                    comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+                    assertion=Assertion(kind=AssertionKind.SIGN_FLIP, tolerance=0.05),
+                )
+                best_atom = FamilyAtom(
+                    atom_id=het_spec.spec_id, spec=het_spec, weight=0.7, material=True
+                )
+        except Exception:
+            continue
+
+    return best_atom
+
+
+def _find_strongest_mediation(
+    world: SCMWorld,
+    solver: SCMSolver,
+    x: str,
+    target: str,
+    v_hi: float,
+    v_lo: float,
+    dag: nx.DiGraph,
+    seed: int,
+) -> FamilyAtom | None:
+    """Find the strongest mediation path for X->target."""
+    children_of_x = set(dag.successors(x))
+    ancestors_of_target = nx.ancestors(dag, target)
+    mediators = children_of_x & ancestors_of_target & set(world.observable_variables)
+
+    best_frac = 0.0
+    best_atom = None
+
+    for m in mediators:
+        try:
+            result = solver.mediation_analysis(
+                treatment=x, mediator=m, outcome=target,
+                v_high=v_hi, v_low=v_lo, seed=seed,
+            )
+            frac = abs(result.get("fraction_mediated", 0))
+            if frac > best_frac and frac > 0.15:
+                best_frac = frac
+                # Mediation atom: bonus (not material — discovering it is extra credit)
+                med_spec = AtomicSpec(
+                    spec_id=f"med_{x}_{m}_{target}",
+                    arms=(
+                        QueryArm(label="total", kind=QueryKind.INTERVENE, values={x: v_hi}),
+                        QueryArm(label="base", kind=QueryKind.INTERVENE, values={x: v_lo}),
+                    ),
+                    measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
+                    comparison=Comparison(kind=ComparisonKind.PROPORTION),
+                    assertion=Assertion(kind=AssertionKind.POSITIVE),
+                )
+                best_atom = FamilyAtom(
+                    atom_id=med_spec.spec_id, spec=med_spec, weight=0.5, material=False
+                )
+        except Exception:
+            continue
+
+    return best_atom
 
 
 # ---------------------------------------------------------------------------
