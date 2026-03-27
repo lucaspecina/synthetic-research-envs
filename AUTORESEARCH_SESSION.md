@@ -89,14 +89,17 @@ INVESTIGAR (que problema resolver?)
 1. [x] Formalizar gramatica composable como DSL ejecutable
 2. [x] Prototype salience map (7 pattern types, multi-atom families)
 3. [x] Claim card contract (Pydantic models con slots minimos)
-4. [~] Compiler: deterministic pipeline DONE (ClaimIntent IR + lowering +
-   matching + scoring). Solo falta LLM extraction (ClaimCard -> ClaimIntent).
+4. [x] Compiler: deterministic pipeline + LLM extraction infrastructure.
+   ClaimIntent IR + lowering + matching + scoring + extraction prompt builder +
+   response parser + deterministic fallback. LLM call is pluggable.
 5. [x] Verifier scoring sin compiler (claims formales perfectos)
-6. [ ] Piloto scaffolded (solver real + compiler + scoring) — requiere LLM
+6. [~] Episode runner + extraction pipeline implemented. Solo falta LLM real.
+   OIEpisodeRunner: artifact catalog, namespace, trace, scoring pipeline.
+   oi_extraction: prompt builder, parser, compile_claim, deterministic fallback.
 
-**STATUS:** Todo lo que no requiere LLM esta implementado y testeado (129 tests).
-Issue #5 (evidence_basis) RESUELTO con warrant system. Issue #7 (DISTRIBUTION)
-sigue pendiente. Para Alpha-1 necesita compiler LLM + solver adaptado.
+**STATUS:** Full OI pipeline implemented end-to-end with mock solver. ~200 tests.
+Issue #5 (evidence_basis) RESUELTO. Issue #7 (DISTRIBUTION) pendiente (low priority).
+Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 
 ---
 
@@ -115,6 +118,8 @@ sigue pendiente. Para Alpha-1 necesita compiler LLM + solver adaptado.
 | Warrant checker | `src/sreg/tools/oi_warrant.py` |
 | Instrumented helpers | `src/sreg/tools/oi_helpers.py` |
 | Exemplar bank | `src/sreg/tools/oi_exemplars.py` |
+| Episode runner | `src/sreg/tools/oi_runner.py` |
+| LLM extraction | `src/sreg/tools/oi_extraction.py` |
 | Todo list OI | `TODO.md` seccion A15 |
 | Principios del proyecto | `PROJECT.md` |
 
@@ -201,4 +206,26 @@ sigue pendiente. Para Alpha-1 necesita compiler LLM + solver adaptado.
 - **STATUS: All non-LLM infrastructure complete.** Warrant, helpers,
   trace contract, solver prompt, artifact_id all done. 27 commits.
   For Alpha-1: LLM extraction, OI episode runner, solver prompt impl.
+
+### Sesion 4 — 2026-03-27 (post-compact #2)
+- **OI Episode Runner implemented:** `oi_runner.py` — ArtifactCatalog,
+  OIEpisodeRunner (namespace, trace, scoring pipeline). 25 tests.
+- **Compiler LLM extraction implemented:** `oi_extraction.py` — prompt
+  builder, response parser, compile_claim, deterministic fallback. 28 tests.
+- **Auto-compilation wired:** submit_claims() auto-compiles via extraction
+  pipeline when no pre-compiled claims provided. Deterministic fallback
+  uses focus_variables (strict, no text scanning).
+- **Codex review (thread 019d2e52):** 5 issues found, all addressed:
+  - FIXED: Namespace leak (__self__ → closures, no backrefs)
+  - FIXED: OIHelpers proxy (blocks _log/_trace access)
+  - FIXED: Derived artifact provenance (AnalysisRecord + lineage)
+  - FIXED: compiled_claims validation (type, count, claim_id alignment)
+  - FIXED: LLM extraction fails closed (exceptions → abstention)
+  - FIXED: Stricter deterministic fallback (focus_variables only)
+  - KNOWN: Fabricated data bypass (solver creates DataFrame from scratch,
+    saves as derived, cites in claim → warrant 1.0). Deferred to RL
+    hardening phase — Alpha-1 solver is cooperative.
+- **67 new tests** (25 runner + 28 extraction + 14 Codex-fix tests)
+- **1709 total tests passing** (was 1656 + 53 new)
+- **STATUS: Full OI pipeline end-to-end.** Solo falta conectar LLM real.
 
