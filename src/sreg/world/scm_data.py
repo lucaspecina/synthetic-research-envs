@@ -744,20 +744,35 @@ def _describe(df: pd.DataFrame) -> str:
     _STRUCTURAL = {"sample_id", "site_id", "wave"}
     cols = [c for c in df.columns if c not in _STRUCTURAL]
     n_rows = len(df)
+    n_cols = len(cols)
 
-    desc = f"Dataset with {n_rows} observations."
-    if "site_id" in df.columns:
-        desc += f" Collected from {df['site_id'].nunique()} sites."
-    if "wave" in df.columns:
-        desc += f" {df['wave'].nunique()} measurement waves."
+    # Vary the opening phrase based on data characteristics
+    n_sites = int(df["site_id"].nunique()) if "site_id" in df.columns else 0
+    n_waves = int(df["wave"].nunique()) if "wave" in df.columns else 0
 
-    desc += f" Columns: {', '.join(cols)}."
+    if n_sites > 0 and n_waves > 1:
+        desc = (
+            f"Panel dataset: {n_rows} records from {n_sites} sites "
+            f"across {n_waves} measurement waves. "
+            f"{n_cols} variables measured."
+        )
+    elif n_sites > 0:
+        desc = (
+            f"Cross-sectional survey from {n_sites} collection sites. "
+            f"{n_rows} records, {n_cols} variables."
+        )
+    else:
+        desc = f"Dataset with {n_rows} observations and {n_cols} variables."
 
-    total_cells = n_rows * len(cols)
+    # Report missing data if significant
+    total_cells = n_rows * n_cols
     missing_cells = df[cols].isna().sum().sum()
     missing_pct = (missing_cells / total_cells * 100) if total_cells > 0 else 0
-    if missing_pct > 1:
-        desc += f" Missing data: {missing_pct:.0f}%."
+    if missing_pct > 5:
+        desc += f" Incomplete records: {missing_pct:.0f}% missing values."
+    elif missing_pct > 1:
+        desc += f" Some missing values ({missing_pct:.0f}%)."
+
     return desc
 
 

@@ -787,9 +787,19 @@ class Orchestrator:
             tasks = result.task if isinstance(result.task, list) else None
 
             effective_rows = max(num_rows, 200)
+            # Vary panel structure per SRC for realism (A18)
+            import numpy as _np  # noqa: E402
+
+            _panel_rng = _np.random.default_rng(seed)
+            _n_sites = int(_panel_rng.integers(3, 16))  # 3-15 sites
+            _n_waves = int(_panel_rng.choice([2, 3, 3, 4, 5]))  # 2-5, mode=3
+            _n_proxy = int(_panel_rng.choice([1, 2, 2, 3]))  # 1-3 proxies
+            _dropout = round(float(_panel_rng.uniform(0.05, 0.15)), 2)
             panel_config = PanelConfig(
-                n_sites=max(4, effective_rows // 50),
-                n_waves=3,
+                n_sites=_n_sites,
+                n_waves=_n_waves,
+                n_proxy_columns=_n_proxy,
+                dropout_rate=_dropout,
                 seed=seed,
             )
 
