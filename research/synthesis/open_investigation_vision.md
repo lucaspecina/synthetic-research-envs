@@ -569,13 +569,16 @@ Solver → ClaimCard (NL)
   suppressor mediation, no solo positive).
 - _extract_scalar: FIXED — assertions funcionan con cualquier ComparisonKind,
   no solo DIFFERENCE.
-- evidence_basis no se usa en scoring (solver sin datos puede ganar)
+- evidence_basis: FIXED — warrant system implemented. EpisodeTrace tracks
+  solver accesses/analyses, warrant_score multiplies correctness + coverage.
+  4 levels (exists → accessed → relevant analysis → substantive op_type).
+  prior_floor=0.15: right from priors = 15% credit, full evidence = 100%.
+  Design: `research/notes/oi_warrant_design.md`. Code: `oi_warrant.py`.
 - DISTRIBUTION measurement es placeholder
 
 ### Lineas de exploracion abiertas
 
 - Multi-outcome trade-offs (rescata 1/5 NO FUNCIONA del stress test)
-- Warrant via log check (evidence_basis)
 - Coherence-lite via support graph (bonus 5-10%)
 - Intent metadata del generador para relevance algoritmico
 - Compilador local para reducir costo en RL

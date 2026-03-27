@@ -14,7 +14,7 @@ Design principles:
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -234,6 +234,84 @@ class ClaimSubmission(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Episode Trace — structured log of solver's investigation process
+# ---------------------------------------------------------------------------
+
+
+class ArtifactAccess(BaseModel):
+    """Record of a solver accessing a data artifact during an episode."""
+
+    artifact_id: str = Field(min_length=1)
+    step: int = Field(ge=0, description="Episode step number")
+    access_type: Literal["load", "inspect", "analyze"] = "load"
+
+
+class AnalysisRecord(BaseModel):
+    """Record of a solver running analysis code on data artifacts."""
+
+    analysis_id: str = Field(min_length=1)
+    input_artifact_ids: list[str] = Field(min_length=1)
+    columns_used: list[str] = Field(default_factory=list)
+    op_type: str = Field(
+        min_length=1,
+        description="Analysis type: describe, regression, correlation, groupby, plot, etc.",
+    )
+    step: int = Field(ge=0)
+    output_artifact_id: str | None = Field(
+        default=None, description="Derived artifact ID, if analysis produced one"
+    )
+
+
+class EpisodeTrace(BaseModel):
+    """Structured trace of a solver's investigation during an OI episode.
+
+    Used for evidence warrant checking: did the solver actually investigate
+    to support its claims, or just submit from priors?
+    """
+
+    accesses: list[ArtifactAccess] = Field(default_factory=list)
+    analyses: list[AnalysisRecord] = Field(default_factory=list)
+    claim_steps: dict[str, int] = Field(
+        default_factory=dict,
+        description="claim_id -> step when claim was submitted",
+    )
+
+    def accessed_artifact_ids(self) -> set[str]:
+        """All artifact IDs the solver accessed."""
+        return {a.artifact_id for a in self.accesses}
+
+    def analyzed_artifact_ids(self) -> set[str]:
+        """All artifact IDs the solver ran analysis on."""
+        ids: set[str] = set()
+        for a in self.analyses:
+            ids.update(a.input_artifact_ids)
+        return ids
+
+    def derived_artifact_ids(self) -> set[str]:
+        """All artifact IDs created by solver analyses."""
+        return {a.output_artifact_id for a in self.analyses if a.output_artifact_id}
+
+    def columns_analyzed_for_artifact(self, artifact_id: str) -> set[str]:
+        """Columns the solver analyzed for a specific artifact."""
+        cols: set[str] = set()
+        for a in self.analyses:
+            if artifact_id in a.input_artifact_ids:
+                cols.update(a.columns_used)
+        return cols
+
+
+class WarrantResult(BaseModel):
+    """Per-claim evidence warrant assessment."""
+
+    claim_id: str
+    warrant_score: float = Field(ge=0.0, le=1.0)
+    level_reached: int = Field(ge=0, le=3, description="Highest warrant level achieved")
+    valid_refs: int = Field(ge=0, description="EvidenceRefs referencing real artifacts")
+    accessed_refs: int = Field(ge=0, description="EvidenceRefs with accessed artifacts")
+    analyzed_refs: int = Field(ge=0, description="EvidenceRefs with analyzed artifacts")
+
+
+# ---------------------------------------------------------------------------
 # Salience Map — pre-computed truths for coverage scoring
 # ---------------------------------------------------------------------------
 
@@ -331,6 +409,15 @@ class EpisodeScore(BaseModel):
     families_total: int = Field(ge=0)
     precision_gate_active: bool = False
 
+    # Warrant diagnostics
+    raw_correctness: float | None = Field(
+        default=None, description="Correctness before warrant multiplier"
+    )
+    avg_warrant: float | None = Field(
+        default=None, description="Mean warrant score across claims"
+    )
+    warrant_active: bool = Field(default=False, description="Whether warrant was applied")
+
     # Weights
     W_CORRECTNESS: float = 0.60
     W_COVERAGE: float = 0.30
@@ -348,6 +435,7 @@ FAMILY_HIT_THRESHOLD: float = 0.60
 EPISODE_PRECISION_GATE: float = 0.55
 MAX_CLAIMS: int = 5
 MAX_FAMILIES: int = 30
+WARRANT_PRIOR_FLOOR: float = 0.15
 
 
 # ---------------------------------------------------------------------------
@@ -367,6 +455,10 @@ __all__ = [
     "EvidenceRef",
     "ClaimCard",
     "ClaimSubmission",
+    "ArtifactAccess",
+    "AnalysisRecord",
+    "EpisodeTrace",
+    "WarrantResult",
     "FamilyKey",
     "FamilyAtom",
     "SalienceFamily",
@@ -381,4 +473,5 @@ __all__ = [
     "EPISODE_PRECISION_GATE",
     "MAX_CLAIMS",
     "MAX_FAMILIES",
+    "WARRANT_PRIOR_FLOOR",
 ]

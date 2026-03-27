@@ -177,8 +177,11 @@ desplazandose hacia `synthesis/`.
   composable, debate Claude-Codex-ChatGPT. Working doc activo.
 - **Diseno del compiler:** `notes/oi_compiler_design.md` — arquitectura
   LLM->ClaimIntent->lowering->AtomicSpec. Debate con Codex.
+- **Diseno del warrant:** `notes/oi_warrant_design.md` — evidence warrant
+  system. Verifica que el solver investigo para respaldar sus claims.
+  4 niveles, multiplicador claim-level, debate con Codex.
 - **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
-- **Status:** Alpha-0 funcional (99 tests). Compiler deterministic core done.
+- **Status:** Alpha-0 funcional (129 tests). Warrant system implemented.
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal

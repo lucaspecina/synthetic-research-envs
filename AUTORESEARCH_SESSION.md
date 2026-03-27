@@ -94,9 +94,9 @@ INVESTIGAR (que problema resolver?)
 5. [x] Verifier scoring sin compiler (claims formales perfectos)
 6. [ ] Piloto scaffolded (solver real + compiler + scoring) — requiere LLM
 
-**STATUS:** Todo lo que no requiere LLM esta implementado y testeado (103 tests).
-El unico paso restante que no necesita LLM es el LLM extraction, ironicamente.
-Para avanzar al Alpha-1 se necesita Azure API access.
+**STATUS:** Todo lo que no requiere LLM esta implementado y testeado (129 tests).
+Issue #5 (evidence_basis) RESUELTO con warrant system. Issue #7 (DISTRIBUTION)
+sigue pendiente. Para Alpha-1 necesita compiler LLM + solver adaptado.
 
 ---
 
@@ -107,10 +107,12 @@ Para avanzar al Alpha-1 se necesita Azure API access.
 | Vision OI | `research/synthesis/open_investigation_vision.md` |
 | Working doc (30 casos, debate) | `research/notes/open_investigation_case_analysis.md` |
 | Compiler design | `research/notes/oi_compiler_design.md` |
+| Warrant design | `research/notes/oi_warrant_design.md` |
 | DSL models | `src/sreg/models/open_investigation.py` |
 | Salience map | `src/sreg/tools/oi_salience.py` |
 | Verifier | `src/sreg/tools/oi_verifier.py` |
 | Compiler (IR + lowering + matching) | `src/sreg/tools/oi_compiler.py` |
+| Warrant checker | `src/sreg/tools/oi_warrant.py` |
 | Exemplar bank | `src/sreg/tools/oi_exemplars.py` |
 | Todo list OI | `TODO.md` seccion A15 |
 | Principios del proyecto | `PROJECT.md` |
@@ -159,4 +161,23 @@ Para avanzar al Alpha-1 se necesita Azure API access.
 - **STATUS: Alpha-0 funcional.** Pipeline separa oracle/nodata/shotgun.
   Issues pendientes: #5 (evidence_basis no se usa), #7 (DISTRIBUTION placeholder).
   Para Alpha-1 necesita compiler LLM + solver adaptado.
+
+### Sesion 3 — 2026-03-27 (continuacion post-compact)
+- **Issue #5 FIXED:** Evidence warrant system designed + implemented.
+  Codex debate thread: 019d2de7-b436-7182-afc5-503aa2de0705
+  - EpisodeTrace model: ArtifactAccess + AnalysisRecord (structured, timestamped)
+  - WarrantResult model: per-claim assessment (score, level, ref counts)
+  - oi_warrant.py: compute_claim_warrant (4 levels: exists/accessed/relevant/substantive)
+  - score_episode modified: warrant_scores multiplier on correctness + coverage
+  - prior_floor=0.15: right from priors=15%, full evidence=100%
+  - Temporal ordering enforced: access before claim
+  - Derived artifacts supported: solver-created data counts
+  - Explicit disabled mode: None trace = full credit (backward compat)
+  - 28 tests (4 trace + 12 warrant + 3 episode + 7 scoring + 2 pipeline)
+  - Codex review: 4 fixes applied (cross-analysis, ops tightened, ValueError, temporal)
+  - Design note: research/notes/oi_warrant_design.md
+- **131 tests passing** (42 models + 22 verifier + 9 salience + 4 pilot +
+  26 compiler + 28 warrant)
+- **STATUS: Issue #5 resuelto.** Solo queda #7 (DISTRIBUTION) de issues no-LLM.
+  Siguiente paso posible: DISTRIBUTION fix o Codex debate sobre next priorities.
 
