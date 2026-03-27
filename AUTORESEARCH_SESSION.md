@@ -86,11 +86,11 @@ INVESTIGAR (que problema resolver?)
 
 ## Build order de Open Investigation Alpha (A15)
 
-1. [ ] Formalizar gramatica composable como DSL ejecutable
-2. [ ] Prototype truth map (enumerar verdades de un SCM real)
-3. [ ] Claim card contract (Pydantic models con slots minimos)
+1. [x] Formalizar gramatica composable como DSL ejecutable
+2. [ ] Prototype salience map (enumerar verdades de un SCM real)
+3. [x] Claim card contract (Pydantic models con slots minimos)
 4. [ ] Compiler benchmark offline (200+ claims, >90% precision)
-5. [ ] Verifier scoring sin compiler (claims formales perfectos)
+5. [x] Verifier scoring sin compiler (claims formales perfectos)
 6. [ ] Piloto scaffolded (solver real + compiler + scoring)
 
 **IMPORTANTE:** Pasos 1-3 son los mas concretos. Pasos 4-6 requieren LLM.
@@ -128,6 +128,11 @@ que el diseno haya sobrevivido debate.
 - **Fase 2 COMPLETA:** debate con Codex. 3 cirugias aceptadas. Spec
   corregida entregada con QueryContext, 15 macros, salience map, scoring.
   Thread Codex activo: 019d2d62-d371-7072-8b4c-319eab3fe156
-- **Fase 3 EN CURSO:** implementar DSL como Python en src/sreg/models/
+- **Fase 3 COMPLETA:** DSL implementado como Pydantic models (42 tests)
+- **Fase 4 EN CURSO:** verifier engine implementado (15 tests, 57 total)
+  - verify_atom: arms -> measure -> compare -> assert, all 6 QueryKinds
+  - score_claim_against_family: specificity bonus + overclaim penalty
+  - score_episode: correctness(60%) + coverage(30%) + efficiency(10%)
+  - Pendiente: salience map generator, macros, docs update
 - **Docs actualizados:** case_analysis.md, session file
 
