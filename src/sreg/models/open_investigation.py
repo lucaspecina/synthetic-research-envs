@@ -301,7 +301,7 @@ class AtomVerdict(BaseModel):
 
     atom_id: str
     spec: AtomicSpec
-    ground_truth: float | bool | str
+    ground_truth: float | bool | str | dict[str, Any]
     solver_assertion_holds: bool
     score: float = Field(ge=0.0, le=1.0)
     detail: dict[str, Any] = Field(default_factory=dict)
