@@ -168,12 +168,34 @@ Thresholds:
 - Multi-claim compilation (when one claim maps to 2+ specs)
 - Confidence calibration scoring (separate design)
 
-## Next Steps
+## Implementation Status
 
-1. Build exemplar bank (15-20 pairs)
-2. Design CompilerOutput model
-3. Implement preview validator (deterministic)
-4. Implement compiler with LLM (needs Azure credentials)
-5. Offline benchmark
+### DONE (no LLM needed):
+1. **ClaimIntent IR** — symbolic intermediate representation with PatternClass,
+   Direction, variable roles. Pydantic model with validation.
+2. **WorldSummary** — canonical anchors (percentiles per variable) shared between
+   salience map and compiler. `build_world_summary()` from SCMWorld.
+3. **Deterministic lowering** — `lower_intent()` for all 7 pattern types.
+   Multi-part claims (mediation, heterogeneity) → 2 specs.
+4. **Preview validator** — `validate_intent()` checks variable existence,
+   observability, role requirements. Deterministic, no LLM.
+5. **Matching algorithm** — `match_specs_to_families()` by focus_signature
+   overlap + pattern_class compatibility. Deterministic.
+6. **Full pipeline scorer** — `score_compiled_episode()` handles compile →
+   verify → match → score with abstention handling.
+7. **Exemplar bank** — 14 positive (all 7 patterns) + 5 negative (abstention).
+   Hand-crafted per Codex recommendation.
+8. **CompilerOutput model** — compiled specs or abstention with reason.
 
-Steps 1-3 don't need LLM and can be done now.
+### REMAINING (needs LLM):
+9. **LLM extraction** — ClaimCard → ClaimIntent via few-shot prompting
+10. **Offline benchmark** — 200+ claims, >90% precision, <2% harmful error
+
+### Architecture (implemented per Codex debate)
+```
+ClaimCard (NL) → [LLM + exemplars] → ClaimIntent (symbolic)
+    → [validate_intent] → [lower_intent] → AtomicSpec(s)
+    → [match_specs_to_families] → family matches
+    → [verify_atom] → verdicts
+    → [score_compiled_episode] → EpisodeScore
+```
