@@ -442,10 +442,10 @@ claims epistemicos (taxonomia, subidentificacion), no causales complejos.
 - [x] Conectar OI al orchestrator (generar OI problems, no solo task-based) — Sesion 7
 - [x] Fix: compiler LLM perdia todos los few-shot exemplars — Sesion 8
 - [x] Fix: extraction prompt no listaba confounding — Sesion 8
-- [ ] Re-pilotar 3 mundos con scoring v2 (comparar vs batch1)
+- [x] Re-pilotar 3 mundos con scoring v2 + SQ dual scoring (batch validated)
 - [ ] Compiler benchmark offline (200+ claims, >90% precision)
 - [ ] Alinear verificacion de confounding con deteccion (gap raw-partial)
-- [ ] **PROXIMO: migrar a scoring por sub-preguntas (A19)**
+- [x] **Migrar a scoring por sub-preguntas (A19)** — implementado, piloteado, E2E
 
 ### A19. Scoring Next: sub-preguntas ocultas del orchestrator
 
@@ -471,13 +471,15 @@ sub-preguntas pasan por el MISMO pipeline de compilacion formal.
 - Sub-preguntas = piso de coverage, no techo (bonus para novel discoveries)
 
 **Implementacion (en orden):**
-- [ ] Modelo de datos: SubQuestion, EvaluationContract
-- [ ] Orchestrator emite sub-preguntas al diseñar el caso
-- [ ] Sub-preguntas compiladas a specs formales (mismo pipeline que claims)
-- [ ] Matching programatico (firma canonica) claim vs sub-pregunta
-- [ ] Scoring: truth(SCM) * match * coverage_subpreguntas * no-redundancia
-- [ ] Pilotar con 3 mundos curados: comparar vs scoring v2
-- [ ] Iterar segun pilotos
+- [x] Modelo de datos: SubQuestionIntent, ResolvedSubQuestion, SQRoles, etc.
+- [x] Orchestrator emite sub-preguntas al diseñar el caso (design_case + validate)
+- [x] Sub-preguntas compiladas a specs formales (resolve_subquestion pipeline)
+- [x] Matching programatico (firma canonica) claim vs sub-pregunta
+- [x] Scoring: truth(SCM) * match * coverage_subpreguntas * no-redundancia
+- [x] Pilotar con 3 mundos curados: comparar vs scoring v2
+- [x] E2E con orchestrator real: 5 SQs generados por LLM, repair loop funciona
+- [ ] Comparativo: manual SQs vs orchestrator SQs (mismo mundo)
+- [ ] Decidir si reemplazar v2 o mantener dual
 
 **Conecta con**: A15 (OI), A2 (tipos de preguntas), A5 (taxonomia), A1 (forzar investigacion)
 
