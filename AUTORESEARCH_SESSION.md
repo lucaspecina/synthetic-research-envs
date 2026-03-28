@@ -437,6 +437,19 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
   - **New insight:** scoring needs to recognize adjusted association as evidence
     for causal effect, OR SQs should use obs_assoc instead of causal_effect.
   - The WORLD forces investigation (solver discovers the paradox). The SCORING
-    doesn't fully capture the gap yet. This is a scoring refinement, not a
-    world design problem.
+    doesn't fully capture the gap yet.
+- **Root cause identified: compiler/verifier can't handle sign-reversal confounding**
+  - With obs-aligned SQs: no-data=0.580, with-data=0.000 (ALL SQs MISS!)
+  - The solver correctly reports "negative crude, positive after adjustment"
+  - But the compiler/verifier marks ALL claims as FALSE
+  - The verifier uses interventional ground truth (ATE=+0.4) but the solver
+    reports observational findings (crude corr=-0.64). These are opposite in
+    sign — the verifier sees a contradiction where the solver sees a discovery.
+  - **THIS IS THE NEXT CRITICAL FIX.** The verifier needs to handle obs vs
+    causal truth separately. For obs_assoc claims, verify against raw
+    correlation; for causal claims, verify against ATE.
+  - Without this fix, Simpson worlds (and any sign-reversal confounding) will
+    score 0 for correct claims — making the scoring useless for the most
+    interesting data-indexed worlds.
+- **STATUS:** World design works. Scoring infra needs sign-reversal fix.
 
