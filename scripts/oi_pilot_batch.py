@@ -46,6 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests" / "tools
 from test_oi_curated_worlds import (
     world_ecosystem,
     world_treatment,
+    world_treatment_simpson,
     world_education,
 )
 
@@ -132,6 +133,35 @@ WORLD_SQS = {
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.LOW,
         ),
     ],
+    # Simpson's paradox: crude assoc is NEGATIVE, causal effect is POSITIVE
+    "treatment_simpson": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="observational_association",
+            roles=SQRoles(treatment="Treatment", outcome="Recovery"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+            text_gloss="Crude Treatment-Recovery association (data-indexed: negative!)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="causal_effect",
+            roles=SQRoles(treatment="Treatment", outcome="Recovery"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+            text_gloss="Causal effect of Treatment on Recovery (positive after adjustment)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="confounding",
+            roles=SQRoles(
+                treatment="Treatment", outcome="Recovery", confounder="Severity",
+            ),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+            text_gloss="Severity confounds Treatment-Recovery (sign-reversal confounding)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="causal_effect",
+            roles=SQRoles(treatment="Severity", outcome="Recovery"),
+            ask=AskOperator.SIGN, tier=SQTier.MEDIUM,
+            text_gloss="Severity negatively affects Recovery",
+        ),
+    ],
 }
 
 
@@ -172,6 +202,19 @@ WORLDS = {
             "Your task: Investigate the determinants of income inequality. "
             "What role does education play? Is the education-income "
             "relationship confounded? Are there mediating pathways?"
+        ),
+    },
+    "treatment_simpson": {
+        "factory": world_treatment_simpson,
+        "target": "Recovery",
+        "brief": (
+            "A hospital collected observational data on 300 patients who "
+            "received varying levels of a treatment. Variables include patient "
+            "age, disease severity at admission, treatment dosage, a biomarker "
+            "measured during treatment, and recovery score at discharge.\n\n"
+            "Your task: Investigate why treatment outcomes varied across "
+            "patients. Does the treatment help recovery? Through what "
+            "mechanism? Are there confounding factors?"
         ),
     },
 }

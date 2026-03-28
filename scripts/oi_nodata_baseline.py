@@ -38,7 +38,12 @@ from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_runner import OIEpisodeRunner
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests" / "tools"))
-from test_oi_curated_worlds import world_ecosystem, world_education, world_treatment
+from test_oi_curated_worlds import (
+    world_ecosystem,
+    world_education,
+    world_treatment,
+    world_treatment_simpson,
+)
 
 N_MC = 20_000
 SEED = 42
@@ -86,6 +91,20 @@ WORLDS = {
         "variables": [
             "Wealth", "Motivation", "Education", "Skill", "Income",
         ],
+    },
+    "treatment_simpson": {
+        "factory": world_treatment_simpson,
+        "target": "Recovery",
+        "brief": (
+            "A hospital collected observational data on 300 patients who "
+            "received varying levels of a treatment. Variables include patient "
+            "age, disease severity at admission, treatment dosage, a biomarker "
+            "measured during treatment, and recovery score at discharge.\n\n"
+            "Your task: Investigate why treatment outcomes varied across "
+            "patients. Does the treatment help recovery? Through what "
+            "mechanism? Are there confounding factors?"
+        ),
+        "variables": ["Age", "Severity", "Treatment", "Biomarker", "Recovery"],
     },
 }
 
@@ -160,6 +179,37 @@ WORLD_SQS = {
             sq_id="sq4", pattern="causal_effect",
             roles=SQRoles(treatment="Motivation", outcome="Income"),
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.LOW,
+        ),
+    ],
+    # treatment_simpson: SQs designed to detect Simpson's paradox
+    # SQ1 asks about the CRUDE association (should be NEGATIVE — data-indexed!)
+    # SQ2 asks about the CAUSAL effect (should be POSITIVE)
+    # A no-data LLM would guess both are positive → fails SQ1
+    "treatment_simpson": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="observational_association",
+            roles=SQRoles(treatment="Treatment", outcome="Recovery"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+            text_gloss="Is Treatment associated with Recovery? (crude direction is data-indexed)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="causal_effect",
+            roles=SQRoles(treatment="Treatment", outcome="Recovery"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+            text_gloss="Does Treatment causally help Recovery? (after adjusting)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="confounding",
+            roles=SQRoles(treatment="Treatment", outcome="Recovery",
+                          confounder="Severity"),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+            text_gloss="Does Severity confound the Treatment-Recovery relationship?",
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="causal_effect",
+            roles=SQRoles(treatment="Severity", outcome="Recovery"),
+            ask=AskOperator.SIGN, tier=SQTier.MEDIUM,
+            text_gloss="Does Severity negatively affect Recovery?",
         ),
     ],
 }

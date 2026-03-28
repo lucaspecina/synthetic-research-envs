@@ -122,6 +122,66 @@ def world_treatment() -> SCMWorld:
 
 
 # ---------------------------------------------------------------------------
+# World B2: "Treatment Simpson" — Simpson's paradox variant
+#
+# Designed to force investigation: the crude association between Treatment
+# and Recovery is NEGATIVE (more treatment → worse recovery), but the
+# causal effect is POSITIVE (treatment helps within severity groups).
+#
+# Simpson's paradox mechanism:
+#   Severity → Treatment (STRONG: sicker patients get much more treatment)
+#   Severity → Recovery (STRONG negative: sicker patients recover worse)
+#   Treatment → Recovery (moderate positive: treatment helps)
+#
+# Crude corr(Treatment, Recovery) < 0 because:
+#   high Severity → high Treatment AND low Recovery
+# But causal ATE(Treatment, Recovery) > 0
+#
+# A no-data LLM would guess "treatment helps" (correct causal direction)
+# BUT would not know the crude association is negative. Only data analysis
+# reveals the paradox.
+#
+# Key SQs for this world:
+#   - obs_assoc(Treatment, Recovery) → NEGATIVE (data-indexed!)
+#   - causal_effect(Treatment, Recovery) → POSITIVE
+#   - confounding(Treatment, Recovery, Severity) → EXISTS (sign-reversal)
+# ---------------------------------------------------------------------------
+
+
+def world_treatment_simpson() -> SCMWorld:
+    return SCMWorld(
+        id="curated-treatment-simpson",
+        graph={
+            "Age": [],
+            "Severity": ["Age"],
+            "Treatment": ["Severity"],
+            "Biomarker": ["Treatment"],
+            "Recovery": ["Treatment", "Biomarker", "Severity", "Age"],
+        },
+        equations={
+            "Age": lambda p, rng: rng.normal(50, 12),
+            "Severity": lambda p, rng: (
+                0.02 * p["Age"] + rng.normal(5, 1.5)
+            ),
+            # STRONG confounding: sicker → much more treatment
+            "Treatment": lambda p, rng: (
+                1.8 * p["Severity"] + rng.normal(0, 0.8)
+            ),
+            "Biomarker": lambda p, rng: (
+                -0.3 * p["Treatment"] + rng.normal(8, 1.2)
+            ),
+            "Recovery": lambda p, rng: (
+                0.4 * p["Treatment"]         # positive causal effect
+                - 0.15 * p["Biomarker"]      # weak mediation
+                - 1.8 * p["Severity"]        # STRONG negative severity
+                - 0.01 * p["Age"]
+                + rng.normal(10, 1.5)
+            ),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # World C: "Education" — confounding + variance effect
 #
 # Structure:
