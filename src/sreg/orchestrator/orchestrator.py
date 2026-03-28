@@ -878,6 +878,15 @@ class Orchestrator:
         raw_sqs = args.get("sub_questions", [])
         epistemic_regime = args.get("epistemic_regime", "observational_only")
 
+        if not raw_sqs:
+            return {
+                "error": (
+                    "OI mode requires sub_questions (4-6 items). "
+                    "Provide sub_questions with pattern, roles, ask, tier "
+                    "for each investigation agenda item."
+                ),
+            }
+
         # Parse SubQuestionIntents from raw dicts
         parsed_sqs: list[SubQuestionIntent] = []
         parse_errors: list[str] = []
