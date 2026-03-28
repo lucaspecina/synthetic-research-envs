@@ -433,11 +433,13 @@ claims epistemicos (taxonomia, subidentificacion), no causales complejos.
 - [x] Piloto real (6 runs, solver gpt-5.2-codex + compiler gpt-5.4)
 - [x] Warrant disabled para Alpha (era demasiado agresivo)
 - [x] Scoring fundamentals documentados (salience map = piso no techo)
-- [ ] Fix P1: confounding como patron compilable
-- [ ] Fix P2: NEAR_ZERO assertions (null findings)
-- [ ] Desacoplar correctness de family match (claims verdaderos fuera del map)
+- [x] Fix P1: confounding como patron compilable (scoring v2, Sesion 7)
+- [x] Fix P2: NEAR_ZERO assertions (exemplars + prompt, Sesion 7)
+- [x] Desacoplar correctness de family match (scoring v2, Sesion 7)
+- [ ] Re-pilotar 3 mundos con scoring v2 (comparar vs batch1)
 - [ ] Conectar OI al orchestrator (generar OI problems, no solo task-based)
 - [ ] Compiler benchmark offline (200+ claims, >90% precision)
+- [ ] Alinear verificacion de confounding con deteccion (gap raw-partial)
 
 ### A16. Quality gates por task primitive — eval cualitativa 2026-03-25
 

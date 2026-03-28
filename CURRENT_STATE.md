@@ -253,22 +253,27 @@ implemented E2E with mock solver; requires LLM for real solver + compiler.
 - ~24 atomic pieces combine into hundreds of verifiable specs
 
 **Salience map:** `src/sreg/tools/oi_salience.py`
-- 7 pattern types: causal_effect, mediation, heterogeneity, tail_risk,
-  variance_effect, observational_association, effect_ranking
+- 8 pattern types: causal_effect, mediation, heterogeneity, tail_risk,
+  variance_effect, observational_association, effect_ranking, **confounding**
 - Brief-anchored: starts from target + ancestors, effect-size filtered
 - Multi-atom families with qualifiers
+- Confounding detection: raw vs partial correlation gap
 
 **Compiler:** `src/sreg/tools/oi_compiler.py` + `oi_extraction.py`
 - ClaimIntent IR (symbolic intermediate representation)
 - WorldSummary canonical anchors (percentiles per variable)
-- Deterministic lowering: 7 patterns to AtomicSpec(s)
+- Deterministic lowering: **8 patterns** to AtomicSpec(s) (confounding added)
 - Spec-to-family matching (Jaccard + pattern compatibility)
 - LLM extraction infrastructure: prompt builder, parser, deterministic fallback
-- Exemplar bank: `oi_exemplars.py` (hand-crafted few-shot examples)
+- Exemplar bank: `oi_exemplars.py` (hand-crafted, incl. NEAR_ZERO + confounding)
 
 **Verifier + warrant:** `src/sreg/tools/oi_verifier.py` + `oi_warrant.py`
 - verify_atom: execute AtomicSpec against SCMWorld via Monte Carlo
-- score_episode: correctness(60%) + coverage(30%) + efficiency(10%)
+- score_episode (v1): correctness(60%) + coverage(30%) + efficiency(10%)
+- **score_episode_v2**: correctness decoupled from family match, structural
+  relevance weighting, per-claim min() for multi-spec, coverage uses truth_score
+- **compute_structural_relevance()**: DAG-based relevance (1.0/0.7/0.4/0.0)
+  with NON_TARGET_CAP=0.5 and descriptive penalty=0.2
 - Evidence warrant: 4 levels (exists < accessed < relevant < substantive)
 - Prior floor 0.15: claims from priors get 15%, full investigation 100%
 
@@ -311,9 +316,12 @@ warrant, helpers, runner, extraction, prompts, pilot).
 - Codex review: "family match gates correctness" — true claims that don't
   match a salience family get 0, contradicting own design principle
 
-**Pendiente:** Fix P1 (confounding pattern), fix P2 (NEAR_ZERO assertions),
-decouple correctness from family match, connect OI to orchestrator,
-compiler benchmark (200+ claims).
+**Scoring v2 (Sesion 7):** Correctness decoupled from family match, structural
+relevance, confounding pattern, improved prompt/exemplars. 18 new tests.
+Scripted comparison: confounding claim goes from 0 (v1) to 1.0 (v2).
+
+**Pendiente:** Re-pilotar with scoring v2, connect OI to orchestrator,
+compiler benchmark (200+ claims), align confounding verification with detection.
 
 ---
 
