@@ -201,8 +201,10 @@ Las sub-preguntas se adaptan naturalmente a cada tipo:
 2. [x] Implementar resolucion + matching + scoring (oi_subquestions.py)
 3. [x] Pilotar con 3 mundos curados (manual SQs)
 4. [x] Wiring dual scoring al runner
-5. [ ] Validar con pilotos reales (E2E con LLM, dual scoring) — EN CURSO
+5. [x] Validar con pilotos reales (E2E con LLM, dual scoring)
 6. [ ] Analizar: donde mejora el SQ score vs v2? Donde no?
-7. [ ] Orchestrator genera SubQuestionIntents
+7. [x] Orchestrator genera SubQuestionIntents — design_case con sub_questions,
+   validacion (grounding, roles, epistemologia, portfolio), repair loop.
+   E2E validado: 5 SQs generados por gpt-5.4, 4/5 correctos vs SCM.
 8. [ ] Comparativo: manual SQs vs orchestrator SQs
 9. [ ] Decidir si reemplazar v2 o mantener dual
