@@ -257,6 +257,61 @@ def export_briefing(result, output_dir: str) -> str | None:
     return path
 
 
+def _build_scm_dag_section(world, tasks=None) -> list[str]:
+    """Build mermaid DAG section for SCMWorld (no ExactBayesSolver needed)."""
+    lines = []
+    lines.append("## Causal DAG (ground truth)")
+    lines.append("")
+    lines.append("```mermaid")
+    lines.append("graph TD")
+    for var in world.variables:
+        label = var.replace("_", " ")
+        if var in world.latent_variables:
+            lines.append(f'    {var}(["{label}"]):::latent')
+        else:
+            lines.append(f'    {var}["{label}"]:::observable')
+    lines.append("")
+    for child, parents in world.graph.items():
+        for parent in parents:
+            lines.append(f"    {parent} --> {child}")
+    lines.append("")
+    lines.append("    classDef latent fill:#FF6B6B,stroke:#333,color:#000,stroke-width:2px")
+    lines.append("    classDef observable fill:#51CF66,stroke:#333,color:#000")
+    lines.append("```")
+    lines.append("")
+
+    # Variable metadata
+    lines.append("## Variables")
+    lines.append("")
+    for var in world.variables:
+        meta = world.variable_meta.get(var)
+        role = "LATENT" if var in world.latent_variables else "observable"
+        unit = meta.unit if meta else ""
+        desc = meta.description if meta else ""
+        eq_fn = world.equations.get(var)
+        eq_str = eq_fn.__doc__ if eq_fn and eq_fn.__doc__ else "(structural equation)"
+        lines.append(f"- **{var}** [{role}] ({unit}): {desc}")
+        lines.append(f"  Equation: `{eq_str}`")
+    lines.append("")
+
+    # Tasks summary
+    if tasks:
+        lines.append("## Scoring Agenda (hidden from investigator)")
+        lines.append("")
+        for i, t in enumerate(tasks, 1):
+            q_short = t.question[:120] + "..." if len(t.question) > 120 else t.question
+            lines.append(f"**Q{i}** [{t.type}]: {q_short}")
+            if t.correct_answer:
+                for k, v in t.correct_answer.items():
+                    if isinstance(v, float):
+                        lines.append(f"  - {k}: {v:.4f}")
+                    else:
+                        lines.append(f"  - {k}: {v}")
+            lines.append("")
+
+    return lines
+
+
 def build_dag_section(world, tasks=None) -> list[str]:
     """Build mermaid DAG + variable importance + baseline as markdown lines.
 
@@ -826,7 +881,11 @@ def solve_tasks(
     full_lines.append("")
     full_lines.append("# Part 0: Ground truth (hidden from solver)")
     full_lines.append("")
-    full_lines.extend(build_dag_section(world, tasks))
+    from sreg.world.scm import SCMWorld as _SCMWorld
+    if isinstance(world, _SCMWorld):
+        full_lines.extend(_build_scm_dag_section(world, tasks))
+    else:
+        full_lines.extend(build_dag_section(world, tasks))
 
     # Part 1: What the solver received
     full_lines.append("---")
