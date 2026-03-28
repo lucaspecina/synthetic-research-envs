@@ -390,3 +390,188 @@ class TestMatchingEdgeCases:
         )
         score = score_claim_vs_subquestion(claim, 0.0, simple_resolved_sq)
         assert score == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Validation tests
+# ---------------------------------------------------------------------------
+
+
+class TestValidateSubQuestions:
+    """Tests for validate_sub_questions()."""
+
+    @pytest.fixture
+    def tw(self):
+        return world_treatment()
+
+    def _make_sq(self, sq_id="sq1", pattern="causal_effect",
+                 treatment="Treatment", outcome="Recovery",
+                 ask="existence_and_sign", tier="high", **extra_roles):
+        roles = SQRoles(treatment=treatment, outcome=outcome, **extra_roles)
+        return SubQuestionIntent(
+            sq_id=sq_id, pattern=pattern, roles=roles,
+            ask=AskOperator(ask), tier=SQTier(tier),
+        )
+
+    def test_valid_sqs_pass(self, tw):
+        from sreg.tools.oi_subquestions import validate_sub_questions
+        sqs = [
+            self._make_sq("sq1", "causal_effect", "Treatment", "Recovery"),
+            self._make_sq("sq2", "mediation", "Treatment", "Recovery",
+                          mediator="Biomarker"),
+            self._make_sq("sq3", "confounding", "Treatment", "Recovery",
+                          confounder="Severity"),
+            self._make_sq("sq4", "causal_effect", "Severity", "Recovery",
+                          ask="sign", tier="medium"),
+        ]
+        accepted, errors = validate_sub_questions(sqs, tw, "experimental")
+        hard = [e for e in errors if e["severity"] == "hard"]
+        assert len(accepted) == 4
+        assert len(hard) == 0
+
+    def test_unknown_pattern_rejected(self, tw):
+        from sreg.tools.oi_subquestions import validate_sub_questions
+        sqs = [
+            self._make_sq("sq1", "bogus_pattern"),
+            self._make_sq("sq2", "causal_effect"),
+            self._make_sq("sq3", "confounding", confounder="Severity"),
+            self._make_sq("sq4", "causal_effect", "Severity", "Recovery",
+                          tier="medium"),
+        ]
+        accepted, errors = validate_sub_questions(sqs, tw, "experimental")
+        hard = [e for e in errors if e["severity"] == "hard"]
+        assert len(hard) >= 1
+        assert any("bogus_pattern" in str(e["reasons"]) for e in hard)
+
+    def test_unknown_variable_rejected(self, tw):
+        from sreg.tools.oi_subquestions import validate_sub_questions
+        sqs = [
+            self._make_sq("sq1", "causal_effect", "Nonexistent", "Recovery"),
+            self._make_sq("sq2", "causal_effect"),
+            self._make_sq("sq3", "confounding", confounder="Severity"),
+            self._make_sq("sq4", "causal_effect", "Severity", "Recovery",
+                          tier="medium"),
+        ]
+        accepted, errors = validate_sub_questions(sqs, tw, "experimental")
+        hard = [e for e in errors if e["severity"] == "hard"]
+        assert len(hard) >= 1
+        assert any("Nonexistent" in str(e["reasons"]) for e in hard)
+
+    def test_epistemological_check_rejects_causal_in_obs(self, tw):
+        from sreg.tools.oi_subquestions import validate_sub_questions
+        sqs = [
+            self._make_sq("sq1", "causal_effect"),
+            self._make_sq("sq2", "observational_association"),
+            self._make_sq("sq3", "confounding", confounder="Severity"),
+            self._make_sq("sq4", "observational_association",
+                          "Severity", "Recovery", tier="medium"),
+        ]
+        accepted, errors = validate_sub_questions(
+            sqs, tw, "observational_only"
+        )
+        hard = [e for e in errors if e["severity"] == "hard"]
+        # sq1 uses causal_effect in obs_only -> rejected
+        assert any("sq1" == e["sq_id"] for e in hard)
+        # sq2/sq3/sq4 should be accepted (obs_assoc + confounding OK)
+        assert "sq2" in [sq.sq_id for sq in accepted]
+
+    def test_missing_roles_rejected(self, tw):
+        from sreg.tools.oi_subquestions import validate_sub_questions
+        # mediation without mediator
+        roles = SQRoles(treatment="Treatment", outcome="Recovery")
+        sq = SubQuestionIntent(
+            sq_id="sq1", pattern="mediation", roles=roles,
+            ask=AskOperator.EXISTENCE,
+        )
+        sqs = [
+            sq,
+            self._make_sq("sq2", "causal_effect"),
+            self._make_sq("sq3", "causal_effect", "Severity", "Recovery",
+                          tier="medium"),
+        ]
+        accepted, errors = validate_sub_questions(sqs, tw, "experimental")
+        hard = [e for e in errors if e["severity"] == "hard"]
+        assert any("mediator" in str(e["reasons"]) for e in hard)
+
+    def test_duplicate_sqs_flagged(self, tw):
+        from sreg.tools.oi_subquestions import validate_sub_questions
+        sq = self._make_sq("sq1", "causal_effect")
+        sq_dup = self._make_sq("sq2", "causal_effect")  # same pattern+vars
+        sqs = [sq, sq_dup, self._make_sq("sq3", "confounding",
+                                          confounder="Severity")]
+        _, errors = validate_sub_questions(sqs, tw, "experimental")
+        hard = [e for e in errors if e["severity"] == "hard"]
+        assert any("Duplicate" in str(e["reasons"]) for e in hard)
+
+    def test_reversed_roles_not_duplicate(self, tw):
+        """causal_effect(T→R) and causal_effect(R→T) are different SQs."""
+        from sreg.tools.oi_subquestions import validate_sub_questions
+        sqs = [
+            self._make_sq("sq1", "causal_effect", "Treatment", "Recovery"),
+            self._make_sq("sq2", "causal_effect", "Recovery", "Treatment"),
+            self._make_sq("sq3", "confounding", confounder="Severity"),
+        ]
+        _, errors = validate_sub_questions(sqs, tw, "experimental")
+        hard = [e for e in errors if e["severity"] == "hard"]
+        assert not any("Duplicate" in str(e["reasons"]) for e in hard)
+
+    def test_portfolio_too_few_soft_error(self, tw):
+        from sreg.tools.oi_subquestions import validate_sub_questions
+        sqs = [
+            self._make_sq("sq1", "causal_effect"),
+            self._make_sq("sq2", "confounding", confounder="Severity"),
+        ]
+        _, errors = validate_sub_questions(sqs, tw, "experimental")
+        soft = [e for e in errors if e["severity"] == "soft"]
+        assert any("Too few" in str(e["reasons"]) for e in soft)
+
+
+class TestCasePlanOIMode:
+    """Tests for CasePlan with OI sub-questions."""
+
+    def test_oi_mode_with_sub_questions(self):
+        from sreg.models.case_plan import CasePlan
+        sq = SubQuestionIntent(
+            sq_id="sq1", pattern="causal_effect",
+            roles=SQRoles(treatment="X", outcome="Y"),
+            ask=AskOperator.EXISTENCE_AND_SIGN,
+        )
+        plan = CasePlan(
+            title="OI Test Case",
+            research_context="Testing OI mode with sub-questions",
+            research_brief="Investigate X and Y.",
+            oi_sub_questions=[sq],
+            epistemic_regime="experimental",
+            shared_budget=5,
+        )
+        assert plan.is_oi_mode
+        assert len(plan.oi_sub_questions) == 1
+        assert plan.primary_question is None
+        assert plan.questions == []
+
+    def test_traditional_mode_still_works(self):
+        from sreg.models.case_plan import CasePlan, EvalQuestionPlan
+        from sreg.models.task import TaskType
+        plan = CasePlan(
+            title="Traditional Test",
+            research_context="Testing traditional mode still works",
+            questions=[
+                EvalQuestionPlan(
+                    question_text="What is the effect?",
+                    eval_type=TaskType.CAUSAL_EFFECT,
+                    target_node="Y",
+                )
+            ],
+            shared_budget=5,
+        )
+        assert not plan.is_oi_mode
+        assert plan.primary_question is not None
+
+    def test_neither_questions_nor_sqs_fails(self):
+        from sreg.models.case_plan import CasePlan
+        with pytest.raises(Exception, match="questions or oi_sub_questions"):
+            CasePlan(
+                title="Empty Test",
+                research_context="Testing empty case plan fails",
+                shared_budget=5,
+            )

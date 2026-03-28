@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from sreg.models.open_investigation import SubQuestionIntent
 from sreg.models.task import TaskType
 
 
@@ -113,8 +114,8 @@ class CasePlan(BaseModel):
         ),
     )
     questions: list[EvalQuestionPlan] = Field(
-        min_length=1,
-        description="Evaluation questions (at least one required)",
+        default_factory=list,
+        description="Evaluation questions (empty in OI mode)",
     )
     shared_budget: int = Field(
         gt=0,
@@ -125,11 +126,27 @@ class CasePlan(BaseModel):
         description="Why this set of questions for this world",
     )
 
-    @property
-    def primary_question(self) -> EvalQuestionPlan:
-        """First question is always the primary one."""
-        return self.questions[0]
+    # --- Open Investigation fields (optional) ---
+    oi_sub_questions: list[SubQuestionIntent] | None = Field(
+        default=None,
+        description="Sub-questions for OI scoring (hidden from solver)",
+    )
+    epistemic_regime: str | None = Field(
+        default=None,
+        description="Evidence regime: observational_only, experimental, mixed",
+    )
 
+    @property
+    def primary_question(self) -> EvalQuestionPlan | None:
+        """First question, or None if no questions (OI mode)."""
+        return self.questions[0] if self.questions else None
+
+    @property
+    def eval_questions(self) -> list[EvalQuestionPlan]:
+        """All questions after the first (alias kept for compat)."""
+        return self.questions[1:]
+
+    # Keep old name for backward compat
     @property
     def sub_questions(self) -> list[EvalQuestionPlan]:
         """All questions after the first."""
@@ -139,6 +156,20 @@ class CasePlan(BaseModel):
     def eval_types(self) -> set[TaskType]:
         """Unique eval types in this plan."""
         return {q.eval_type for q in self.questions}
+
+    @property
+    def is_oi_mode(self) -> bool:
+        """Whether this plan uses OI sub-questions instead of eval questions."""
+        return self.oi_sub_questions is not None and len(self.oi_sub_questions) > 0
+
+    @model_validator(mode="after")
+    def _has_evaluation_agenda(self) -> CasePlan:
+        """Must have either questions or oi_sub_questions."""
+        if not self.questions and not self.oi_sub_questions:
+            raise ValueError(
+                "CasePlan requires either questions or oi_sub_questions"
+            )
+        return self
 
     @model_validator(mode="after")
     def _no_duplicate_questions(self) -> CasePlan:

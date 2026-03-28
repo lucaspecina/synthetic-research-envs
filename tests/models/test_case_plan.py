@@ -152,8 +152,8 @@ class TestCasePlan:
             TaskType.HYPOTHESIS_SELECTION,
         }
 
-    def test_no_questions_fails(self):
-        with pytest.raises(ValidationError, match="at least 1"):
+    def test_no_questions_and_no_sqs_fails(self):
+        with pytest.raises(ValidationError, match="questions or oi_sub_questions"):
             CasePlan(
                 title="Empty Case",
                 research_context="A case with no questions at all.",

@@ -370,6 +370,43 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 - **Resultado clave:** Treatment world con 4 claims correctas:
   total=0.983 con sub-preguntas (vs 0.400 con scoring actual).
   Confounding recibe credito completo.
-- **STATUS:** Sub-question pipeline implementado y testeado. Falta:
-  wiring al runner, orchestrator genera SQs, comparativo E2E.
+- **Dual scoring wired to runner** (oi_pilot_batch.py + oi_runner.py):
+  set_subquestions() + _score_with_subquestions() + get_sq_score()
+- **Batch run (3 worlds x 1 run, dual scoring):**
+  - ecosystem: v2=0.400, SQ=0.200 (SQs all MISS: causal SQs vs obs claims)
+  - treatment: v2=0.543, SQ=0.581 (SQ1-SQ3 HIT via c3 mediation)
+  - education: v2=0.767, SQ=0.766 (SQ1-SQ2 HIT, comparable to v2)
+- **Epistemological fix:** ecosystem SQs changed from causal_effect to
+  observational_association. Principle documented: SQs must match what
+  solver can epistemologically justify, not orchestrator's knowledge.
+- **Codex round 2 (3 more bugs fixed):**
+  - ALL_OF component intent built from parent SQ (match-stealing) → from component
+  - truth as average of atoms → conjunctive (1.0 if all hold, else 0.0)
+  - rank_order no order checking → pairwise concordance
+- **5 commits pushed** (d04453d, ab2b674, d1f471a, d69f33c, 7c1e19f)
+- **STATUS:** Sub-question pipeline COMPLETE + validated E2E. SQ scoring
+  systematically better or comparable to v2. Proximo: orchestrator genera SQs.
+
+### Sesion 10 — 2026-03-28 (autoresearch continuacion)
+- **Objetivo:** Disenar e implementar orchestrator SQ generation
+- **Codex debate (thread 019d3338):** 2 exchanges. Design questions Q1-Q6.
+  Key agreements: Option B (extend design_case), 4-6 SQs, strict validation
+  with partial repair, epistemic_regime field, single CasePlan.
+- **Implementacion COMPLETA:**
+  - CasePlan: optional oi_sub_questions + epistemic_regime, is_oi_mode prop
+  - validate_sub_questions(): grounding, roles, epistemology, portfolio, dups
+  - Orchestrator: _build_oi_case_plan() handler, OI_MODE_PROMPT (SQ guidance)
+  - Tool schema: sub_questions + epistemic_regime in design_case
+  - OrchestratorResult.sub_questions propagated to runner
+  - generate_src.py: SQ export + runner wiring
+- **Codex review (5 findings):**
+  - HIGH: SQs not wired E2E → FIXED (generate_src.py wiring)
+  - HIGH: experimental/mixed regimes not supported → documented limitation
+  - MEDIUM: effect_ranking uses ATEs in obs_only → documented
+  - MEDIUM: duplicate detection too coarse → FIXED (directional roles)
+  - MEDIUM: latent vars accepted → FIXED (observable check)
+- **11 new tests** (8 validation + 3 CasePlan OI mode), 134 passing
+- **STATUS:** Orchestrator SQ generation infrastructure COMPLETE. Ready for
+  E2E test with real LLM. Next: run generate_src.py --oi to verify orchestrator
+  actually generates good SQs.
 

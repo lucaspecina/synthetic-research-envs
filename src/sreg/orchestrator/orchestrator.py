@@ -15,6 +15,12 @@ load_dotenv()
 from sreg.inference.responses_utils import convert_tools_for_responses
 from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 from sreg.models.dag_spec import DAGNodeSpec, DAGSpec
+from sreg.models.open_investigation import (
+    AskOperator,
+    SQRoles,
+    SQTier,
+    SubQuestionIntent,
+)
 from sreg.models.research_problem import ResearchProblem
 from sreg.models.scm_spec import SCMSpec, SCMVariableSpec
 from sreg.models.task import TaskSpec, TaskType
@@ -40,6 +46,92 @@ from sreg.world.scm import SCMWorld
 
 logger = logging.getLogger(__name__)
 
+# OI mode prompt appended to SYSTEM_PROMPT when oi_mode=True
+OI_MODE_PROMPT = """
+
+## OPEN INVESTIGATION MODE
+
+You are generating a world for OPEN INVESTIGATION. The solver investigates
+freely and submits claims — there are no predefined questions.
+
+### Pipeline
+
+scm_construct -> world_check -> apply_semantics -> design_case -> build_problem
+
+### design_case in OI mode
+
+Call design_case with these fields:
+- **research_brief**: A real research assignment a PI would write. Broad,
+  natural language. Does NOT name specific variables or analysis methods.
+  Example: "Investigate the factors affecting patient recovery after treatment.
+  Identify the most important mechanisms and any confounding relationships."
+- **deliverables**: 3-5 action items the investigator should deliver.
+- **epistemic_regime**: What evidence the solver has access to.
+  Currently only "observational_only" is supported (solver sees
+  associations only, no interventions). "experimental" and "mixed" are
+  planned but not yet available — do NOT use them.
+  Exception: if the research brief explicitly asks causal questions
+  (e.g., "does treatment CAUSE recovery?"), use "experimental" to allow
+  causal SQ patterns, but note the solver won't have intervention tools.
+- **sub_questions**: 4-6 hidden sub-questions that define the scoring agenda.
+  The solver NEVER sees these — they are used for evaluation only.
+
+### Sub-question format
+
+Each sub-question has:
+- **sq_id**: Unique ID (e.g., "sq1", "sq2")
+- **pattern**: What type of finding this is about:
+  - "causal_effect": does X causally affect Y?
+  - "mediation": does the effect go through M?
+  - "confounding": does Z confound the X-Y relationship?
+  - "heterogeneity": does the effect of X on Y depend on Z?
+  - "observational_association": are X and Y associated? (observational only)
+  - "effect_ranking": which variables matter most for Y?
+  - "tail_risk": does X affect extreme values of Y?
+- **roles**: Which variables fill which role:
+  - treatment: the cause/exposure variable
+  - outcome: the effect/response variable
+  - mediator: intermediate variable (for mediation)
+  - modifier: effect modifier (for heterogeneity)
+  - confounder: confounding variable (for confounding)
+  - ranking_vars: list of variables to rank (for effect_ranking)
+- **ask**: What aspect to evaluate:
+  - "existence": does the effect exist?
+  - "sign": is it positive or negative?
+  - "existence_and_sign": both existence and direction
+  - "magnitude": how large is it?
+  - "rank_order": which is larger? (for effect_ranking)
+- **tier**: How important this sub-question is:
+  - "high" (weight 1.0): core question, central to the brief
+  - "medium" (weight 0.6): important but secondary
+  - "low" (weight 0.4): peripheral, nice to discover
+
+### CRITICAL: Epistemological alignment
+
+Sub-questions must match what the solver can JUSTIFY from the visible evidence:
+- If epistemic_regime="observational_only": use observational_association,
+  confounding, effect_ranking. Do NOT use causal_effect, mediation,
+  heterogeneity (the solver cannot justify causal claims from obs data alone).
+- If epistemic_regime="experimental": causal_effect, mediation, heterogeneity
+  are appropriate when the brief asks causal questions.
+- If epistemic_regime="mixed": use causal patterns only for variables where
+  interventions are available.
+
+### Portfolio rules
+
+- Use 4-6 sub-questions (4 is fine, 7 is too many)
+- At least 2-3 should be HIGH tier
+- At least 2 different patterns
+- Each HIGH sub-question should be anchored to a deliverable
+- The brief should naturally imply the top 2-3 sub-questions
+
+### Do NOT
+
+- Do NOT put specific sub-question details in the brief — keep it vague
+- Do NOT use patterns that don't match the epistemic regime
+- Do NOT create more than 1 near-zero/null-finding sub-question
+"""
+
 
 class OrchestratorResult:
     """Result of an orchestrator run."""
@@ -54,6 +146,7 @@ class OrchestratorResult:
         self.validation_passed: bool = False
         self.messages: list[dict] = []
         self.inspiration_manifest: dict | None = None
+        self.sub_questions: list | None = None  # list[SubQuestionIntent]
 
 
 class Orchestrator:
@@ -113,24 +206,7 @@ class Orchestrator:
         effective_prompt = SYSTEM_PROMPT
         effective_goal = goal
         if self.oi_mode:
-            effective_prompt += (
-                "\n\n## OPEN INVESTIGATION MODE\n\n"
-                "You are generating a world for OPEN INVESTIGATION, not for "
-                "predefined questions. This means:\n"
-                "1. DO NOT call design_case or task_gen. There are no predefined "
-                "   questions — the solver will decide what to investigate.\n"
-                "2. When calling build_problem, the solver will receive a VAGUE "
-                "   research brief, not specific questions.\n"
-                "3. Focus on creating a world with INTERESTING causal structure: "
-                "   confounders, mediators, interactions, non-obvious relationships.\n"
-                "4. The research_brief in the CasePlan should be a real research "
-                "   question that a scientist would ask — broad, not specific.\n"
-                "   Example: 'Investigate factors affecting patient recovery and "
-                "   identify the most important mechanisms at play.'\n"
-                "   NOT: 'What is the ATE of Treatment on Recovery?'\n\n"
-                "Your pipeline: scm_construct → apply_semantics → design_case "
-                "(with research_brief ONLY, no questions) → build_problem."
-            )
+            effective_prompt += OI_MODE_PROMPT
 
         messages_log: list[dict] = [
             {"role": "system", "content": effective_prompt},
@@ -724,42 +800,11 @@ class Orchestrator:
 
         # Build the CasePlan (Pydantic validates structure + duplicates)
         try:
-            if self.oi_mode and not raw_questions:
-                # OI mode: CasePlan with brief only, no questions
-                # Create a minimal dummy question to satisfy CasePlan.min_length=1
-                # The question won't be used — OI scoring uses claims, not tasks
-                target_for_oi = args.get("target_node", "")
-                if not target_for_oi and is_scm:
-                    # Pick the last variable in topo order as target
-                    target_for_oi = world.variables[-1]
-                plan = CasePlan(
-                    title=args.get("title", "Open Investigation"),
-                    research_context=args.get("research_context", research_brief),
-                    research_brief=research_brief,
-                    deliverables=args.get("deliverables", [
-                        "Investigate the phenomenon described in the brief",
-                        "Report your findings as structured claims",
-                    ]),
-                    questions=[
-                        EvalQuestionPlan(
-                            question_text="Open investigation — no predefined questions",
-                            eval_type=TaskType.INFER_TARGET,
-                            target_node=target_for_oi,
-                            rationale="Placeholder for OI mode",
-                        )
-                    ],
-                    shared_budget=5,
-                    rationale=args.get("rationale", "Open Investigation mode"),
+            if self.oi_mode:
+                return self._build_oi_case_plan(
+                    args, world, world_id, is_scm, research_brief,
+                    obs_node_names, result,
                 )
-                # No task generation in OI mode
-                self._case_plans[world_id] = plan
-                return {
-                    "title": plan.title,
-                    "research_brief": plan.research_brief,
-                    "deliverables": plan.deliverables,
-                    "mode": "open_investigation",
-                    "target_node": target_for_oi,
-                }
 
             questions = [
                 EvalQuestionPlan(
@@ -818,6 +863,111 @@ class Orchestrator:
             "tasks_generated": len(tasks),
             "next_step": "Now call build_problem to sample data and produce the final problem.",
         }
+
+    def _build_oi_case_plan(
+        self,
+        args: dict,
+        world: World | SCMWorld,
+        world_id: str,
+        is_scm: bool,
+        research_brief: str,
+        obs_node_names: set[str],
+        result: OrchestratorResult,
+    ) -> dict:
+        """Build CasePlan for OI mode: brief + sub-questions, no eval questions."""
+        raw_sqs = args.get("sub_questions", [])
+        epistemic_regime = args.get("epistemic_regime", "observational_only")
+
+        # Parse SubQuestionIntents from raw dicts
+        parsed_sqs: list[SubQuestionIntent] = []
+        parse_errors: list[str] = []
+        for i, raw in enumerate(raw_sqs):
+            try:
+                # Build SQRoles from raw dict
+                raw_roles = raw.get("roles", {})
+                roles = SQRoles(
+                    treatment=raw_roles.get("treatment"),
+                    outcome=raw_roles.get("outcome"),
+                    mediator=raw_roles.get("mediator"),
+                    modifier=raw_roles.get("modifier"),
+                    confounder=raw_roles.get("confounder"),
+                    ranking_vars=raw_roles.get("ranking_vars", []),
+                    conditioning_set=raw_roles.get("conditioning_set", []),
+                )
+                sq = SubQuestionIntent(
+                    sq_id=raw.get("sq_id", f"sq{i+1}"),
+                    pattern=raw.get("pattern", ""),
+                    roles=roles,
+                    ask=AskOperator(raw.get("ask", "existence")),
+                    tier=SQTier(raw.get("tier", "high")),
+                    materiality_threshold=raw.get("materiality_threshold"),
+                    text_gloss=raw.get("text_gloss"),
+                )
+                parsed_sqs.append(sq)
+            except (ValueError, KeyError) as e:
+                parse_errors.append(f"sub_question[{i}]: {e}")
+
+        if parse_errors:
+            return {"error": f"Invalid sub-questions: {'; '.join(parse_errors)}"}
+
+        # Validate against world
+        if parsed_sqs and is_scm:
+            from sreg.tools.oi_subquestions import validate_sub_questions
+
+            accepted, val_errors = validate_sub_questions(
+                parsed_sqs, world, epistemic_regime
+            )
+            hard_errors = [
+                e for e in val_errors if e.get("severity") == "hard"
+            ]
+            if hard_errors:
+                return {
+                    "error": "Sub-question validation failed",
+                    "validation_errors": hard_errors,
+                    "accepted_sq_ids": [sq.sq_id for sq in accepted],
+                    "hint": (
+                        "Fix or remove rejected SQs and retry. "
+                        "Accepted SQs can be kept as-is."
+                    ),
+                }
+
+        # Build CasePlan with sub-questions (no eval questions)
+        plan = CasePlan(
+            title=args.get("title", "Open Investigation"),
+            research_context=args.get("research_context", research_brief),
+            research_brief=research_brief,
+            deliverables=args.get("deliverables", [
+                "Investigate the phenomenon described in the brief",
+                "Report your findings as structured claims",
+            ]),
+            oi_sub_questions=parsed_sqs if parsed_sqs else None,
+            epistemic_regime=epistemic_regime,
+            shared_budget=args.get("shared_budget", 5),
+            rationale=args.get("rationale", "Open Investigation mode"),
+        )
+
+        self._case_plans[world_id] = plan
+        result.sub_questions = parsed_sqs if parsed_sqs else None
+
+        response: dict = {
+            "title": plan.title,
+            "research_brief": plan.research_brief,
+            "deliverables": plan.deliverables,
+            "mode": "open_investigation",
+            "epistemic_regime": epistemic_regime,
+        }
+        if parsed_sqs:
+            response["num_sub_questions"] = len(parsed_sqs)
+            response["sub_question_patterns"] = sorted(
+                {sq.pattern for sq in parsed_sqs}
+            )
+            response["sub_question_tiers"] = {
+                sq.sq_id: sq.tier.value for sq in parsed_sqs
+            }
+        response["next_step"] = (
+            "Now call build_problem to sample data and produce the final problem."
+        )
+        return response
 
     def _handle_inspiration_manifest(
         self, args: dict, result: OrchestratorResult

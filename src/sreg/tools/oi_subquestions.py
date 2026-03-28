@@ -161,6 +161,191 @@ def resolve_all(
     return results
 
 
+# ---------------------------------------------------------------------------
+# Validation: check sub-questions before scoring
+# ---------------------------------------------------------------------------
+
+# Patterns that require causal semantics — reject in observational_only regime
+_CAUSAL_PATTERNS = {"causal_effect", "mediation", "heterogeneity", "tail_risk"}
+
+# Patterns allowed in observational_only regime
+_OBS_PATTERNS = {"observational_association", "confounding", "effect_ranking"}
+
+# Required roles per pattern
+_REQUIRED_ROLES: dict[str, set[str]] = {
+    "causal_effect": {"treatment", "outcome"},
+    "mediation": {"treatment", "mediator", "outcome"},
+    "confounding": {"treatment", "outcome", "confounder"},
+    "heterogeneity": {"treatment", "modifier", "outcome"},
+    "observational_association": {"treatment", "outcome"},
+    "tail_risk": {"treatment", "outcome"},
+    "effect_ranking": {"outcome"},  # ranking_vars also needed, checked separately
+}
+
+# Valid epistemic regimes
+_VALID_REGIMES = {"observational_only", "experimental", "mixed"}
+
+
+def validate_sub_questions(
+    sqs: list[SubQuestionIntent],
+    world: SCMWorld,
+    epistemic_regime: str = "observational_only",
+) -> tuple[list[SubQuestionIntent], list[dict]]:
+    """Validate sub-questions structurally against a world.
+
+    Returns (accepted_sqs, errors) where errors is a list of
+    {"sq_id": ..., "reasons": [...], "severity": "hard"|"soft"} dicts.
+
+    Hard errors = SQ must be fixed or removed. Soft = advisory (LLM can keep).
+    Does NOT resolve against SCM (that's expensive; done at scoring time).
+    """
+    errors: list[dict] = []
+    accepted: list[SubQuestionIntent] = []
+    world_vars = set(world.variables)
+    obs_vars = set(world.observable_variables)
+    valid_patterns = {p.value for p in PatternClass}
+
+    for sq in sqs:
+        sq_errors: list[str] = []
+
+        # 1. Pattern exists
+        if sq.pattern not in valid_patterns:
+            sq_errors.append(
+                f"Unknown pattern '{sq.pattern}'. "
+                f"Valid: {sorted(valid_patterns)}"
+            )
+
+        # 2. Variable grounding — all role vars exist and are observable
+        for var in sq.roles.focus_variables:
+            if var not in world_vars:
+                sq_errors.append(
+                    f"Variable '{var}' not in world. "
+                    f"Available: {sorted(world_vars)}"
+                )
+            elif var not in obs_vars:
+                sq_errors.append(
+                    f"Variable '{var}' is latent (not observable). "
+                    f"SQ roles must use observable variables. "
+                    f"Observable: {sorted(obs_vars)}"
+                )
+
+        # 3. Pattern-role consistency
+        required = _REQUIRED_ROLES.get(sq.pattern, set())
+        roles_dict = sq.roles.model_dump(exclude_none=True, exclude_defaults=True)
+        # Remove ranking_vars and conditioning_set (list fields)
+        present_roles = {
+            k for k, v in roles_dict.items()
+            if k not in ("ranking_vars", "conditioning_set") and v
+        }
+        missing = required - present_roles
+        if missing:
+            sq_errors.append(
+                f"Pattern '{sq.pattern}' requires roles: {sorted(required)}, "
+                f"missing: {sorted(missing)}"
+            )
+
+        # effect_ranking needs ranking_vars with 2+ vars
+        if sq.pattern == "effect_ranking":
+            if len(sq.roles.ranking_vars) < 2:
+                sq_errors.append(
+                    "effect_ranking requires ranking_vars with at least 2 variables"
+                )
+
+        # 4. Epistemological check
+        if epistemic_regime in _VALID_REGIMES:
+            if (
+                epistemic_regime == "observational_only"
+                and sq.pattern in _CAUSAL_PATTERNS
+            ):
+                sq_errors.append(
+                    f"Pattern '{sq.pattern}' requires causal evidence, "
+                    f"but epistemic_regime is 'observational_only'. "
+                    f"Use observational patterns: {sorted(_OBS_PATTERNS)}"
+                )
+
+        # 5. Ask operator compatibility with pattern
+        if sq.pattern == "effect_ranking" and sq.ask != AskOperator.RANK_ORDER:
+            sq_errors.append(
+                f"effect_ranking pattern requires ask=RANK_ORDER, got {sq.ask}"
+            )
+
+        if sq_errors:
+            errors.append({
+                "sq_id": sq.sq_id,
+                "reasons": sq_errors,
+                "severity": "hard",
+            })
+        else:
+            accepted.append(sq)
+
+    # Portfolio checks (soft errors, applied to full list)
+    _check_portfolio(sqs, errors)
+
+    return accepted, errors
+
+
+def _check_portfolio(
+    sqs: list[SubQuestionIntent], errors: list[dict]
+) -> None:
+    """Portfolio-level soft checks: count, diversity, near_zero cap."""
+    # Count
+    if len(sqs) < 3:
+        errors.append({
+            "sq_id": "_portfolio",
+            "reasons": [f"Too few sub-questions ({len(sqs)}). Minimum 3."],
+            "severity": "soft",
+        })
+    if len(sqs) > 7:
+        errors.append({
+            "sq_id": "_portfolio",
+            "reasons": [f"Too many sub-questions ({len(sqs)}). Maximum 7."],
+            "severity": "soft",
+        })
+
+    # Diversity: at least 2 distinct patterns
+    patterns = {sq.pattern for sq in sqs}
+    if len(sqs) >= 3 and len(patterns) < 2:
+        errors.append({
+            "sq_id": "_portfolio",
+            "reasons": [
+                f"Low pattern diversity: only '{patterns.pop()}'. "
+                f"Use at least 2 distinct patterns."
+            ],
+            "severity": "soft",
+        })
+
+    # Duplicate check: same pattern + same directional role signature
+    # Use (pattern, treatment, outcome, mediator, modifier, confounder) as key
+    # so causal_effect(A→B) != causal_effect(B→A)
+    seen: set[tuple] = set()
+    for sq in sqs:
+        r = sq.roles
+        key = (
+            sq.pattern, r.treatment, r.outcome,
+            r.mediator, r.modifier, r.confounder,
+            tuple(sorted(r.ranking_vars)),
+        )
+        if key in seen:
+            errors.append({
+                "sq_id": sq.sq_id,
+                "reasons": [
+                    f"Duplicate SQ: same pattern '{sq.pattern}' "
+                    f"and roles {sorted(sq.roles.focus_variables)}"
+                ],
+                "severity": "hard",
+            })
+        seen.add(key)
+
+    # Tier distribution: at least 1 HIGH
+    tiers = [sq.tier.value for sq in sqs]
+    if "high" not in tiers and len(sqs) >= 2:
+        errors.append({
+            "sq_id": "_portfolio",
+            "reasons": ["No HIGH-tier sub-question. At least 1 required."],
+            "severity": "soft",
+        })
+
+
 def _resolve_simple(
     sq: SubQuestionIntent,
     world: SCMWorld,

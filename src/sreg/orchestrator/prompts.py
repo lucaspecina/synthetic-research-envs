@@ -809,6 +809,110 @@ TOOL_DEFINITIONS = [
                             "reasoning for the combination of eval types chosen."
                         ),
                     },
+                    "epistemic_regime": {
+                        "type": "string",
+                        "enum": [
+                            "observational_only",
+                            "experimental",
+                            "mixed",
+                        ],
+                        "description": (
+                            "Evidence regime for Open Investigation mode. "
+                            "observational_only: solver sees associations only. "
+                            "experimental: interventions available, causal claims OK. "
+                            "mixed: some variables interventionable."
+                        ),
+                    },
+                    "sub_questions": {
+                        "type": "array",
+                        "description": (
+                            "Hidden sub-questions for OI scoring (4-6 items). "
+                            "Used instead of 'questions' in Open Investigation mode. "
+                            "Each defines a pattern + roles + ask + tier."
+                        ),
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "sq_id": {
+                                    "type": "string",
+                                    "description": "Unique ID, e.g. 'sq1'.",
+                                },
+                                "pattern": {
+                                    "type": "string",
+                                    "enum": [
+                                        "causal_effect",
+                                        "mediation",
+                                        "confounding",
+                                        "heterogeneity",
+                                        "observational_association",
+                                        "effect_ranking",
+                                        "tail_risk",
+                                    ],
+                                    "description": (
+                                        "What type of finding. Must match "
+                                        "epistemic_regime."
+                                    ),
+                                },
+                                "roles": {
+                                    "type": "object",
+                                    "properties": {
+                                        "treatment": {"type": "string"},
+                                        "outcome": {"type": "string"},
+                                        "mediator": {"type": "string"},
+                                        "modifier": {"type": "string"},
+                                        "confounder": {"type": "string"},
+                                        "ranking_vars": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                    },
+                                    "description": (
+                                        "Variable roles. Required roles depend on "
+                                        "pattern: causal_effect needs treatment+outcome, "
+                                        "mediation needs treatment+mediator+outcome, "
+                                        "confounding needs treatment+outcome+confounder, "
+                                        "heterogeneity needs treatment+modifier+outcome."
+                                    ),
+                                },
+                                "ask": {
+                                    "type": "string",
+                                    "enum": [
+                                        "existence",
+                                        "sign",
+                                        "existence_and_sign",
+                                        "magnitude",
+                                        "rank_order",
+                                    ],
+                                    "description": (
+                                        "What to evaluate: existence, sign, "
+                                        "existence_and_sign, magnitude, rank_order."
+                                    ),
+                                },
+                                "tier": {
+                                    "type": "string",
+                                    "enum": ["high", "medium", "low"],
+                                    "description": (
+                                        "Importance: high (1.0), medium (0.6), "
+                                        "low (0.4). Use 2-3 high, 1-2 medium."
+                                    ),
+                                },
+                                "text_gloss": {
+                                    "type": "string",
+                                    "description": (
+                                        "Human-readable description. Not used in "
+                                        "scoring, for documentation only."
+                                    ),
+                                },
+                            },
+                            "required": [
+                                "sq_id",
+                                "pattern",
+                                "roles",
+                                "ask",
+                                "tier",
+                            ],
+                        },
+                    },
                 },
                 "required": [
                     "world_id",
@@ -816,7 +920,6 @@ TOOL_DEFINITIONS = [
                     "research_context",
                     "research_brief",
                     "deliverables",
-                    "questions",
                     "shared_budget",
                 ],
             },

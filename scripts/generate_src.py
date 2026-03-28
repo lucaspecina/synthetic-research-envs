@@ -175,6 +175,11 @@ def export_json(result, steps, goal: str, model: str, output_dir: str) -> str:
     if result.problem:
         export["problem"] = result.problem.model_dump(mode="json")
 
+    if result.sub_questions:
+        export["sub_questions"] = [
+            sq.model_dump(mode="json") for sq in result.sub_questions
+        ]
+
     path = os.path.join(output_dir, "src.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(export, f, indent=2, ensure_ascii=False, default=str)
@@ -1390,6 +1395,11 @@ def main():
                 result.problem, result.world,
                 seed=oi_seed, n_mc=20_000, llm_call=llm_compiler,
             )
+
+            # Wire orchestrator-generated sub-questions if available
+            if result.sub_questions:
+                runner.set_subquestions(result.sub_questions)
+                _print(f"  SQs: {len(result.sub_questions)} from orchestrator")
 
             import time as _time
             t0 = _time.time()
