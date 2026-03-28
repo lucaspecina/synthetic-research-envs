@@ -442,6 +442,174 @@ class EpisodeScore(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Sub-Questions — orchestrator-generated investigation agenda
+# ---------------------------------------------------------------------------
+
+
+class AskOperator(StrEnum):
+    """What the sub-question asks about the pattern."""
+
+    EXISTENCE = "existence"
+    SIGN = "sign"
+    EXISTENCE_AND_SIGN = "existence_and_sign"
+    MAGNITUDE = "magnitude"
+    RANK_ORDER = "rank_order"
+
+
+class AcceptanceRule(StrEnum):
+    """How multiple claims can satisfy a sub-question."""
+
+    ANY_OF = "any_of"
+    ALL_OF = "all_of"
+
+
+class SQTier(StrEnum):
+    """Priority tier for sub-question weight assignment."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+# Tier -> weight mapping (deterministic, not LLM-assigned)
+SQ_TIER_WEIGHTS: dict[str, float] = {
+    "high": 1.0,
+    "medium": 0.6,
+    "low": 0.4,
+}
+
+
+class SQRoles(BaseModel):
+    """Variable roles in a sub-question. Uses strings to avoid circular import."""
+
+    treatment: str | None = None
+    outcome: str | None = None
+    mediator: str | None = None
+    modifier: str | None = None
+    confounder: str | None = None
+    ranking_vars: tuple[str, ...] = ()
+    conditioning_set: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_at_least_one(self) -> SQRoles:
+        has_any = (
+            self.treatment or self.outcome or self.mediator or self.modifier
+            or self.confounder or self.ranking_vars
+        )
+        if not has_any:
+            raise ValueError("SQRoles must specify at least one variable role")
+        return self
+
+    @property
+    def focus_variables(self) -> frozenset[str]:
+        """All variables involved in this sub-question."""
+        vs: set[str] = set()
+        if self.treatment:
+            vs.add(self.treatment)
+        if self.outcome:
+            vs.add(self.outcome)
+        if self.mediator:
+            vs.add(self.mediator)
+        if self.modifier:
+            vs.add(self.modifier)
+        if self.confounder:
+            vs.add(self.confounder)
+        vs.update(self.ranking_vars)
+        return frozenset(vs)
+
+
+class SubQuestionIntent(BaseModel):
+    """What the orchestrator considers worth investigating.
+
+    This is an investigation agenda item, NOT a claim/assertion.
+    Pattern and direction use strings to avoid circular import with oi_compiler.
+    Validated against PatternClass/Direction at the tools layer.
+    """
+
+    sq_id: str = Field(min_length=1)
+    pattern: str = Field(description="Pattern class (causal_effect, mediation, etc.)")
+    roles: SQRoles
+    ask: AskOperator
+    tier: SQTier = SQTier.HIGH
+    materiality_threshold: float | None = Field(default=None, ge=0.0)
+    text_gloss: str | None = None
+
+    @property
+    def weight(self) -> float:
+        """Weight from tier mapping."""
+        return SQ_TIER_WEIGHTS[self.tier.value]
+
+
+class ResolvedAnswer(BaseModel):
+    """Deterministic answer to a sub-question, resolved against the SCM."""
+
+    exists: bool | None = None
+    direction: str | None = Field(default=None, description="positive/negative/near_zero")
+    magnitude: float | None = None
+    effect_size: float | None = None
+    rank_order: tuple[str, ...] = ()
+
+
+class SQComponent(BaseModel):
+    """A component of a multi-part sub-question.
+
+    E.g., mediation SQ has: indirect effect component + total effect component.
+    """
+
+    component_id: str = Field(min_length=1)
+    pattern: str
+    roles: SQRoles
+    ask: AskOperator
+    contribution: float = Field(gt=0.0, le=1.0)
+    resolved_answer: ResolvedAnswer
+    resolved_specs: list[AtomicSpec] = Field(default_factory=list)
+
+
+class ResolvedSubQuestion(BaseModel):
+    """Sub-question with its deterministic resolution against the SCM.
+
+    Built once when the world is instantiated. Used for scoring claims.
+    """
+
+    intent: SubQuestionIntent
+    resolved_answer: ResolvedAnswer
+    components: list[SQComponent] = Field(default_factory=list)
+    acceptance_rule: AcceptanceRule = AcceptanceRule.ANY_OF
+    resolution_evidence: dict[str, Any] = Field(default_factory=dict)
+    salience_family_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_has_components(self) -> ResolvedSubQuestion:
+        if not self.components:
+            raise ValueError("ResolvedSubQuestion must have at least one component")
+        return self
+
+
+class SubQuestionScore(BaseModel):
+    """Per-sub-question scoring result."""
+
+    sq_id: str
+    satisfaction: float = Field(ge=0.0, le=1.0, description="How well claims cover this SQ")
+    best_claim_id: str | None = None
+    component_scores: dict[str, float] = Field(
+        default_factory=dict,
+        description="component_id -> best claim score for that component",
+    )
+    matched: bool = False
+
+
+class EpisodeSubQuestionScore(BaseModel):
+    """Episode-level scoring using sub-questions."""
+
+    sq_scores: list[SubQuestionScore] = Field(default_factory=list)
+    coverage: float = Field(ge=0.0, le=1.0, description="Fraction of SQs satisfied")
+    weighted_coverage: float = Field(ge=0.0, le=1.0, description="Weight-adjusted coverage")
+    correctness: float = Field(ge=0.0, le=1.0, description="Mean truth of matched claims")
+    novel_bonus: float = Field(ge=0.0, le=0.2, description="Bonus for true findings outside SQs")
+    total: float = Field(ge=0.0, le=1.0)
+
+
+# ---------------------------------------------------------------------------
 # Scoring parameters
 # ---------------------------------------------------------------------------
 
@@ -489,6 +657,17 @@ __all__ = [
     "AtomVerdict",
     "ClaimVerdict",
     "EpisodeScore",
+    "AskOperator",
+    "AcceptanceRule",
+    "SQTier",
+    "SQ_TIER_WEIGHTS",
+    "SQRoles",
+    "SubQuestionIntent",
+    "ResolvedAnswer",
+    "SQComponent",
+    "ResolvedSubQuestion",
+    "SubQuestionScore",
+    "EpisodeSubQuestionScore",
     "SPEC_BASE",
     "SPEC_BONUS_MAX",
     "OVERCLAIM_MAX",

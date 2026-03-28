@@ -223,6 +223,9 @@ class CompilerOutput(BaseModel):
     status: Literal["compiled", "abstention"] = "compiled"
     specs: list[AtomicSpec] = Field(default_factory=list)
     abstention_reason: str | None = None
+    intent: ClaimIntent | None = Field(
+        default=None, description="Preserved ClaimIntent for sub-question scoring"
+    )
 
     @property
     def compiled(self) -> bool:
@@ -348,7 +351,7 @@ def lower_intent(intent: ClaimIntent, summary: WorldSummary) -> CompilerOutput:
             abstention_reason=f"Lowering error: {e}",
         )
 
-    return CompilerOutput(claim_id=intent.claim_id, specs=specs)
+    return CompilerOutput(claim_id=intent.claim_id, specs=specs, intent=intent)
 
 
 def _lower_causal_effect(intent: ClaimIntent, summary: WorldSummary) -> list[AtomicSpec]:

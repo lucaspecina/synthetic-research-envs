@@ -323,3 +323,53 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 - **STATUS:** Scoring v2 + confounding + OI-orchestrator wiring implementados.
   201 tests passing. Pendiente: validar E2E con LLM, re-pilotar comparativo.
 
+### Sesion 8 — 2026-03-28 (con usuario, luego autoresearch)
+- **Debate fundamental de scoring** con usuario: scoring actual es single-target,
+  no funciona para investigaciones reales multi-objetivo.
+- **Decisiones de diseño criticas (usuario):**
+  - UN solo metodo de scoring para todo (sin tipos hardcodeados)
+  - Sistema se adapta a casos, no al reves
+  - Brief libre (1 o N objetivos, vago o preciso)
+  - No construir juego estructurado
+  - Validar contra 23 escenarios siempre
+- **23 escenarios de investigacion creados** como checklist permanente.
+  Documentado: `research/synthesis/investigation_scenarios_rubric.md`
+- **Sub-preguntas del orchestrator** — diseño completo:
+  Documentado: `research/synthesis/oi_scoring_next_design.md`
+- **Fixes del compiler aplicados:** exemplars + confounding pattern
+- **Merge a feature/open-investigation-design:** todo consolidado
+- **Codex thread:** 019d3279-c1c2 (5+ exchanges)
+
+### Sesion 9 — 2026-03-28 (autoresearch continuacion)
+- **E2E post-fix:** 3 worlds x 1 run. Confounding fix FUNCIONA
+  (treatment C2 matched, education C2 matched). Precision gate sigue
+  agresiva (treatment 0.4, education 0.75, ecosystem 0.53).
+- **Sub-preguntas prototipadas a mano** para 3 mundos (5 SQs cada uno).
+  Documentado: `research/notes/oi_subquestion_prototype.md`
+- **Debate con Codex (5 exchanges, thread 019d32e4):**
+  - SQ != claim (investigation agenda vs assertion)
+  - SubQuestionIntent: pattern + roles + ask_operator + tier
+  - ResolvedSubQuestion: resolved_answer + components + acceptance_rule
+  - ALL_OF for mediation/confounding (multi-component)
+  - Subsumption table for cross-pattern credit
+  - Scalar-first classification (not assertion-based)
+- **Resolucion validada:** SQ1-SQ3 del treatment world se resuelven
+  correctamente contra SCM via pipeline existente (lower+verify).
+- **IMPLEMENTACION COMPLETA:**
+  - Models: AskOperator, AcceptanceRule, SQTier, SQRoles, SubQuestionIntent,
+    ResolvedAnswer, SQComponent, ResolvedSubQuestion, SubQuestionScore,
+    EpisodeSubQuestionScore (en open_investigation.py)
+  - Resolution: resolve_subquestion, resolve_all (en oi_subquestions.py)
+  - Scoring: score_claim_vs_subquestion, score_episode_with_subquestions
+  - 23 tests passing
+- **Codex review (4 bugs fixed):**
+  - ranking_vars/conditioning_set not checked in matching
+  - correctness excluded ALL_OF SQs
+  - heterogeneity used ATE instead of interaction spec
+  - subsumption too lax for confounding
+- **Resultado clave:** Treatment world con 4 claims correctas:
+  total=0.983 con sub-preguntas (vs 0.400 con scoring actual).
+  Confounding recibe credito completo.
+- **STATUS:** Sub-question pipeline implementado y testeado. Falta:
+  wiring al runner, orchestrator genera SQs, comparativo E2E.
+

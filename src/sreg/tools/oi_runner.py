@@ -29,7 +29,9 @@ from sreg.models.open_investigation import (
     ArtifactAccess,
     ClaimCard,
     EpisodeScore,
+    EpisodeSubQuestionScore,
     EpisodeTrace,
+    SubQuestionIntent,
 )
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.solver.scm_solver import SCMSolver
@@ -184,6 +186,10 @@ class OIEpisodeRunner:
         self.seed = seed
         self.n_mc = n_mc
         self._llm_call = llm_call
+
+        # Sub-questions for scoring (optional)
+        self._subquestions: list[SubQuestionIntent] = []
+        self._sq_score: EpisodeSubQuestionScore | None = None
 
         # Trace infrastructure
         self.trace = EpisodeTrace()
@@ -367,6 +373,11 @@ class OIEpisodeRunner:
 
         self._submitted = True
         self._score = score
+
+        # Sub-question scoring (alongside v2, not replacing)
+        if self._subquestions:
+            self._sq_score = self._score_with_subquestions(compiled)
+
         logger.info(
             "Episode scored: total=%.3f correctness=%.3f coverage=%.3f",
             score.total,
@@ -400,12 +411,63 @@ class OIEpisodeRunner:
                 )
 
     # -----------------------------------------------------------------
+    # Sub-question support
+    # -----------------------------------------------------------------
+
+    def set_subquestions(self, sqs: list[SubQuestionIntent]) -> None:
+        """Set sub-questions for dual scoring. Call before submit_claims."""
+        self._subquestions = list(sqs)
+
+    def _score_with_subquestions(
+        self, compiled: list,
+    ) -> EpisodeSubQuestionScore:
+        """Compute sub-question score from compiled claims."""
+        from sreg.tools.oi_subquestions import (
+            resolve_all,
+            score_episode_with_subquestions,
+        )
+
+        # Resolve SQs against the world
+        resolved = resolve_all(
+            self._subquestions, self.world,
+            target=self.target, n_mc=self.n_mc, seed=self.seed,
+        )
+
+        # Extract (ClaimIntent, truth) tuples from compiled outputs
+        from sreg.tools.oi_compiler import CompilerOutput
+        from sreg.tools.oi_verifier import verify_atom
+
+        solver = SCMSolver(self.world, n_mc=self.n_mc)
+        claim_tuples = []
+        for co in compiled:
+            if not isinstance(co, CompilerOutput) or not co.compiled:
+                continue
+            if co.intent is None:
+                continue
+            # Compute truth: conjunctive (all atoms must hold)
+            if co.specs:
+                verdicts = [
+                    verify_atom(s, self.world, solver, self.n_mc, self.seed)
+                    for s in co.specs
+                ]
+                truth = 1.0 if all(v.solver_assertion_holds for v in verdicts) else 0.0
+            else:
+                truth = 0.0
+            claim_tuples.append((co.intent, truth))
+
+        return score_episode_with_subquestions(claim_tuples, resolved)
+
+    # -----------------------------------------------------------------
     # Results and metadata
     # -----------------------------------------------------------------
 
     def get_score(self) -> EpisodeScore | None:
         """Return the episode score, or None if not yet submitted."""
         return self._score
+
+    def get_sq_score(self) -> EpisodeSubQuestionScore | None:
+        """Return the sub-question score, or None if not computed."""
+        return self._sq_score
 
     def get_trace(self) -> EpisodeTrace:
         """Return the full episode trace."""
