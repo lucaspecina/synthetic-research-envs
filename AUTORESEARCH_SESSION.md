@@ -425,6 +425,18 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
     LLM correctly guesses everything from domain priors. Only ecosystem forces
     data use because solver's priors are wrong for that domain.
   - **This confirms A17 and is THE critical problem for LA PREGUNTA.**
-  - Next: design data-indexed worlds where priors are wrong (Simpson's paradox,
-    suppressor effects, non-intuitive causal directions).
+  - Next: design data-indexed worlds where priors are wrong.
+- **Simpson's paradox world (treatment_simpson) CREATED + TESTED:**
+  - Crude corr(Treatment, Recovery) = -0.643 but causal ATE = +0.4
+  - No-data SQ = 0.502 (solver guesses positive → wrong crude direction)
+  - With-data: solver DISCOVERS the paradox! C1: "negative association",
+    C3: "sign reversal after adjusting for severity"
+  - But SQ total WITH data (0.469) is only slightly lower than no-data (0.502)
+  - Root cause: sq2 (causal_effect) not matched because solver correctly uses
+    "association" language. Subsumption obs_assoc → causal_effect = 0 by design.
+  - **New insight:** scoring needs to recognize adjusted association as evidence
+    for causal effect, OR SQs should use obs_assoc instead of causal_effect.
+  - The WORLD forces investigation (solver discovers the paradox). The SCORING
+    doesn't fully capture the gap yet. This is a scoring refinement, not a
+    world design problem.
 
