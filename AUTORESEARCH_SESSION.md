@@ -415,7 +415,16 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
   - SQ quality high: 4/5 correctly match SCM causal structure
   - sq4 (confounding) questionable: zone_risk may not confound fluid→sanding
   - JSON export includes sub_questions, wired to runner
-- **STATUS:** Orchestrator SQ generation COMPLETE + E2E validated. Next:
-  compare orchestrator SQs vs manual SQs on curated worlds, or move to
-  other high-priority work.
+- **STATUS:** Orchestrator SQ generation COMPLETE + E2E validated.
+- **No-data baseline probe (CRITICAL FINDING):**
+  - ecosystem: no-data=0.236, with-data=0.806, gap=0.570 (FORCES investigation)
+  - treatment: no-data=0.674, with-data=0.581, gap=-0.093 (NO GAP!)
+  - education: no-data=0.766, with-data=0.766, gap=0.000 (NO GAP!)
+  - SQ correctness = 1.0 for ALL worlds without data!
+  - **Conclusion**: treatment and education worlds don't force investigation.
+    LLM correctly guesses everything from domain priors. Only ecosystem forces
+    data use because solver's priors are wrong for that domain.
+  - **This confirms A17 and is THE critical problem for LA PREGUNTA.**
+  - Next: design data-indexed worlds where priors are wrong (Simpson's paradox,
+    suppressor effects, non-intuitive causal directions).
 
