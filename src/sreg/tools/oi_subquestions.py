@@ -76,6 +76,12 @@ SUBSUMPTION_WEIGHTS: dict[tuple[str, str], float] = {
     ("observational_association", "confounding"): 0.35,
     # causal_effect gives partial credit to heterogeneity SQ (base effect)
     ("causal_effect", "heterogeneity"): 0.35,
+    # confounding claim gives partial credit to obs_association SQs
+    # (a confounding claim implies knowledge of the crude association)
+    ("confounding", "observational_association"): 0.40,
+    # confounding claim gives partial credit to causal_effect SQ
+    # (discovering confounding implies knowledge of the causal effect)
+    ("confounding", "causal_effect"): 0.35,
 }
 
 
