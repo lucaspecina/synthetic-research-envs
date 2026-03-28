@@ -562,25 +562,31 @@ def _lower_ranking(intent: ClaimIntent, summary: WorldSummary) -> list[AtomicSpe
 
 
 def _lower_confounding(intent: ClaimIntent, summary: WorldSummary) -> list[AtomicSpec]:
-    """Lower confounding: verify that C confounds the X→Y relationship.
+    """Lower confounding: verify that C confounds the X->Y relationship.
 
     Confounding means: the observational association between X and Y differs
     from the causal effect of X on Y. Controlling for confounders changes the
     relationship.
 
-    Two specs:
-    Spec 1: Causal ATE — do(X=hi) vs do(X=lo), measure mean(Y). This IS
-        the true causal effect (confounding removed by do-calculus).
-    Spec 2: Observational partial correlation between X and Y conditioning
-        on C. If C is a confounder, this should be non-zero (C doesn't
-        fully block the path, or it reveals the adjusted relationship).
+    Two specs (direction-agnostic — confounding is about the GAP existing,
+    not about the sign of the effect):
+    Spec 1: Causal ATE exists (non-zero, any direction). The causal effect
+        must be material after removing confounding via do-calculus.
+    Spec 2: Raw vs adjusted difference exists. The partial correlation
+        after conditioning on C must be non-zero (the adjusted relationship).
 
-    Both must hold: there IS a causal effect, AND controlling for C changes
-    the apparent relationship.
+    NOTE: We intentionally do NOT use the claim's direction for these specs.
+    In Simpson's paradox, the crude association and the causal effect can have
+    OPPOSITE signs. The confounding claim is about the GAP, not the direction.
+    Using the claim's crude direction for the causal ATE would make ALL
+    confounding claims in sign-reversal scenarios fail.
     """
     x, y, c = intent.treatment, intent.outcome, intent.confounder
 
-    # Spec 1: Causal effect exists (via do-calculus)
+    # Spec 1: Causal effect exists — direction-agnostic via GAP_MATERIAL
+    # Confounding is about the GAP between crude and adjusted, not the
+    # direction of the effect. Using the claim's direction would fail in
+    # Simpson's paradox (crude and causal have opposite signs).
     spec_causal = AtomicSpec(
         spec_id=f"compiled_confound_causal_{x}_{y}_{c}",
         arms=(
@@ -589,11 +595,10 @@ def _lower_confounding(intent: ClaimIntent, summary: WorldSummary) -> list[Atomi
         ),
         measurement=Measurement(kind=MeasurementKind.MEAN, target=y),
         comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
-        assertion=Assertion(kind=_DIRECTION_MAP[intent.direction]),
+        assertion=Assertion(kind=AssertionKind.GAP_MATERIAL),
     )
 
-    # Spec 2: Partial correlation X-Y conditioning on C (observational)
-    # If C is a confounder, partialling it out changes the X-Y relationship
+    # Spec 2: Adjusted partial correlation is non-zero (direction-agnostic)
     spec_partial = AtomicSpec(
         spec_id=f"compiled_confound_pcor_{x}_{y}_{c}",
         arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
@@ -604,7 +609,7 @@ def _lower_confounding(intent: ClaimIntent, summary: WorldSummary) -> list[Atomi
             cond_set=(c,),
         ),
         comparison=Comparison(kind=ComparisonKind.IDENTITY),
-        assertion=Assertion(kind=_DIRECTION_MAP[intent.direction]),
+        assertion=Assertion(kind=AssertionKind.GAP_MATERIAL),
     )
 
     return [spec_causal, spec_partial]

@@ -659,9 +659,17 @@ def _assert(
         return abs(float(cd)) > tol, float(cd)
 
     if kind == AssertionKind.GAP_MATERIAL:
-        gap = comparison_result.get("gap", 0)
-        min_gap = 0.10  # default
-        return float(gap) > min_gap, float(gap)
+        # Direction-agnostic materiality: abs(value) > threshold
+        # Works with GAP comparison (gap key), DIFFERENCE (difference key),
+        # and IDENTITY (value key). Used for confounding specs where the
+        # claim's direction may differ from ground truth (Simpson's paradox).
+        gap = comparison_result.get("gap")
+        if gap is not None:
+            min_gap = 0.10  # default
+            return float(gap) > min_gap, float(gap)
+        val = _extract_scalar(comparison_result)
+        min_gap = assertion.tolerance if assertion.tolerance > 0 else 0.05
+        return abs(val) > min_gap, val
 
     if kind in (AssertionKind.IDENTIFIABLE, AssertionKind.NOT_IDENTIFIABLE):
         val = comparison_result.get("value", False)
