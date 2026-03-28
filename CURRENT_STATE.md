@@ -3,7 +3,7 @@
 > Foto de lo implementado hoy. Compara contra `ARCHITECTURE.md` para ver
 > la brecha, contra `TODO.md` para ver el trabajo pendiente.
 >
-> Actualizado: 2026-03-28 (OI sub-questions + data-indexed worlds)
+> Actualizado: 2026-03-28 (E2E qualitative analysis + solver tooling expansion)
 
 ---
 
@@ -120,6 +120,7 @@
   - `SCMSpec`: modelo Pydantic declarativo para function calling.
     Variables (name, role, unit, range, equation), edges, validaciones
     (DAG aciclico, no duplicados, nombres reservados bloqueados).
+    Roles: `observable` and `latent` only (legacy `target` accepted as observable).
   - `SCMWorldGenTool`: spec → compile → validate (NaN/Inf/variance) → SCMWorld.
   - Pipeline E2E: SCMSpec → SCMWorldGenTool → SCMTaskGenTool → SCMProblemBuilder.
   - 92 tests: compiler (56), spec (21), world gen (15).
@@ -287,6 +288,7 @@ implemented E2E with mock solver; requires LLM for real solver + compiler.
 - System, tools, briefing, strategy sections
 - Anti-overclaiming (association vs causation)
 - No scoring info leaked to solver
+- Solver can import: statsmodels, linearmodels, sklearn, scipy (expanded sandbox)
 
 **Instrumented helpers:** `src/sreg/tools/oi_helpers.py`
 - corr, regress, stratify, test_independence, groupby_mean
@@ -297,7 +299,9 @@ warrant, helpers, runner, extraction, prompts, pilot).
 
 **OI Driver:** `src/sreg/tools/oi_driver.py`
 - Orchestrates LLM solver <-> runner loop via Responses API
-- Submit-is-terminal, deadline nudging, prose-only recovery
+- Submit-is-terminal, progressive deadline nudging (3-phase: 50%/75%/final)
+- Hard submit guard on final iteration (rejects non-submit tool calls)
+- Temperature retry optimization (disable after first success)
 - Scripted mode for testing without LLM
 - 38 tests
 
@@ -327,7 +331,16 @@ warrant, helpers, runner, extraction, prompts, pilot).
 **Scoring v2 (Session 7):** Correctness decoupled from family match, structural
 relevance, confounding pattern, improved prompt/exemplars. 18 new tests.
 
-**Pendiente:** Formalizar investigation_gap como gate de aceptacion,
+**E2E qualitative evaluation (4 cases, 2026-03-28):**
+- 4 domains tested: poverty (dev econ), pollution (water eng), soil (env health), coral (marine eco)
+- Worlds + briefs look like real research. Solver does real investigation (2SLS, multi-model, pathway analysis).
+- **Evaluation harness is the bottleneck**: coral case had 5 correct claims, all 4 SQs scored 0.00 MISS.
+  Root cause: claim compilation extracts wrong pattern (observational_association vs causal_effect).
+- Submission aversion: 2/4 cases scored 0 because solver never submitted despite nudges.
+- Analysis: `research/notes/e2e_qualitative_analysis_20260328.md`
+
+**Pendiente:** Redesign submit_claims to be structured (A21), validate hard submit guard,
+formalizar investigation_gap como gate de aceptacion,
 comparar SQs manuales vs orchestrator, decidir si SQ scoring reemplaza v2.
 
 ---

@@ -698,9 +698,6 @@ def export_dag_png(result, output_dir: str) -> str | None:
             else:
                 node_types[var] = "observable"
             node_states[var] = []
-        # Guess target from the last variable in topo order
-        if world.variables:
-            node_types[world.variables[-1]] = "target"
         for child, parents in world.graph.items():
             for parent in parents:
                 G.add_edge(parent, child)

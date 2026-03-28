@@ -248,17 +248,18 @@ def build_report(
                 lines.append(f"- **{var}**: exogenous (root node)")
     lines.append("")
 
-    # Salience map
-    lines.append("## Salience map (discoverable truths)")
-    lines.append("")
-    lines.append(f"The salience map enumerates {len(salience.families)} families of "
-                 f"verifiable facts about this world:")
-    lines.append("")
-    for fam in salience.families:
-        focus = ", ".join(fam.key.focus_signature)
-        lines.append(f"- **{fam.key.pattern_class}** [{focus}] "
-                     f"({len(fam.atoms)} atoms)")
-    lines.append("")
+    # Salience map (optional — only when computed for diagnostics)
+    if salience:
+        lines.append("## Salience map (discoverable truths)")
+        lines.append("")
+        lines.append(f"The salience map enumerates {len(salience.families)} families of "
+                     f"verifiable facts about this world:")
+        lines.append("")
+        for fam in salience.families:
+            focus = ", ".join(fam.key.focus_signature)
+            lines.append(f"- **{fam.key.pattern_class}** [{focus}] "
+                         f"({len(fam.atoms)} atoms)")
+        lines.append("")
 
     # =========================================================
     # Part 1: What the solver received
@@ -421,10 +422,9 @@ def build_report(
     lines.append("")
     lines.append("# Part 4: How claims were evaluated")
     lines.append("")
-    lines.append("Each claim is compiled by an LLM into a formal AtomicSpec, "
-                 "matched against salience map families, and verified via "
-                 "Monte Carlo simulation against the SCM. No LLM judge is "
-                 "used for scoring -- verification is exact.")
+    lines.append("Each claim is compiled by an LLM into a formal AtomicSpec "
+                 "and verified via Monte Carlo simulation against the SCM. "
+                 "No LLM judge is used for scoring -- verification is exact.")
     lines.append("")
 
     if result.score:

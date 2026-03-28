@@ -530,6 +530,55 @@ Un LLM podria acertar sin datos. Es EL problema central para LA PREGUNTA.
 resultados 6 mundos, debate con Codex, patrones identificados).
 **Conecta con:** A1, A3 (modos semanticos), I2 (fictional mode)
 
+### A21. Evaluation harness no reconoce findings correctos — E2E 2026-03-28
+
+**EL problema actual mas critico.** En el E2E de 4 casos, el coral reef
+caso demostro que el solver PUEDE investigar y PUEDE submitir (5 claims),
+pero las 4 sub-preguntas scored 0.00 MISS. Los claims eran correctos.
+
+**Root cause: claim compilation (LLM step) extrae patron equivocado.**
+El solver usa lenguaje hedgeado ("associated with") porque el prompt dice
+ser cauteloso. Pero los SQs esperan pattern=causal_effect. El compiler
+extrae pattern=observational_association → exact-match falla.
+
+**Codex summary:** "the worlds may already be good enough, and the solver
+may already be capable of useful research behavior, but the evaluation
+harness is still not trustworthy enough to tell you that."
+
+**Sub-preguntas:**
+- [ ] Redesign submit_claims to be structured: add fields relation_type,
+  treatment, outcome, direction, estimate, causal_confidence. Don't require
+  LLM to infer ontology from hedged prose.
+- [ ] Split scoring into separate axes: topical match, inferential type,
+  sign, evidence strength. A claim can be topically correct but pattern-wrong.
+- [ ] Audit failed coral claims: classify as compiler miss vs SQ ontology
+  mismatch vs wrong answer.
+- [ ] The tension: we tell solver "be cautious about causation" (good science)
+  but SQs expect causal claims (because ground truth IS causal). Solution:
+  don't weaken caution, redesign submit_claims.
+
+**Evidencia:** `research/notes/e2e_qualitative_analysis_20260328.md` (Case 4)
+**Conecta con:** A15 (OI), A19 (SQ scoring), LA PREGUNTA
+
+### A22. Submission aversion — solver resists calling submit_claims
+
+2/4 E2E cases: solver did real analysis but scored 0 because it never
+submitted. Even with progressive nudges (50%, 75%, FINAL) and explicit
+"You MUST call submit_claims now", the soil case solver ran another
+regression on its last turn.
+
+**Root cause:** behavioral — solver treats submit_claims as psychologically
+terminal. It always wants "one more analysis" before committing.
+
+**Mitigaciones implementadas:**
+- [x] Progressive deadline nudges (3-phase: halfway, deadline, final)
+- [x] Hard submit guard on final iteration (reject non-submit tool calls)
+- [ ] Validate hard submit guard in E2E rerun
+- [ ] Consider continuous claim drafting (draft_claim tool, finalize at end)
+- [ ] Consider auto-submit fallback (extract claims from analysis log)
+
+**Evidencia:** `research/notes/e2e_qualitative_analysis_20260328.md` (Cases 1, 3)
+
 ### A20. Investigation gap como criterio de aceptacion de mundos
 
 Cada mundo OI debe pasar un test: `score_with_data - score_no_data > threshold`.

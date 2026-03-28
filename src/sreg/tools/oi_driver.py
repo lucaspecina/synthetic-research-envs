@@ -272,9 +272,20 @@ _NUDGE_NO_TOOLS = (
     "the available data and submit_claims when you have findings."
 )
 
+_NUDGE_HALFWAY = (
+    "STATUS: You have used {used}/{total} iterations. By now you should have "
+    "at least one draft finding with supporting evidence. Stop broad exploration "
+    "unless it directly changes a claim you plan to submit."
+)
+
 _NUDGE_DEADLINE = (
-    "DEADLINE: You have {remaining} iteration(s) left. If you have not yet "
-    "submitted, please call submit_claims now with your best findings."
+    "DEADLINE: You have {remaining} iteration(s) left. Submit your supported "
+    "claims now. Use remaining iterations only to strengthen or qualify them."
+)
+
+_NUDGE_FINAL = (
+    "FINAL: This is your LAST iteration. You MUST call submit_claims now "
+    "with whatever findings you have. Any analysis is better than no submission."
 )
 
 _MAX_NUDGES = 2  # Max prose-only nudges before giving up
@@ -328,7 +339,9 @@ def run_oi_investigation(
 
     prev_response_id = None
     nudge_count = 0
+    halfway_nudged = False
     deadline_nudged = False
+    final_nudged = False
 
     for iteration in range(max_iterations):
         # Build API call kwargs
@@ -352,6 +365,9 @@ def run_oi_investigation(
             logger.warning("LLM call failed: %s — retrying without temp/tokens", e)
             kwargs.pop("temperature", None)
             kwargs.pop("max_output_tokens", None)
+            # Disable for future iterations so we don't retry every time
+            temperature = None
+            max_tokens = None
             response = client.responses.create(**kwargs)
 
         prev_response_id = response.id
@@ -396,13 +412,21 @@ def run_oi_investigation(
 
         # Dispatch tool calls
         pending_outputs = []
+        remaining = max_iterations - iteration - 1
         for tc in tool_calls:
             try:
                 args = json.loads(tc.arguments)
             except json.JSONDecodeError:
                 args = {}
 
-            result_str = handler(tc.name, args)
+            # Hard guard: on final iteration, reject non-submit calls
+            if remaining <= 0 and tc.name != "submit_claims" and tc.name != "think":
+                result_str = (
+                    "ERROR: No iterations remaining. You MUST call submit_claims "
+                    "now. Summarize your findings and submit."
+                )
+            else:
+                result_str = handler(tc.name, args)
 
             messages.append({
                 "role": "tool",
@@ -419,17 +443,22 @@ def run_oi_investigation(
         if runner.is_submitted:
             break
 
-        # One-shot deadline nudge at 75% of iterations
+        # Progressive deadline nudges
         remaining = max_iterations - iteration - 1
-        if (
-            not deadline_nudged
-            and remaining <= max(2, max_iterations // 4)
-            and not runner.is_submitted
-            and remaining > 0
-        ):
-            deadline_nudged = True
-            nudge = _NUDGE_DEADLINE.format(remaining=remaining)
-            messages.append({"role": "user", "content": nudge})
+        used = iteration + 1
+        if not runner.is_submitted and remaining > 0:
+            pct = used / max_iterations
+            if pct >= 0.5 and not halfway_nudged:
+                halfway_nudged = True
+                nudge = _NUDGE_HALFWAY.format(used=used, total=max_iterations)
+                messages.append({"role": "user", "content": nudge})
+            elif pct >= 0.75 and not deadline_nudged:
+                deadline_nudged = True
+                nudge = _NUDGE_DEADLINE.format(remaining=remaining)
+                messages.append({"role": "user", "content": nudge})
+            elif remaining == 1 and not final_nudged:
+                final_nudged = True
+                messages.append({"role": "user", "content": _NUDGE_FINAL})
 
     return OIInvestigationResult(
         score=runner.get_score(),

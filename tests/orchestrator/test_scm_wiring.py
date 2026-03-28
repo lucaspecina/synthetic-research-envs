@@ -180,7 +180,8 @@ def test_scm_construct_epidemiology():
     # Check variable roles in response
     roles = {v["name"]: v["role"] for v in output["variables"]}
     assert roles["pollution_source"] == "latent"
-    assert roles["respiratory_disease"] == "target"
+    # target role removed: OI uses SQ roles instead. All non-latent are observable.
+    assert roles["respiratory_disease"] == "observable"
     assert roles["air_quality"] == "observable"
 
 

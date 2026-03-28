@@ -211,6 +211,17 @@ desplazandose hacia `synthesis/`.
   23 tests, 7 Codex bugs fixed. Prototype: `notes/oi_subquestion_prototype.md`.
   Treatment world: 0.983 total (vs 0.400 with v2). Dual scoring wired to runner.
 
+### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
+- **Pregunta:** por que SREG todavia no es investigacion real (post-OI pipeline)?
+- **Empezar por:** `notes/e2e_qualitative_analysis_20260328.md`
+- **4 cases:** poverty, pollution, soil, coral reef. 2 domains per batch.
+- **Key finding:** worlds + solver are research-capable. Evaluation harness
+  is the bottleneck (claim compilation fails, scoring rejects correct findings).
+- **Fixes applied:** statsmodels/linearmodels allowed, progressive nudges,
+  hard submit guard on final iteration.
+- **Next:** redesign submit_claims to be structured, split scoring axes.
+- **Codex thread:** 019d3654-fa2b-7b92-a457-627687961699
+
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
   Model) con ecuaciones arbitrarias y reward via Monte Carlo.

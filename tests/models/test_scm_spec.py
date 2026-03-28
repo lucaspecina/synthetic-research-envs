@@ -100,22 +100,34 @@ class TestValidation:
                 edges=[("X", "Y"), ("Y", "X")],
             )
 
-    def test_no_target_rejected(self):
-        with pytest.raises(ValueError, match="target"):
-            SCMSpec(
-                variables=[_var("X"), _var("Y")],
-                edges=[("X", "Y")],
-            )
+    def test_no_target_accepted(self):
+        """target role is no longer required — OI uses sub-question roles."""
+        spec = SCMSpec(
+            variables=[_var("X"), _var("Y")],
+            edges=[("X", "Y")],
+        )
+        assert len(spec.variables) == 2
 
     def test_no_observable_rejected(self):
         with pytest.raises(ValueError, match="observable"):
             SCMSpec(
                 variables=[
                     _var("X", role="latent"),
-                    _var("Y", role="target"),
+                    _var("Y", role="latent"),
                 ],
                 edges=[("X", "Y")],
             )
+
+    def test_legacy_target_as_observable(self):
+        """Legacy 'target' role accepted and treated as non-latent."""
+        spec = SCMSpec(
+            variables=[
+                _var("X", role="latent"),
+                _var("Y", role="target"),
+            ],
+            edges=[("X", "Y")],
+        )
+        assert spec.variables[1].role == "target"  # preserved in model
 
     def test_too_few_variables(self):
         with pytest.raises(ValueError):

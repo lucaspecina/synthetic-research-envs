@@ -5,6 +5,35 @@
 
 ## [Unreleased]
 
+### 2026-03-28 — Remove target_node + solver tooling + E2E qualitative analysis
+
+**Target node removal from OI pipeline (Session 12):**
+- Removed `target` role requirement from SCMSpec (OI uses sub-question roles)
+- Updated orchestrator: SCM tool schema, variable summary, OI_MODE_PROMPT
+- Updated prompt: "Exactly 1 target" -> role-neutral sub-question guidance
+- Legacy `target` role accepted for backward compat, treated as observable
+- 7 files changed, all tests pass (46 targeted, 182 model)
+
+**Solver tooling expansion (Session 12):**
+- Added statsmodels, linearmodels, sklearn to python_exec ALLOWED_IMPORTS
+- Updated solver prompt: "You can also import: statsmodels, linearmodels, sklearn"
+- Added linearmodels to pyproject.toml dependencies
+- RESULT: soil case used statsmodels successfully — zero tooling friction
+
+**Progressive deadline nudges (Session 12):**
+- Replaced one-shot 75% deadline with 3-phase system: 50% (operational), 75% (deadline), final (mandatory)
+- Added hard guard: reject non-submit tool calls on final iteration
+- Fixed temperature retry: disable unsupported params after first failure
+
+**E2E qualitative analysis (Session 12) — 4 cases:**
+- Poverty (dev econ): 0 claims, tooling friction (pre-fix)
+- Pollution (water eng): OI solver crashed, reliability issue
+- Soil (env health): 0 claims despite working statsmodels + 3 nudges (submission aversion)
+- Coral (marine eco): 5 claims submitted! But SQ matching scored 0/4 (claim compilation failure)
+- KEY FINDING: worlds + solver are research-capable; evaluation harness is the bottleneck
+- Analysis: `research/notes/e2e_qualitative_analysis_20260328.md`
+- Codex thread: 019d3654-fa2b-7b92-a457-627687961699
+
 ### 2026-03-28 — Data-indexed worlds + investigation gap validation
 
 **Sub-question scoring pipeline (Session 9-10):**

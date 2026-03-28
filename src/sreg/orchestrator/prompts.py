@@ -291,7 +291,6 @@ structure with 8-12 continuous variables, meaningful equations, and at least \
 - Include proper units (celsius, mg/L, mmHg, hours/week, etc.)
 - Set realistic ranges based on the domain
 - Include 1+ latent variables (hidden causes the agent must reason about)
-- Exactly 1 target variable (the outcome to investigate)
 
 **Equation design — make relationships REALISTIC:**
 - Use domain-appropriate functional forms (not just linear)
@@ -423,11 +422,12 @@ TOOL_DEFINITIONS = [
                                 },
                                 "role": {
                                     "type": "string",
-                                    "enum": ["observable", "latent", "target"],
+                                    "enum": ["observable", "latent"],
                                     "description": (
                                         "observable: agent can see this variable's data. "
                                         "latent: hidden, never directly observed. "
-                                        "target: the outcome to predict (exactly 1)."
+                                        "The sub-questions define which variables are "
+                                        "outcomes of interest (there can be multiple)."
                                     ),
                                 },
                                 "unit": {

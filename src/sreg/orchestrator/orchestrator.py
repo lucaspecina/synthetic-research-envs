@@ -66,12 +66,11 @@ Call design_case with these fields:
   Example: "Investigate the factors affecting patient recovery after treatment.
   Identify the most important mechanisms and any confounding relationships."
 - **deliverables**: 3-5 action items the investigator should deliver.
-- **sub_questions**: Use any pattern that fits the research question.
-  The system is general — all patterns (causal_effect, observational_association,
-  mediation, confounding, heterogeneity, effect_ranking) work for any world.
-  causal SQ patterns, but note the solver won't have intervention tools.
 - **sub_questions**: 4-6 hidden sub-questions that define the scoring agenda.
   The solver NEVER sees these — they are used for evaluation only.
+  Use any pattern that fits the research question. The system is general —
+  all patterns (causal_effect, observational_association, mediation,
+  confounding, heterogeneity, effect_ranking) work for any world.
 
 ### Sub-question format
 
@@ -114,7 +113,6 @@ Each sub-question has:
 ### Do NOT
 
 - Do NOT put specific sub-question details in the brief — keep it vague
-- Do NOT use patterns that don't match the epistemic regime
 - Do NOT create more than 1 near-zero/null-finding sub-question
 """
 
@@ -493,11 +491,7 @@ class Orchestrator:
         for v in world.variables:
             meta = world.variable_meta.get(v)
             role = "latent" if v in world.latent_variables else "observable"
-            # Find target from the spec
-            for sv in raw_vars:
-                if sv["name"] == v and sv["role"] == "target":
-                    role = "target"
-                    break
+            # Legacy compat: treat "target" as "observable" (OI uses SQ roles)
             info: dict = {"name": v, "role": role}
             if meta and meta.unit:
                 info["unit"] = meta.unit
