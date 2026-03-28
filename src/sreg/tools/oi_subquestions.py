@@ -76,10 +76,6 @@ SUBSUMPTION_WEIGHTS: dict[tuple[str, str], float] = {
     ("observational_association", "confounding"): 0.35,
     # causal_effect gives partial credit to heterogeneity SQ (base effect)
     ("causal_effect", "heterogeneity"): 0.35,
-    # observational_association claim gives partial credit to causal_effect SQ
-    # TEMPORARY: safety net for legacy claims without structured fields.
-    # Remove once structured claims are validated in E2E.
-    ("observational_association", "causal_effect"): 0.40,
     # confounding claim gives partial credit to obs_association SQs
     # (a confounding claim implies knowledge of the crude association)
     ("confounding", "observational_association"): 0.40,
@@ -780,13 +776,6 @@ def score_claim_vs_subquestion(
         if not _roles_compatible_subsumption(claim, comp):
             continue
 
-        # Telemetry: log when temporary obs->causal subsumption fires
-        if claim.pattern.value == "observational_association" and comp.pattern == "causal_effect":
-            logger.info(
-                "TEMPORARY subsumption: claim %s (obs_assoc) -> SQ %s (causal_effect) w=%.2f",
-                claim.claim_id, comp.component_id, sub_w,
-            )
-
         answer_compat = _answer_compatibility(claim, comp.resolved_answer, comp.ask)
         score = claim_truth * sub_w * answer_compat * comp.contribution
         best = max(best, score)
@@ -882,26 +871,6 @@ def score_episode_with_subquestions(
             # Track claims used by ALL_OF SQs for correctness
             if best_claim_for_allof:
                 claim_used_for_sq[best_claim_for_allof] = rsq.intent.sq_id
-
-    # Ambiguity detection: surface when claims match 0 or >1 SQs
-    for claim, truth in compiled_claims:
-        if truth == 0.0:
-            continue
-        matches = []
-        for rsq in resolved_sqs:
-            s = score_claim_vs_subquestion(claim, truth, rsq)
-            if s > 0.0:
-                matches.append(rsq.intent.sq_id)
-        if len(matches) == 0:
-            logger.info(
-                "Claim %s (pattern=%s, %s->%s) matched 0 SQs — treated as novel",
-                claim.claim_id, claim.pattern.value, claim.treatment, claim.outcome,
-            )
-        elif len(matches) > 1:
-            logger.warning(
-                "Claim %s matched %d SQs: %s — ambiguous scoring",
-                claim.claim_id, len(matches), matches,
-            )
 
     # Coverage: fraction of SQs with any satisfaction
     n_matched = sum(1 for s in sq_scores if s.matched)

@@ -244,78 +244,6 @@ def _extract_json(text: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Structured claim → ClaimIntent (deterministic, no LLM)
-# ---------------------------------------------------------------------------
-
-
-def build_intent_from_structured(
-    card: ClaimCard,
-    world_variables: list[str] | None = None,
-) -> ClaimIntent | str:
-    """Build ClaimIntent deterministically from ClaimCard structured fields.
-
-    Returns ClaimIntent on success, or an error string on validation failure.
-    Requires card.has_structured_fields to be True.
-    """
-    if not card.has_structured_fields:
-        return "Missing required structured fields (relation_type, treatment, outcome, direction)"
-
-    # Validate relation_type
-    try:
-        pattern = PatternClass(card.relation_type)
-    except ValueError:
-        valid = ", ".join(p.value for p in PatternClass)
-        return f"Invalid relation_type '{card.relation_type}'. Valid: {valid}"
-
-    # Validate direction
-    try:
-        direction = Direction(card.direction)
-    except ValueError:
-        valid = ", ".join(d.value for d in Direction)
-        return f"Invalid direction '{card.direction}'. Valid: {valid}"
-
-    # Validate variable names against world if provided
-    if world_variables is not None:
-        var_set = set(world_variables)
-        for field_name, value in [
-            ("treatment", card.treatment),
-            ("outcome", card.outcome),
-            ("mediator", card.mediator),
-            ("modifier", card.modifier),
-            ("confounder", card.confounder),
-        ]:
-            if value is not None and value not in var_set:
-                avail = ", ".join(sorted(var_set))
-                return (
-                    f"Variable '{value}' ({field_name}) not found "
-                    f"in world. Available: {avail}"
-                )
-
-    # Build ClaimIntent
-    evidence_type = (
-        "observational" if pattern == PatternClass.OBSERVATIONAL_ASSOCIATION
-        else "interventional"
-    )
-
-    try:
-        intent = ClaimIntent(
-            claim_id=card.claim_id,
-            pattern=pattern,
-            treatment=card.treatment,
-            outcome=card.outcome,
-            direction=direction,
-            mediator=card.mediator,
-            modifier=card.modifier,
-            confounder=card.confounder,
-            evidence_type=evidence_type,
-        )
-    except ValueError as e:
-        return f"Validation error: {e}"
-
-    return intent
-
-
-# ---------------------------------------------------------------------------
 # Full extraction pipeline
 # ---------------------------------------------------------------------------
 
@@ -327,11 +255,7 @@ def compile_claim(
 ) -> CompilerOutput:
     """Compile one ClaimCard through the full pipeline.
 
-    Pipeline:
-    1. If structured fields present → deterministic ClaimIntent (no LLM)
-    2. Else if llm_call → LLM extraction
-    3. Else → deterministic keyword fallback
-    Then: lower intent → AtomicSpecs → CompilerOutput.
+    Pipeline: prompt → LLM → parse → validate → lower → output.
 
     Args:
         claim: The ClaimCard to compile.
@@ -343,20 +267,8 @@ def compile_claim(
 
     world_vars = summary.observable_names
 
-    # Path 1: Structured fields → deterministic intent (no LLM needed)
-    if claim.has_structured_fields:
-        result = build_intent_from_structured(claim, world_vars)
-        if isinstance(result, str):
-            # Validation error — return as abstention with clear message
-            logger.warning("Structured claim %s failed: %s", claim.claim_id, result)
-            return CompilerOutput(
-                claim_id=claim.claim_id,
-                status="abstention",
-                abstention_reason=f"Structured field error: {result}",
-            )
-        parsed = result
-    elif llm_call is not None:
-        # Path 2: LLM extraction — fail closed on errors
+    if llm_call is not None:
+        # LLM extraction path — fail closed on errors
         try:
             messages = build_extraction_prompt(claim, world_vars)
             response_text = llm_call(messages)
@@ -371,14 +283,7 @@ def compile_claim(
                 abstention_reason=f"LLM extraction error: {e}",
             )
     else:
-        # Path 3: Deterministic keyword fallback (testing only)
-        # WARNING: This path is unreliable for scoring. In benchmark mode,
-        # claims should always have structured fields or an LLM call.
-        logger.warning(
-            "Claim %s has no structured fields and no LLM — using keyword fallback. "
-            "This is unreliable for benchmark scoring.",
-            claim.claim_id,
-        )
+        # Deterministic fallback
         parsed = _deterministic_extract(claim, world_vars)
 
     # If parsing produced an abstention, return it

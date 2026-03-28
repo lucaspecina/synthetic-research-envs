@@ -203,10 +203,6 @@ class ClaimCard(BaseModel):
 
     The solver writes claim cards, not prose and not formal specs.
     This is a scientific reporting format, not a technical form.
-
-    Structured targeting fields (relation_type, treatment, outcome, direction)
-    allow deterministic compilation to ClaimIntent without LLM extraction.
-    When all structured fields are present, the LLM extraction step is skipped.
     """
 
     claim_id: str = Field(min_length=1)
@@ -215,55 +211,12 @@ class ClaimCard(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     evidence_basis: list[EvidenceRef] = Field(min_length=1, max_length=5)
 
-    # --- Structured targeting fields (strongly recommended) ---
-    # These map directly to ClaimIntent fields and bypass LLM extraction.
-    relation_type: str | None = Field(
-        default=None,
-        description=(
-            "Type of relationship: causal_effect, mediation, heterogeneity, "
-            "observational_association, confounding"
-        ),
-    )
-    treatment: str | None = Field(
-        default=None, description="Main cause/predictor variable (exact name from dataset)"
-    )
-    outcome: str | None = Field(
-        default=None, description="Main outcome variable (exact name from dataset)"
-    )
-    direction: str | None = Field(
-        default=None, description="Direction of effect: positive, negative, or near_zero"
-    )
-    # Pattern-specific roles
-    mediator: str | None = Field(
-        default=None, description="For mediation: intermediate variable in X->M->Y"
-    )
-    modifier: str | None = Field(
-        default=None, description="For heterogeneity: variable that modulates the effect"
-    )
-    confounder: str | None = Field(
-        default=None, description="For confounding: variable creating spurious association"
-    )
-    # Optional deliverable mapping
-    deliverable_index: int | None = Field(
-        default=None, ge=0, description="Which deliverable this claim addresses (0-indexed)"
-    )
-
-    # Legacy fields (used by LLM extraction fallback)
+    # Optional but improve compilation
     outcome_aspect: str | None = Field(default=None, max_length=200)
     comparison_text: str | None = Field(default=None, max_length=200)
     scope_text: str | None = Field(default=None, max_length=200)
     pattern_tags: list[str] = Field(default_factory=list, max_length=5)
     caveats: list[str] = Field(default_factory=list, max_length=3)
-
-    @property
-    def has_structured_fields(self) -> bool:
-        """True if all required structured targeting fields are present."""
-        return all([
-            self.relation_type is not None,
-            self.treatment is not None,
-            self.outcome is not None,
-            self.direction is not None,
-        ])
 
 
 class ClaimSubmission(BaseModel):
