@@ -48,6 +48,7 @@ class OrchestratorResult:
         self.world: World | SCMWorld | None = None
         self.problem: ResearchProblem | None = None
         self.episode: Any = None
+        self.oi_mode: bool = False
         self.task: Any = None
         self.attempts: int = 0
         self.validation_passed: bool = False
@@ -68,10 +69,12 @@ class Orchestrator:
         max_iterations: int = 15,
         max_gen_attempts: int = 3,
         client: OpenAI | None = None,
+        oi_mode: bool = False,
     ):
         self.model = model or os.environ.get("AZURE_MODEL", "gpt-4o")
         self.max_iterations = max_iterations
         self.max_gen_attempts = max_gen_attempts
+        self.oi_mode = oi_mode
 
         if client is not None:
             self._client = client
@@ -105,9 +108,33 @@ class Orchestrator:
                   "generate a medium-difficulty world about medical diagnosis"
         """
         result = OrchestratorResult()
+
+        # In OI mode, append instructions to skip task/question generation
+        effective_prompt = SYSTEM_PROMPT
+        effective_goal = goal
+        if self.oi_mode:
+            effective_prompt += (
+                "\n\n## OPEN INVESTIGATION MODE\n\n"
+                "You are generating a world for OPEN INVESTIGATION, not for "
+                "predefined questions. This means:\n"
+                "1. DO NOT call design_case or task_gen. There are no predefined "
+                "   questions — the solver will decide what to investigate.\n"
+                "2. When calling build_problem, the solver will receive a VAGUE "
+                "   research brief, not specific questions.\n"
+                "3. Focus on creating a world with INTERESTING causal structure: "
+                "   confounders, mediators, interactions, non-obvious relationships.\n"
+                "4. The research_brief in the CasePlan should be a real research "
+                "   question that a scientist would ask — broad, not specific.\n"
+                "   Example: 'Investigate factors affecting patient recovery and "
+                "   identify the most important mechanisms at play.'\n"
+                "   NOT: 'What is the ATE of Treatment on Recovery?'\n\n"
+                "Your pipeline: scm_construct → apply_semantics → design_case "
+                "(with research_brief ONLY, no questions) → build_problem."
+            )
+
         messages_log: list[dict] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": goal},
+            {"role": "system", "content": effective_prompt},
+            {"role": "user", "content": effective_goal},
         ]
 
         prev_response_id = None
@@ -122,8 +149,8 @@ class Orchestrator:
 
             if prev_response_id is None:
                 # First call: include instructions and goal
-                kwargs["instructions"] = SYSTEM_PROMPT
-                kwargs["input"] = goal
+                kwargs["instructions"] = effective_prompt
+                kwargs["input"] = effective_goal
             else:
                 # Subsequent calls: chain with previous response
                 kwargs["previous_response_id"] = prev_response_id
@@ -186,6 +213,7 @@ class Orchestrator:
                 })
 
         result.messages = messages_log
+        result.oi_mode = self.oi_mode
         return result
 
     def _dispatch_tool(self, name: str, args: dict, result: OrchestratorResult) -> dict:
@@ -783,8 +811,10 @@ class Orchestrator:
             semantics = self._world_semantics.get(world_id, {})
             seed = self._world_seeds.get(world_id, 42)
 
-            # Get tasks from result if available
-            tasks = result.task if isinstance(result.task, list) else None
+            # Get tasks from result if available (skip in OI mode)
+            tasks = None
+            if not self.oi_mode:
+                tasks = result.task if isinstance(result.task, list) else None
 
             effective_rows = max(num_rows, 200)
             # Vary panel structure per SRC for realism (A18)

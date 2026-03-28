@@ -71,17 +71,22 @@ def _print(text: str = "") -> None:
 # 1. Generate: run orchestrator
 # ---------------------------------------------------------------------------
 
-def generate(goal: str, model: str | None = None, verbose: bool = False):
+def generate(
+    goal: str, model: str | None = None, verbose: bool = False, oi_mode: bool = False
+):
     """Run the orchestrator and return the result."""
     from sreg.orchestrator.orchestrator import Orchestrator
 
-    _print(_c(B + BLU, "=== Generating SRC ==="))
+    mode_label = "OI" if oi_mode else "SRC"
+    _print(_c(B + BLU, f"=== Generating {mode_label} ==="))
     _print(f"  {_c(DIM, 'Model:')} {model or os.environ.get('AZURE_MODEL', 'gpt-4o')}")
     goal_preview = goal[:120] + "..." if len(goal) > 120 else goal
     _print(f"  {_c(DIM, 'Goal:')} {goal_preview}")
+    if oi_mode:
+        _print(f"  {_c(DIM, 'Mode:')} Open Investigation (no predefined questions)")
     _print()
 
-    o = Orchestrator(model=model) if model else Orchestrator()
+    o = Orchestrator(model=model, oi_mode=oi_mode) if model else Orchestrator(oi_mode=oi_mode)
 
     # Intercept tool calls for display
     original_dispatch = o._dispatch_tool
@@ -1159,6 +1164,10 @@ def main():
         help="Run agent solver on each task (implies --inspect). Generates full_case.md",
     )
     parser.add_argument(
+        "--oi", action="store_true",
+        help="Open Investigation mode: vague brief, free-form investigation, claim-based scoring",
+    )
+    parser.add_argument(
         "--report", action="store_true",
         help="Generate Inspiration Report comparing seed vs SRC (requires --seed-file)",
     )
@@ -1242,7 +1251,7 @@ def main():
     model = args.model or os.environ.get("AZURE_MODEL", "gpt-4o")
 
     # Generate
-    result, steps = generate(goal, model=model, verbose=args.verbose)
+    result, steps = generate(goal, model=model, verbose=args.verbose, oi_mode=args.oi)
 
     if not result.world or not result.problem:
         _print(f"\n{_c(RED + B, 'Generation failed. Aborting.')}")
@@ -1321,6 +1330,100 @@ def main():
         solve_result = solve_tasks(result, args.output, seed=solve_seed, **solver_kwargs)
         if solve_result:
             _print(f"  {_c(GRN, 'v')} {solve_result} (complete report)")
+
+    # OI mode: run Open Investigation with LLM solver
+    if args.oi:
+        _print()
+        _print(_c(B + BLU, "=== Open Investigation ==="))
+
+        from sreg.world.scm import SCMWorld as _OI_SCMWorld
+        if not isinstance(result.world, _OI_SCMWorld):
+            _print(f"  {_c(RED, 'x')} OI mode requires SCMWorld (not BN)")
+        elif not result.problem:
+            _print(f"  {_c(RED, 'x')} No problem generated")
+        else:
+            from openai import OpenAI  # noqa: E402
+
+            from sreg.tools.oi_driver import run_oi_investigation
+            from sreg.tools.oi_runner import OIEpisodeRunner
+
+            solver_model = args.solver_model or os.environ.get(
+                "AZURE_SOLVER_MODEL", os.environ.get("AZURE_MODEL", "gpt-5.2-codex")
+            )
+            compiler_model = os.environ.get("AZURE_MODEL", "gpt-5.4")
+
+            solver_client = OpenAI(
+                base_url=args.solver_base_url or os.environ.get("AZURE_FOUNDRY_BASE_URL", ""),
+                api_key=args.solver_api_key or os.environ.get("AZURE_INFERENCE_CREDENTIAL", ""),
+            )
+
+            # Build LLM compiler callable
+            compiler_client = OpenAI(
+                base_url=os.environ.get("AZURE_FOUNDRY_BASE_URL", ""),
+                api_key=os.environ.get("AZURE_INFERENCE_CREDENTIAL", ""),
+            )
+
+            def llm_compiler(messages: list[dict[str, str]]) -> str:
+                resp = compiler_client.responses.create(
+                    model=compiler_model,
+                    instructions=messages[0]["content"] if messages else "",
+                    input=messages[-1]["content"] if messages else "",
+                )
+                for item in resp.output:
+                    if item.type == "message":
+                        for part in item.content:
+                            if hasattr(part, "text"):
+                                return part.text
+                return ""
+
+            _print(f"  Solver: {solver_model}")
+            _print(f"  Compiler: {compiler_model}")
+
+            oi_seed = args.seed if args.seed is not None else 42
+            runner = OIEpisodeRunner(
+                result.problem, result.world,
+                seed=oi_seed, n_mc=20_000, llm_call=llm_compiler,
+            )
+
+            import time as _time
+            t0 = _time.time()
+            oi_result = run_oi_investigation(
+                runner, solver_client, solver_model, max_iterations=20,
+            )
+            elapsed = _time.time() - t0
+
+            _print(f"  Steps: {oi_result.n_steps} | Time: {elapsed:.0f}s")
+            _print(f"  Submitted: {oi_result.submitted}")
+            if oi_result.score:
+                s = oi_result.score
+                _print(f"  Score: total={s.total:.3f} correct={s.correctness:.3f} "
+                       f"coverage={s.coverage:.3f}")
+
+            # Save results
+            oi_json = {
+                "world": result.world.id,
+                "solver_model": solver_model,
+                "compiler_model": compiler_model,
+                "elapsed": elapsed,
+                "n_steps": oi_result.n_steps,
+                "submitted": oi_result.submitted,
+                "score": oi_result.score.model_dump() if oi_result.score else None,
+            }
+            oi_path = os.path.join(args.output, "oi_result.json")
+            with open(oi_path, "w") as f:
+                json.dump(oi_json, f, indent=2)
+            _print(f"  {_c(GRN, 'v')} {oi_path}")
+
+            # Generate full_case_oi.md report
+            try:
+                from scripts.oi_demo_case import build_report
+                report = build_report(oi_result, result.world, result.problem)
+                report_path = os.path.join(args.output, "full_case_oi.md")
+                with open(report_path, "w", encoding="utf-8") as f:
+                    f.write(report)
+                _print(f"  {_c(GRN, 'v')} {report_path}")
+            except Exception as e:
+                _print(f"  {_c(YLW, '!')} Report generation failed: {e}")
 
     _print()
     title = getattr(result.world, "scenario_title", None) or result.world.id
