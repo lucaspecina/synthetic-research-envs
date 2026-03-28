@@ -13,7 +13,6 @@ from sreg.tools.oi_driver import (
     OI_SOLVER_TOOLS,
     OIInvestigationResult,
     ScriptedAction,
-    _parse_claim_cards,
     build_oi_tool_handler,
     run_oi_scripted,
 )
@@ -87,9 +86,14 @@ def _claim_dict(
     focus: list[str] | None = None,
     artifact_id: str = "dataset_bg",
     pattern_tags: list[str] | None = None,
+    relation_type: str = "causal_effect",
+    treatment: str = "A",
+    outcome: str = "Y",
+    direction: str = "positive",
+    **extra,
 ) -> dict:
     """Return a claim as a raw dict (as an LLM tool call would provide)."""
-    return {
+    result = {
         "claim_id": claim_id,
         "claim_text": text,
         "focus_variables": focus or ["A", "Y"],
@@ -97,8 +101,15 @@ def _claim_dict(
         "evidence_basis": [
             {"artifact_id": artifact_id, "rationale": "regression analysis showed significance"},
         ],
-        "pattern_tags": pattern_tags or ["causal_effect"],
+        "relation_type": relation_type,
+        "treatment": treatment,
+        "outcome": outcome,
+        "direction": direction,
     }
+    if pattern_tags:
+        result["pattern_tags"] = pattern_tags
+    result.update(extra)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +142,11 @@ class TestToolDefinitions:
         assert "focus_variables" in items["properties"]
         assert "confidence" in items["properties"]
         assert "evidence_basis" in items["properties"]
+        # Structured targeting fields
+        assert "relation_type" in items["properties"]
+        assert "treatment" in items["properties"]
+        assert "outcome" in items["properties"]
+        assert "direction" in items["properties"]
 
     def test_all_tools_have_description(self):
         for tool in OI_SOLVER_TOOLS:
@@ -142,34 +158,63 @@ class TestToolDefinitions:
 # ---------------------------------------------------------------------------
 
 
-class TestParseClaimCards:
-    def test_valid_claim(self):
-        cards = _parse_claim_cards([_claim_dict()])
-        assert len(cards) == 1
-        assert isinstance(cards[0], ClaimCard)
-        assert cards[0].claim_id == "c1"
+class TestClaimCardParsing:
+    """Test ClaimCard construction from raw dicts (as solver would submit)."""
+
+    def test_valid_structured_claim(self):
+        card = ClaimCard(**_claim_dict())
+        assert card.claim_id == "c1"
+        assert card.has_structured_fields
+        assert card.relation_type == "causal_effect"
+        assert card.treatment == "A"
+        assert card.outcome == "Y"
+        assert card.direction == "positive"
 
     def test_multiple_claims(self):
-        cards = _parse_claim_cards([
-            _claim_dict("c1"),
-            _claim_dict("c2", text="B mediates the effect of A on Y through indirect path"),
-        ])
+        cards = [
+            ClaimCard(**_claim_dict("c1")),
+            ClaimCard(**_claim_dict(
+                "c2", text="B mediates the effect of A on Y through indirect path",
+            )),
+        ]
         assert len(cards) == 2
 
-    def test_non_dict_raises(self):
-        with pytest.raises(TypeError, match="must be a dict"):
-            _parse_claim_cards(["not a dict"])
-
-    def test_missing_required_field(self):
+    def test_missing_required_field_raises(self):
         bad = {"claim_id": "c1", "claim_text": "too short"}
-        with pytest.raises(ValueError, match="claims\\[0\\]"):
-            _parse_claim_cards([bad])
+        with pytest.raises(Exception):
+            ClaimCard(**bad)
 
     def test_claim_text_too_short(self):
         bad = _claim_dict()
         bad["claim_text"] = "short"
-        with pytest.raises(ValueError):
-            _parse_claim_cards([bad])
+        with pytest.raises(Exception):
+            ClaimCard(**bad)
+
+    def test_has_structured_fields_false_when_missing(self):
+        """Legacy claims without structured fields still parse."""
+        raw = {
+            "claim_id": "c1",
+            "claim_text": "A is associated with Y in a significant positive way",
+            "focus_variables": ["A", "Y"],
+            "confidence": 0.8,
+            "evidence_basis": [
+                {"artifact_id": "dataset_bg",
+                 "rationale": "regression analysis showed significance"},
+            ],
+        }
+        card = ClaimCard(**raw)
+        assert not card.has_structured_fields
+
+    def test_structured_mediation_claim(self):
+        raw = _claim_dict(
+            relation_type="mediation",
+            treatment="A",
+            outcome="Y",
+            mediator="B",
+        )
+        card = ClaimCard(**raw)
+        assert card.has_structured_fields
+        assert card.mediator == "B"
 
 
 # ---------------------------------------------------------------------------

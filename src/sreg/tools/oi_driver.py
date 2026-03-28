@@ -92,7 +92,9 @@ OI_SOLVER_TOOLS = [
             "name": "submit_claims",
             "description": (
                 "Submit your research findings as structured claim cards. "
-                "Call ONCE at the end of your investigation. 1-5 claims."
+                "Call ONCE at the end of your investigation. 1-5 claims. "
+                "IMPORTANT: Always fill in the structured fields (relation_type, "
+                "treatment, outcome, direction) for accurate evaluation."
             ),
             "parameters": {
                 "type": "object",
@@ -134,12 +136,76 @@ OI_SOLVER_TOOLS = [
                                     },
                                     "description": "Evidence references (1-5).",
                                 },
-                                "pattern_tags": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
+                                "relation_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "causal_effect",
+                                        "mediation",
+                                        "heterogeneity",
+                                        "observational_association",
+                                        "confounding",
+                                        "effect_ranking",
+                                        "tail_risk",
+                                        "variance_effect",
+                                    ],
                                     "description": (
-                                        "Optional: causal_effect, mediation, "
-                                        "heterogeneity, etc."
+                                        "Type of relationship you found. "
+                                        "Use causal_effect for X causes Y, "
+                                        "mediation for X->M->Y pathways, "
+                                        "heterogeneity for effects that vary by subgroup, "
+                                        "observational_association for correlations, "
+                                        "confounding for spurious associations."
+                                    ),
+                                },
+                                "treatment": {
+                                    "type": "string",
+                                    "description": (
+                                        "Main cause/predictor variable "
+                                        "(exact column name from dataset)."
+                                    ),
+                                },
+                                "outcome": {
+                                    "type": "string",
+                                    "description": (
+                                        "Main outcome variable "
+                                        "(exact column name from dataset)."
+                                    ),
+                                },
+                                "direction": {
+                                    "type": "string",
+                                    "enum": ["positive", "negative", "near_zero"],
+                                    "description": (
+                                        "Direction of the effect: positive "
+                                        "(X increases Y), negative (X decreases Y), "
+                                        "near_zero (no meaningful effect)."
+                                    ),
+                                },
+                                "mediator": {
+                                    "type": "string",
+                                    "description": (
+                                        "For mediation: the intermediate variable "
+                                        "in X->M->Y. Required when relation_type=mediation."
+                                    ),
+                                },
+                                "modifier": {
+                                    "type": "string",
+                                    "description": (
+                                        "For heterogeneity: the variable that modulates "
+                                        "the effect. Required when relation_type=heterogeneity."
+                                    ),
+                                },
+                                "confounder": {
+                                    "type": "string",
+                                    "description": (
+                                        "For confounding: the variable creating a spurious "
+                                        "association. Required when relation_type=confounding."
+                                    ),
+                                },
+                                "deliverable_index": {
+                                    "type": "integer",
+                                    "description": (
+                                        "Which deliverable from the brief this claim "
+                                        "addresses (0-indexed). Optional."
                                     ),
                                 },
                             },
@@ -149,6 +215,10 @@ OI_SOLVER_TOOLS = [
                                 "focus_variables",
                                 "confidence",
                                 "evidence_basis",
+                                "relation_type",
+                                "treatment",
+                                "outcome",
+                                "direction",
                             ],
                         },
                         "minItems": 1,
@@ -204,17 +274,36 @@ def build_oi_tool_handler(
 
 
 def _handle_submit_claims(runner: OIEpisodeRunner, args: dict) -> str:
-    """Parse and submit claims, handling all error cases gracefully."""
+    """Parse and submit claims, handling all error cases gracefully.
+
+    Returns per-claim validation errors so the solver can fix and retry
+    (important for final-turn submissions where structured field errors
+    would otherwise cause a zero-score run).
+    """
     claims_raw = args.get("claims", [])
 
     if not claims_raw:
         return json.dumps({"error": "No claims provided."})
 
-    # Parse ClaimCards from JSON
-    try:
-        claims = _parse_claim_cards(claims_raw)
-    except (ValueError, TypeError) as e:
-        return json.dumps({"error": f"Invalid claim format: {e}"})
+    # Parse ClaimCards from JSON — per-claim error reporting
+    claims: list[ClaimCard] = []
+    errors: list[dict] = []
+    for i, raw in enumerate(claims_raw):
+        if not isinstance(raw, dict):
+            errors.append({"claim_index": i, "error": f"Expected dict, got {type(raw).__name__}"})
+            continue
+        try:
+            card = ClaimCard(**raw)
+            claims.append(card)
+        except Exception as e:
+            errors.append({"claim_index": i, "error": str(e)})
+
+    if errors and not claims:
+        return json.dumps({"error": "All claims failed validation", "details": errors})
+
+    if errors:
+        # Some claims valid, some not — report errors but continue with valid ones
+        logger.warning("Partial claim validation: %d valid, %d errors", len(claims), len(errors))
 
     # Submit to runner (may raise on double-submit or validation)
     try:
@@ -227,25 +316,18 @@ def _handle_submit_claims(runner: OIEpisodeRunner, args: dict) -> str:
         return json.dumps({"error": str(e)})
 
     # Success — return confirmation (score goes to caller, not solver)
-    return json.dumps({
+    result: dict = {
         "status": "submitted",
         "n_claims": len(claims),
         "message": "Claims submitted successfully. Investigation complete.",
-    })
+    }
+    if errors:
+        result["warnings"] = errors
+    return json.dumps(result)
 
 
-def _parse_claim_cards(claims_raw: list[dict]) -> list[ClaimCard]:
-    """Parse raw dicts into validated ClaimCard models."""
-    cards = []
-    for i, raw in enumerate(claims_raw):
-        if not isinstance(raw, dict):
-            raise TypeError(f"claims[{i}] must be a dict, got {type(raw).__name__}")
-        try:
-            card = ClaimCard(**raw)
-        except Exception as e:
-            raise ValueError(f"claims[{i}]: {e}") from e
-        cards.append(card)
-    return cards
+# _parse_claim_cards removed — validation now inlined in _handle_submit_claims
+# with per-claim error reporting instead of fail-fast.
 
 
 # ---------------------------------------------------------------------------

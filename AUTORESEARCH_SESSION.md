@@ -537,9 +537,31 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
   fix del import para que generate_src.py genere report automaticamente,
   fix del deadline nudge del solver.
 
+### Sesion 13 — 2026-03-28 (autoresearch, post-E2E analysis)
+- **E2E qualitative analysis completado:** 4 casos (poverty, pollution, soil, coral)
+  evaluados contra LA PREGUNTA. Documentado en `research/notes/e2e_qualitative_analysis_20260328.md`.
+- **Hallazgo critico:** mundos + solver son investigacion-capable. El **evaluation harness**
+  es el bottleneck. Coral: 5 claims correctos, todos 4 SQs scored 0.00 MISS.
+  Root cause: LLM extraction compila patron equivocado (obs_assoc vs causal_effect).
+- **Solver tooling fixes:** statsmodels/linearmodels/sklearn allowed, progressive
+  deadline nudges (3-phase), hard submit guard on final iteration.
+- **A21 IMPLEMENTADO: structured claims bypassing LLM extraction.**
+  - ClaimCard ahora tiene campos estructurados: relation_type, treatment, outcome,
+    direction, mediator, modifier, confounder, deliverable_index.
+  - `build_intent_from_structured()`: compilacion determinista (sin LLM).
+  - 3-path dispatch en compile_claim: structured > LLM > keyword fallback.
+  - Tool schema actualizado con campos requeridos.
+  - Solver prompt actualizado para explicar campos.
+  - Subsumption temporal: obs_assoc->causal_effect (0.40) con logging.
+  - Ambiguity detection: logging cuando claim matches 0 o >1 SQs.
+  - 18 tests nuevos, 214 OI tests pasan.
+- **Codex thread:** 019d3654-fa2b-7b92-a457-627687961699 (5+ exchanges)
+- **STATUS:** Structured claims implementados. Pendiente: E2E validation con
+  solver real, evidence_type (Phase 2), benchmark-mode strict fallback.
+
 ---
 
-## PROXIMO PASO — DEMO DE 3 MINUTOS
+## PROXIMO PASO — VALIDAR STRUCTURED CLAIMS CON E2E
 
 > **Para la proxima sesion (despues de compact):** el usuario necesita un
 > script de presentacion de 3 minutos basado en el full case de Vaca Muerta.
