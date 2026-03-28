@@ -506,20 +506,53 @@ respuestas que no discriminan:
 
 **Evidencia:** `research/synthesis/qualitative_eval_2026_03_25.md` (P1, P3, P4)
 
-### A17. Direccion causal obvia desde priors — eval cualitativa 2026-03-25
+### A17. Direccion causal obvia desde priors — PARCIALMENTE RESUELTO
 
 Los 3 Q1 de causal_effect piden efectos cuya direccion es sentido comun.
 Un LLM podria acertar sin datos. Es EL problema central para LA PREGUNTA.
 
 **Sub-preguntas:**
-- [ ] Cuanto afecta? Correr no-data baseline probe formal.
-- [ ] Soluciones: mundos ficcionales, Simpson's paradox, efectos no
+- [x] Cuanto afecta? Correr no-data baseline probe formal.
+  HECHO: `scripts/oi_nodata_baseline.py`. Resultado: treatment gap=-0.093,
+  education gap=0.000. Solo ecosystem fuerza datos (gap=+0.570).
+- [x] Soluciones: mundos ficcionales, Simpson's paradox, efectos no
   monotonicos, preguntas con direccion genuinamente incierta?
+  HECHO: 3 patrones data-indexed validados (Simpson gap=+0.13,
+  suppressor gap=+0.49, confounding reversal gap=+0.35).
 - [ ] Es un problema del SCM (relaciones intuitivas) o de la pregunta
   (pedir direccion en vez de magnitud)?
+- [ ] Formalizar investigation_gap como gate de aceptacion de mundos.
+  Propuesta: gap < 0.15 -> rechazar o redisenar el mundo.
+- [ ] Mundos que no fuerzan (treatment, education): redisenar o mantener
+  solo como test fixtures?
 
-**Evidencia:** `research/synthesis/qualitative_eval_2026_03_25.md` (P5)
+**Evidencia:** `research/notes/oi_investigation_gap.md` (analisis completo,
+resultados 6 mundos, debate con Codex, patrones identificados).
 **Conecta con:** A1, A3 (modos semanticos), I2 (fictional mode)
+
+### A20. Investigation gap como criterio de aceptacion de mundos
+
+Cada mundo OI debe pasar un test: `score_with_data - score_no_data > threshold`.
+Si el gap es bajo, el mundo no fuerza investigacion y no sirve para RL.
+
+**Sub-preguntas:**
+- [ ] Cual es el threshold correcto? (0.10? 0.15? 0.20?)
+- [ ] Automatizar el probe como parte del pipeline de generacion
+- [ ] Que hacer con mundos que fallan? Redisenar automaticamente?
+- [ ] El probe debe correr con SQ scoring, v2, o ambos?
+
+**Mundos curados actuales (6):**
+| Mundo | Gap v2 | Fuerza? | Patron |
+|-------|--------|---------|--------|
+| ecosystem | +0.570 | SI | Priors errados en ecologia |
+| productivity | +0.488 | SI | Efecto supresor |
+| screen_time | +0.350 | SI | Confounding reversal |
+| treatment_simpson | +0.132 | SI (mod) | Simpson's paradox |
+| treatment | -0.093 | NO | Priors correctos |
+| education | 0.000 | NO | Priors correctos |
+
+**Evidencia:** `research/notes/oi_investigation_gap.md`
+**Conecta con:** A17, A1, A19
 
 ### A18. Capa de datos mecanica y clonico — eval cualitativa 2026-03-25
 

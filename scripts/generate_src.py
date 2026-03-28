@@ -1440,6 +1440,7 @@ def main():
                 "submitted": oi_result.submitted,
                 "score": oi_result.score.model_dump() if oi_result.score else None,
                 "solver_tool_calls": solver_tool_calls,
+                "conversation": oi_result.messages,
             }
             oi_path = os.path.join(args.output, "oi_result.json")
             with open(oi_path, "w") as f:
@@ -1448,8 +1449,25 @@ def main():
 
             # Generate full_case_oi.md report
             try:
-                from scripts.oi_demo_case import build_report
-                report = build_report(oi_result, result.world, result.problem)
+                import sys as _sys
+                _sys.path.insert(0, os.path.join(
+                    os.path.dirname(__file__), "..", "tests", "tools"))
+                _sys.path.insert(0, os.path.dirname(__file__))
+                from oi_demo_case import build_report
+                from sreg.tools.oi_salience import build_salience_map as _bsm
+                _salience = _bsm(
+                    result.world, result.problem.target_node,
+                    n_mc=20_000, seed=oi_seed,
+                ) if result.problem.target_node else None
+                report = build_report(
+                    oi_result, result.world, result.problem,
+                    salience=_salience,
+                    elapsed=elapsed,
+                    solver_model=solver_model,
+                    compiler_model=compiler_model,
+                    runner=runner,
+                    sub_questions=result.sub_questions,
+                )
                 report_path = os.path.join(args.output, "full_case_oi.md")
                 with open(report_path, "w", encoding="utf-8") as f:
                     f.write(report)

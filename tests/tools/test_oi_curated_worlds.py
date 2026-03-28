@@ -182,6 +182,111 @@ def world_treatment_simpson() -> SCMWorld:
 
 
 # ---------------------------------------------------------------------------
+# World D: "Productivity" — suppressor effect
+#
+# Key phenomenon: Training appears UNRELATED to Productivity (crude r ≈ 0)
+# despite having a strong positive causal effect (ATE = 0.5).
+#
+# Suppressor mechanism:
+#   Team_size → Training (positive: bigger teams get more training budget)
+#   Team_size → Productivity (negative: coordination overhead)
+#   Training → Productivity (positive: skill improvement)
+#
+# The positive direct path (Training → Productivity) is almost exactly
+# cancelled by the negative indirect path (Team_size ↗ Training, Team_size ↘
+# Productivity), producing crude corr ≈ 0.
+#
+# Data-indexed: LLM priors say "training improves productivity" (positive).
+# Data shows: r ≈ 0. Only after controlling for Team_size does the positive
+# effect emerge (partial r ≈ 0.72).
+#
+# Coefficients tuned via grid search (n=10000, 20-seed stability check):
+#   crude r ∈ [-0.09, +0.10], partial r ∈ [0.67, 0.77] at n=300.
+# ---------------------------------------------------------------------------
+
+def world_productivity() -> SCMWorld:
+    return SCMWorld(
+        id="curated-productivity",
+        graph={
+            "Team_size": [],
+            "Experience": [],
+            "Training": ["Team_size", "Experience"],
+            "Productivity": ["Training", "Team_size", "Experience"],
+        },
+        equations={
+            "Team_size": lambda p, rng: rng.normal(50, 15),
+            "Experience": lambda p, rng: rng.normal(10, 4),
+            "Training": lambda p, rng: (
+                0.4 * p["Team_size"]
+                - 0.15 * p["Experience"]
+                + rng.normal(20, 6)
+            ),
+            "Productivity": lambda p, rng: (
+                0.5 * p["Training"]        # positive causal effect (suppressed)
+                - 0.4 * p["Team_size"]     # coordination overhead (suppressor)
+                + 0.3 * p["Experience"]    # experience helps
+                + rng.normal(50, 8)
+            ),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# World E: "Screen time" — reversed direction (confounding)
+#
+# Key phenomenon: Screen time has a POSITIVE crude association with academic
+# performance, despite having a NEGATIVE causal effect.
+#
+# Confounding mechanism:
+#   Parental_income → Screen_time (positive: more devices)
+#   Parental_income → Academic (strong positive: tutors, resources)
+#   Screen_time → Academic (negative: displaces study/sleep)
+#
+# The strong income confounding overwhelms the negative causal effect,
+# making the crude association POSITIVE.
+#
+# Data-indexed: LLM priors say "screen time hurts academics" (negative).
+# Data shows: r ≈ +0.56. Only after controlling for Income does the
+# negative effect appear (partial r ≈ -0.44).
+#
+# Stability: crude r ∈ [+0.44, +0.65], partial r ∈ [-0.56, -0.32] at n=300.
+# ---------------------------------------------------------------------------
+
+def world_screen_time() -> SCMWorld:
+    return SCMWorld(
+        id="curated-screen-time",
+        graph={
+            "Parental_income": [],
+            "Motivation": [],
+            "Screen_time": ["Parental_income"],
+            "Physical_activity": ["Parental_income", "Screen_time", "Motivation"],
+            "Academic": ["Screen_time", "Physical_activity",
+                         "Parental_income", "Motivation"],
+        },
+        equations={
+            "Parental_income": lambda p, rng: rng.normal(60, 20),
+            "Motivation": lambda p, rng: rng.normal(0, 1),
+            "Screen_time": lambda p, rng: (
+                0.5 * p["Parental_income"] + rng.normal(0, 8)
+            ),
+            "Physical_activity": lambda p, rng: (
+                0.3 * p["Parental_income"]
+                - 0.4 * p["Screen_time"]
+                + 0.5 * p["Motivation"]
+                + rng.normal(0, 3)
+            ),
+            "Academic": lambda p, rng: (
+                -0.15 * p["Screen_time"]          # negative causal effect
+                + 0.4 * p["Physical_activity"]    # exercise helps cognition
+                + 0.6 * p["Parental_income"]      # strong income effect
+                + 0.5 * p["Motivation"]
+                + rng.normal(0, 5)
+            ),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # World C: "Education" — confounding + variance effect
 #
 # Structure:
@@ -469,6 +574,145 @@ class TestEducationWorld:
         assert result.submitted
         assert result.score is not None
         assert result.score.total > 0
+
+
+class TestProductivityWorld:
+    """Suppressor effect: Training appears unrelated to Productivity."""
+
+    def test_suppressor_crude_near_zero(self):
+        """Crude correlation between Training and Productivity should be near zero."""
+        world = world_productivity()
+        df = world.sample(5000, seed=SEED)
+        r = df["Training"].corr(df["Productivity"])
+        assert abs(r) < 0.10, f"Crude r(Training, Prod) = {r:.3f}, expected near 0"
+
+    def test_suppressor_partial_positive(self):
+        """After controlling for Team_size, Training-Productivity is strong positive."""
+        import numpy as np
+        world = world_productivity()
+        df = world.sample(5000, seed=SEED)
+        # Residualize on Team_size
+        team = df["Team_size"].values
+        for col in ("Training", "Productivity"):
+            beta = np.linalg.lstsq(
+                team.reshape(-1, 1), df[col].values, rcond=None
+            )[0]
+            df[f"{col}_res"] = df[col].values - team * beta[0]
+        partial_r = df["Training_res"].corr(df["Productivity_res"])
+        assert partial_r > 0.5, f"Partial r = {partial_r:.3f}, expected > 0.5"
+
+    def test_has_causal_effects(self):
+        world = world_productivity()
+        smap = build_salience_map(world, "Productivity", n_mc=N_MC, seed=SEED)
+        patterns = {f.key.pattern_class for f in smap.families}
+        assert "causal_effect" in patterns
+
+    def test_driver_e2e(self):
+        world = world_productivity()
+        problem = _problem_from_world(
+            world, "Productivity",
+            "Investigate factors affecting team productivity",
+        )
+        runner = OIEpisodeRunner(problem, world, seed=SEED, n_mc=N_MC)
+        script = [
+            ScriptedAction(
+                tool="python_exec",
+                args={"code": (
+                    "df = load_artifact('dataset_main')\n"
+                    "print(df[['Training', 'Productivity']].corr())"
+                )},
+            ),
+            ScriptedAction(
+                tool="submit_claims",
+                args={"claims": [{
+                    "claim_id": "prod1",
+                    "claim_text": (
+                        "Training has no significant crude association with "
+                        "Productivity, but after controlling for Team_size "
+                        "there is a strong positive relationship"
+                    ),
+                    "focus_variables": ["Training", "Team_size", "Productivity"],
+                    "confidence": 0.8,
+                    "evidence_basis": [
+                        {"artifact_id": "dataset_main",
+                         "rationale": "partial correlation analysis"},
+                    ],
+                    "pattern_tags": ["confounding"],
+                }]},
+            ),
+        ]
+        result = run_oi_scripted(runner, script)
+        assert result.submitted
+        assert result.score is not None
+
+
+class TestScreenTimeWorld:
+    """Reversed direction: Screen time POSITIVELY correlated with Academic."""
+
+    def test_crude_positive(self):
+        """Crude Screen_time-Academic correlation should be positive."""
+        world = world_screen_time()
+        df = world.sample(5000, seed=SEED)
+        r = df["Screen_time"].corr(df["Academic"])
+        assert r > 0.3, f"Crude r(Screen, Academic) = {r:.3f}, expected > 0.3"
+
+    def test_partial_negative(self):
+        """After controlling for Parental_income, Screen-Academic is negative."""
+        import numpy as np
+        world = world_screen_time()
+        df = world.sample(5000, seed=SEED)
+        inc = df["Parental_income"].values
+        for col in ("Screen_time", "Academic"):
+            beta = np.linalg.lstsq(
+                inc.reshape(-1, 1), df[col].values, rcond=None
+            )[0]
+            df[f"{col}_res"] = df[col].values - inc * beta[0]
+        partial_r = df["Screen_time_res"].corr(df["Academic_res"])
+        assert partial_r < -0.2, f"Partial r = {partial_r:.3f}, expected < -0.2"
+
+    def test_has_causal_effects(self):
+        world = world_screen_time()
+        smap = build_salience_map(world, "Academic", n_mc=N_MC, seed=SEED)
+        patterns = {f.key.pattern_class for f in smap.families}
+        assert "causal_effect" in patterns
+
+    def test_driver_e2e(self):
+        world = world_screen_time()
+        problem = _problem_from_world(
+            world, "Academic",
+            "Investigate factors affecting academic performance in children",
+        )
+        runner = OIEpisodeRunner(problem, world, seed=SEED, n_mc=N_MC)
+        script = [
+            ScriptedAction(
+                tool="python_exec",
+                args={"code": (
+                    "df = load_artifact('dataset_main')\n"
+                    "print(df[['Screen_time', 'Academic']].corr())"
+                )},
+            ),
+            ScriptedAction(
+                tool="submit_claims",
+                args={"claims": [{
+                    "claim_id": "screen1",
+                    "claim_text": (
+                        "Screen time is positively associated with academic "
+                        "performance in crude analysis, but this is confounded "
+                        "by parental income"
+                    ),
+                    "focus_variables": ["Screen_time", "Parental_income", "Academic"],
+                    "confidence": 0.8,
+                    "evidence_basis": [
+                        {"artifact_id": "dataset_main",
+                         "rationale": "correlation reverses after income adjustment"},
+                    ],
+                    "pattern_tags": ["confounding"],
+                }]},
+            ),
+        ]
+        result = run_oi_scripted(runner, script)
+        assert result.submitted
+        assert result.score is not None
 
 
 class TestWorldDiversity:

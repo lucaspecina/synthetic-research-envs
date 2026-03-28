@@ -167,6 +167,17 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** Fase 4 (orchestrator wiring), LA PREGUNTA
 - **Status:** PROPUESTA EN DISCUSION. No implementar antes de Fase 4.
 
+### Investigation gap y mundos data-indexed
+- **Pregunta:** como garantizar que un mundo OI fuerza investigacion real
+  (no se responde desde priors del dominio).
+- **Empezar por:** `notes/oi_investigation_gap.md`
+- **Concepto:** `investigation_gap = score_with_data - score_no_data`.
+  Si gap ~ 0, el mundo no sirve para RL.
+- **Patrones data-indexed:** suppressor effect, confounding reversal, Simpson's
+  paradox. Validados con 6 mundos curados.
+- **Conecta con:** A17, A20 en `TODO.md`, LA PREGUNTA
+- **Status:** Concepto validado. Falta formalizar como gate en el pipeline.
+
 ### Open Investigation — investigacion libre con verificacion SCM exacta
 - **Pregunta:** como dejar que el solver investigue libremente sin perder
   verificacion exacta contra el SCM.

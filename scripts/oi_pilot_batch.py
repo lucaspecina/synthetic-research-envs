@@ -48,6 +48,8 @@ from test_oi_curated_worlds import (
     world_treatment,
     world_treatment_simpson,
     world_education,
+    world_productivity,
+    world_screen_time,
 )
 
 N_MC = 20_000
@@ -133,6 +135,68 @@ WORLD_SQS = {
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.LOW,
         ),
     ],
+    # Suppressor effect: Training-Productivity crude r ≈ 0 despite ATE = 0.5
+    # SQs focus on the counter-intuitive near-zero association
+    "productivity": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="observational_association",
+            roles=SQRoles(treatment="Training", outcome="Productivity"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+            text_gloss="Crude Training-Productivity association (NEAR ZERO!)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="observational_association",
+            roles=SQRoles(treatment="Team_size", outcome="Productivity"),
+            ask=AskOperator.SIGN, tier=SQTier.HIGH,
+            text_gloss="Team_size negatively associated with Productivity",
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="confounding",
+            roles=SQRoles(
+                treatment="Training", outcome="Productivity",
+                confounder="Team_size",
+            ),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+            text_gloss="Team_size suppresses Training-Productivity relationship",
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="observational_association",
+            roles=SQRoles(treatment="Experience", outcome="Productivity"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.MEDIUM,
+            text_gloss="Experience positively associated with Productivity",
+        ),
+    ],
+    # Reversed direction: Screen time POSITIVELY correlated with Academic
+    # despite NEGATIVE causal effect (income confounding)
+    "screen_time": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="observational_association",
+            roles=SQRoles(treatment="Screen_time", outcome="Academic"),
+            ask=AskOperator.SIGN, tier=SQTier.HIGH,
+            text_gloss="Crude Screen-Academic association is POSITIVE!",
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="confounding",
+            roles=SQRoles(
+                treatment="Screen_time", outcome="Academic",
+                confounder="Parental_income",
+            ),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+            text_gloss="Parental_income confounds Screen-Academic (reversal)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="observational_association",
+            roles=SQRoles(treatment="Physical_activity", outcome="Academic"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+            text_gloss="Physical activity positively associated with Academic",
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="observational_association",
+            roles=SQRoles(treatment="Parental_income", outcome="Academic"),
+            ask=AskOperator.SIGN, tier=SQTier.MEDIUM,
+            text_gloss="Income strongly positively associated with Academic",
+        ),
+    ],
     # Simpson's paradox: crude assoc NEGATIVE, causal effect POSITIVE
     # SQs use observational patterns (epistemological alignment for obs data)
     "treatment_simpson": [
@@ -203,6 +267,32 @@ WORLDS = {
             "Your task: Investigate the determinants of income inequality. "
             "What role does education play? Is the education-income "
             "relationship confounded? Are there mediating pathways?"
+        ),
+    },
+    "productivity": {
+        "factory": world_productivity,
+        "target": "Productivity",
+        "brief": (
+            "A consulting firm collected data on 300 project teams. Variables "
+            "include team size, average member experience (years), training "
+            "hours allocated, and a productivity index measured at project "
+            "completion.\n\n"
+            "Your task: Investigate what drives team productivity. Does "
+            "training help? What role does team size play? Are there "
+            "confounding relationships?"
+        ),
+    },
+    "screen_time": {
+        "factory": world_screen_time,
+        "target": "Academic",
+        "brief": (
+            "A school district collected data on 300 students. Variables "
+            "include parental income, student motivation score, daily screen "
+            "time (hours), weekly physical activity (hours), and academic "
+            "performance index.\n\n"
+            "Your task: Investigate factors affecting academic performance. "
+            "Does screen time help or hurt? What role does parental income "
+            "play? Are there confounding or mediating relationships?"
         ),
     },
     "treatment_simpson": {

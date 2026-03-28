@@ -202,9 +202,16 @@ Las sub-preguntas se adaptan naturalmente a cada tipo:
 3. [x] Pilotar con 3 mundos curados (manual SQs)
 4. [x] Wiring dual scoring al runner
 5. [x] Validar con pilotos reales (E2E con LLM, dual scoring)
-6. [ ] Analizar: donde mejora el SQ score vs v2? Donde no?
+6. [~] Analizar: donde mejora el SQ score vs v2? Donde no?
+   Hallazgo parcial: SQ gap mas chico que v2 en algunos mundos porque
+   SQ matching es mas estricto y algunos SQs son trivialmente guessables.
+   Ver `research/notes/oi_investigation_gap.md`.
 7. [x] Orchestrator genera SubQuestionIntents — design_case con sub_questions,
    validacion (grounding, roles, epistemologia, portfolio), repair loop.
    E2E validado: 5 SQs generados por gpt-5.4, 4/5 correctos vs SCM.
-8. [ ] Comparativo: manual SQs vs orchestrator SQs
-9. [ ] Decidir si reemplazar v2 o mantener dual
+8. [x] No-data baseline probe — mide investigation_gap (with_data - no_data).
+   6 mundos: 4 data-indexed (gap > 0.13), 2 no (gap <= 0). Validado que
+   mundos con patrones counter-intuitive fuerzan investigacion real.
+9. [ ] Comparativo: manual SQs vs orchestrator SQs
+10. [ ] Decidir si reemplazar v2 o mantener dual
+11. [ ] Formalizar investigation_gap como gate de aceptacion

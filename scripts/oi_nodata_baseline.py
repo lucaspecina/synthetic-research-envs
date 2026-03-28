@@ -43,6 +43,8 @@ from test_oi_curated_worlds import (
     world_education,
     world_treatment,
     world_treatment_simpson,
+    world_productivity,
+    world_screen_time,
 )
 
 N_MC = 20_000
@@ -90,6 +92,39 @@ WORLDS = {
         ),
         "variables": [
             "Wealth", "Motivation", "Education", "Skill", "Income",
+        ],
+    },
+    "productivity": {
+        "factory": world_productivity,
+        "target": "Productivity",
+        "brief": (
+            "A consulting firm collected data on 300 project teams. Variables "
+            "include team size, average member experience (years), training "
+            "hours allocated, and a productivity index measured at project "
+            "completion.\n\n"
+            "Your task: Investigate what drives team productivity. Does "
+            "training help? What role does team size play? Are there "
+            "confounding relationships?"
+        ),
+        "variables": [
+            "Team_size", "Experience", "Training", "Productivity",
+        ],
+    },
+    "screen_time": {
+        "factory": world_screen_time,
+        "target": "Academic",
+        "brief": (
+            "A school district collected data on 300 students. Variables "
+            "include parental income, student motivation score, daily screen "
+            "time (hours), weekly physical activity (hours), and academic "
+            "performance index.\n\n"
+            "Your task: Investigate factors affecting academic performance. "
+            "Does screen time help or hurt? What role does parental income "
+            "play? Are there confounding or mediating relationships?"
+        ),
+        "variables": [
+            "Parental_income", "Motivation", "Screen_time",
+            "Physical_activity", "Academic",
         ],
     },
     "treatment_simpson": {
@@ -179,6 +214,62 @@ WORLD_SQS = {
             sq_id="sq4", pattern="causal_effect",
             roles=SQRoles(treatment="Motivation", outcome="Income"),
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.LOW,
+        ),
+    ],
+    # Suppressor: Training-Productivity crude r ≈ 0 despite positive causal effect
+    "productivity": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="observational_association",
+            roles=SQRoles(treatment="Training", outcome="Productivity"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+            text_gloss="Crude Training-Productivity association (NEAR ZERO!)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="observational_association",
+            roles=SQRoles(treatment="Team_size", outcome="Productivity"),
+            ask=AskOperator.SIGN, tier=SQTier.HIGH,
+            text_gloss="Team_size negatively associated with Productivity",
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="confounding",
+            roles=SQRoles(treatment="Training", outcome="Productivity",
+                          confounder="Team_size"),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+            text_gloss="Team_size suppresses Training-Productivity relationship",
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="observational_association",
+            roles=SQRoles(treatment="Experience", outcome="Productivity"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.MEDIUM,
+            text_gloss="Experience positively associated with Productivity",
+        ),
+    ],
+    # Reversed direction: Screen time POSITIVELY associated with Academic (income confounding)
+    "screen_time": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="observational_association",
+            roles=SQRoles(treatment="Screen_time", outcome="Academic"),
+            ask=AskOperator.SIGN, tier=SQTier.HIGH,
+            text_gloss="Crude Screen-Academic association is POSITIVE!",
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="confounding",
+            roles=SQRoles(treatment="Screen_time", outcome="Academic",
+                          confounder="Parental_income"),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+            text_gloss="Parental_income confounds Screen-Academic (reversal)",
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="observational_association",
+            roles=SQRoles(treatment="Physical_activity", outcome="Academic"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+            text_gloss="Physical activity positively associated with Academic",
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="observational_association",
+            roles=SQRoles(treatment="Parental_income", outcome="Academic"),
+            ask=AskOperator.SIGN, tier=SQTier.MEDIUM,
+            text_gloss="Income strongly positively associated with Academic",
         ),
     ],
     # treatment_simpson: SQs designed for observational data (epistemological alignment)

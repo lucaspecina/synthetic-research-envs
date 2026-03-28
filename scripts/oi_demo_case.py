@@ -34,7 +34,10 @@ from sreg.tools.oi_salience import build_salience_map
 from sreg.world.scm import SCMWorld
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests" / "tools"))
-from test_oi_curated_worlds import world_ecosystem, world_treatment, world_education
+from test_oi_curated_worlds import (
+    world_ecosystem, world_treatment, world_education,
+    world_treatment_simpson, world_productivity, world_screen_time,
+)
 
 N_MC = 20_000
 SEED = 42
@@ -80,6 +83,30 @@ WORLDS = {
             "relationship confounded? Are there mediating pathways?"
         ),
         "domain": "Labor economics",
+    },
+    "productivity": {
+        "factory": world_productivity,
+        "target": "Productivity",
+        "brief": (
+            "A consulting firm collected data on 300 project teams. Variables "
+            "include team size, average member experience, training hours, "
+            "and a productivity index.\n\n"
+            "Your task: Investigate what drives team productivity. Does "
+            "training help? What role does team size play?"
+        ),
+        "domain": "Organizational productivity",
+    },
+    "screen_time": {
+        "factory": world_screen_time,
+        "target": "Academic",
+        "brief": (
+            "A school district collected data on 300 students. Variables "
+            "include parental income, motivation, daily screen time, weekly "
+            "physical activity, and academic performance.\n\n"
+            "Your task: Investigate factors affecting academic performance. "
+            "Does screen time help or hurt? Are there confounding factors?"
+        ),
+        "domain": "Educational research",
     },
 }
 
@@ -132,26 +159,52 @@ def make_llm_compiler(client, model):
 
 
 def build_report(
-    world_name: str,
-    world: SCMWorld,
-    problem: ResearchProblem,
-    result: OIInvestigationResult,
-    salience,
-    elapsed: float,
-    solver_model: str,
-    compiler_model: str,
+    result_or_world_name,
+    world: SCMWorld = None,
+    problem: ResearchProblem = None,
+    result: OIInvestigationResult = None,
+    salience=None,
+    elapsed: float = 0,
+    solver_model: str = "?",
+    compiler_model: str = "?",
+    runner=None,
+    sub_questions=None,
 ) -> str:
-    """Build a full_case_oi.md report."""
+    """Build a full_case_oi.md report.
+
+    Supports two call signatures:
+    - build_report(result, world, problem) — from generate_src.py
+    - build_report(world_name, world, problem, result, ...) — standalone
+    """
+    # Handle generate_src.py signature: build_report(oi_result, world, problem)
+    if isinstance(result_or_world_name, OIInvestigationResult):
+        result = result_or_world_name
+        # world and problem already in their positions
+    elif isinstance(result_or_world_name, str):
+        pass  # world_name string, result is in kwarg
+    else:
+        result = result_or_world_name  # best effort
+
+    if result is None:
+        return "# Error: no investigation result provided\n"
+
+    # Build salience map if not provided
+    if salience is None and world is not None and problem is not None:
+        target = problem.target_node
+        if target:
+            salience = build_salience_map(world, target, n_mc=N_MC, seed=SEED)
+
     lines = []
 
     # Header
-    lines.append(f"# Open Investigation Case Report: {problem.title}")
+    title = problem.title if problem else "Open Investigation"
+    domain = problem.domain if problem else "Research"
+    lines.append(f"# Open Investigation Case Report: {title}")
     lines.append("")
-    lines.append(f"> **Domain:** {problem.domain}")
+    lines.append(f"> **Domain:** {domain}")
     lines.append(f"> **Solver:** {solver_model} | **Compiler:** {compiler_model}")
     lines.append(f"> **Investigation steps:** {result.n_steps} | "
                  f"**Time:** {elapsed:.0f}s")
-    lines.append(f"> **Status:** Work in progress (Alpha-0)")
     lines.append("")
 
     # =========================================================
@@ -409,18 +462,125 @@ def build_report(
             lines.append("")
 
     # Coverage analysis
-    lines.append("## What was discovered vs what exists")
+    if salience:
+        lines.append("## What was discovered vs what exists")
+        lines.append("")
+        lines.append(f"The salience map contains {len(salience.families)} families "
+                     f"of verifiable truths. The solver's claims matched "
+                     f"{result.score.families_hit if result.score else '?'} of them.")
+        lines.append("")
+        lines.append("Families in the salience map:")
+        lines.append("")
+        for fam in salience.families:
+            focus = ", ".join(fam.key.focus_signature)
+            lines.append(f"- {fam.key.pattern_class}: [{focus}]")
+        lines.append("")
+
+    # =========================================================
+    # Part 5: Sub-question evaluation (hidden agenda)
+    # =========================================================
+    sq_score = runner.get_sq_score() if runner else None
+    if sub_questions or sq_score:
+        tier_weights = {"high": 1.0, "medium": 0.6, "low": 0.3}
+
+        lines.append("---")
+        lines.append("")
+        lines.append("# Part 5: Hidden evaluation agenda (sub-questions)")
+        lines.append("")
+        lines.append("The orchestrator generated these sub-questions when designing "
+                     "the case. The solver **never sees them** -- they represent "
+                     "what a good investigation should discover. Each sub-question "
+                     "is verified exactly against the SCM (no LLM judge).")
+        lines.append("")
+        lines.append("Tier weights: **HIGH** = 1.0, **MEDIUM** = 0.6, **LOW** = 0.3")
+        lines.append("")
+
+        if sub_questions:
+            lines.append("## Sub-questions (hidden from solver)")
+            lines.append("")
+            for sq in sub_questions:
+                tier_w = tier_weights.get(sq.tier, 0.5)
+                gloss = sq.text_gloss or sq.pattern
+                lines.append(f"### {sq.sq_id} -- {gloss}")
+                lines.append("")
+                roles_parts = []
+                if sq.roles.treatment:
+                    roles_parts.append(f"Treatment: `{sq.roles.treatment}`")
+                if sq.roles.outcome:
+                    roles_parts.append(f"Outcome: `{sq.roles.outcome}`")
+                if sq.roles.mediator:
+                    roles_parts.append(f"Mediator: `{sq.roles.mediator}`")
+                if sq.roles.modifier:
+                    roles_parts.append(f"Modifier: `{sq.roles.modifier}`")
+                if sq.roles.confounder:
+                    roles_parts.append(f"Confounder: `{sq.roles.confounder}`")
+                if sq.roles.ranking_vars:
+                    rv = ", ".join(f"`{v}`" for v in sq.roles.ranking_vars)
+                    roles_parts.append(f"Ranking: {rv}")
+                lines.append(f"- **Pattern:** {sq.pattern} | "
+                             f"**Ask:** {sq.ask} | "
+                             f"**Tier:** {sq.tier.upper()} (weight {tier_w})")
+                for rp in roles_parts:
+                    lines.append(f"- {rp}")
+                lines.append("")
+
+        if sq_score:
+            lines.append("## Sub-question results")
+            lines.append("")
+
+            # Per-SQ results with gloss
+            sq_map = {sq.sq_id: sq for sq in sub_questions} if sub_questions else {}
+            for s in sq_score.sq_scores:
+                sq_def = sq_map.get(s.sq_id)
+                gloss = sq_def.text_gloss if sq_def and sq_def.text_gloss else s.sq_id
+                tier_label = sq_def.tier.upper() if sq_def else "?"
+                status = "HIT" if s.matched else "MISS"
+                icon = "+" if s.matched else "-"
+                claim_str = f" -- matched by **{s.best_claim_id}**" if s.best_claim_id else ""
+                lines.append(f"- [{icon}] **{s.sq_id}** ({tier_label}): "
+                             f"{gloss} -- "
+                             f"satisfaction {s.satisfaction:.2f} "
+                             f"[{status}]{claim_str}")
+            lines.append("")
+
+            lines.append("## Aggregate SQ score")
+            lines.append("")
+            lines.append(f"| Metric | Value |")
+            lines.append(f"|--------|-------|")
+            lines.append(f"| **SQ Total** | **{sq_score.total:.3f}** |")
+            lines.append(f"| Weighted coverage | {sq_score.weighted_coverage:.3f} |")
+            lines.append(f"| Correctness | {sq_score.correctness:.3f} |")
+            lines.append(f"| Novel bonus | {sq_score.novel_bonus:.3f} |")
+            lines.append("")
+            lines.append("Formula: `SQ_total = weighted_coverage * 0.70 "
+                         "+ correctness * 0.20 + novel_bonus * 0.10`")
+            lines.append("")
+
+    # =========================================================
+    # Summary
+    # =========================================================
+    lines.append("---")
     lines.append("")
-    lines.append(f"The salience map contains {len(salience.families)} families "
-                 f"of verifiable truths. The solver's claims matched "
-                 f"{result.score.families_hit if result.score else '?'} of them.")
+    lines.append("# Summary")
     lines.append("")
-    lines.append("Families in the salience map:")
-    lines.append("")
-    for fam in salience.families:
-        focus = ", ".join(fam.key.focus_signature)
-        hit = ""  # We don't have easy matching info here
-        lines.append(f"- {fam.key.pattern_class}: [{focus}]")
+    if result.score:
+        s = result.score
+        n_true = sum(1 for cv in s.claim_verdicts if cv.score > 0.5)
+        n_total = len(s.claim_verdicts)
+        lines.append(f"The solver submitted **{n_total} claims**, of which "
+                     f"**{n_true}** were verified as true against the SCM "
+                     f"(correctness {s.correctness:.0%}).")
+        lines.append("")
+    if sq_score and sub_questions:
+        n_hit = sum(1 for s in sq_score.sq_scores if s.matched)
+        n_sq = len(sq_score.sq_scores)
+        lines.append(f"Of **{n_sq} hidden sub-questions**, the solver's claims "
+                     f"addressed **{n_hit}** ({n_hit}/{n_sq}).")
+        lines.append("")
+    lines.append("**Key:** All verification is exact (Monte Carlo simulation "
+                 "against the structural causal model). No LLM judges are used "
+                 "in scoring. The solver decides autonomously what to investigate, "
+                 "what analyses to run, and what to conclude.")
     lines.append("")
 
     return "\n".join(lines)
@@ -470,10 +630,23 @@ def main():
               f"correctness={result.score.correctness:.3f} "
               f"coverage={result.score.coverage:.3f}")
 
+    # Wire sub-questions for curated worlds (from oi_pilot_batch)
+    sqs = None
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from oi_pilot_batch import WORLD_SQS
+        if args.world in WORLD_SQS:
+            sqs = WORLD_SQS[args.world]
+            runner.set_subquestions(sqs)
+            print(f"  SQs: {len(sqs)} manual sub-questions loaded")
+    except ImportError:
+        pass
+
     # Build and save report
     report = build_report(
         args.world, world, problem, result, salience,
         elapsed, solver_model, compiler_model,
+        runner=runner, sub_questions=sqs,
     )
 
     out_dir = Path(args.output)
