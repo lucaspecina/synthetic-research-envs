@@ -60,6 +60,8 @@ Ver `AUTORESEARCH_SESSION.md` para los 8 principios completos. Resumen:
 | `CHANGELOG.md`       | Historia de cambios                                    | Cuando necesites contexto historico   |
 | `research/`          | Analisis, hallazgos, sintesis                          | Cuando investigues o explores         |
 | `research/README.md` | Reglas + indice de que investiga cada archivo           | Para saber que research existe        |
+| Escenarios rubric    | 20 escenarios de validacion + rubricas de scoring       | Antes de cambios de scoring/diseno    |
+| Taxonomia (Doc1)     | Mapa completo de tipos de investigacion cientifica       | Para clasificar y evaluar cobertura   |
 
 
 ## Mantener la documentacion actualizada — CRITICO
@@ -100,6 +102,7 @@ mentira y las decisiones se toman sin informacion.
 | Nuevo eval type o task type        | `CURRENT_STATE.md` + `ARCHITECTURE.md` si cambia la superficie        |
 | Cambiaste orchestrator/agent/env   | Re-correr diagnostico para verificar que no degradaron los entornos   |
 | Cambiaste dependencia              | `pyproject.toml` + tech stack de este archivo                         |
+| Cambiaste scoring o diseno de eval | Validar contra 20 escenarios (`investigation_scenarios_rubric.md`)     |
 | Cambiaste convencion               | Este archivo, inmediatamente                                          |
 
 
@@ -123,6 +126,54 @@ mentira y las decisiones se toman sin informacion.
 ```
 
 Ver `/precommit` skill para el protocolo completo.
+
+## Principios de diseno del scoring — NO NEGOCIABLE
+
+Estos principios aplican a CUALQUIER diseno de scoring, presente y futuro.
+Surgen de la discusion sobre los 23 escenarios y de LA PREGUNTA.
+
+### 1. UN solo metodo de scoring para todo
+
+NO hay "scoring profiles" separados por tipo de investigacion. NO hay
+switch/case entre "causal", "predictivo", "descriptivo". Hay UN metodo
+general que funciona para cualquier caso. Si un caso particular tiene
+una sola metrica puntual, el metodo general naturalmente se reduce a eso
+— pero no porque lo hardcodeamos.
+
+### 2. El sistema se adapta a los casos, no al reves
+
+Si un paper seed produce un caso con una sola variable de interes, perfecto.
+Si produce un caso con 5 outcomes en tension, perfecto. Si produce un caso
+donde lo interesante es descubrir la estructura del sistema, perfecto.
+El scoring no debe forzar a los casos a tener una forma particular.
+**Los casos vienen de seeds reales — pueden ser cualquier cosa.**
+
+### 3. El brief es libre y puede tener multiples objetivos
+
+- "Investiga que afecta la recuperacion" → valido (un objetivo, un foco)
+- "Investiga el sistema hospitalario" → valido (objetivo amplio, sin foco unico)
+- "Investiga: (1) si el tratamiento funciona, (2) a traves de que mecanismo,
+  (3) si hay confounding por severidad" → valido (3 objetivos especificos)
+- Una pregunta vaga, varias preguntas, objetivos mixtos → todo valido.
+
+### 4. No construir un juego estructurado
+
+Si el scoring requiere que el caso defina "roles", "slots", "pattern_weights",
+"investigation_type" y 10 campos de metadata para funcionar, estamos
+construyendo un juego, no evaluando investigacion. El scoring debe ser
+lo mas simple y general posible, y la complejidad debe estar en la
+VERIFICACION (que ya es general via SCM), no en el framework de scoring.
+
+### 5. La verificacion es el core, el scoring es un wrapper
+
+El SCM puede verificar cualquier claim sobre cualquier par de variables.
+ESO es lo valioso y general. El scoring solo necesita responder:
+- Es verdad? (SCM)
+- Es relevante a lo que se pidio? (brief)
+- Cubrio lo que se pidio? (completitud)
+- No spameo? (anti-shotgun)
+
+---
 
 ## LA PREGUNTA — el ordenador de todo el proyecto
 
@@ -162,6 +213,67 @@ Si algo no se parece a investigacion real, es un bug — no importa si los tests
 pasan. Si algo se parece a un juego artificial (budgets de juguete, acciones
 predefinidas, preguntas que se responden sin datos), hay que eliminarlo o
 rediseniarlo.
+
+## Validacion contra escenarios diversos — NO NEGOCIABLE
+
+> **Cada decision de diseno importante (scoring, entornos, prompts, contratos)
+> debe validarse mentalmente contra los 20 escenarios de investigacion.**
+> Ver `research/synthesis/investigation_scenarios_rubric.md`.
+
+### Por que existe esta regla
+
+Es muy facil concentrarse en UN tipo de investigacion (ej: causal con un
+target) y disenar algo que funciona perfecto para ese caso pero falla para
+todos los demas. Los 20 escenarios cubren 11 tipos de investigacion con
+3 tipos de espacio de respuesta (unica, acotada, abierta). Si un diseno
+solo funciona para 3 de 20, es un juguete disfrazado.
+
+### Como aplicarla
+
+- **Al disenar scoring**: Funciona para predictivo (metrica puntual)?
+  Para system mapping (sin target)? Para confounding (el hallazgo ES el sesgo)?
+  Para multi-outcome (trade-offs)? Para epistemologico ("no se puede saber")?
+- **Al agregar un concepto** (target_node, salience_map, relevance): Aplica
+  a los 20? O solo a los causales con single-target? Si solo aplica a algunos,
+  eso esta OK pero debe ser explicitamente acotado, no asumido como universal.
+- **Al evaluar un cambio**: Mejora 3 escenarios pero rompe 5? No vale.
+  Mejora 10 sin romper ninguno? Si vale.
+
+### Los 20 escenarios en una linea
+
+1. Causal simple (sepsis) | 2. Trade-off (inmuno) | 3. Policy+equidad (azucar)
+4. Eco+socio (pesca) | 5. Ingenieria+risk (baterias) | 6. Diagnostico (logistica)
+7. Multi-outcome (microbioma) | 8. Red/vulnerabilidad (electrica) | 9. Estructura (cerebro)
+10. Confounding (farmaco) | 11. Seleccion (camaras) | 12. Heterogeneidad (personalizada)
+13. Risk+subgrupos (calor) | 14. Descriptivo (redes) | 15. Predictivo (clima)
+16. Screening (drug) | 17. Metodologico (estimadores) | 18. Optimizacion (reactor)
+19. Taxonomia (depresion) | 20. Epistemologico (identificabilidad)
+21. Transportabilidad (farmaco 2 poblaciones) | 22. Discriminacion de modelos (2 teorias)
+23. Value-of-information (que medir siguiente)
+
+### Referencia rapida
+
+| Tipo de respuesta | Escenarios | Implicacion para scoring |
+|---|---|---|
+| Unica (metrica) | 15, 18 | Score = distancia al optimo |
+| Acotada | 1, 4, 8, 10, 11, 16, 17, 20, 21, 23 | Claims verificables, conjunto finito |
+| Abierta | 2, 3, 5, 6, 7, 9, 12, 13, 14, 19, 22 | Multiples investigaciones correctas |
+
+### Taxonomia de investigacion
+
+Los tipos de objetivos de investigacion estan documentados en
+`research/synthesis/Doc1_Taxonomia_El_Mapa.md`. Esa es la referencia canonica
+para clasificar cualquier investigacion. Los 23 escenarios son instancias
+concretas de esa taxonomia.
+
+### Diseno del proximo scoring (sub-preguntas ocultas)
+
+El diseno de la proxima version del scoring esta en
+`research/synthesis/oi_scoring_next_design.md`. Es un documento vivo
+que se actualiza durante implementacion. La idea central: el orchestrator
+genera sub-preguntas ocultas (inspiradas en el seed) que son el criterio
+real de evaluacion. Claims y sub-preguntas pasan por el mismo pipeline
+de compilacion formal.
 
 ## Harness de evaluacion — como sabemos si SREG funciona
 

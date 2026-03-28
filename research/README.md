@@ -28,6 +28,9 @@ Documentos de sintesis activos:
 - `synthesis/benchmark_analysis.md`
 - `synthesis/sreg_scientific_coverage.md`
 - `synthesis/open_investigation_vision.md`
+- `synthesis/investigation_scenarios_rubric.md`
+- `synthesis/Doc1_Taxonomia_El_Mapa.md`
+- `synthesis/oi_scoring_next_design.md`
 
 ### archive/
 Documentos viejos, superseded o referencias heredadas. Read-only.

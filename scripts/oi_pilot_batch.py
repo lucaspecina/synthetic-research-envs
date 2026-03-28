@@ -135,20 +135,18 @@ def make_llm_compiler(client: OpenAI, model: str):
     where messages is a list of chat-format dicts.
     """
     def llm_call(messages: list[dict]) -> str:
-        # Convert chat messages to Responses API format
-        system_msg = None
-        user_msg = None
-        for m in messages:
-            if m["role"] == "system":
-                system_msg = m["content"]
-            elif m["role"] == "user":
-                user_msg = m["content"]
+        # Pass full conversation (few-shot exemplars + actual claim)
+        instructions = messages[0]["content"] if messages else ""
+        input_items = [
+            {"role": m["role"], "content": m["content"]}
+            for m in messages[1:]
+        ]
 
-        kwargs: dict = {"model": model, "input": user_msg or ""}
-        if system_msg:
-            kwargs["instructions"] = system_msg
-
-        response = client.responses.create(**kwargs)
+        response = client.responses.create(
+            model=model,
+            instructions=instructions,
+            input=input_items,
+        )
 
         # Extract text from response
         text = ""

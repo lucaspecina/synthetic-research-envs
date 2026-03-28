@@ -1364,10 +1364,16 @@ def main():
             )
 
             def llm_compiler(messages: list[dict[str, str]]) -> str:
+                instructions = messages[0]["content"] if messages else ""
+                # Pass full conversation (few-shot exemplars + actual claim)
+                input_items = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in messages[1:]
+                ]
                 resp = compiler_client.responses.create(
                     model=compiler_model,
-                    instructions=messages[0]["content"] if messages else "",
-                    input=messages[-1]["content"] if messages else "",
+                    instructions=instructions,
+                    input=input_items,
                 )
                 for item in resp.output:
                     if item.type == "message":
@@ -1399,7 +1405,22 @@ def main():
                 _print(f"  Score: total={s.total:.3f} correct={s.correctness:.3f} "
                        f"coverage={s.coverage:.3f}")
 
-            # Save results
+            # Save results (include conversation for debugging)
+            # Extract solver tool calls for analysis
+            solver_tool_calls = []
+            for msg in oi_result.messages:
+                if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                    for tc in msg["tool_calls"]:
+                        fn = tc.get("function", {})
+                        entry = {"name": fn.get("name", ""), "step": len(solver_tool_calls)}
+                        # For submit_claims, include the claims
+                        if fn.get("name") == "submit_claims":
+                            try:
+                                entry["args"] = json.loads(fn.get("arguments", "{}"))
+                            except json.JSONDecodeError:
+                                entry["args"] = fn.get("arguments", "")
+                        solver_tool_calls.append(entry)
+
             oi_json = {
                 "world": result.world.id,
                 "solver_model": solver_model,
@@ -1408,6 +1429,7 @@ def main():
                 "n_steps": oi_result.n_steps,
                 "submitted": oi_result.submitted,
                 "score": oi_result.score.model_dump() if oi_result.score else None,
+                "solver_tool_calls": solver_tool_calls,
             }
             oi_path = os.path.join(args.output, "oi_result.json")
             with open(oi_path, "w") as f:

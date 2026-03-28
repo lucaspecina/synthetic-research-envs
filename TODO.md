@@ -117,9 +117,12 @@ contradictorios.
 
 ### A5. Taxonomia de investigaciones y research tasks
 
-No tenemos claro los TIPOS de investigacion que existen, que dimensiones
-tienen, y que tasks/preguntas se derivan de cada uno. Sin eso, no podemos
-disenar bien las research tasks ni ampliar lo que el sistema puede hacer.
+~~No tenemos claro los TIPOS de investigacion que existen.~~
+
+**UPDATE 2026-03-28:** Taxonomia completa documentada:
+- `research/synthesis/Doc1_Taxonomia_El_Mapa.md` — 11 tipos de objetivo, 4 preguntas, workflows
+- `research/synthesis/investigation_scenarios_rubric.md` — 23 escenarios concretos con rubricas
+- `research/synthesis/sreg_scientific_coverage.md` — assessment de cobertura SREG
 
 Hay un primer borrador en `research/notes/scientific_taxonomy.md` con 10
 tipos + proceso en fases (framing, propose, plan, execute, analyze). Pero
@@ -436,10 +439,49 @@ claims epistemicos (taxonomia, subidentificacion), no causales complejos.
 - [x] Fix P1: confounding como patron compilable (scoring v2, Sesion 7)
 - [x] Fix P2: NEAR_ZERO assertions (exemplars + prompt, Sesion 7)
 - [x] Desacoplar correctness de family match (scoring v2, Sesion 7)
+- [x] Conectar OI al orchestrator (generar OI problems, no solo task-based) — Sesion 7
+- [x] Fix: compiler LLM perdia todos los few-shot exemplars — Sesion 8
+- [x] Fix: extraction prompt no listaba confounding — Sesion 8
 - [ ] Re-pilotar 3 mundos con scoring v2 (comparar vs batch1)
-- [ ] Conectar OI al orchestrator (generar OI problems, no solo task-based)
 - [ ] Compiler benchmark offline (200+ claims, >90% precision)
 - [ ] Alinear verificacion de confounding con deteccion (gap raw-partial)
+- [ ] **PROXIMO: migrar a scoring por sub-preguntas (A19)**
+
+### A19. Scoring Next: sub-preguntas ocultas del orchestrator
+
+**EL cambio mas importante del sistema.** El scoring actual ancla todo a
+UNA variable target — solo funciona para ~3/23 escenarios de investigacion.
+La investigacion real tiene multiples outcomes, system mapping, confounding
+como objetivo, prediccion, y mas.
+
+**Idea central**: el orchestrator genera sub-preguntas ocultas (inspiradas
+en el seed/paper) que son el criterio real de evaluacion. El mundo se
+diseña PARA que esas sub-preguntas sean respondibles. Claims del solver y
+sub-preguntas pasan por el MISMO pipeline de compilacion formal.
+
+**Diseno detallado**: `research/synthesis/oi_scoring_next_design.md`
+**Escenarios de validacion**: `research/synthesis/investigation_scenarios_rubric.md` (23 escenarios)
+**Taxonomia de investigacion**: `research/synthesis/Doc1_Taxonomia_El_Mapa.md`
+
+**Principios de diseno (en CLAUDE.md):**
+- UN solo metodo de scoring para todo (no tipos hardcodeados)
+- El sistema se adapta a los casos, no al reves
+- El brief es libre (1 o N objetivos, vagos o precisos)
+- Verificacion exacta (SCM), relevancia puede evolucionar (formal → LLM si necesario)
+- Sub-preguntas = piso de coverage, no techo (bonus para novel discoveries)
+
+**Implementacion (en orden):**
+- [ ] Modelo de datos: SubQuestion, EvaluationContract
+- [ ] Orchestrator emite sub-preguntas al diseñar el caso
+- [ ] Sub-preguntas compiladas a specs formales (mismo pipeline que claims)
+- [ ] Matching programatico (firma canonica) claim vs sub-pregunta
+- [ ] Scoring: truth(SCM) * match * coverage_subpreguntas * no-redundancia
+- [ ] Pilotar con 3 mundos curados: comparar vs scoring v2
+- [ ] Iterar segun pilotos
+
+**Conecta con**: A15 (OI), A2 (tipos de preguntas), A5 (taxonomia), A1 (forzar investigacion)
+
+---
 
 ### A16. Quality gates por task primitive — eval cualitativa 2026-03-25
 

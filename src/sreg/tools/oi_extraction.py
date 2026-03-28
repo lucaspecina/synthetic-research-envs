@@ -48,12 +48,13 @@ model fit, about sample properties), output {"abstention": true, "reason": "..."
 ## Output format (compiled)
 {
   "pattern": "<causal_effect|mediation|heterogeneity|tail_risk|variance_effect|\
-observational_association|effect_ranking>",
+observational_association|effect_ranking|confounding>",
   "treatment": "<main cause variable name>",
   "outcome": "<main outcome variable name>",
   "direction": "<positive|negative|near_zero>",
   "mediator": "<variable name or null>",
   "modifier": "<variable name or null>",
+  "confounder": "<variable name or null>",
   "ranking_vars": ["<var1>", "<var2>", ...],
   "conditioning_set": ["<var1>", ...],
   "evidence_type": "<interventional|observational>"
@@ -72,9 +73,12 @@ observational_association|effect_ranking>",
   mediator is the intermediate variable.
 - For heterogeneity: treatment and outcome as usual, modifier is the variable
   that modulates the effect.
+- For confounding: treatment and outcome as usual, confounder is the variable
+  that creates a spurious or inflated association between them.
 - For effect_ranking: list ALL variables being compared in ranking_vars.
 - If the claim uses causal language but the evidence is purely observational,
   still set pattern to the causal type but mark evidence_type as "observational".
+- "near_zero" direction means no meaningful effect was found. This is a valid finding.
 - Output ONLY valid JSON, no explanations."""
 
 
@@ -150,6 +154,8 @@ def _intent_to_json(intent: ClaimIntent) -> dict[str, Any]:
         result["mediator"] = intent.mediator
     if intent.modifier:
         result["modifier"] = intent.modifier
+    if intent.confounder:
+        result["confounder"] = intent.confounder
     if intent.ranking_vars:
         result["ranking_vars"] = intent.ranking_vars
     if intent.conditioning_set:
@@ -208,6 +214,7 @@ def parse_extraction_response(
             direction=Direction(data.get("direction", "positive")),
             mediator=data.get("mediator"),
             modifier=data.get("modifier"),
+            confounder=data.get("confounder"),
             ranking_vars=data.get("ranking_vars", []),
             conditioning_set=data.get("conditioning_set", []),
             evidence_type=data.get("evidence_type", "interventional"),

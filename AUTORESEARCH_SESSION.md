@@ -317,6 +317,9 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 - **Codex fixes aplicados:** family match usa match_score no truth,
   coverage usa truth_score no effective, confounder validado en validate_intent,
   sign-flip gap en salience
-- **Pendiente:** re-pilotar 3 mundos con v2, comparar scores, documentar
-- **STATUS:** Scoring v2 implementado y testeado. Listo para pilotos reales.
+- **Orchestrator OI wiring:** oi_mode flag, generate_src.py --oi,
+  full pipeline seed → orchestrator → SCMWorld → OI → score
+- **E2E test running:** generate_src.py --oi con LLM real
+- **STATUS:** Scoring v2 + confounding + OI-orchestrator wiring implementados.
+  201 tests passing. Pendiente: validar E2E con LLM, re-pilotar comparativo.
 
