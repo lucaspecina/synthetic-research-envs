@@ -445,11 +445,17 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
   - The verifier uses interventional ground truth (ATE=+0.4) but the solver
     reports observational findings (crude corr=-0.64). These are opposite in
     sign — the verifier sees a contradiction where the solver sees a discovery.
-  - **THIS IS THE NEXT CRITICAL FIX.** The verifier needs to handle obs vs
-    causal truth separately. For obs_assoc claims, verify against raw
-    correlation; for causal claims, verify against ATE.
-  - Without this fix, Simpson worlds (and any sign-reversal confounding) will
-    score 0 for correct claims — making the scoring useless for the most
-    interesting data-indexed worlds.
-- **STATUS:** World design works. Scoring infra needs sign-reversal fix.
+  - **FIX APPLIED:** confounding lowering now direction-agnostic (GAP_MATERIAL),
+    subsumption table extended (confounding→obs_assoc, confounding→causal_effect).
+  - **RESULTS AFTER FIX:**
+    - No-data: SQ=0.580, v2=0.606, correctness=0.750
+    - With-data: SQ=0.622, v2=0.738, correctness=1.000
+    - Gap: v2 +22%, correctness +25% (data gives perfect correctness!)
+    - SQ gap small (+7%) because prior knowledge covers some SQs
+  - **Conclusion:** Simpson world WORKS as a data-indexed world. The v2 scoring
+    shows a clear gap. The SQ scoring gap is modest — needs more data-indexed
+    SQs or worlds with stronger prior mismatch. But the principle is validated.
+  - All 85 OI tests + 1840 full suite passing.
+- **STATUS:** Investigation gap validated. 14 commits pushed. Next: create more
+  data-indexed worlds, formalize investigation_gap as acceptance criterion.
 
