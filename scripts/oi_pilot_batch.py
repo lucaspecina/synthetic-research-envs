@@ -133,33 +133,34 @@ WORLD_SQS = {
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.LOW,
         ),
     ],
-    # Simpson's paradox: crude assoc is NEGATIVE, causal effect is POSITIVE
+    # Simpson's paradox: crude assoc NEGATIVE, causal effect POSITIVE
+    # SQs use observational patterns (epistemological alignment for obs data)
     "treatment_simpson": [
         SubQuestionIntent(
             sq_id="sq1", pattern="observational_association",
             roles=SQRoles(treatment="Treatment", outcome="Recovery"),
-            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
-            text_gloss="Crude Treatment-Recovery association (data-indexed: negative!)",
+            ask=AskOperator.SIGN, tier=SQTier.HIGH,
+            text_gloss="Crude Treatment-Recovery association direction (NEGATIVE!)",
         ),
         SubQuestionIntent(
-            sq_id="sq2", pattern="causal_effect",
-            roles=SQRoles(treatment="Treatment", outcome="Recovery"),
-            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
-            text_gloss="Causal effect of Treatment on Recovery (positive after adjustment)",
-        ),
-        SubQuestionIntent(
-            sq_id="sq3", pattern="confounding",
+            sq_id="sq2", pattern="confounding",
             roles=SQRoles(
                 treatment="Treatment", outcome="Recovery", confounder="Severity",
             ),
             ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
-            text_gloss="Severity confounds Treatment-Recovery (sign-reversal confounding)",
+            text_gloss="Severity confounds Treatment-Recovery (sign-reversal)",
         ),
         SubQuestionIntent(
-            sq_id="sq4", pattern="causal_effect",
+            sq_id="sq3", pattern="observational_association",
             roles=SQRoles(treatment="Severity", outcome="Recovery"),
+            ask=AskOperator.SIGN, tier=SQTier.HIGH,
+            text_gloss="Severity negatively associated with Recovery",
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="observational_association",
+            roles=SQRoles(treatment="Severity", outcome="Treatment"),
             ask=AskOperator.SIGN, tier=SQTier.MEDIUM,
-            text_gloss="Severity negatively affects Recovery",
+            text_gloss="Sicker patients receive more treatment (confounding mechanism)",
         ),
     ],
 }

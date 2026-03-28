@@ -181,35 +181,35 @@ WORLD_SQS = {
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.LOW,
         ),
     ],
-    # treatment_simpson: SQs designed to detect Simpson's paradox
-    # SQ1 asks about the CRUDE association (should be NEGATIVE — data-indexed!)
-    # SQ2 asks about the CAUSAL effect (should be POSITIVE)
-    # A no-data LLM would guess both are positive → fails SQ1
+    # treatment_simpson: SQs designed for observational data (epistemological alignment)
+    # The KEY data-indexed SQ is sq1: crude association SIGN is NEGATIVE
+    # A no-data LLM would guess positive → MISSES sq1
+    # A data-using solver discovers negative crude → HITS sq1
     "treatment_simpson": [
         SubQuestionIntent(
             sq_id="sq1", pattern="observational_association",
             roles=SQRoles(treatment="Treatment", outcome="Recovery"),
-            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
-            text_gloss="Is Treatment associated with Recovery? (crude direction is data-indexed)",
+            ask=AskOperator.SIGN, tier=SQTier.HIGH,
+            text_gloss="What is the crude Treatment-Recovery association direction?",
         ),
         SubQuestionIntent(
-            sq_id="sq2", pattern="causal_effect",
-            roles=SQRoles(treatment="Treatment", outcome="Recovery"),
-            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
-            text_gloss="Does Treatment causally help Recovery? (after adjusting)",
-        ),
-        SubQuestionIntent(
-            sq_id="sq3", pattern="confounding",
+            sq_id="sq2", pattern="confounding",
             roles=SQRoles(treatment="Treatment", outcome="Recovery",
                           confounder="Severity"),
             ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
-            text_gloss="Does Severity confound the Treatment-Recovery relationship?",
+            text_gloss="Does Severity confound Treatment-Recovery? (sign-reversal)",
         ),
         SubQuestionIntent(
-            sq_id="sq4", pattern="causal_effect",
+            sq_id="sq3", pattern="observational_association",
             roles=SQRoles(treatment="Severity", outcome="Recovery"),
+            ask=AskOperator.SIGN, tier=SQTier.HIGH,
+            text_gloss="Is Severity negatively associated with Recovery?",
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="observational_association",
+            roles=SQRoles(treatment="Severity", outcome="Treatment"),
             ask=AskOperator.SIGN, tier=SQTier.MEDIUM,
-            text_gloss="Does Severity negatively affect Recovery?",
+            text_gloss="Are sicker patients treated more? (confounding mechanism)",
         ),
     ],
 }
