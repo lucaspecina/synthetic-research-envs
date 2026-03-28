@@ -1448,20 +1448,17 @@ def main():
             _print(f"  {_c(GRN, 'v')} {oi_path}")
 
             # Generate full_case_oi.md report
+            # NOTE: No salience map in E2E — SQ scoring is the primary
+            # evaluation. Salience map is available for periodic diagnostics
+            # via oi_demo_case.py standalone (not in the critical path).
             try:
                 import sys as _sys
                 _sys.path.insert(0, os.path.join(
                     os.path.dirname(__file__), "..", "tests", "tools"))
                 _sys.path.insert(0, os.path.dirname(__file__))
                 from oi_demo_case import build_report
-                from sreg.tools.oi_salience import build_salience_map as _bsm
-                _salience = _bsm(
-                    result.world, result.problem.target_node,
-                    n_mc=20_000, seed=oi_seed,
-                ) if result.problem.target_node else None
                 report = build_report(
                     oi_result, result.world, result.problem,
-                    salience=_salience,
                     elapsed=elapsed,
                     solver_model=solver_model,
                     compiler_model=compiler_model,
@@ -1473,7 +1470,9 @@ def main():
                     f.write(report)
                 _print(f"  {_c(GRN, 'v')} {report_path}")
             except Exception as e:
+                import traceback
                 _print(f"  {_c(YLW, '!')} Report generation failed: {e}")
+                traceback.print_exc()
 
     _print()
     title = getattr(result.world, "scenario_title", None) or result.world.id

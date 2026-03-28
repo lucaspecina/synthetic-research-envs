@@ -504,3 +504,76 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 - **STATUS:** 4 mundos data-indexed validados. Falta: formalizar
   investigation_gap como gate, Codex review pendiente, merge a feature branch.
 
+### Sesion 12 — 2026-03-28 (con usuario presente)
+- **Revision del usuario:** detecto que la documentacion no se habia
+  actualizado (violacion del workflow). Detecto legacy mezclado con cosas
+  nuevas. Detecto que el E2E colgaba por salience map innecesario.
+- **Limpieza profunda con Codex (thread 019d354e):**
+  - **epistemic_regime ELIMINADO:** era un switch por tipo que violaba el
+    principio #1 de CLAUDE.md ("UN solo metodo de scoring para todo").
+    Sacado de: CasePlan, validate_sub_questions(), orchestrator prompt,
+    tool schema, tests.
+  - **SQ scoring es ahora el scoring PRIMARIO** de OI. Antes v2 (salience-based)
+    era primario y SQ secundario ("dual scoring"). Ahora: si hay SQs, solo SQ
+    scoring. v2 solo corre si NO hay SQs (mundos curados legacy).
+  - **Salience map sacado del E2E:** ya no se calcula en generate_src.py ni
+    en el report builder. Era lo que colgaba el proceso 20+ minutos.
+    Disponible como diagnostico opcional.
+  - **Report builder actualizado:** Part 5 con SQs (text_gloss, tiers, per-SQ
+    results, formula). Summary al final. No requiere salience map.
+  - **Nomenclatura limpiada:** "dual scoring" -> "SQ scoring (primary)".
+- **E2E Vaca Muerta ejecutado 3 veces:**
+  - v1: 18 steps, Submitted=True, total=0.505, correctness=0.600, 4/5 TRUE.
+    Pero full_case_oi.md NO se genero (import roto).
+  - v2: Submitted=False (solver no submitio, 20 steps). Report SI se genero.
+  - v3: 12 steps, Submitted=True, total=0.724, correctness=1.000, 4/4 TRUE.
+    full_case_oi.md generado por agente separado (693 lineas).
+  - Problema recurrente: solver codex a veces ignora deadline nudge.
+  - Problema recurrente: report generation falla por import paths.
+- **Codex thread activo:** 019d354e-b9cd-7842-b871-6dc8e0c67f61
+  (3 exchanges: SQ vs salience, epistemic_regime, limpieza)
+- **STATUS:** Pipeline limpio. SQ scoring primario. Full case de Vaca Muerta
+  listo en experiments/vaca_muerta_demo_v3/. Pendiente: demo script de 3 min,
+  fix del import para que generate_src.py genere report automaticamente,
+  fix del deadline nudge del solver.
+
+---
+
+## PROXIMO PASO — DEMO DE 3 MINUTOS
+
+> **Para la proxima sesion (despues de compact):** el usuario necesita un
+> script de presentacion de 3 minutos basado en el full case de Vaca Muerta.
+
+### Que hay listo
+
+- `experiments/vaca_muerta_demo_v3/full_case_oi.md` — 693 lineas, caso completo
+- `experiments/vaca_muerta_demo_v3/dag.png` — grafo causal visual
+- `experiments/vaca_muerta_demo_v3/src.json` — mundo + SQs + problem
+- `experiments/vaca_muerta_demo_v3/oi_result.json` — conversacion + score + claims
+
+### Que falta
+
+1. **Script de demo** (narativo, 3 min): explicar que es SREG, mostrar el
+   full case, explicar el flujo seed -> mundo -> solver -> verificacion.
+2. **Fix generate_src.py report** — el import de oi_demo_case sigue fallando
+   en runtime. Necesita test de integracion rapido.
+3. **Fix deadline nudge** — el solver codex a veces no submitea. Opciones:
+   nudge mas agresivo, o usar gpt-5.4 como solver (siempre submitea).
+
+### Estructura sugerida del demo (3 min)
+
+```
+0:00-0:30  Que es SREG: "genera entornos de investigacion sinteticos con
+           reward signals exactos para entrenar RL cientifico"
+0:30-1:00  El caso: seed de Vaca Muerta -> orchestrator diseña mundo
+           (mostrar DAG, variables, ecuaciones)
+1:00-1:30  El solver investiga: recibe brief vago + datos, corre codigo,
+           descubre patrones (mostrar 2-3 snippets de la traza)
+1:30-2:00  Claims verificados: 4/4 TRUE contra el SCM (Monte Carlo exacto,
+           sin LLM judges). Mostrar tabla de verdicts.
+2:00-2:30  Sub-preguntas ocultas: "esto es lo que debia descubrir" —
+           mostrar SQs vs claims. Scoring automatico.
+2:30-3:00  Investigation gap: "sin datos, el LLM adivina X. Con datos,
+           descubre Y. La diferencia es medible." Cierre.
+```
+

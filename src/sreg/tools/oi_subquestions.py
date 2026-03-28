@@ -172,6 +172,7 @@ def resolve_all(
 # ---------------------------------------------------------------------------
 
 # Patterns that require causal semantics — reject in observational_only regime
+# Pattern categories (informational, not used for filtering)
 _CAUSAL_PATTERNS = {"causal_effect", "mediation", "heterogeneity", "tail_risk"}
 
 # Patterns allowed in observational_only regime
@@ -188,14 +189,9 @@ _REQUIRED_ROLES: dict[str, set[str]] = {
     "effect_ranking": {"outcome"},  # ranking_vars also needed, checked separately
 }
 
-# Valid epistemic regimes
-_VALID_REGIMES = {"observational_only", "experimental", "mixed"}
-
-
 def validate_sub_questions(
     sqs: list[SubQuestionIntent],
     world: SCMWorld,
-    epistemic_regime: str = "observational_only",
 ) -> tuple[list[SubQuestionIntent], list[dict]]:
     """Validate sub-questions structurally against a world.
 
@@ -257,17 +253,8 @@ def validate_sub_questions(
                     "effect_ranking requires ranking_vars with at least 2 variables"
                 )
 
-        # 4. Epistemological check
-        if epistemic_regime in _VALID_REGIMES:
-            if (
-                epistemic_regime == "observational_only"
-                and sq.pattern in _CAUSAL_PATTERNS
-            ):
-                sq_errors.append(
-                    f"Pattern '{sq.pattern}' requires causal evidence, "
-                    f"but epistemic_regime is 'observational_only'. "
-                    f"Use observational patterns: {sorted(_OBS_PATTERNS)}"
-                )
+        # 4. (removed: epistemic_regime filtering was a type-based switch
+        # that violated the "one scoring method for everything" principle)
 
         # 5. Ask operator compatibility with pattern
         if sq.pattern == "effect_ranking" and sq.ask != AskOperator.RANK_ORDER:

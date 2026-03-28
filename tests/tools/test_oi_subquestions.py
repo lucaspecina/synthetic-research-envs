@@ -424,7 +424,7 @@ class TestValidateSubQuestions:
             self._make_sq("sq4", "causal_effect", "Severity", "Recovery",
                           ask="sign", tier="medium"),
         ]
-        accepted, errors = validate_sub_questions(sqs, tw, "experimental")
+        accepted, errors = validate_sub_questions(sqs, tw)
         hard = [e for e in errors if e["severity"] == "hard"]
         assert len(accepted) == 4
         assert len(hard) == 0
@@ -438,7 +438,7 @@ class TestValidateSubQuestions:
             self._make_sq("sq4", "causal_effect", "Severity", "Recovery",
                           tier="medium"),
         ]
-        accepted, errors = validate_sub_questions(sqs, tw, "experimental")
+        accepted, errors = validate_sub_questions(sqs, tw)
         hard = [e for e in errors if e["severity"] == "hard"]
         assert len(hard) >= 1
         assert any("bogus_pattern" in str(e["reasons"]) for e in hard)
@@ -452,12 +452,13 @@ class TestValidateSubQuestions:
             self._make_sq("sq4", "causal_effect", "Severity", "Recovery",
                           tier="medium"),
         ]
-        accepted, errors = validate_sub_questions(sqs, tw, "experimental")
+        accepted, errors = validate_sub_questions(sqs, tw)
         hard = [e for e in errors if e["severity"] == "hard"]
         assert len(hard) >= 1
         assert any("Nonexistent" in str(e["reasons"]) for e in hard)
 
-    def test_epistemological_check_rejects_causal_in_obs(self, tw):
+    def test_all_patterns_accepted_regardless_of_regime(self, tw):
+        """No epistemic filtering — the system is general."""
         from sreg.tools.oi_subquestions import validate_sub_questions
         sqs = [
             self._make_sq("sq1", "causal_effect"),
@@ -466,14 +467,11 @@ class TestValidateSubQuestions:
             self._make_sq("sq4", "observational_association",
                           "Severity", "Recovery", tier="medium"),
         ]
-        accepted, errors = validate_sub_questions(
-            sqs, tw, "observational_only"
-        )
+        accepted, errors = validate_sub_questions(sqs, tw)
         hard = [e for e in errors if e["severity"] == "hard"]
-        # sq1 uses causal_effect in obs_only -> rejected
-        assert any("sq1" == e["sq_id"] for e in hard)
-        # sq2/sq3/sq4 should be accepted (obs_assoc + confounding OK)
-        assert "sq2" in [sq.sq_id for sq in accepted]
+        # All patterns accepted — no regime-based filtering
+        assert len(hard) == 0
+        assert len(accepted) == 4
 
     def test_missing_roles_rejected(self, tw):
         from sreg.tools.oi_subquestions import validate_sub_questions
@@ -489,7 +487,7 @@ class TestValidateSubQuestions:
             self._make_sq("sq3", "causal_effect", "Severity", "Recovery",
                           tier="medium"),
         ]
-        accepted, errors = validate_sub_questions(sqs, tw, "experimental")
+        accepted, errors = validate_sub_questions(sqs, tw)
         hard = [e for e in errors if e["severity"] == "hard"]
         assert any("mediator" in str(e["reasons"]) for e in hard)
 
@@ -499,7 +497,7 @@ class TestValidateSubQuestions:
         sq_dup = self._make_sq("sq2", "causal_effect")  # same pattern+vars
         sqs = [sq, sq_dup, self._make_sq("sq3", "confounding",
                                           confounder="Severity")]
-        _, errors = validate_sub_questions(sqs, tw, "experimental")
+        _, errors = validate_sub_questions(sqs, tw)
         hard = [e for e in errors if e["severity"] == "hard"]
         assert any("Duplicate" in str(e["reasons"]) for e in hard)
 
@@ -511,7 +509,7 @@ class TestValidateSubQuestions:
             self._make_sq("sq2", "causal_effect", "Recovery", "Treatment"),
             self._make_sq("sq3", "confounding", confounder="Severity"),
         ]
-        _, errors = validate_sub_questions(sqs, tw, "experimental")
+        _, errors = validate_sub_questions(sqs, tw)
         hard = [e for e in errors if e["severity"] == "hard"]
         assert not any("Duplicate" in str(e["reasons"]) for e in hard)
 
@@ -521,7 +519,7 @@ class TestValidateSubQuestions:
             self._make_sq("sq1", "causal_effect"),
             self._make_sq("sq2", "confounding", confounder="Severity"),
         ]
-        _, errors = validate_sub_questions(sqs, tw, "experimental")
+        _, errors = validate_sub_questions(sqs, tw)
         soft = [e for e in errors if e["severity"] == "soft"]
         assert any("Too few" in str(e["reasons"]) for e in soft)
 
@@ -541,7 +539,6 @@ class TestCasePlanOIMode:
             research_context="Testing OI mode with sub-questions",
             research_brief="Investigate X and Y.",
             oi_sub_questions=[sq],
-            epistemic_regime="experimental",
             shared_budget=5,
         )
         assert plan.is_oi_mode

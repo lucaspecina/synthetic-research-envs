@@ -131,10 +131,8 @@ class CasePlan(BaseModel):
         default=None,
         description="Sub-questions for OI scoring (hidden from solver)",
     )
-    epistemic_regime: str | None = Field(
-        default=None,
-        description="Evidence regime: observational_only, experimental, mixed",
-    )
+    # epistemic_regime removed: violated "one scoring method for everything"
+    # principle. The system is general — no type-based switches.
 
     @property
     def primary_question(self) -> EvalQuestionPlan | None:

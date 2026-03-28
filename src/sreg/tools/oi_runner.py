@@ -344,47 +344,52 @@ class OIEpisodeRunner:
                 claims, summary, llm_call=self._llm_call
             )
 
-        # Build scoring infrastructure
-        solver = SCMSolver(self.world, n_mc=self.n_mc)
-        salience = build_salience_map(
-            self.world, self.target, n_mc=self.n_mc, seed=self.seed
-        )
-
-        # Include derived artifact IDs in the data_asset_ids for warrant
-        all_asset_ids = self.catalog.all_ids
-
-        # Score the episode
-        # v2 scoring: truth decoupled from family match, structural relevance
-        # Warrant disabled for Alpha: pass trace=None to give full credit.
-        from sreg.tools.oi_compiler import score_compiled_episode_v2
-
-        score = score_compiled_episode_v2(
-            compiled_claims=compiled,
-            families=salience.families,
-            world=self.world,
-            solver=solver,
-            target=self.target,
-            n_mc=self.n_mc,
-            seed=self.seed,
-            claim_cards=claims,
-            trace=None,
-            data_asset_ids=all_asset_ids,
-        )
-
         self._submitted = True
-        self._score = score
 
-        # Sub-question scoring (alongside v2, not replacing)
+        # --- Primary scoring: sub-questions (fast, no salience map) ---
         if self._subquestions:
             self._sq_score = self._score_with_subquestions(compiled)
+            logger.info(
+                "SQ score (primary): total=%.3f correctness=%.3f "
+                "coverage=%.3f",
+                self._sq_score.total,
+                self._sq_score.correctness,
+                self._sq_score.weighted_coverage,
+            )
 
-        logger.info(
-            "Episode scored: total=%.3f correctness=%.3f coverage=%.3f",
-            score.total,
-            score.correctness,
-            score.coverage,
-        )
-        return score
+        # --- Diagnostic scoring: v2 with salience map (slow, optional) ---
+        # Only computed when no sub-questions are set (legacy/curated worlds)
+        # or for explicit diagnostic runs. NOT in the E2E critical path.
+        if not self._subquestions:
+            solver = SCMSolver(self.world, n_mc=self.n_mc)
+            salience = build_salience_map(
+                self.world, self.target, n_mc=self.n_mc, seed=self.seed
+            )
+            all_asset_ids = self.catalog.all_ids
+            from sreg.tools.oi_compiler import score_compiled_episode_v2
+
+            score = score_compiled_episode_v2(
+                compiled_claims=compiled,
+                families=salience.families,
+                world=self.world,
+                solver=solver,
+                target=self.target,
+                n_mc=self.n_mc,
+                seed=self.seed,
+                claim_cards=claims,
+                trace=None,
+                data_asset_ids=all_asset_ids,
+            )
+            self._score = score
+            logger.info(
+                "v2 score (diagnostic): total=%.3f correctness=%.3f "
+                "coverage=%.3f",
+                score.total,
+                score.correctness,
+                score.coverage,
+            )
+
+        return self._sq_score or self._score
 
     @staticmethod
     def _validate_compiled_alignment(
@@ -415,7 +420,7 @@ class OIEpisodeRunner:
     # -----------------------------------------------------------------
 
     def set_subquestions(self, sqs: list[SubQuestionIntent]) -> None:
-        """Set sub-questions for dual scoring. Call before submit_claims."""
+        """Set sub-questions for SQ scoring. Call before submit_claims."""
         self._subquestions = list(sqs)
 
     def _score_with_subquestions(

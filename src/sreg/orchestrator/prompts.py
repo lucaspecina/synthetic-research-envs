@@ -809,20 +809,6 @@ TOOL_DEFINITIONS = [
                             "reasoning for the combination of eval types chosen."
                         ),
                     },
-                    "epistemic_regime": {
-                        "type": "string",
-                        "enum": [
-                            "observational_only",
-                            "experimental",
-                            "mixed",
-                        ],
-                        "description": (
-                            "Evidence regime for Open Investigation mode. "
-                            "observational_only: solver sees associations only. "
-                            "experimental: interventions available, causal claims OK. "
-                            "mixed: some variables interventionable."
-                        ),
-                    },
                     "sub_questions": {
                         "type": "array",
                         "description": (
@@ -849,8 +835,7 @@ TOOL_DEFINITIONS = [
                                         "tail_risk",
                                     ],
                                     "description": (
-                                        "What type of finding. Must match "
-                                        "epistemic_regime."
+                                        "What type of finding this SQ asks about."
                                     ),
                                 },
                                 "roles": {

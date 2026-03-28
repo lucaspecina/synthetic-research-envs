@@ -60,7 +60,7 @@ SEED = 42
 # World definitions with briefs
 # ---------------------------------------------------------------------------
 
-# Manual sub-questions for dual scoring validation
+# Manual sub-questions for SQ scoring (curated worlds)
 WORLD_SQS = {
     "ecosystem": [
         # Observational world: SQs use obs_association (epistemological alignment)
@@ -392,7 +392,7 @@ def run_single_pilot(
         problem, world, seed=SEED + run_id, n_mc=N_MC, llm_call=llm_compiler,
     )
 
-    # Set manual sub-questions for dual scoring
+    # Set manual sub-questions for SQ scoring
     if world_name in WORLD_SQS:
         runner.set_subquestions(WORLD_SQS[world_name])
 
@@ -454,7 +454,7 @@ def run_single_pilot(
             ],
         }
 
-    # Sub-question score (dual scoring)
+    # Sub-question score (primary scoring for OI)
     sq_score = runner.get_sq_score()
     if sq_score:
         output["sq_score"] = {

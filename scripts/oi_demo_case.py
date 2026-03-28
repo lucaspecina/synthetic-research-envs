@@ -188,11 +188,8 @@ def build_report(
     if result is None:
         return "# Error: no investigation result provided\n"
 
-    # Build salience map if not provided
-    if salience is None and world is not None and problem is not None:
-        target = problem.target_node
-        if target:
-            salience = build_salience_map(world, target, n_mc=N_MC, seed=SEED)
+    # Salience map is optional (diagnostic only, not in E2E critical path)
+    # Pass salience= explicitly if you want Part 4 coverage analysis
 
     lines = []
 
@@ -622,13 +619,7 @@ def main():
     )
     elapsed = time.time() - t0
 
-    salience = build_salience_map(world, cfg["target"], n_mc=N_MC, seed=SEED)
-
     print(f"  Done: {result.n_steps} steps, {elapsed:.0f}s")
-    if result.score:
-        print(f"  Score: total={result.score.total:.3f} "
-              f"correctness={result.score.correctness:.3f} "
-              f"coverage={result.score.coverage:.3f}")
 
     # Wire sub-questions for curated worlds (from oi_pilot_batch)
     sqs = None
@@ -644,7 +635,7 @@ def main():
 
     # Build and save report
     report = build_report(
-        args.world, world, problem, result, salience,
+        args.world, world, problem, result,
         elapsed, solver_model, compiler_model,
         runner=runner, sub_questions=sqs,
     )

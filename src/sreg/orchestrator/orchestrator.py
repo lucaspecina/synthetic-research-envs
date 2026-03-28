@@ -66,12 +66,9 @@ Call design_case with these fields:
   Example: "Investigate the factors affecting patient recovery after treatment.
   Identify the most important mechanisms and any confounding relationships."
 - **deliverables**: 3-5 action items the investigator should deliver.
-- **epistemic_regime**: What evidence the solver has access to.
-  Currently only "observational_only" is supported (solver sees
-  associations only, no interventions). "experimental" and "mixed" are
-  planned but not yet available — do NOT use them.
-  Exception: if the research brief explicitly asks causal questions
-  (e.g., "does treatment CAUSE recovery?"), use "experimental" to allow
+- **sub_questions**: Use any pattern that fits the research question.
+  The system is general — all patterns (causal_effect, observational_association,
+  mediation, confounding, heterogeneity, effect_ranking) work for any world.
   causal SQ patterns, but note the solver won't have intervention tools.
 - **sub_questions**: 4-6 hidden sub-questions that define the scoring agenda.
   The solver NEVER sees these — they are used for evaluation only.
@@ -105,17 +102,6 @@ Each sub-question has:
   - "high" (weight 1.0): core question, central to the brief
   - "medium" (weight 0.6): important but secondary
   - "low" (weight 0.4): peripheral, nice to discover
-
-### CRITICAL: Epistemological alignment
-
-Sub-questions must match what the solver can JUSTIFY from the visible evidence:
-- If epistemic_regime="observational_only": use observational_association,
-  confounding, effect_ranking. Do NOT use causal_effect, mediation,
-  heterogeneity (the solver cannot justify causal claims from obs data alone).
-- If epistemic_regime="experimental": causal_effect, mediation, heterogeneity
-  are appropriate when the brief asks causal questions.
-- If epistemic_regime="mixed": use causal patterns only for variables where
-  interventions are available.
 
 ### Portfolio rules
 
@@ -876,7 +862,7 @@ class Orchestrator:
     ) -> dict:
         """Build CasePlan for OI mode: brief + sub-questions, no eval questions."""
         raw_sqs = args.get("sub_questions", [])
-        epistemic_regime = args.get("epistemic_regime", "observational_only")
+        # epistemic_regime removed — system is general, no type-based filtering
 
         if not raw_sqs:
             return {
@@ -924,7 +910,7 @@ class Orchestrator:
             from sreg.tools.oi_subquestions import validate_sub_questions
 
             accepted, val_errors = validate_sub_questions(
-                parsed_sqs, world, epistemic_regime
+                parsed_sqs, world
             )
             hard_errors = [
                 e for e in val_errors if e.get("severity") == "hard"
@@ -950,7 +936,7 @@ class Orchestrator:
                 "Report your findings as structured claims",
             ]),
             oi_sub_questions=parsed_sqs if parsed_sqs else None,
-            epistemic_regime=epistemic_regime,
+            # epistemic_regime removed from CasePlan
             shared_budget=args.get("shared_budget", 5),
             rationale=args.get("rationale", "Open Investigation mode"),
         )
@@ -963,7 +949,7 @@ class Orchestrator:
             "research_brief": plan.research_brief,
             "deliverables": plan.deliverables,
             "mode": "open_investigation",
-            "epistemic_regime": epistemic_regime,
+            "mode": "open_investigation",
         }
         if parsed_sqs:
             response["num_sub_questions"] = len(parsed_sqs)
