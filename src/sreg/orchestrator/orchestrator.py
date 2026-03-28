@@ -647,7 +647,7 @@ class Orchestrator:
             }
 
         raw_questions = args.get("questions", [])
-        if not raw_questions:
+        if not raw_questions and not self.oi_mode:
             return {"error": "questions list is empty. Provide at least one question."}
 
         for i, rq in enumerate(raw_questions):
@@ -724,6 +724,43 @@ class Orchestrator:
 
         # Build the CasePlan (Pydantic validates structure + duplicates)
         try:
+            if self.oi_mode and not raw_questions:
+                # OI mode: CasePlan with brief only, no questions
+                # Create a minimal dummy question to satisfy CasePlan.min_length=1
+                # The question won't be used — OI scoring uses claims, not tasks
+                target_for_oi = args.get("target_node", "")
+                if not target_for_oi and is_scm:
+                    # Pick the last variable in topo order as target
+                    target_for_oi = world.variables[-1]
+                plan = CasePlan(
+                    title=args.get("title", "Open Investigation"),
+                    research_context=args.get("research_context", research_brief),
+                    research_brief=research_brief,
+                    deliverables=args.get("deliverables", [
+                        "Investigate the phenomenon described in the brief",
+                        "Report your findings as structured claims",
+                    ]),
+                    questions=[
+                        EvalQuestionPlan(
+                            question_text="Open investigation — no predefined questions",
+                            eval_type=TaskType.INFER_TARGET,
+                            target_node=target_for_oi,
+                            rationale="Placeholder for OI mode",
+                        )
+                    ],
+                    shared_budget=5,
+                    rationale=args.get("rationale", "Open Investigation mode"),
+                )
+                # No task generation in OI mode
+                self._case_plans[world_id] = plan
+                return {
+                    "title": plan.title,
+                    "research_brief": plan.research_brief,
+                    "deliverables": plan.deliverables,
+                    "mode": "open_investigation",
+                    "target_node": target_for_oi,
+                }
+
             questions = [
                 EvalQuestionPlan(
                     question_text=rq["question_text"],
