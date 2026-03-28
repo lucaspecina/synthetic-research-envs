@@ -162,6 +162,52 @@ POSITIVE_EXEMPLARS: list[tuple[str, ClaimIntent]] = [
             evidence_type="observational",
         ),
     ),
+    # --- NULL EFFECT / NEAR_ZERO (2 phrasings) ---
+    (
+        "There is no significant interaction between Depth and Algae on Fish",
+        ClaimIntent(
+            claim_id="ex_nz_1",
+            pattern=PatternClass.CAUSAL_EFFECT,
+            treatment="Depth",
+            outcome="Fish",
+            direction=Direction.NEAR_ZERO,
+        ),
+    ),
+    (
+        "The effect of Education on Income is negligible after controlling for Skill",
+        ClaimIntent(
+            claim_id="ex_nz_2",
+            pattern=PatternClass.CAUSAL_EFFECT,
+            treatment="Education",
+            outcome="Income",
+            direction=Direction.NEAR_ZERO,
+        ),
+    ),
+    # --- CONFOUNDING (2 phrasings) ---
+    (
+        "Severity confounds the relationship between Treatment and Recovery: "
+        "without adjusting for Severity, the treatment effect appears weaker",
+        ClaimIntent(
+            claim_id="ex_conf_1",
+            pattern=PatternClass.CONFOUNDING,
+            treatment="Treatment",
+            outcome="Recovery",
+            confounder="Severity",
+            direction=Direction.POSITIVE,
+        ),
+    ),
+    (
+        "Wealth is a confounder of the Education-Income relationship: part of the "
+        "apparent effect of Education on Income is due to Wealth influencing both",
+        ClaimIntent(
+            claim_id="ex_conf_2",
+            pattern=PatternClass.CONFOUNDING,
+            treatment="Education",
+            outcome="Income",
+            confounder="Wealth",
+            direction=Direction.POSITIVE,
+        ),
+    ),
     # --- EFFECT RANKING (2 phrasings) ---
     (
         "Among all factors studied, A has the strongest causal effect on Y, "

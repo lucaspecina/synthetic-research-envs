@@ -303,7 +303,6 @@ class OIEpisodeRunner:
         Returns:
             EpisodeScore with correctness, coverage, efficiency, warrant.
         """
-        from sreg.tools.oi_compiler import score_compiled_episode
         from sreg.tools.oi_salience import build_salience_map
 
         if self._submitted:
@@ -349,15 +348,16 @@ class OIEpisodeRunner:
         all_asset_ids = self.catalog.all_ids
 
         # Score the episode
-        # Warrant disabled for Alpha-0: pass trace=None to give full credit.
-        # Original Alpha design: "Sin warrant formal (solo log check basico)"
-        # The warrant system exists but is too aggressive for initial pilots.
-        # Re-enable by passing trace=self.trace once warrant is calibrated.
-        score = score_compiled_episode(
+        # v2 scoring: truth decoupled from family match, structural relevance
+        # Warrant disabled for Alpha: pass trace=None to give full credit.
+        from sreg.tools.oi_compiler import score_compiled_episode_v2
+
+        score = score_compiled_episode_v2(
             compiled_claims=compiled,
             families=salience.families,
             world=self.world,
             solver=solver,
+            target=self.target,
             n_mc=self.n_mc,
             seed=self.seed,
             claim_cards=claims,

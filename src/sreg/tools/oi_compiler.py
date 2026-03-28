@@ -24,14 +24,20 @@ import logging
 from enum import StrEnum
 from typing import Literal
 
+import networkx as nx
 import numpy as np
 from pydantic import BaseModel, Field, model_validator
 
 from sreg.models.open_investigation import (
+    DESCRIPTIVE_PENALTY,
+    NON_TARGET_CAP,
+    RELEVANCE_ANCESTOR,
+    RELEVANCE_DESCENDANT,
     Assertion,
     AssertionKind,
     AtomicSpec,
     ClaimCard,
+    ClaimVerdict,
     Comparison,
     ComparisonKind,
     EpisodeScore,
@@ -146,6 +152,7 @@ class PatternClass(StrEnum):
     VARIANCE_EFFECT = "variance_effect"
     OBSERVATIONAL_ASSOCIATION = "observational_association"
     EFFECT_RANKING = "effect_ranking"
+    CONFOUNDING = "confounding"
 
 
 class Direction(StrEnum):
@@ -173,6 +180,9 @@ class ClaimIntent(BaseModel):
     # Optional role-specific fields
     mediator: str | None = Field(default=None, description="For mediation: X→M→Y")
     modifier: str | None = Field(default=None, description="For heterogeneity: effect varies by Z")
+    confounder: str | None = Field(
+        default=None, description="For confounding: C confounds X→Y"
+    )
     ranking_vars: list[str] = Field(
         default_factory=list, description="For ranking: which vars to compare"
     )
@@ -196,6 +206,8 @@ class ClaimIntent(BaseModel):
         if self.pattern == PatternClass.OBSERVATIONAL_ASSOCIATION:
             if self.evidence_type != "observational":
                 object.__setattr__(self, "evidence_type", "observational")
+        if self.pattern == PatternClass.CONFOUNDING and not self.confounder:
+            raise ValueError("Confounding pattern requires confounder variable")
         return self
 
 
@@ -261,6 +273,13 @@ def validate_intent(intent: ClaimIntent, summary: WorldSummary) -> list[str]:
         if v not in summary.variables:
             errors.append(f"Ranking variable '{v}' not in world variables")
 
+    # Check confounder
+    if intent.confounder:
+        if intent.confounder not in summary.variables:
+            errors.append(f"Confounder '{intent.confounder}' not in world variables")
+        elif intent.confounder not in obs:
+            errors.append(f"Confounder '{intent.confounder}' is not observable")
+
     # Check conditioning set
     for v in intent.conditioning_set:
         if v not in summary.variables:
@@ -313,6 +332,8 @@ def lower_intent(intent: ClaimIntent, summary: WorldSummary) -> CompilerOutput:
             specs = _lower_observational(intent, summary)
         elif intent.pattern == PatternClass.EFFECT_RANKING:
             specs = _lower_ranking(intent, summary)
+        elif intent.pattern == PatternClass.CONFOUNDING:
+            specs = _lower_confounding(intent, summary)
         else:
             return CompilerOutput(
                 claim_id=intent.claim_id,
@@ -537,6 +558,55 @@ def _lower_ranking(intent: ClaimIntent, summary: WorldSummary) -> list[AtomicSpe
     ]
 
 
+def _lower_confounding(intent: ClaimIntent, summary: WorldSummary) -> list[AtomicSpec]:
+    """Lower confounding: verify that C confounds the X→Y relationship.
+
+    Confounding means: the observational association between X and Y differs
+    from the causal effect of X on Y. Controlling for confounders changes the
+    relationship.
+
+    Two specs:
+    Spec 1: Causal ATE — do(X=hi) vs do(X=lo), measure mean(Y). This IS
+        the true causal effect (confounding removed by do-calculus).
+    Spec 2: Observational partial correlation between X and Y conditioning
+        on C. If C is a confounder, this should be non-zero (C doesn't
+        fully block the path, or it reveals the adjusted relationship).
+
+    Both must hold: there IS a causal effect, AND controlling for C changes
+    the apparent relationship.
+    """
+    x, y, c = intent.treatment, intent.outcome, intent.confounder
+
+    # Spec 1: Causal effect exists (via do-calculus)
+    spec_causal = AtomicSpec(
+        spec_id=f"compiled_confound_causal_{x}_{y}_{c}",
+        arms=(
+            QueryArm(label="hi", kind=QueryKind.INTERVENE, values={x: summary.hi(x)}),
+            QueryArm(label="lo", kind=QueryKind.INTERVENE, values={x: summary.lo(x)}),
+        ),
+        measurement=Measurement(kind=MeasurementKind.MEAN, target=y),
+        comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+        assertion=Assertion(kind=_DIRECTION_MAP[intent.direction]),
+    )
+
+    # Spec 2: Partial correlation X-Y conditioning on C (observational)
+    # If C is a confounder, partialling it out changes the X-Y relationship
+    spec_partial = AtomicSpec(
+        spec_id=f"compiled_confound_pcor_{x}_{y}_{c}",
+        arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+        measurement=Measurement(
+            kind=MeasurementKind.PARTIAL_CORRELATION,
+            lhs=x,
+            rhs=y,
+            cond_set=(c,),
+        ),
+        comparison=Comparison(kind=ComparisonKind.IDENTITY),
+        assertion=Assertion(kind=_DIRECTION_MAP[intent.direction]),
+    )
+
+    return [spec_causal, spec_partial]
+
+
 # ---------------------------------------------------------------------------
 # Matching: compiled specs → salience families
 # ---------------------------------------------------------------------------
@@ -564,6 +634,10 @@ def _extract_focus_signature(spec: AtomicSpec) -> tuple[str, ...]:
 
 def _infer_pattern_class(spec: AtomicSpec) -> str:
     """Infer pattern class from spec structure."""
+    # Check spec_id prefix for compiler-generated specs
+    if spec.spec_id.startswith("confound_") or spec.spec_id.startswith("compiled_confound_"):
+        return "confounding"
+
     m = spec.measurement.kind
     c = spec.comparison.kind
 
@@ -582,6 +656,12 @@ def _infer_pattern_class(spec: AtomicSpec) -> str:
             return "heterogeneity"
         return "mediation"
     if c == ComparisonKind.DIFFERENCE:
+        # Check if arms have condition_on → may be confounding
+        has_conditioning = any(
+            arm.condition_on for arm in spec.arms
+        )
+        if has_conditioning:
+            return "confounding"
         return "causal_effect"
     return "causal_effect"
 
@@ -725,6 +805,221 @@ def score_compiled_episode(
     return episode
 
 
+# ---------------------------------------------------------------------------
+# v2 Scoring: decouple correctness from family match
+# ---------------------------------------------------------------------------
+
+
+def _is_descriptive_spec(spec: AtomicSpec) -> bool:
+    """Check if a spec is a trivial descriptive observation (no comparison)."""
+    descriptive_measurements = {
+        MeasurementKind.MEAN,
+        MeasurementKind.VARIANCE,
+        MeasurementKind.QUANTILE,
+        MeasurementKind.DISTRIBUTION,
+    }
+    identity_comparisons = {ComparisonKind.IDENTITY, ComparisonKind.GAP}
+    return (
+        spec.measurement.kind in descriptive_measurements
+        and spec.comparison.kind in identity_comparisons
+    )
+
+
+def compute_structural_relevance(
+    focus_vars: set[str],
+    target: str,
+    dag: nx.DiGraph,
+) -> float:
+    """Compute structural relevance of a claim to the brief target.
+
+    Uses DAG structure only — no LLM, fully deterministic.
+
+    Relevance tiers:
+    - 1.0: claim directly involves the target
+    - 0.7: claim touches ancestors (causes) of the target
+    - 0.4: claim touches descendants (effects) of the target
+    - 0.0: claim touches nothing in target's causal neighbourhood
+
+    Guardrails:
+    - NON_TARGET_CAP: max relevance when target not in focus
+    - Coverage penalty: vars outside causal neighbourhood dilute relevance
+    """
+    if not focus_vars:
+        return 0.0
+
+    ancestors = nx.ancestors(dag, target) if target in dag else set()
+    descendants = nx.descendants(dag, target) if target in dag else set()
+    relevant_vars = ancestors | descendants | {target}
+
+    # Base relevance tier
+    if target in focus_vars:
+        base = 1.0
+    elif focus_vars & ancestors:
+        base = RELEVANCE_ANCESTOR
+    elif focus_vars & descendants:
+        base = RELEVANCE_DESCENDANT
+    else:
+        return 0.0
+
+    # Coverage: penalize claims that mix relevant and irrelevant variables
+    relevant_count = len(focus_vars & relevant_vars)
+    coverage = relevant_count / len(focus_vars)
+
+    relevance = base * coverage
+
+    # Guardrail: cap when target not directly in focus
+    if target not in focus_vars:
+        relevance = min(relevance, NON_TARGET_CAP)
+
+    return relevance
+
+
+def score_compiled_episode_v2(
+    compiled_claims: list[CompilerOutput],
+    families: list[SalienceFamily],
+    world: SCMWorld,
+    solver: SCMSolver,
+    target: str,
+    n_mc: int = 50_000,
+    seed: int | None = None,
+    claim_cards: list[ClaimCard] | None = None,
+    trace: EpisodeTrace | None = None,
+    data_asset_ids: set[str] | None = None,
+) -> EpisodeScore:
+    """Score a full episode with v2 scoring: truth decoupled from family match.
+
+    Key differences from v1:
+    - Correctness comes from SCM verification alone (no family match gate)
+    - Structural relevance weights each claim by proximity to target
+    - Coverage is separate: only depends on family matching
+    - Scoring is per-claim (not per-spec) using min() for multi-spec
+    - Descriptive claims without target get additional penalty
+    """
+    from sreg.tools.oi_verifier import score_episode_v2, verify_atom
+    from sreg.tools.oi_warrant import compute_episode_warrants
+
+    n_claims_submitted = len(compiled_claims)
+    dag = world.dag
+
+    # Build warrant scores per claim if trace available
+    claim_warrant_map: dict[str, float] = {}
+    if claim_cards is not None and trace is not None and data_asset_ids is not None:
+        focus_vars_per_claim: dict[str, set[str]] = {}
+        for co in compiled_claims:
+            if co.compiled:
+                fvars: set[str] = set()
+                for spec in co.specs:
+                    fvars.update(_extract_focus_signature(spec))
+                focus_vars_per_claim[co.claim_id] = fvars
+
+        warrants = compute_episode_warrants(
+            claim_cards, data_asset_ids, trace, focus_vars_per_claim
+        )
+        if warrants is not None:
+            for card, w in zip(claim_cards, warrants):
+                claim_warrant_map[card.claim_id] = w
+
+    # Process each claim
+    claim_verdicts: list[ClaimVerdict] = []
+
+    for claim_output in compiled_claims:
+        claim_warrant = claim_warrant_map.get(claim_output.claim_id, 1.0)
+
+        if not claim_output.compiled:
+            # Abstention: 0 truth, 0 relevance
+            claim_verdicts.append(ClaimVerdict(
+                claim_id=claim_output.claim_id,
+                matched_family_id=None,
+                truth_score=0.0,
+                relevance=0.0,
+                effective_score=0.0,
+                score=0.0,
+                verdict="abstention",
+            ))
+            continue
+
+        # 1. Verify each spec against SCM → truth scores
+        spec_truths: list[float] = []
+        atom_verdicts = []
+        for spec in claim_output.specs:
+            verdict = verify_atom(spec, world, solver, n_mc=n_mc, seed=seed)
+            spec_truths.append(verdict.score)
+            atom_verdicts.append(verdict)
+
+        # Per-claim truth: min (conjunction) for multi-spec claims
+        truth = min(spec_truths) if spec_truths else 0.0
+
+        # 2. Structural relevance (DAG-based)
+        focus_vars = set()
+        for spec in claim_output.specs:
+            focus_vars.update(_extract_focus_signature(spec))
+        relevance = compute_structural_relevance(focus_vars, target, dag)
+
+        # Guardrail: descriptive penalty for trivial observations
+        if target not in focus_vars and all(
+            _is_descriptive_spec(s) for s in claim_output.specs
+        ):
+            relevance *= DESCRIPTIVE_PENALTY
+
+        # 3. Family matching (for coverage only — uses match quality, not truth)
+        matched = match_specs_to_families(claim_output.specs, families)
+        best_family_id: str | None = None
+        best_match_quality = 0.0
+        for fam_id, spec in matched:
+            if fam_id is not None:
+                # Re-compute match score to pick best family by match quality
+                focus_sig = set(_extract_focus_signature(spec))
+                for family in families:
+                    if family.family_id == fam_id:
+                        family_focus = set(family.key.focus_signature)
+                        overlap = len(focus_sig & family_focus) / max(
+                            len(focus_sig | family_focus), 1
+                        )
+                        match_q = 0.5 + 0.5 * overlap
+                        if match_q > best_match_quality:
+                            best_match_quality = match_q
+                            best_family_id = fam_id
+                        break
+
+        # 4. Effective score: truth * relevance * warrant
+        from sreg.models.open_investigation import WARRANT_PRIOR_FLOOR
+        if claim_warrant_map:
+            warrant_mult = WARRANT_PRIOR_FLOOR + (1.0 - WARRANT_PRIOR_FLOOR) * claim_warrant
+        else:
+            warrant_mult = 1.0
+        effective = truth * relevance * warrant_mult
+
+        # Determine verdict label
+        if truth == 0.0:
+            verdict_label = "false"
+        elif truth == 1.0 and relevance >= 0.7:
+            verdict_label = "fully_true"
+        elif truth > 0.0 and relevance >= 0.4:
+            verdict_label = "partially_true"
+        else:
+            verdict_label = "true_but_irrelevant"
+
+        claim_verdicts.append(ClaimVerdict(
+            claim_id=claim_output.claim_id,
+            matched_family_id=best_family_id,
+            atom_verdicts=atom_verdicts,
+            truth_score=truth,
+            relevance=relevance,
+            effective_score=effective,
+            score=effective,
+            verdict=verdict_label,
+        ))
+
+    # Score episode using v2 scorer
+    episode = score_episode_v2(
+        claim_verdicts=claim_verdicts,
+        families=families,
+        n_claims=n_claims_submitted,
+    )
+
+    return episode
+
+
 __all__ = [
     "ClaimIntent",
     "CompilerOutput",
@@ -733,8 +1028,10 @@ __all__ = [
     "VariableAnchors",
     "WorldSummary",
     "build_world_summary",
+    "compute_structural_relevance",
     "lower_intent",
     "match_specs_to_families",
     "score_compiled_episode",
+    "score_compiled_episode_v2",
     "validate_intent",
 ]

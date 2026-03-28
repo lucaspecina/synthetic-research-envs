@@ -27,6 +27,7 @@ from sreg.models.open_investigation import (
     AssertionKind,
     AtomicSpec,
     AtomVerdict,
+    ClaimVerdict,
     Comparison,
     ComparisonKind,
     EpisodeScore,
@@ -814,8 +815,81 @@ def score_episode(
     )
 
 
+def score_episode_v2(
+    claim_verdicts: list[ClaimVerdict],
+    families: list[SalienceFamily],
+    n_claims: int,
+    claim_budget: int = MAX_CLAIMS,
+) -> EpisodeScore:
+    """Compute episode-level score from claim verdicts (v2 scoring).
+
+    Key differences from v1:
+    - Correctness = mean of effective_scores (truth * relevance * warrant)
+    - Coverage uses family_id from verdicts, not from claim_matches tuples
+    - Per-claim scoring (not per-spec)
+    - ClaimVerdicts carry all needed info (truth, relevance, effective)
+    """
+
+    if not claim_verdicts:
+        return EpisodeScore(
+            correctness=0.0,
+            coverage=0.0,
+            efficiency=1.0,
+            total=0.10,
+            claim_verdicts=claim_verdicts,
+            families_hit=0,
+            families_total=len(families),
+        )
+
+    # Correctness: mean of effective scores across all claims
+    effective_scores = [cv.effective_score for cv in claim_verdicts]
+    correctness = sum(effective_scores) / len(effective_scores)
+
+    # Coverage: which families were hit by claims with sufficient TRUTH score
+    # (not effective_score — coverage should not depend on relevance weighting)
+    best_by_family: dict[str, float] = {}
+    for cv in claim_verdicts:
+        if cv.matched_family_id and cv.matched_family_id not in (
+            "__unmatched__", "__abstention__"
+        ):
+            best_by_family[cv.matched_family_id] = max(
+                best_by_family.get(cv.matched_family_id, 0.0),
+                cv.truth_score,
+            )
+
+    families_hit = sum(
+        1
+        for f in families
+        if best_by_family.get(f.family_id, 0.0) >= FAMILY_HIT_THRESHOLD
+    )
+    coverage = families_hit / max(len(families), 1)
+
+    # Precision gate: if correctness too low, no coverage credit
+    precision_gate = correctness < EPISODE_PRECISION_GATE
+    if precision_gate:
+        coverage = 0.0
+
+    # Efficiency: penalty for exceeding claim budget
+    overflow = max(0, n_claims - claim_budget)
+    efficiency = max(0.0, 1.0 - (overflow / max(claim_budget, 1)))
+
+    total = 0.60 * correctness + 0.30 * coverage + 0.10 * efficiency
+
+    return EpisodeScore(
+        correctness=correctness,
+        coverage=coverage,
+        efficiency=efficiency,
+        total=total,
+        claim_verdicts=claim_verdicts,
+        families_hit=families_hit,
+        families_total=len(families),
+        precision_gate_active=precision_gate,
+    )
+
+
 __all__ = [
     "verify_atom",
     "score_claim_against_family",
     "score_episode",
+    "score_episode_v2",
 ]

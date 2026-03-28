@@ -71,6 +71,18 @@ INVESTIGAR (que problema resolver?)
               -> DOCUMENTAR siempre
 ```
 
+### Principio critico: conectar al producto real, no tests aislados
+
+**SIEMPRE preferir integrar con el pipeline E2E real en vez de quedarse
+en tests unitarios aislados.** La unica forma de saber si algo funciona
+de verdad es verlo correr end-to-end con los pilotos reales. Los tests
+unitarios verifican correctitud del codigo, pero no verifican alineacion
+con LA PREGUNTA ni con el resto del sistema.
+
+Orden: implementar → tests basicos → **conectar al pipeline real** →
+validar con pilotos → iterar. NO: implementar → 50 tests → 50 tests mas →
+nunca correr E2E.
+
 ### Adaptacion para modo autonomo (usuario ausente)
 
 - Paso 3 del commit workflow (presentar al usuario): **Codex actua como
@@ -281,4 +293,30 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 - **STATUS:** OI piloteado con datos reales. Problemas concretos identificados.
   Proximo: fix P1 (confounding), desacoplar correctness de family match,
   conectar OI al orchestrator.
+
+### Sesion 7 — 2026-03-27 (autoresearch, scoring v2)
+- **Scoring v2 implementado** (3 fases, Codex thread 019d31e7):
+  - Fase 1: correctness desacoplada de family match + relevancia estructural
+  - Fase 2: confounding como patron compilable (PatternClass.CONFOUNDING)
+  - Fase 3: prompt mejorado (imports, null findings) + exemplars actualizados
+- **Diseño con Codex (3 rounds):**
+  - R1: esquema v2 minimalista, relevancia, formula por claim
+  - R2: stress test de relevancia, guardrails (NON_TARGET_CAP, descriptive penalty)
+  - R3: review implementacion, 5 hallazgos, fixes aplicados
+- **Cambios principales en codigo:**
+  - `compute_structural_relevance()`: DAG-based, sin LLM. Tiers 1.0/0.7/0.4/0.0
+  - `score_compiled_episode_v2()`: truth separado de family match, per-claim min()
+  - `score_episode_v2()`: correctness=mean(effective), coverage=truth-based
+  - `_lower_confounding()`: causal ATE + partial correlation (2 specs)
+  - `_enumerate_confounding()`: raw corr vs partial corr gap detection
+  - Solver prompt: explicit namespace, no imports, null findings validos
+  - Exemplar bank: +2 NEAR_ZERO, +2 CONFOUNDING
+- **Runner wired:** OIEpisodeRunner.submit_claims() usa v2
+- **Tests:** 18 nuevos (8 relevance + 7 episode + 3 confounding E2E),
+  todos los existentes siguen pasando (130+)
+- **Codex fixes aplicados:** family match usa match_score no truth,
+  coverage usa truth_score no effective, confounder validado en validate_intent,
+  sign-flip gap en salience
+- **Pendiente:** re-pilotar 3 mundos con v2, comparar scores, documentar
+- **STATUS:** Scoring v2 implementado y testeado. Listo para pilotos reales.
 

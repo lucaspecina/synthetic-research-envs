@@ -50,6 +50,7 @@ EFFECT_THRESHOLDS: dict[str, float] = {
     "tail_risk": 0.05,
     "variance_effect": 0.10,
     "effect_ranking": 0.10,
+    "confounding": 0.10,
 }
 
 # Max families per pattern class
@@ -62,6 +63,7 @@ PATTERN_CAPS: dict[str, int] = {
     "tail_risk": 2,
     "variance_effect": 2,
     "effect_ranking": 1,
+    "confounding": 3,
 }
 
 
@@ -131,6 +133,9 @@ def build_salience_map(
 
     # 7. Effect ranking: which ancestor has strongest effect on target
     candidates.extend(_enumerate_effect_ranking(world, solver, frontier, target, y_std, seed))
+
+    # 8. Confounding: variables that confound cause-target relationships
+    candidates.extend(_enumerate_confounding(world, solver, frontier, target, y_std, seed))
 
     # Filter by effect size threshold
     candidates = [
@@ -995,6 +1000,171 @@ def _enumerate_effect_ranking(
             pattern_class="effect_ranking",
         )
     ]
+
+
+# ---------------------------------------------------------------------------
+# Enumeration: confounding
+# ---------------------------------------------------------------------------
+
+
+def _enumerate_confounding(
+    world: SCMWorld,
+    solver: SCMSolver,
+    frontier: list[str],
+    target: str,
+    y_std: float,
+    seed: int,
+) -> list[CandidateTruth]:
+    """Enumerate confounders: C confounds X→Y if the observational association
+    between X and Y changes when controlling for C.
+
+    Detection approach:
+    1. Find common causes of X and target in the DAG
+    2. Compare raw correlation(X, target) vs partial correlation(X, target | C)
+    3. If the gap is material, C is a confounder worth discovering
+
+    Each confounding family has 2 atoms:
+    - Atom 1: Causal ATE exists (do-calculus, confounding removed)
+    - Atom 2: Partial correlation X-Y conditioning on C (observational)
+    """
+    candidates = []
+    dag = world.dag
+    target_ancestors = nx.ancestors(dag, target)
+
+    # Sample data for correlations
+    df = world.sample(n=10_000, seed=seed)
+
+    for x in frontier:
+        if x == target:
+            continue
+
+        x_ancestors = nx.ancestors(dag, x)
+
+        # Find potential confounders: common ancestors of X and target
+        potential_confounders = (x_ancestors & target_ancestors) - {x}
+
+        # Also parents of X that affect target (directly or indirectly)
+        x_parents = set(dag.predecessors(x))
+        for parent in x_parents:
+            if parent in target_ancestors:
+                potential_confounders.add(parent)
+
+        obs = set(world.observable_variables)
+        potential_confounders = potential_confounders & obs
+
+        if not potential_confounders:
+            continue
+
+        # Raw (signed) correlation X-target
+        raw_corr = float(df[x].corr(df[target]))
+        if abs(raw_corr) < 0.05:
+            continue
+
+        # Causal ATE for atom 1
+        try:
+            x_samples = world.observational_distribution(x, n=5000, seed=seed)
+            v_lo = float(np.percentile(x_samples, 25))
+            v_hi = float(np.percentile(x_samples, 75))
+            if abs(v_hi - v_lo) < 1e-6:
+                continue
+            ate = solver.ate(x, target, v_hi, v_lo, seed=seed)
+            if abs(ate) / y_std < 0.05:
+                continue
+        except Exception:
+            continue
+
+        for c in sorted(potential_confounders):
+            try:
+                # Compute partial correlation(X, target | C)
+                from numpy.linalg import lstsq as np_lstsq
+
+                sub = df[[x, target, c]].dropna()
+                if len(sub) < 100:
+                    continue
+
+                Z = sub[[c]].values
+                Z_aug = np.column_stack([Z, np.ones(len(Z))])
+
+                # Residualize X and target on C
+                x_resid = sub[x].values - Z_aug @ np_lstsq(Z_aug, sub[x].values, rcond=None)[0]
+                y_resid = sub[target].values - Z_aug @ np_lstsq(
+                    Z_aug, sub[target].values, rcond=None
+                )[0]
+
+                denom = np.sqrt(np.var(x_resid) * np.var(y_resid))
+                if denom < 1e-9:
+                    continue
+                pcorr = float(np.mean(x_resid * y_resid) / denom)
+
+                # Confounding effect: gap between raw and partial correlation
+                # Use signed gap to capture sign flips (strong confounding)
+                confound_gap = abs(raw_corr - pcorr)
+                effect_size = confound_gap  # already normalized to [0, 1]
+
+                if effect_size < EFFECT_THRESHOLDS["confounding"]:
+                    continue
+
+                # Direction of the causal relationship
+                direction = AssertionKind.POSITIVE if ate > 0 else AssertionKind.NEGATIVE
+                pcorr_direction = AssertionKind.POSITIVE if pcorr > 0 else AssertionKind.NEGATIVE
+
+                # Atom 1: Causal ATE (interventional)
+                spec_causal = AtomicSpec(
+                    spec_id=f"confound_causal_{x}_{target}_{c}",
+                    arms=(
+                        QueryArm(label="hi", kind=QueryKind.INTERVENE, values={x: v_hi}),
+                        QueryArm(label="lo", kind=QueryKind.INTERVENE, values={x: v_lo}),
+                    ),
+                    measurement=Measurement(kind=MeasurementKind.MEAN, target=target),
+                    comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+                    assertion=Assertion(kind=direction),
+                )
+
+                # Atom 2: Partial correlation (observational, adjusted)
+                spec_pcor = AtomicSpec(
+                    spec_id=f"confound_pcor_{x}_{target}_{c}",
+                    arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+                    measurement=Measurement(
+                        kind=MeasurementKind.PARTIAL_CORRELATION,
+                        lhs=x,
+                        rhs=target,
+                        cond_set=(c,),
+                    ),
+                    comparison=Comparison(kind=ComparisonKind.IDENTITY),
+                    assertion=Assertion(kind=pcorr_direction),
+                )
+
+                candidates.append(
+                    CandidateTruth(
+                        family_key=FamilyKey(
+                            brief_target=target,
+                            focus_signature=tuple(sorted([x, target, c])),
+                            pattern_class="confounding",
+                            scope_class="global",
+                        ),
+                        atoms=[
+                            FamilyAtom(
+                                atom_id=spec_causal.spec_id,
+                                spec=spec_causal,
+                                weight=1.0,
+                                material=True,
+                            ),
+                            FamilyAtom(
+                                atom_id=spec_pcor.spec_id,
+                                spec=spec_pcor,
+                                weight=0.8,
+                                material=True,
+                            ),
+                        ],
+                        effect_size=effect_size,
+                        pattern_class="confounding",
+                    )
+                )
+
+            except Exception:
+                continue
+
+    return candidates
 
 
 __all__ = ["build_salience_map", "CandidateTruth"]

@@ -393,7 +393,24 @@ class ClaimVerdict(BaseModel):
     atom_verdicts: list[AtomVerdict] = Field(default_factory=list)
     score: float = Field(ge=0.0, le=1.0)
     verdict: str = Field(
-        description="fully_true | partially_true_with_omission | mixed | false | unmatched"
+        description=(
+            "v1: fully_true | partially_true_with_omission | mixed | false | unmatched. "
+            "v2: fully_true | partially_true | true_but_irrelevant | false | abstention"
+        )
+    )
+
+    # v2 scoring fields (populated by score_compiled_episode_v2)
+    truth_score: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="SCM-verified truth score, independent of family match",
+    )
+    relevance: float = Field(
+        default=1.0, ge=0.0, le=1.0,
+        description="Structural relevance to brief target (DAG-based)",
+    )
+    effective_score: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="truth * relevance * warrant (final per-claim score)",
     )
 
 
@@ -437,6 +454,12 @@ MAX_CLAIMS: int = 5
 MAX_FAMILIES: int = 30
 WARRANT_PRIOR_FLOOR: float = 0.15
 
+# v2 scoring constants — structural relevance
+NON_TARGET_CAP: float = 0.50  # max relevance when target not in focus
+DESCRIPTIVE_PENALTY: float = 0.20  # multiplier for trivial descriptive claims
+RELEVANCE_ANCESTOR: float = 0.70  # relevance for ancestor-touching claims
+RELEVANCE_DESCENDANT: float = 0.40  # relevance for descendant-touching claims
+
 
 # ---------------------------------------------------------------------------
 # Exports
@@ -474,4 +497,8 @@ __all__ = [
     "MAX_CLAIMS",
     "MAX_FAMILIES",
     "WARRANT_PRIOR_FLOOR",
+    "NON_TARGET_CAP",
+    "DESCRIPTIVE_PENALTY",
+    "RELEVANCE_ANCESTOR",
+    "RELEVANCE_DESCENDANT",
 ]
