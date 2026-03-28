@@ -290,8 +290,30 @@ implemented E2E with mock solver; requires LLM for real solver + compiler.
 **Tests:** ~180 OI-specific tests (models, verifier, salience, compiler,
 warrant, helpers, runner, extraction, prompts, pilot).
 
-**Pendiente:** LLM extraction (ClaimCard -> ClaimIntent via API), real solver
-integration, compiler benchmark (200+ claims, >90% precision), scaffolded pilot.
+**OI Driver:** `src/sreg/tools/oi_driver.py`
+- Orchestrates LLM solver <-> runner loop via Responses API
+- Submit-is-terminal, deadline nudging, prose-only recovery
+- Scripted mode for testing without LLM
+- 38 tests
+
+**Curated worlds:** `tests/tools/test_oi_curated_worlds.py`
+- 3 hand-crafted SCMWorlds: ecosystem (interaction), treatment (mediation+confounding), education (confounding+variance)
+- 14 tests validating salience diversity + driver E2E
+
+**Pilot results (6 runs, 3 worlds, real LLMs):**
+- Solver: gpt-5.2-codex | Compiler: gpt-5.4 | Warrant: disabled
+- Avg total=0.622, correctness=0.772, coverage=0.197
+- Solver genuinely investigates: correlations, regressions, stratification,
+  confounding checks, mediation analysis, epistemological humility
+- 6 systematic problems found (see `research/notes/oi_pilot_analysis_batch1.md`):
+  P1 (confounding=0 credit), P2 (null findings), P3 (coverage low),
+  P4 (precision gate), P5 (tags mismatch), P6 (import errors)
+- Codex review: "family match gates correctness" — true claims that don't
+  match a salience family get 0, contradicting own design principle
+
+**Pendiente:** Fix P1 (confounding pattern), fix P2 (NEAR_ZERO assertions),
+decouple correctness from family match, connect OI to orchestrator,
+compiler benchmark (200+ claims).
 
 ---
 

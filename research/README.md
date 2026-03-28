@@ -181,12 +181,16 @@ desplazandose hacia `synthesis/`.
   system. Verifica que el solver investigo para respaldar sus claims.
   4 niveles, multiplicador claim-level, debate con Codex.
 - **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
-- **Status:** Alpha-0 funcional (129 tests). Warrant system implemented.
+- **Status:** Alpha-0 piloteado con LLMs reales (6 runs, 3 mundos).
+  Warrant disabled para Alpha. 129 tests.
 - **Scoring fundamentals:** `synthesis/oi_scoring_fundamentals.md` — framework
-  mental para el scoring de OI. Pregunta precisa = una respuesta. Pregunta
-  vaga = multiples outputs valiosos. Salience map = piso, no techo. Verdad
+  mental para el scoring de OI. Salience map = piso, no techo. Verdad
   se verifica contra SCM directamente, no contra lista precomputada.
-  Consenso de 4 perspectivas (usuario, Claude, Codex, ChatGPT).
+- **Pilot analysis:** `notes/oi_pilot_analysis_batch1.md` — 6 OI pilots
+  (3 worlds x 2 runs), avg total=0.622, correctness=0.772. 6 problemas
+  sistematicos identificados (P1: confounding=0 credito, P2: null findings,
+  P3: coverage baja, P4: precision gate, P5: tags, P6: import errors).
+  Codex review: "solver is better than scorer, family match gates correctness".
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal

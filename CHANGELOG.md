@@ -5,6 +5,32 @@
 
 ## [Unreleased]
 
+### 2026-03-27 — OI real-LLM pilots + demo case generation
+
+**OI pilot batch (6 runs, 3 curated worlds):**
+- Ran ecosystem, treatment, education worlds with gpt-5.2-codex (solver) +
+  gpt-5.4 (compiler). Warrant disabled for Alpha-0.
+- Avg total=0.622, correctness=0.772, coverage=0.197.
+- Solver genuinely investigates: regressions, confounding checks, mediation
+  analysis, stratification. Epistemological humility (says "associated" not "causes").
+- 6 systematic problems identified: P1 (confounding=0 credit), P2 (null findings),
+  P3 (coverage low), P4 (precision gate), P5 (tags mismatch), P6 (import errors).
+- Codex review: "solver is better than scorer, family match gates correctness."
+- Analysis: `research/notes/oi_pilot_analysis_batch1.md`
+
+**Scripts:**
+- `scripts/oi_pilot_batch.py`: batch runner for OI pilots, JSON output
+- `scripts/oi_demo_case.py`: generates `full_case_oi.md` report (5 parts)
+
+**Fix:** `generate_src.py --solve` now works with SCMWorlds (was crashing on
+ExactBayesSolver which only supports BN worlds). Added `_build_scm_dag_section()`.
+
+**Demo experiments generated:**
+- `experiments/oi_treatment/` — OI, score 0.769, correctness 1.0
+- `experiments/oi_ecosystem/` — OI, score 0.571
+- `experiments/air_pollution/` — task-based, orchestrator E2E
+- `experiments/coral_reef/` — task-based, orchestrator E2E
+
 ### 2026-03-26 — Paso 2: Substrate minimum viable gate (3 quality gates)
 
 **Code: quality gates en scm_task_gen.py**

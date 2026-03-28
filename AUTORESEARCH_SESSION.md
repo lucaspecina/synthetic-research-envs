@@ -257,3 +257,28 @@ Para Alpha-1: solo falta conectar LLM real (solver + compiler extraction).
 - **STATUS:** Principios de scoring documentados. Proximo: correr pilotos
   en 3 mundos con pipeline actual.
 
+### Sesion 6 — 2026-03-27 (con usuario presente, continuacion)
+- **6 pilotos OI reales** (3 mundos x 2 runs): ecosystem, treatment, education.
+  Solver: gpt-5.2-codex, Compiler: gpt-5.4, warrant disabled.
+- **Resultados:** avg total=0.622, correctness=0.772, coverage=0.197.
+  Treatment mejor caso: 0.769 total, 1.0 correctness.
+- **6 problemas sistematicos (P1-P6):**
+  - P1 CRITICO: confounding no es compilable → claims correctos score 0
+  - P2: null findings (no effect) no soportados
+  - P3: coverage saturada por diseno (MAX_CLAIMS=5, 17 familias)
+  - P4: precision gate mata runs con claims vagos pero correctos
+  - P5: tags del solver no matchean compiler
+  - P6: import errors gastan steps (prompt puede mejorar)
+- **Codex review (thread 019d30b7):** "El solver es mejor que el scorer.
+  Family match esta gateando correctness — un claim verdadero unmatched
+  recibe 0. Esto contradice el principio documentado en scoring_fundamentals.
+  Correctness promedia por specs no por claims (bug conceptual). Coverage
+  esta en el techo por diseno."
+- **Fix generate_src.py:** --solve ahora funciona con SCMWorlds.
+- **Scripts creados:** oi_pilot_batch.py, oi_demo_case.py (full_case_oi.md).
+- **4 demos generados:** oi_treatment (OI, 0.769), oi_ecosystem (OI, 0.571),
+  air_pollution (task-based E2E), coral_reef (task-based E2E).
+- **STATUS:** OI piloteado con datos reales. Problemas concretos identificados.
+  Proximo: fix P1 (confounding), desacoplar correctness de family match,
+  conectar OI al orchestrator.
+

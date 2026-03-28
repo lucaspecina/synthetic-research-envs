@@ -416,7 +416,7 @@ claims epistemicos (taxonomia, subidentificacion), no causales complejos.
 
 **Referencia:** `research/synthesis/open_investigation_vision.md`
 **Working doc:** `research/notes/open_investigation_case_analysis.md`
-**Status:** ALPHA-0 COMPLETA (sin LLM). Pipeline E2E con mock solver funciona.
+**Status:** ALPHA-0 PILOTEADO CON LLMs REALES (6 runs, 3 mundos).
 
 - [x] Formalizar gramatica composable como DSL ejecutable
 - [x] Prototype truth map (salience map: 7 pattern types, multi-atom families)
@@ -428,8 +428,16 @@ claims epistemicos (taxonomia, subidentificacion), no causales complejos.
 - [x] Episode runner (artifact catalog, namespace, trace, scoring pipeline)
 - [x] Compiler LLM extraction infra (prompt builder, parser, fallback)
 - [x] Solver prompt template (system + tools + briefing + strategy)
-- [ ] Compiler benchmark offline (200+ claims, >90% precision) — requiere LLM
-- [ ] Piloto scaffolded (solver real + compiler + scoring) — requiere LLM
+- [x] OI Driver (LLM solver <-> runner loop, submit-is-terminal, 38 tests)
+- [x] Curated worlds (3 SCMWorlds for testing: ecosystem, treatment, education)
+- [x] Piloto real (6 runs, solver gpt-5.2-codex + compiler gpt-5.4)
+- [x] Warrant disabled para Alpha (era demasiado agresivo)
+- [x] Scoring fundamentals documentados (salience map = piso no techo)
+- [ ] Fix P1: confounding como patron compilable
+- [ ] Fix P2: NEAR_ZERO assertions (null findings)
+- [ ] Desacoplar correctness de family match (claims verdaderos fuera del map)
+- [ ] Conectar OI al orchestrator (generar OI problems, no solo task-based)
+- [ ] Compiler benchmark offline (200+ claims, >90% precision)
 
 ### A16. Quality gates por task primitive — eval cualitativa 2026-03-25
 
@@ -856,7 +864,7 @@ Usar **2-3 mundos curados a mano** (no el generador automatico):
 - [ ] Claim card contract (Pydantic models)
 - [ ] Compiler benchmark offline (200+ claims, >90% precision)
 - [ ] Verifier scoring sin compiler (validar correctness + coverage)
-- [ ] Piloto scaffolded E2E (solver + compiler + scoring)
+- [x] Piloto scaffolded E2E (solver + compiler + scoring) — 6 runs done
 
 **Criterio de exito:** al menos 1 SRC donde el pipeline completo produce
 un score significativo (no necesariamente bueno — que funcione E2E).
