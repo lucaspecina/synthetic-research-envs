@@ -31,6 +31,9 @@ load_dotenv()
 from openai import OpenAI
 
 # Project imports
+from sreg.models.open_investigation import (
+    SubQuestionIntent, SQRoles, AskOperator, SQTier,
+)
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_driver import OIInvestigationResult, run_oi_investigation
 from sreg.tools.oi_runner import OIEpisodeRunner
@@ -53,6 +56,83 @@ SEED = 42
 # ---------------------------------------------------------------------------
 # World definitions with briefs
 # ---------------------------------------------------------------------------
+
+# Manual sub-questions for dual scoring validation
+WORLD_SQS = {
+    "ecosystem": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="causal_effect",
+            roles=SQRoles(treatment="Algae", outcome="Fish"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="causal_effect",
+            roles=SQRoles(treatment="Depth", outcome="Fish"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="heterogeneity",
+            roles=SQRoles(treatment="Nutrients", modifier="Temp", outcome="Algae"),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="causal_effect",
+            roles=SQRoles(treatment="Nutrients", outcome="Algae"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.MEDIUM,
+        ),
+    ],
+    "treatment": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="causal_effect",
+            roles=SQRoles(treatment="Treatment", outcome="Recovery"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="mediation",
+            roles=SQRoles(
+                treatment="Treatment", mediator="Biomarker", outcome="Recovery",
+            ),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="confounding",
+            roles=SQRoles(
+                treatment="Treatment", outcome="Recovery", confounder="Severity",
+            ),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="causal_effect",
+            roles=SQRoles(treatment="Severity", outcome="Recovery"),
+            ask=AskOperator.SIGN, tier=SQTier.MEDIUM,
+        ),
+    ],
+    "education": [
+        SubQuestionIntent(
+            sq_id="sq1", pattern="causal_effect",
+            roles=SQRoles(treatment="Education", outcome="Income"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
+        ),
+        SubQuestionIntent(
+            sq_id="sq2", pattern="mediation",
+            roles=SQRoles(
+                treatment="Education", mediator="Skill", outcome="Income",
+            ),
+            ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
+        ),
+        SubQuestionIntent(
+            sq_id="sq3", pattern="causal_effect",
+            roles=SQRoles(treatment="Wealth", outcome="Income"),
+            ask=AskOperator.SIGN, tier=SQTier.MEDIUM,
+        ),
+        SubQuestionIntent(
+            sq_id="sq4", pattern="causal_effect",
+            roles=SQRoles(treatment="Motivation", outcome="Income"),
+            ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.LOW,
+        ),
+    ],
+}
+
 
 WORLDS = {
     "ecosystem": {
@@ -177,6 +257,10 @@ def run_single_pilot(
         problem, world, seed=SEED + run_id, n_mc=N_MC, llm_call=llm_compiler,
     )
 
+    # Set manual sub-questions for dual scoring
+    if world_name in WORLD_SQS:
+        runner.set_subquestions(WORLD_SQS[world_name])
+
     print(f"\n{'='*70}")
     print(f"  PILOT: {world_name} (run {run_id})")
     print(f"  Solver: {solver_model} | Compiler: {compiler_model}")
@@ -232,6 +316,26 @@ def run_single_pilot(
                     "n_atoms": len(cv.atom_verdicts),
                 }
                 for cv in result.score.claim_verdicts
+            ],
+        }
+
+    # Sub-question score (dual scoring)
+    sq_score = runner.get_sq_score()
+    if sq_score:
+        output["sq_score"] = {
+            "total": round(sq_score.total, 4),
+            "coverage": round(sq_score.coverage, 4),
+            "weighted_coverage": round(sq_score.weighted_coverage, 4),
+            "correctness": round(sq_score.correctness, 4),
+            "novel_bonus": round(sq_score.novel_bonus, 4),
+            "per_sq": [
+                {
+                    "sq_id": s.sq_id,
+                    "satisfaction": round(s.satisfaction, 4),
+                    "matched": s.matched,
+                    "best_claim": s.best_claim_id,
+                }
+                for s in sq_score.sq_scores
             ],
         }
 
@@ -364,6 +468,16 @@ def _print_summary(output: dict) -> None:
                         print(f"  [{c['id']}] {c['text']}")
                         print(f"    vars: {c['vars']} tags: {c['tags']}")
 
+    # Sub-question scoring comparison
+    if output.get("sq_score"):
+        sq = output["sq_score"]
+        print(f"\nSQ Score: total={sq['total']} wcov={sq['weighted_coverage']} "
+              f"correct={sq['correctness']} novel={sq['novel_bonus']}")
+        for s in sq.get("per_sq", []):
+            status = "HIT" if s["matched"] else "MISS"
+            claim_str = f" (by {s['best_claim']})" if s.get("best_claim") else ""
+            print(f"  {s['sq_id']}: {s['satisfaction']:.3f} [{status}]{claim_str}")
+
     print(f"\nSalience families ({len(output.get('salience_families', []))}):")
     for f in output.get("salience_families", []):
         focus_str = ", ".join(f.get("focus", []))
@@ -438,20 +552,22 @@ def main():
 
 def _print_batch_summary(results: list[dict]) -> None:
     """Print aggregate summary across all runs."""
-    print("\n--- BATCH SUMMARY ---\n")
-    print(f"{'World':<15} {'Run':<5} {'Score':<8} {'Correct':<10} "
-          f"{'Coverage':<10} {'Claims':<8} {'Steps':<6} {'Time':<6}")
+    print("\n--- BATCH SUMMARY (v2 vs SQ) ---\n")
+    print(f"{'World':<15} {'Run':<5} {'v2 Total':<10} {'SQ Total':<10} "
+          f"{'SQ WCov':<10} {'SQ Novel':<10} {'Steps':<6}")
     print("-" * 70)
     for r in results:
         if "error" in r:
             print(f"{r['world']:<15} {r['run_id']:<5} ERROR: {r['error'][:40]}")
             continue
         s = r.get("score", {}) or {}
+        sq = r.get("sq_score", {}) or {}
         n_claims = len(r.get("claims", []))
         print(f"{r['world']:<15} {r['run_id']:<5} "
-              f"{s.get('total', '-'):<8} {s.get('correctness', '-'):<10} "
-              f"{s.get('coverage', '-'):<10} {n_claims:<8} "
-              f"{r['n_steps']:<6} {r['elapsed_seconds']:<6}")
+              f"{s.get('total', '-'):<10} {sq.get('total', '-'):<10} "
+              f"{sq.get('weighted_coverage', '-'):<10} "
+              f"{sq.get('novel_bonus', '-'):<10} "
+              f"{r['n_steps']:<6}")
 
 
 if __name__ == "__main__":
