@@ -194,6 +194,11 @@ desplazandose hacia `synthesis/`.
   sistematicos identificados (P1: confounding=0 credito, P2: null findings,
   P3: coverage baja, P4: precision gate, P5: tags, P6: import errors).
   Codex review: "solver is better than scorer, family match gates correctness".
+- **Sub-question scoring:** `synthesis/oi_scoring_next_design.md` — next
+  scoring architecture with orchestrator sub-questions. Design validated,
+  implementation complete: `oi_subquestions.py` (resolution + scoring),
+  23 tests, 7 Codex bugs fixed. Prototype: `notes/oi_subquestion_prototype.md`.
+  Treatment world: 0.983 total (vs 0.400 with v2). Dual scoring wired to runner.
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal

@@ -105,23 +105,21 @@ El orchestrator las adapta al mundo sintetico.
 - Son respondibles con datos observacionales
 - Son alcanzables con K claims (no pedir 20 cosas si el solver tiene 5 claims)
 
-## Matching claims vs sub-preguntas — ABIERTO
+## Matching claims vs sub-preguntas — IMPLEMENTADO
 
-**Opcion A (programatica)**: matching por firma canonica
-(`pattern_class + focus_variables + tipo de asercion`). Deterministico.
-Pro: exacto, reproducible. Contra: puede perder claims que expresan
-lo mismo de forma estructuralmente distinta.
+**Implementado: Opcion A (programatica)** con subsumption table.
 
-**Opcion B (LLM judge)**: un LLM evalua si el claim responde a la
-sub-pregunta. Pro: flexible, captura parafraseo. Contra: no deterministico,
-agrega subjetividad al scoring.
+Matching por `pattern_class + role_signature` (treatment/outcome/mediator/etc).
+Subsumption table permite credito parcial cross-pattern (e.g., mediation claim
+da 0.6 credito a causal_effect SQ). Answer compatibility chequea que la
+direccion del claim sea consistente con la respuesta resuelta.
 
-**Opcion C (hibrido)**: matching programatico primero, LLM judge como
-fallback para claims que no matchean pero parecen relevantes.
+Multi-component SQs (mediation, confounding) usan `ALL_OF` acceptance:
+cada componente toma su mejor claim, ponderado por contribucion.
 
-**Decision**: empezar con A, evaluar con pilotos, escalar a C si A pierde
-claims importantes. La verdad siempre es SCM (exacta), solo el matching
-de relevancia podria tener LLM.
+**Implementacion:** `src/sreg/tools/oi_subquestions.py` (7 Codex bugs fixed).
+**Tests:** `tests/tools/test_oi_subquestions.py` (23 tests).
+**Prototype:** `research/notes/oi_subquestion_prototype.md` (3 mundos).
 
 ## Que reemplaza del sistema actual
 
@@ -178,22 +176,33 @@ Las sub-preguntas se adaptan naturalmente a cada tipo:
 | Orchestrator no puede generar sub-preguntas | Fallback: sub-preguntas genericas del SCM (como salience map actual) |
 | Doble compilacion (sub-preguntas + claims) | Orchestrator emite IR directo, no texto |
 
-## Preguntas abiertas para resolver durante implementacion
+## Preguntas resueltas durante implementacion
 
-1. Cuantas sub-preguntas por caso? (intuicion: 3-7, depende de complejidad)
-2. Como pesar sub-preguntas entre si? (todas iguales? el orchestrator asigna peso?)
-3. El bonus por novel discovery: cuanto vale? (10-20% del total?)
-4. El brief visible: lo genera el orchestrator a partir de las sub-preguntas,
-   o son independientes?
-5. Como validamos que las sub-preguntas del orchestrator son buenas?
-   (rubrica? checklist? piloto humano?)
-6. Backwards compatibility: como convivir con el scoring actual mientras
-   se transiciona?
+1. **Cuantas sub-preguntas?** 4-5 por mundo curado. Escala con complejidad.
+2. **Como pesar?** Tiers: HIGH=1.0, MEDIUM=0.6, LOW=0.4. No continuos. [DECIDIDO]
+3. **Novel bonus?** Cap al 20%. Formula: sum(truth)/n_claims * 0.5. [DECIDIDO]
+4. **Brief visible?** Independiente de SQs. Viene del paper/orchestrator. [DECIDIDO]
+5. **Validacion de SQs?** Resolucion deterministica post-world. Si no compila = invalida. [DECIDIDO]
+6. **Backwards compat?** Dual scoring: v2 + SQ corren juntos, no se reemplaza todavia. [DECIDIDO]
 
-## Proximos pasos
+## Preguntas aun abiertas
 
-1. Diseñar el modelo de datos (SubQuestion, EvaluationContract)
-2. Modificar el orchestrator para que emita sub-preguntas
-3. Implementar matching programatico (firma canonica)
-4. Pilotar con 3 mundos curados: comparar scoring v2 vs scoring con sub-preguntas
-5. Iterar segun lo que revelen los pilotos
+1. **Materiality threshold:** que valor por patron? Necesita calibracion empirica.
+2. **Orchestrator genera SQs:** como? Template? Free-form? Que constraints?
+3. **Total formula:** weighted_coverage*0.70 + correctness*0.20 + novel_bonus + coverage*0.10.
+   Necesita validacion con pilotos reales.
+4. **SQ independence:** SQ1 y SQ2 overlap (mediation implies causal effect).
+   Subsumption maneja parcialmente, pero depende-on rules no implementadas.
+5. **Compound claims:** "X and Y both affect Z" — split before matching?
+
+## Proximos pasos (actualizado 2026-03-28)
+
+1. [x] Diseñar modelo de datos (SubQuestionIntent, ResolvedSubQuestion)
+2. [x] Implementar resolucion + matching + scoring (oi_subquestions.py)
+3. [x] Pilotar con 3 mundos curados (manual SQs)
+4. [x] Wiring dual scoring al runner
+5. [ ] Validar con pilotos reales (E2E con LLM, dual scoring) — EN CURSO
+6. [ ] Analizar: donde mejora el SQ score vs v2? Donde no?
+7. [ ] Orchestrator genera SubQuestionIntents
+8. [ ] Comparativo: manual SQs vs orchestrator SQs
+9. [ ] Decidir si reemplazar v2 o mantener dual
