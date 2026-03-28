@@ -336,13 +336,41 @@ These should get **bonus credit** (10-20%):
    Codex says: need subsumption + depends_on rules. Not fully designed yet.
 7. **Number of SQs**: 5 per world seems right for these, but what about larger worlds?
 
-## Next Steps
+## Key Finding: Epistemological Alignment (2026-03-28)
 
-1. **Prototype resolution**: Take SQ1-SQ3 from treatment world, resolve them
-   deterministically against the SCM, produce AtomicSpecs. Verify they match
-   what the salience map already has.
-2. **Prototype matching**: Take batch 1 claims, match against resolved SQs.
-   Compare resulting scores vs current scoring.
-3. **Design orchestrator contract**: How does the orchestrator emit SQs as
-   part of case design? What constraints?
-4. **Implement SubQuestionIntent + ResolvedSubQuestion models**: Pydantic, minimal.
+**SQs must match what the solver can epistemologically justify, not what the
+orchestrator knows from the SCM.**
+
+In the ecosystem world (observational only), the solver correctly reports
+"Fish is associated with Depth" (observational_association). But the SQ
+asked "Does Depth causally affect Fish?" (causal_effect). Zero SQs matched
+because there's no subsumption obs_assoc → causal_effect.
+
+**Codex ruling:** Don't add global subsumption. The solver can't claim
+causation from observational data — rewarding association as causal credit
+would be epistemological leakage.
+
+**Fix:** SQ pattern depends on:
+1. What the brief asks (causal? descriptive?)
+2. What evidence the solver has (observational? experimental?)
+3. What's epistemologically defensible
+
+For observational-only worlds without causal hints in the brief:
+- Use observational_association, effect_ranking, confounding
+- NOT causal_effect (unless brief explicitly asks causal questions)
+
+For worlds with causal brief language + adequate evidence:
+- causal_effect, mediation, confounding are appropriate
+- Treatment world: "does treatment help?" → causal SQs OK
+- Education world: "confounded?" → confounding SQ OK
+
+**This principle must guide orchestrator SQ generation.**
+
+## Next Steps (updated 2026-03-28)
+
+1. [x] Prototype resolution + matching + scoring (DONE)
+2. [ ] Fix ecosystem SQs: change causal_effect to observational_association
+3. [ ] Re-run pilots with corrected SQs
+4. [ ] Analyze: does treatment/education improve? Does ecosystem match now?
+5. [ ] Design orchestrator SQ generation with epistemological alignment
+6. [ ] Implement orchestrator SQ emission (draft + validate + repair)

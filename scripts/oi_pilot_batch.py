@@ -60,13 +60,14 @@ SEED = 42
 # Manual sub-questions for dual scoring validation
 WORLD_SQS = {
     "ecosystem": [
+        # Observational world: SQs use obs_association (epistemological alignment)
         SubQuestionIntent(
-            sq_id="sq1", pattern="causal_effect",
+            sq_id="sq1", pattern="observational_association",
             roles=SQRoles(treatment="Algae", outcome="Fish"),
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
         ),
         SubQuestionIntent(
-            sq_id="sq2", pattern="causal_effect",
+            sq_id="sq2", pattern="observational_association",
             roles=SQRoles(treatment="Depth", outcome="Fish"),
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.HIGH,
         ),
@@ -76,7 +77,7 @@ WORLD_SQS = {
             ask=AskOperator.EXISTENCE, tier=SQTier.HIGH,
         ),
         SubQuestionIntent(
-            sq_id="sq4", pattern="causal_effect",
+            sq_id="sq4", pattern="observational_association",
             roles=SQRoles(treatment="Nutrients", outcome="Algae"),
             ask=AskOperator.EXISTENCE_AND_SIGN, tier=SQTier.MEDIUM,
         ),
