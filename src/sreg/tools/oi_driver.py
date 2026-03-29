@@ -134,14 +134,6 @@ OI_SOLVER_TOOLS = [
                                     },
                                     "description": "Evidence references (1-5).",
                                 },
-                                "pattern_tags": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
-                                    "description": (
-                                        "Optional: causal_effect, mediation, "
-                                        "heterogeneity, etc."
-                                    ),
-                                },
                             },
                             "required": [
                                 "claim_id",

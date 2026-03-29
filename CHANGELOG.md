@@ -5,6 +5,35 @@
 
 ## [Unreleased]
 
+### 2026-03-29 — Documentation audit + A21 revert cleanup
+
+**A21 structured claims REVERTED (critical design violation):**
+- Structured claims gave solver an enum of relation_type values, directly
+  biasing investigation. Violated PROJECT.md principle "no construir juego
+  estructurado". Reverted in fb99d85.
+- Removed pattern_tags from solver-visible tool schema and prompt.
+- The ORIGINAL problem (compiler misinterprets claims) remains — fix the
+  compiler, not the solver.
+
+**Full documentation audit + repo cleanup:**
+- CLAUDE.md: 489 -> 153 lines. LA PREGUNTA + scoring principles + doc
+  maintenance rules + pre-commit checklist. Eliminated duplicated content.
+- CURRENT_STATE.md: rewritten as friendly end-to-end explanation with examples.
+  Readable by anyone, not a technical inventory.
+- ARCHITECTURE.md: OI section from "future" to "implemented (Alpha-0)".
+  Fixed horizonte ("SCM continuo", not "discreto"). Fixed AZURE_SOLVER_MODEL.
+- PROJECT.md: added scoring design principles. Cleaned OI to vision-level.
+- research/README.md: fixed broken refs, removed A21 ref, updated indices.
+- Deleted 13 BN-legacy test files (361 tests, ~4000 lines):
+  test_world_gen, test_task_gen, test_problem_builder, test_episode_gen,
+  test_verifier, test_exact_bayes, test_causal_chain, test_fork_collider,
+  test_data_sampler, test_dataset, test_episode_runner, test_env, test_trajectory.
+- Deleted 3 legacy scripts: demo.py, run_inspiration_reports.py, batch_sweep.py.
+- Deleted loose files: AGENTS.md, tmp-open-investigation-chatgpt.md,
+  research_seed.md, research_seed.example.md, scheduled_tasks.lock.
+- Moved 4 research docs to archive/: world_design_legacy, sreg_v2_design_findings,
+  solver_trajectory_findings, qualitative_eval_2026_03_24.
+
 ### 2026-03-28 — Remove target_node + solver tooling + E2E qualitative analysis
 
 **Target node removal from OI pipeline (Session 12):**

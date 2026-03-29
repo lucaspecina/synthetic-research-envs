@@ -22,7 +22,7 @@ Documentos de sintesis activos:
 
 - `synthesis/research_case_design.md`
 - `synthesis/real_papers_patterns.md`
-- `synthesis/eval_types_analysis.md`
+- `synthesis/eval_types_analysis.md` (cubre 9 de 12 tipos — pendiente update)
 - `synthesis/eval_strategy.md`
 - `synthesis/qualitative_eval_rubric.md`
 - `synthesis/benchmark_analysis.md`
@@ -30,7 +30,11 @@ Documentos de sintesis activos:
 - `synthesis/open_investigation_vision.md`
 - `synthesis/investigation_scenarios_rubric.md`
 - `synthesis/Doc1_Taxonomia_El_Mapa.md`
+- `synthesis/oi_scoring_fundamentals.md`
 - `synthesis/oi_scoring_next_design.md`
+- `synthesis/scm_migration_rationale.md`
+- `synthesis/scientific_research_taxonomy.md`
+- `synthesis/qualitative_eval_2026_03_25.md`
 
 ### archive/
 Documentos viejos, superseded o referencias heredadas. Read-only.
@@ -60,8 +64,8 @@ desplazandose hacia `synthesis/`.
 - **Pregunta:** como diseniar SRCs que se sientan como investigacion real sin
   perder evaluabilidad fuerte.
 - **Empezar por:** `synthesis/research_case_design.md`
-- **Notas de apoyo:** `notes/world_design_legacy.md`,
-  `notes/sreg_v2_design_findings.md`
+- **Notas de apoyo:** `archive/world_design_legacy.md` (legacy),
+  `archive/sreg_v2_design_findings.md` (legacy)
 
 ### Patrones de papers reales
 - **Pregunta:** que rasgos aparecen de forma consistente en investigaciones
@@ -73,13 +77,11 @@ desplazandose hacia `synthesis/`.
 - **Pregunta:** que tipos de preguntas fuerzan investigacion real y cuales se
   pueden resolver por shortcut, prior o estructura generica.
 - **Empezar por:** `synthesis/eval_types_analysis.md`
-- **Notas de apoyo:** `notes/scientific_taxonomy.md`,
-  `notes/scientific_taxonomy_deep_research.md` (deep research: como se hace
+- **Notas de apoyo:** `notes/scientific_taxonomy_deep_research.md` (deep research: como se hace
   ciencia hoy, taxonomy explicita/implicita, curriculum RL propuesto),
   `synthesis/scientific_research_taxonomy.md` (framework completo de
   clasificacion con objectives, axes, workflows, scoring, ejemplos),
-  `notes/solver_trajectory_findings.md`,
-  `notes/sreg_v2_design_findings.md`
+  `archive/solver_trajectory_findings.md` (legacy)
 
 ### Estrategia de evaluacion
 - **Pregunta:** como evaluar SREG sin reducirlo a un benchmark disfrazado.
@@ -137,7 +139,7 @@ desplazandose hacia `synthesis/`.
   de las preguntas visibles al investigador.
 - **Empezar por:** `notes/p2_semantic_question_naturalization.md`
 - **Conecta con:** I10 Fase 2c en `TODO.md`, hallazgos H1/H2/CF4 de evaluacion
-  cualitativa (`synthesis/qualitative_eval_2026_03_24.md`)
+  cualitativa (`synthesis/qualitative_eval_2026_03_25.md`)
 - **Status:** IMPLEMENTADO. Pendiente: E2E con 3 SRCs nuevos.
 
 ### Brief vs eval separation — preguntas reales vs scoring oculto
@@ -196,7 +198,7 @@ desplazandose hacia `synthesis/`.
   4 niveles, multiplicador claim-level, debate con Codex.
 - **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
 - **Status:** Alpha-0 piloteado con LLMs reales (6 runs, 3 mundos).
-  Warrant disabled para Alpha. 129 tests.
+  Warrant disabled para Alpha. ~240 OI-specific tests.
 - **Scoring fundamentals:** `synthesis/oi_scoring_fundamentals.md` — framework
   mental para el scoring de OI. Salience map = piso, no techo. Verdad
   se verifica contra SCM directamente, no contra lista precomputada.
@@ -219,7 +221,7 @@ desplazandose hacia `synthesis/`.
   is the bottleneck (claim compilation fails, scoring rejects correct findings).
 - **Fixes applied:** statsmodels/linearmodels allowed, progressive nudges,
   hard submit guard on final iteration.
-- **Next:** redesign submit_claims to be structured, split scoring axes.
+- **Next:** mejorar compiler (LLM extraction es el bottleneck), split scoring axes.
 - **Codex thread:** 019d3654-fa2b-7b92-a457-627687961699
 
 ### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
@@ -229,5 +231,5 @@ desplazandose hacia `synthesis/`.
 - **Evidencia de apoyo:** `notes/gaussian_bn_prototype_findings.md` (prototipo Gaussian)
 - **Que se mantiene:** grafo causal, d-separation, do-calculus, reward sin LLM judge
 - **Que cambia:** CPD tables -> ecuaciones Python, inferencia analitica -> Monte Carlo
-- **Status:** DECIDIDO. Implementacion en branch `feature/scm-engine`
+- **Status:** IMPLEMENTADO. Mergeado a main (Fases 1-4 completas).
 - **Conecta con:** A8 en `TODO.md`

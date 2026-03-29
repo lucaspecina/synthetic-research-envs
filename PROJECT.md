@@ -184,6 +184,28 @@ Cuando hay conflicto entre objetivos, aplicar estas reglas en orden:
 
 ---
 
+## Principios de diseno del scoring — NO NEGOCIABLE
+
+Estos principios aplican a CUALQUIER diseno de scoring, presente y futuro.
+
+1. **UN solo metodo de scoring para todo.** NO hay "scoring profiles" por tipo
+   de investigacion. Hay UN metodo general que funciona para cualquier caso.
+2. **El sistema se adapta a los casos, no al reves.** Los casos vienen de
+   seeds reales — pueden ser cualquier cosa. El scoring no fuerza una forma.
+3. **El brief es libre y puede tener multiples objetivos.** Una pregunta vaga,
+   varias preguntas, objetivos mixtos — todo valido.
+4. **No construir un juego estructurado.** Si el scoring requiere "roles",
+   "slots", "pattern_weights" y 10 campos de metadata, estamos construyendo
+   un juego, no evaluando investigacion.
+5. **La verificacion es el core, el scoring es un wrapper.** El SCM verifica
+   cualquier claim. El scoring solo pregunta: es verdad? es relevante? cubrio
+   lo pedido? no spameo?
+
+Validar cada cambio de scoring contra los 23 escenarios de investigacion:
+`research/synthesis/investigation_scenarios_rubric.md`.
+
+---
+
 ## Hacia donde va SREG
 
 El punto de partida puede ser un entorno pequeno y controlado. El destino es un
@@ -220,27 +242,15 @@ SREG debe evaluar no solo si el solver RESPONDE bien, sino si INVESTIGA bien.
 El solver recibe un brief abierto ("investiga por que las internaciones son
 desiguales") y tiene que descubrir que investigar, como, y que concluir.
 
-**Arquitectura de verificacion (3 capas):**
-1. **Solver** — investiga libre, entrega claim cards semi-estructuradas (max 5)
-2. **Compiler** — compila claims a specs ejecutables via gramatica composable
-   (no primitivas fijas). Compile-preview loop para clarificacion semantica.
-3. **SCM Verifier** — ejecuta specs contra el SCM (determinista, sin LLM)
+La verificacion funciona en 3 capas: el solver investiga libre y entrega
+hallazgos, un compiler los traduce a specs ejecutables via una gramatica
+composable (~24 piezas atomicas combinables), y el SCM verifier ejecuta
+contra la verdad formal — determinista, sin LLM.
 
-**Gramatica composable:** cada verificacion = Simulacion + Medicion + Comparacion
-+ Asercion (~24 piezas atomicas que se combinan en cientos de verificaciones
-posibles). No es un catalogo fijo. Agregar un tipo nuevo = combinar piezas.
-
-**Honestidad sobre el reward:** modo Guided = reward exacto end-to-end. Modo
-Open = verificacion SCM exacta DESPUES de compilacion. La compilacion tiene
-subjetividad encapsulada (claim cards la reducen, preview loop la audita,
-abstention la acota). Es orders of magnitude mas riguroso que LLM judge, pero
-no es 100% mecanico.
-
-**Stress test (30 casos, 10 dominios):** 40% funciona completo, 43% parcial
-(rescatable), 17% fuera de alcance (taxonomias, claims epistemicos).
-
-Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
-Working doc: `research/notes/open_investigation_case_analysis.md`.
+**Honestidad sobre el reward:** en Open Investigation, la compilacion introduce
+subjetividad encapsulada. Es mucho mas riguroso que LLM judge, pero no es
+100% mecanico. Ver `ARCHITECTURE.md` para detalle tecnico y
+`research/synthesis/open_investigation_vision.md` para la vision completa.
 
 ---
 
@@ -264,11 +274,10 @@ Cuanto mas abierto y ambiguo sea el caso, mas se parece a la ciencia real. Pero
 cuanto mas abierto sea, mas dificil puede ser verificar con exactitud lo que
 hizo el agente. SREG debe encontrar un equilibrio util entre apertura y rigor.
 
-**Direccion identificada (2026-03-25, refinada 2026-03-26):** "Open Investigation"
-resuelve esta tension via compilacion: el solver investiga libre, un LLM compiler
-traduce hallazgos a specs ejecutables (no juzga), el SCM verifica. La compilacion
+Open Investigation resuelve esta tension via compilacion: el solver investiga
+libre, un compiler traduce a specs ejecutables, el SCM verifica. La compilacion
 introduce subjetividad encapsulada pero el nucleo de verificacion es exacto.
-Ver seccion "Investigacion abierta" arriba para detalle.
+El bottleneck actual es la calidad de la compilacion (ver CURRENT_STATE.md).
 
 ### Realismo investigativo vs control generativo
 

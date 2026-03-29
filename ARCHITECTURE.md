@@ -33,12 +33,13 @@ abierto.
 La arquitectura actual apunta a **research cases estructurados y verificables**
 donde:
 
-- la verdad del caso vive en un sustrato formal discreto y exacto,
+- la verdad del caso vive en un SCM (modelo causal estructural con ecuaciones
+  y variables continuas),
 - el caso visible se presenta como un problema de investigacion con datos,
-  contexto, acciones y restricciones,
+  contexto y herramientas de analisis,
 - el orchestrator diseña el caso como conjunto,
-- el solver interactua dentro de un episodio con budget,
-- y la evaluacion se ancla a un teacher formal.
+- el solver investiga libre y entrega hallazgos (claim cards en OI),
+- y la evaluacion se ancla a verificacion formal contra el SCM.
 
 ### Debe soportar crecimiento hacia
 
@@ -466,13 +467,9 @@ Toda la codebase usa la **Responses API** de OpenAI (no Chat Completions).
 Esto soporta modelos de razonamiento (codex, o-series) ademas de modelos
 conversacionales clasicos.
 
-El orchestrator y el solver pueden usar **modelos distintos**:
-
-- `AZURE_MODEL` — modelo para orchestrator, reports, transformaciones
-- `AZURE_SOLVER_MODEL` — modelo para el solver diagnostico (default: AZURE_MODEL)
-
-Esto permite usar un modelo generalista para disenar casos y un modelo de
-razonamiento optimizado para investigar.
+El orchestrator y el solver usan `AZURE_MODEL` por defecto. Los scripts
+aceptan `AZURE_SOLVER_MODEL` como override para el solver, permitiendo
+usar un modelo de razonamiento optimizado para investigar.
 
 ---
 
@@ -548,41 +545,39 @@ La arquitectura debe permitir crecimiento en:
 
 sin romper coherencia ni evaluabilidad fuerte.
 
-### Direccion futura: Open Investigation (2026-03-25, refinada 2026-03-26)
+### Open Investigation — implementado (Alpha-0)
 
-La siguiente evolucion arquitectonica es separar la evaluacion en 3 capas:
+El modo principal de evaluacion. Separa la evaluacion en 3 capas:
 
-1. **Solver** — investiga libre, entrega claim cards semi-estructuradas (max 5).
-   Cada card tiene: texto, variables foco, contexto, patron, confianza, evidencia.
-2. **LLM Compiler** — compila claim cards a specs ejecutables. Usa una
+1. **Solver** — investiga libre, entrega claim cards (max 5).
+   Cada card tiene: texto, variables foco, confianza, evidencia.
+   El solver NO ve categorias de scoring ni patrones esperados.
+2. **Compiler** — traduce claim cards a specs ejecutables. Usa una
    GRAMATICA COMPOSABLE de 4 piezas (Simulacion + Medicion + Comparacion +
-   Asercion), no primitivas fijas. Compile-preview loop para clarificacion
-   semantica (max 2 rondas). Si no puede compilar, marca "unscorable".
+   Asercion). El compiler NO juzga calidad — solo traduce.
 3. **SCM Verifier** — ejecuta specs contra el SCM (determinista, sin LLM).
 
-**Gramatica composable (reemplaza primitivas fijas):**
+**Gramatica composable:**
 - ~24 piezas atomicas que se combinan en cientos de verificaciones posibles
 - Simulacion: do, do+condicion, sweep, bundle, baseline
 - Medicion: mean, variance, quantile, tail_risk, correlation, distribution
 - Comparacion: difference, ratio, ranking, piecewise_fit, gap, proportion
 - Asercion: positive, negative, near_zero, A>B, changepoint, sign_flip
-- Operadores nombrados (mean_contrast, policy_rank, etc.) = macros frecuentes
 
 **Modos de evaluacion:**
-- **Guided** (actual): preguntas pre-definidas, reward exacto end-to-end
-- **Scaffolded Open** (Alpha): brief abierto + deliverables vagos, claim cards
+- **Guided** (legacy): preguntas pre-definidas, reward exacto end-to-end
+- **Open** (principal, Alpha-0): brief abierto, claim cards, compilacion + verificacion SCM
 - **Full Open** (futuro): solo brief, sin ninguna guia
 
 **Honestidad sobre reward:** modo Guided = exacto. Modo Open = verificacion
 SCM exacta DESPUES de compilacion. La compilacion tiene subjetividad
 encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
 
-**Stress test (30 casos, 10 dominios):** 40% funciona completo, 43% parcial,
-17% fuera de alcance (taxonomias, claims epistemicos). Las claim cards
-funcionan en 73% de los casos; el cuello es la compilacion a specs.
+**Bottleneck actual:** el compiler (LLM extraction) es el cuello de botella.
+Claims correctas del solver se traducen mal y reciben score 0. Esto es el
+problema a resolver, no el solver ni el verifier.
 
 Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
-Working doc: `research/notes/open_investigation_case_analysis.md`.
 
 SREG incluye como responsabilidad central:
 

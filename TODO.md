@@ -539,23 +539,22 @@ pero las 4 sub-preguntas scored 0.00 MISS. Los claims eran correctos.
 **Root cause: claim compilation (LLM step) extrae patron equivocado.**
 El solver usa lenguaje hedgeado ("associated with") porque el prompt dice
 ser cauteloso. Pero los SQs esperan pattern=causal_effect. El compiler
-extrae pattern=observational_association → exact-match falla.
+extrae pattern=observational_association -> exact-match falla.
 
 **Codex summary:** "the worlds may already be good enough, and the solver
 may already be capable of useful research behavior, but the evaluation
 harness is still not trustworthy enough to tell you that."
 
 **Sub-preguntas:**
-- [ ] Redesign submit_claims to be structured: add fields relation_type,
-  treatment, outcome, direction, estimate, causal_confidence. Don't require
-  LLM to infer ontology from hedged prose.
+- [ ] Mejorar el compiler (LLM extraction): el bottleneck real es que el
+  compiler traduce mal los claims. Mejorar prompts, exemplars, fallbacks.
+  **NOTA: se intento resolver con structured claims (A21-fix) pero fue
+  REVERTIDO porque sesga al solver mostrando categorias de scoring.
+  La solucion es mejorar el compiler, no constreñir al solver.**
 - [ ] Split scoring into separate axes: topical match, inferential type,
   sign, evidence strength. A claim can be topically correct but pattern-wrong.
 - [ ] Audit failed coral claims: classify as compiler miss vs SQ ontology
   mismatch vs wrong answer.
-- [ ] The tension: we tell solver "be cautious about causation" (good science)
-  but SQs expect causal claims (because ground truth IS causal). Solution:
-  don't weaken caution, redesign submit_claims.
 
 **Evidencia:** `research/notes/e2e_qualitative_analysis_20260328.md` (Case 4)
 **Conecta con:** A15 (OI), A19 (SQ scoring), LA PREGUNTA

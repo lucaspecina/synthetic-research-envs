@@ -91,11 +91,9 @@ def build_oi_tools_section(artifact_catalog: list[dict[str, Any]]) -> str:
         "- focus_variables: Which variables are involved (1-8 variables)\n"
         "- confidence: How confident you are (0.0 to 1.0)\n"
         "- evidence_basis: What data supports this (artifact_id + rationale)\n"
-        "- pattern_tags: Optional tags like \"causal_effect\", \"mediation\", "
-        "\"confounding\", \"null_effect\", etc.\n\n"
         "IMPORTANT: \"No significant effect\" is a valid finding. If you "
         "investigate a relationship and find it is absent or negligible, "
-        "that is worth reporting. Use the tag \"null_effect\".\n\n"
+        "that is worth reporting.\n\n"
         "Call this ONCE at the end of your investigation."
     )
 
