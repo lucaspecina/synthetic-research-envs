@@ -1,10 +1,8 @@
 """Structural Causal Model (SCM) world engine.
 
-Replaces discrete BN (CPD tables) with arbitrary Python equations + Monte Carlo.
-The causal GRAPH is preserved (d-separation, do-calculus, identifiability).
-The CPDs are replaced by equations: each variable is a function of its parents + noise.
-
-See research/synthesis/scm_migration_rationale.md for the full rationale.
+Each variable is defined by a structural equation (function of parents + noise).
+The causal graph supports d-separation, do-calculus, and identifiability checks.
+Reward computation uses Monte Carlo sampling against the true SCM.
 """
 
 from __future__ import annotations

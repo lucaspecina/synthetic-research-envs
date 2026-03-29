@@ -114,11 +114,10 @@ completo con dos capas coordinadas:
 Hoy el SRC es un artefacto compuesto, no una clase unica. Sus piezas centrales
 son:
 
-- `World`
+- `SCMWorld`
 - `CasePlan`
 - `ResearchProblem`
-- una o mas `Task`
-- `Episode`
+- una o mas `Task` (SRC mode) o `SubQuestionIntent` (OI mode)
 - scores, trayectorias y artefactos exportables
 
 Arquitectonicamente, el SRC debe tratarse como un producto coherente aunque se
@@ -128,16 +127,12 @@ represente con varios contratos.
 
 ## 5. Contratos centrales
 
-### `World` / `SCMWorld`
+### `SCMWorld`
 
 Contrato del mundo formal completo.
 
-Contiene nodos, edges y la verdad formal del caso. La implementacion activa es
-**`SCMWorld`**: Structural Causal Model — grafo + ecuaciones estructurales +
-ruido. Variables continuas. Ver seccion 6.1.
-
-`World` (BN discreta) existe como contrato legacy pero el codigo de ejecucion
-(pgmpy, ExactBayesSolver, CPD tables) fue eliminado.
+Structural Causal Model — grafo + ecuaciones estructurales + ruido. Variables
+continuas. Ver seccion 6.1.
 
 ### `CasePlan`
 
@@ -317,19 +312,15 @@ ordenes de magnitud menor que el del training.
 | should_condition | Solo del grafo |
 | do-calculus | Grafo + ecuaciones (simular) |
 
-**Que cambia respecto a la BN discreta:**
+**Caracteristicas del SCM:**
 
-| Aspecto | BN legacy | SCM |
-|---|---|---|
-| Variables | 3 estados discretos | Continuas, con unidades reales |
-| Relaciones | CPD tables (3^N entries) | Ecuaciones arbitrarias |
-| Escalabilidad | Exponencial con padres | Lineal |
-| Datos generados | `low/medium/high` | `38.48 C`, `6.28 intensidad` |
-| Expresividad | Solo tablas de probabilidad | Threshold, sigmoid, sqrt, etc |
-| Reward | Analitico exacto (pgmpy) | Monte Carlo preciso (~0.001) |
-
-**Referencia:** `research/synthesis/scm_migration_rationale.md` para los
-fundamentos completos de la migracion.
+| Aspecto | Detalle |
+|---|---|
+| Variables | Continuas, con unidades reales |
+| Relaciones | Ecuaciones arbitrarias (threshold, sigmoid, sqrt, etc.) |
+| Escalabilidad | Lineal con padres (no exponencial) |
+| Datos generados | `38.48 C`, `6.28 intensidad` |
+| Reward | Monte Carlo preciso (~0.001 con N=20K) |
 
 ### 6.2 Capa de diseno del caso
 
@@ -416,7 +407,7 @@ En este horizonte, la interfaz del solver separa dos cosas:
 
 ### 7.3 Evaluacion
 
-La evaluacion compara lo que hizo el solver contra lo que implica el `World`.
+La evaluacion compara lo que hizo el solver contra lo que implica el `SCMWorld`.
 
 Segun la task, esto puede involucrar:
 
@@ -499,8 +490,8 @@ La capa visible del caso no puede contradecir la capa formal.
 
 ### El caso se diseña como conjunto
 
-`World`, `CasePlan`, `ResearchProblem`, `Task`s y `Episode` deben construirse
-como partes coordinadas de un mismo SRC.
+`SCMWorld`, `CasePlan`, `ResearchProblem` y `Task`s/`SubQuestionIntent`s deben
+construirse como partes coordinadas de un mismo SRC.
 
 ### El reward central se ancla a la verdad formal
 
@@ -523,7 +514,7 @@ no solo del conocimiento general del dominio.
 
 La arquitectura debe permitir crecimiento en:
 
-- generadores estructurales nuevos que emitan `DAGSpec`,
+- generadores estructurales nuevos,
 - artefactos visibles mas ricos,
 - acciones de investigacion mas expresivas,
 - casos mas abiertos,

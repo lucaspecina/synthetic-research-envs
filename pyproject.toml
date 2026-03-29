@@ -8,10 +8,10 @@ version = "0.1.0"
 description = "Synthetic Research Environment Generator for evaluating LLM scientific reasoning"
 requires-python = ">=3.11"
 dependencies = [
-    "pgmpy>=0.1.25",
     "networkx>=3.1",
     "numpy>=1.24",
     "scipy>=1.11",
+    "pandas>=1.5",
     "pydantic>=2.0",
     "openai>=1.0",
     "pyyaml>=6.0",

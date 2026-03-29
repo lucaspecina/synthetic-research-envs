@@ -138,7 +138,7 @@ research/        # Analisis y sintesis (ver research/README.md)
 
 ```bash
 pytest tests/ -v                          # All tests
-pytest tests/tools/test_world_gen.py -v   # Specific file
+pytest tests/tools/test_scm_world_gen.py -v   # Specific file
 ruff check src/ tests/                    # Lint
 ruff format src/ tests/                   # Format
 ```

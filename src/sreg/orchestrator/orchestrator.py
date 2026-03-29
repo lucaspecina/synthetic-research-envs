@@ -23,7 +23,6 @@ from sreg.models.open_investigation import (
 from sreg.models.research_problem import ResearchProblem
 from sreg.models.scm_spec import SCMSpec, SCMVariableSpec
 from sreg.models.task import TaskType
-from sreg.models.world import NodeType, World
 from sreg.orchestrator.prompts import SYSTEM_PROMPT, TOOL_DEFINITIONS
 from sreg.tools.scm_problem_builder import SCMProblemBuilder
 from sreg.tools.scm_task_gen import SCMTaskGenTool
@@ -108,7 +107,7 @@ class OrchestratorResult:
     """Result of an orchestrator run."""
 
     def __init__(self):
-        self.world: World | SCMWorld | None = None
+        self.world: SCMWorld | None = None
         self.problem: ResearchProblem | None = None
         self.episode: Any = None
         self.oi_mode: bool = False
@@ -151,7 +150,7 @@ class Orchestrator:
         self._scm_world_gen = SCMWorldGenTool()
         self._scm_task_gen = SCMTaskGenTool()
         self._scm_problem_builder = SCMProblemBuilder()
-        self._worlds: dict[str, World | SCMWorld] = {}
+        self._worlds: dict[str, SCMWorld] = {}
         self._case_plans: dict[str, CasePlan] = {}
         self._world_seeds: dict[str, int] = {}
         self._world_semantics: dict[str, dict] = {}
@@ -404,25 +403,13 @@ class Orchestrator:
         if world is None:
             return {"error": f"World '{world_id}' not found"}
 
-        is_scm = isinstance(world, SCMWorld)
+        # Build lookup maps for validation
+        world_node_names = set(world.variables)
+        obs_node_names = set(world.observable_variables)
 
-        # Build lookup maps for validation (polymorphic)
-        if is_scm:
-            world_node_names = set(world.variables)
-            obs_node_names = set(world.observable_variables)
-            node_states: dict[str, set[str]] = {}  # SCM has no discrete states
-        else:
-            world_node_names = {n.name for n in world.nodes}
-            obs_node_names = {
-                n.name for n in world.nodes if n.type == NodeType.OBSERVABLE
-            }
-            node_states = {
-                n.name: set(n.states) for n in world.nodes
-            }
-
-        # Validate research_brief for SCM worlds (required for proper separation)
+        # Validate research_brief (required for proper separation)
         research_brief = args.get("research_brief", "")
-        if is_scm and not research_brief.strip():
+        if not research_brief.strip():
             return {
                 "error": (
                     "research_brief is required for SCM worlds. Write a 2-3 paragraph "
@@ -494,25 +481,11 @@ class Orchestrator:
                             )
                         }
 
-            # Validate desired_state against the target node's actual states
-            # (skip for SCM — continuous variables have no discrete states)
-            desired = rq.get("desired_state")
-            if desired and not is_scm:
-                valid_states = node_states.get(target, set())
-                if desired not in valid_states:
-                    return {
-                        "error": (
-                            f"Question {i}: desired_state='{desired}' is not a valid "
-                            f"state of target node '{target}'. Valid states: "
-                            f"{sorted(valid_states)}"
-                        )
-                    }
-
         # Build the CasePlan (Pydantic validates structure + duplicates)
         try:
             if self.oi_mode:
                 return self._build_oi_case_plan(
-                    args, world, world_id, is_scm, research_brief,
+                    args, world, world_id, research_brief,
                     obs_node_names, result,
                 )
 
@@ -543,15 +516,10 @@ class Orchestrator:
 
         # Generate tasks from the plan to validate they are computable
         try:
-            if is_scm:
-                seed = self._world_seeds.get(world_id, 42)
-                tasks = self._scm_task_gen.generate_from_plan(
-                    world, plan, seed=seed
-                )
-            else:
-                tasks = self._task_gen.generate_from_plan(
-                    world, plan, seed=world.seed
-                )
+            seed = self._world_seeds.get(world_id, 42)
+            tasks = self._scm_task_gen.generate_from_plan(
+                world, plan, seed=seed
+            )
         except Exception as e:
             return {"error": f"Failed to generate tasks from plan: {e}"}
 
@@ -577,9 +545,8 @@ class Orchestrator:
     def _build_oi_case_plan(
         self,
         args: dict,
-        world: World | SCMWorld,
+        world: SCMWorld,
         world_id: str,
-        is_scm: bool,
         research_brief: str,
         obs_node_names: set[str],
         result: OrchestratorResult,
@@ -630,7 +597,7 @@ class Orchestrator:
             return {"error": f"Invalid sub-questions: {'; '.join(parse_errors)}"}
 
         # Validate against world
-        if parsed_sqs and is_scm:
+        if parsed_sqs:
             from sreg.tools.oi_subquestions import validate_sub_questions
 
             accepted, val_errors = validate_sub_questions(
@@ -672,7 +639,6 @@ class Orchestrator:
             "title": plan.title,
             "research_brief": plan.research_brief,
             "deliverables": plan.deliverables,
-            "mode": "open_investigation",
             "mode": "open_investigation",
         }
         if parsed_sqs:

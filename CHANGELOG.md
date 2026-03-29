@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### 2026-03-29 — Deep cleanup round 2: remove last BN vestiges from active code
+
+**Code cleanup:**
+- Deleted `models/world.py` (legacy BN: Node, CPD, DifficultyProfile, World)
+- Deleted `tests/models/test_world.py`
+- `orchestrator.py`: removed World/NodeType imports, dead `_task_gen` branch,
+  BN polymorphic code paths. All type annotations now SCMWorld-only.
+- `generate_src.py`: removed BN code paths in export_json, export_dag_png,
+  OI mode check. Fixed "Ground truth BN" -> "Ground truth SCM" in docstring.
+- `research_problem.py`: `target_states` now optional (default_factory=list)
+- OI scripts: removed discrete `target_states=["low","medium","high"]`
+
+**Dependencies:**
+- `pyproject.toml`: removed pgmpy, added pandas
+- Deleted stale `src/sreg.egg-info/`
+
+**Documentation:**
+- `README.md`: full rewrite for SCM+OI (removed BN, --solve, deleted scripts, training, harness)
+- `TODO.md`: A8 (BN vs SCM) marked RESOLVED, removed stale sub-questions
+- `ARCHITECTURE.md`: World -> SCMWorld, removed BN comparison table, DAGSpec ref
+- `CLAUDE.md`: fixed stale test_world_gen.py reference
+
 ### 2026-03-29 — Massive legacy cleanup: BN + guided mode removal (~27K lines)
 
 **Entire BN/guided mode pipeline removed:**

@@ -132,7 +132,6 @@ def _problem_from_world(world, target, brief, domain, n_rows=300):
         budget=10,
         research_question=brief,
         target_node=target,
-        target_states=["low", "medium", "high"],
     )
 
 

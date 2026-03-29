@@ -176,85 +176,19 @@ quedo desactualizada o sin uso real. Hay que repasar que sirve y que no.
   iterar. Como cerrar el loop?
 - [ ] Baselines: son los correctos para los eval types actuales?
 
-### A8. Representacion del mundo — BN vs ecuaciones vs simulacion
+### A8. Representacion del mundo — RESUELTO
 
-**La pregunta de fondo:** es la BN el formalismo correcto para el mundo
-subyacente de SREG, o se podria usar algo mas expresivo?
+**[x] RESUELTO.** SREG migro completamente a SCM (Structural Causal Model)
+con ecuaciones arbitrarias y variables continuas. Todo el codigo BN discreto
+(pgmpy, CPD tables, ExactBayesSolver) fue eliminado.
 
-Hoy SREG usa CPD tables discretas (3 estados por variable). Esto causa:
+El SCM resuelve los 3 problemas originales:
+- **Realismo**: variables continuas con unidades reales (celsius, mg/L, etc.)
+- **Escalabilidad**: sin limite de padres (ecuaciones, no tablas exponenciales)
+- **Expresividad**: sigmoid, umbrales, interacciones, saturacion
 
-**Problema 1: Realismo.** Variables como `recovery_quality: [poor, adequate,
-excellent]` cuando un investigador mediria VO2max=52.3 mL/kg/min. El solver
-hace crosstabs en vez de regresion/correlacion.
-
-**Problema 2: Escalabilidad.** CPD tables crecen 3^N con N padres.
-MAX_PARENTS=5 es un bottleneck para dominios complejos. Football necesitaba
-6 padres y fallo 8/10 iteraciones.
-
-**Problema 3: Expresividad.** Las relaciones reales no son tablas de
-probabilidades — son ecuaciones con umbrales, saturaciones, interacciones,
-efectos no lineales.
-
-#### Que nos da la BN (lo que NO se puede perder)
-
-1. **Grafo causal** → d-separation, identifiability, do-calculus. Es lo que
-   hace posible should_condition, adjustment_set, y reward verificable.
-2. **Reward sin LLM judge** → el diferenciador de SREG. La verdad formal
-   permite scoring exacto/preciso.
-
-Lo que la BN aporta es el GRAFO + la capacidad de computar reward. Las CPDs
-son solo UNA forma de parametrizar las relaciones. No son sagradas.
-
-#### Opciones evaluadas
-
-| Representacion | Continuas | Relaciones | Reward | Escala | Complejidad |
-|---|---|---|---|---|---|
-| **CPD tables** (actual) | No | Tablas | Exacto (analitico) | No (3^N) | Ya hecho |
-| **Linear Gaussian BN** | Si | Lineales | Exacto (analitico) | Si | Media |
-| **CLG mixto** | Mix | Lineales condicionadas | Exacto | Si | Alta |
-| **SEM no lineal** | Si | Ecuaciones arbitrarias | Monte Carlo (~exacto) | Si | Media-alta |
-| **Simulacion libre** | Si | Cualquier regla | Monte Carlo (~exacto) | Si | Variable |
-
-#### La pregunta clave: exacto vs estadisticamente preciso
-
-Un Linear Gaussian BN da P(Y|do(X)) como formula cerrada (reward=0.000 de
-error). Un SEM no lineal requiere Monte Carlo: simular 100K muestras de
-do(X=x), estimar la distribucion, calcular KL. El error es ~0.001 con
-suficientes muestras.
-
-**Para RL, la diferencia probablemente no importa.** El ruido de Monte Carlo
-con N grande es menor que el ruido del propio proceso de entrenamiento.
-
-Si Monte Carlo es aceptable, el espacio de diseno se abre enormemente:
-ecuaciones con sigmoid, umbrales, interacciones, saturacion. Los datos
-serian mucho mas realistas y el solver tendria que hacer analisis estadistico
-real (regresion, correlacion, scatterplots) en vez de crosstabs.
-
-#### Sub-preguntas por investigar
-
-- [x] Prototipar Linear Gaussian BN en pgmpy → funciona. Ver
-  `research/notes/gaussian_bn_prototype_findings.md`
-- [ ] Prototipar SEM no lineal: ecuaciones arbitrarias + Monte Carlo para
-  do-calculus. Verificar precision del reward con N=10K, 50K, 100K.
-- [ ] CLG mixto: nodos discretos (posicion, tipo) + continuos (temperatura,
-  VO2max). Inferencia mixta.
-- [ ] Que tan preciso necesita ser el reward para RL? Hay literatura sobre
-  tolerancia a ruido en reward signals?
-- [ ] Scoring para distribuciones continuas: KL Gaussianas (analitico),
-  KL por histograma, Wasserstein, CRPS?
-- [ ] Si vamos a SEM no lineal, como genera el orchestrator las ecuaciones?
-  Las pide al LLM? Las parametriza?
-- [ ] Que eval types nuevos habilita (regresion, correlacion, intervalos,
-  prediccion fuera de muestra)?
-
-#### Decision pendiente
-
-Lo que hay que decidir no es "Gaussian vs discreto" sino algo mas
-fundamental: **el mundo subyacente se define por CPDs, por ecuaciones,
-o por simulacion?** Las tres mantienen el grafo causal y la capacidad de
-computar reward. La diferencia es expresividad vs simplicidad.
-
-**Referencia:** `research/notes/gaussian_bn_prototype_findings.md`
+Reward via Monte Carlo (~exacto con N=20K+). El grafo causal se mantiene
+intacto (d-separation, do-calculus, identifiability).
 
 ### A9. Inspiration report: racionalizacion post-hoc
 
@@ -314,7 +248,7 @@ variables, es un error legitimo que el scoring deberia penalizar. La solucion
 a futuro es mejorar el scoring para detectar cuando la distribucion submitida
 proviene de la variable equivocada.
 
-### A12. Scores enganiosos por coincidencia estadistica (legacy BN)
+### A12. Scores enganiosos por coincidencia estadistica
 
 En algunos SRCs, la distribucion marginal de una variable observable es
 casi identica a la posterior causal de otra variable. El solver computa la
@@ -637,17 +571,16 @@ Tests: `test_case_submit_rejects_wrong_distribution_keys`,
 **Bottleneck: MAX_PARENTS=4 insuficiente para dominios complejos.**
 El seed de football genero nodos con 5-6 padres naturales. El orchestrator
 gasto 8/10 iteraciones en dag_construct rechazado, nunca llego a design_case.
-- [x] Subir `MAX_PARENTS` de 4 a 5 en `dag_spec.py` (CPDs: 3^5=243, manejable).
 - [x] Subir `max_iterations` del orchestrator de 10 a 15.
-- [ ] Evaluar si es suficiente o necesitamos la migracion a Gaussian (ver A8).
+- [x] Migrado a SCM — ya no hay limite de padres (ver A8).
 
 **Bug verdict: logica invertida para choice types.**
 El verdict (GOOD/OK/POOR) usaba `< 0.1 = GOOD` para TODOS los tipos, pero
 choice types (should_condition, hypothesis, compare, best_intervention, NBO,
 adjustment_set) retornan 1.0 = correcto, 0.0 = incorrecto. Resultado:
 toda respuesta INCORRECTA se reportaba como "GOOD".
-**Fix aplicado:** generate_src.py y solve_existing.py ahora detectan el tipo
-y usan `> 0.9 = GOOD` para choice types vs `< 0.1 = GOOD` para KL types.
+**Fix aplicado:** generate_src.py ahora detecta el tipo y usa `> 0.9 = GOOD`
+para choice types vs `< 0.1 = GOOD` para KL types.
 
 ### I10. Brief real en vez de preguntas internas — motivado por A13
 

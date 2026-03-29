@@ -1,10 +1,7 @@
 """SCMProblemBuilder: package an SCMWorld + data into a ResearchProblem.
 
-Mirrors ProblemBuilder but works with SCMWorld (continuous variables,
-structural equations) instead of discrete BN World.
-
-Uses scm_data.realistic_sample() for data generation — no dependency on
-pgmpy or discrete DataSampler.
+Samples data from the SCM via scm_data.realistic_sample() and builds the
+complete ResearchProblem with narrative, datasets, actions, and budget.
 """
 
 from __future__ import annotations

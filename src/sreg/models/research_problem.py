@@ -109,7 +109,8 @@ class ResearchProblem(BaseModel):
         description="Internal node name for evaluation"
     )
     target_states: list[str] = Field(
-        description="Possible states of the target variable"
+        default_factory=list,
+        description="Bin ranges or labels for the target variable",
     )
 
 

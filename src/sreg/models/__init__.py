@@ -34,7 +34,6 @@ from sreg.models.scm_spec import SCMSpec, SCMVariableSpec
 from sreg.models.score import Score, StepScore
 from sreg.models.task import Task, TaskBundle, TaskSpec, TaskType
 from sreg.models.teacher import TeacherOutput
-from sreg.models.world import CPD, DifficultyProfile, Edge, Node, NodeType, World
 
 __all__ = [
     "Action",
@@ -48,7 +47,6 @@ __all__ = [
     "BenchmarkComparison",
     "BenchmarkResult",
     "BenchmarkStatus",
-    "CPD",
     "CasePlan",
     "ClaimCard",
     "ClaimSubmission",
@@ -56,8 +54,6 @@ __all__ = [
     "Comparison",
     "ComparisonKind",
     "DataAsset",
-    "DifficultyProfile",
-    "Edge",
     "Episode",
     "EpisodeScore",
     "EvalQuestionPlan",
@@ -66,8 +62,6 @@ __all__ = [
     "FamilyKey",
     "Measurement",
     "MeasurementKind",
-    "Node",
-    "NodeType",
     "Observation",
     "QueryArm",
     "QueryKind",
@@ -85,5 +79,4 @@ __all__ = [
     "TaskSpec",
     "TaskType",
     "TeacherOutput",
-    "World",
 ]

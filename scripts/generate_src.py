@@ -7,7 +7,7 @@ Usage:
     python scripts/generate_src.py --goal "marine ecology, 8 nodes" --output experiments/reef/
     python scripts/generate_src.py --seed-file research_seed.md --output experiments/case1/
     python scripts/generate_src.py --seed-file seeds/paper.pdf --output experiments/from_paper/
-    python scripts/generate_src.py --goal "football analytics" --output experiments/football/ --inspect
+    python scripts/generate_src.py --goal "football analytics" -o experiments/football/ --inspect
 
 Outputs (always):
     <output>/src.json        Full SRC (world, problem, tasks, metadata)
@@ -15,7 +15,7 @@ Outputs (always):
 Outputs (with --inspect):
     <output>/briefing.md     What the agent sees (narrative + questions)
     <output>/dataset.csv     Full dataset
-    <output>/answer_key.md   Ground truth BN + quick guide + correct answers
+    <output>/answer_key.md   Ground truth SCM + quick guide + correct answers
     <output>/dag.png         Causal DAG visualization
 """
 
@@ -113,13 +113,8 @@ def generate(
 
     _print()
     if result.world and result.problem:
-        from sreg.world.scm import SCMWorld
-        if isinstance(result.world, SCMWorld):
-            n_nodes = len(result.world.variables)
-            title = result.problem.title or result.world.id
-        else:
-            n_nodes = len(result.world.nodes)
-            title = getattr(result.world, "scenario_title", None) or "?"
+        n_nodes = len(result.world.variables)
+        title = result.problem.title or result.world.id
         n_tasks = len(result.task) if isinstance(result.task, list) else 0
         _print(f"  {_c(GRN, 'OK')} {_c(B, _safe(title))}")
         _print(f"  {n_nodes} nodes, {n_tasks} tasks, {len(steps)} tool calls")
@@ -135,8 +130,6 @@ def generate(
 
 def export_json(result, steps, goal: str, model: str, output_dir: str) -> str:
     """Export the full SRC as JSON. Returns the path."""
-    from sreg.models.world import World
-
     export: dict = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
@@ -152,22 +145,17 @@ def export_json(result, steps, goal: str, model: str, output_dir: str) -> str:
     }
 
     if result.world:
-        from sreg.world.scm import SCMWorld
-        if isinstance(result.world, SCMWorld):
-            from dataclasses import asdict
-            export["world"] = {
-                "type": "scm",
-                "id": result.world.id,
-                "variables": result.world.variables,
-                "graph": result.world.graph,
-                "latent_variables": list(result.world.latent_variables),
-                "variable_meta": {
-                    k: {"unit": v.unit, "range": list(v.range), "description": v.description}
-                    for k, v in result.world.variable_meta.items()
-                },
-            }
-        else:
-            export["world"] = result.world.model_dump(mode="json")
+        export["world"] = {
+            "type": "scm",
+            "id": result.world.id,
+            "variables": result.world.variables,
+            "graph": result.world.graph,
+            "latent_variables": list(result.world.latent_variables),
+            "variable_meta": {
+                k: {"unit": v.unit, "range": list(v.range), "description": v.description}
+                for k, v in result.world.variable_meta.items()
+            },
+        }
 
     if result.task and isinstance(result.task, list):
         export["tasks"] = [t.model_dump(mode="json") for t in result.task]
@@ -407,36 +395,27 @@ def export_dag_png(result, output_dir: str) -> str | None:
     try:
         import matplotlib
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
         import matplotlib.patches as mpatches
+        import matplotlib.pyplot as plt
         import networkx as nx
     except ImportError:
         return None
 
-    from sreg.world.scm import SCMWorld as _SCMWorld
     world = result.world
 
     G = nx.DiGraph()
     node_types = {}
     node_states = {}
-    if isinstance(world, _SCMWorld):
-        for var in world.variables:
-            G.add_node(var)
-            if var in world.latent_variables:
-                node_types[var] = "latent"
-            else:
-                node_types[var] = "observable"
-            node_states[var] = []
-        for child, parents in world.graph.items():
-            for parent in parents:
-                G.add_edge(parent, child)
-    else:
-        for n in world.nodes:
-            G.add_node(n.name)
-            node_types[n.name] = str(n.type)
-            node_states[n.name] = n.states
-        for e in world.edges:
-            G.add_edge(e.from_node, e.to_node)
+    for var in world.variables:
+        G.add_node(var)
+        if var in world.latent_variables:
+            node_types[var] = "latent"
+        else:
+            node_types[var] = "observable"
+        node_states[var] = []
+    for child, parents in world.graph.items():
+        for parent in parents:
+            G.add_edge(parent, child)
 
     # Layered layout via topological sort
     layers = {}
@@ -718,10 +697,7 @@ def main():
         _print()
         _print(_c(B + BLU, "=== Open Investigation ==="))
 
-        from sreg.world.scm import SCMWorld as _OI_SCMWorld
-        if not isinstance(result.world, _OI_SCMWorld):
-            _print(f"  {_c(RED, 'x')} OI mode requires SCMWorld (not BN)")
-        elif not result.problem:
+        if not result.problem:
             _print(f"  {_c(RED, 'x')} No problem generated")
         else:
             from openai import OpenAI  # noqa: E402
@@ -855,8 +831,7 @@ def main():
     title = getattr(result.world, "scenario_title", None) or result.world.id
     n_tasks = len(result.task) if isinstance(result.task, list) else 0
     _print(f"  {_c(B, _safe(title))}")
-    from sreg.world.scm import SCMWorld as _SW
-    n_vars = len(result.world.variables) if isinstance(result.world, _SW) else len(result.world.nodes)
+    n_vars = len(result.world.variables)
     _print(f"  {n_vars} nodes, {n_tasks} tasks")
     _print()
 

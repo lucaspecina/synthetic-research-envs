@@ -1,12 +1,9 @@
 """SCMTaskGenTool: generates verifiable tasks from SCMWorld + SCMSolver.
 
-Mirrors TaskGenTool but works with continuous variables instead of discrete BN.
-
-Key differences from TaskGenTool:
+Generates tasks with continuous variables:
 - Distributions are represented as bin histograms (dict with bin-range keys).
-- Intervention values are floats (percentiles of marginal), not discrete states.
+- Intervention values are floats (percentiles of marginal).
 - Graph-based tasks (should_condition, adjustment_set) use SCMWorld.dag directly.
-- No dependency on pgmpy.
 """
 
 from __future__ import annotations

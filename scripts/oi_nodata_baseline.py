@@ -385,7 +385,6 @@ def run_nodata_probe(
         description=brief, domain="research", data_assets=[asset],
         available_actions=[], budget=10,
         research_question=brief, target_node=cfg["target"],
-        target_states=["low", "medium", "high"],
     )
 
     # Create compiler
