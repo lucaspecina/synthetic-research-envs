@@ -391,6 +391,240 @@ class TestMatchingEdgeCases:
         score = score_claim_vs_subquestion(claim, 0.0, simple_resolved_sq)
         assert score == 0.0
 
+    def test_a21_obs_association_partially_matches_causal_sq(self, simple_resolved_sq):
+        """A21 EXPERIMENT: observational_association claim should get partial
+        credit against a causal_effect SQ when variables and direction match.
+
+        This is the core A21 bug: correct findings scored 0 because
+        pattern matching was exact. Now subsumption gives partial credit.
+        """
+        claim = ClaimIntent(
+            claim_id="c", pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+            treatment="X", outcome="Y", direction=Direction.POSITIVE,
+            evidence_type="observational",
+        )
+        score = score_claim_vs_subquestion(claim, 1.0, simple_resolved_sq)
+        # Should get partial credit (subsumption weight 0.50 * answer_compat)
+        assert score > 0.0, "A21: obs_association MUST get partial credit for causal SQ"
+        assert score < 1.0, "But less than an exact causal_effect match"
+        # Should be approximately 0.50 (subsumption) * 1.0 (answer) * 1.0 (contribution)
+        assert 0.3 <= score <= 0.7, f"Expected ~0.50, got {score}"
+
+    def test_a21_obs_wrong_direction_no_credit(self, simple_resolved_sq):
+        """A21: obs_association with WRONG direction should NOT get credit."""
+        claim = ClaimIntent(
+            claim_id="c", pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+            treatment="X", outcome="Y", direction=Direction.NEGATIVE,
+            evidence_type="observational",
+        )
+        score = score_claim_vs_subquestion(claim, 1.0, simple_resolved_sq)
+        assert score == 0.0, "Wrong direction should still be 0"
+
+    def test_a21_obs_wrong_variables_no_credit(self, simple_resolved_sq):
+        """A21: obs_association with wrong variables should NOT get credit."""
+        claim = ClaimIntent(
+            claim_id="c", pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+            treatment="A", outcome="B", direction=Direction.POSITIVE,
+            evidence_type="observational",
+        )
+        score = score_claim_vs_subquestion(claim, 1.0, simple_resolved_sq)
+        assert score == 0.0, "Wrong variables should still be 0"
+
+    def test_a21_hierarchy_obs_below_mediation(self, simple_resolved_sq):
+        """A21: observational credit should be BELOW mediation credit."""
+        obs_claim = ClaimIntent(
+            claim_id="obs", pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+            treatment="X", outcome="Y", direction=Direction.POSITIVE,
+            evidence_type="observational",
+        )
+        med_claim = ClaimIntent(
+            claim_id="med", pattern=PatternClass.MEDIATION,
+            treatment="X", outcome="Y", mediator="M",
+            direction=Direction.POSITIVE,
+        )
+        obs_score = score_claim_vs_subquestion(obs_claim, 1.0, simple_resolved_sq)
+        med_score = score_claim_vs_subquestion(med_claim, 1.0, simple_resolved_sq)
+        assert obs_score < med_score, (
+            f"obs ({obs_score}) should give LESS credit than mediation ({med_score})"
+        )
+
+
+class TestA21CoralSimulation:
+    """Simulate the Coral case that discovered A21.
+
+    The solver correctly identified causal relationships but used hedged
+    language. The compiler extracted observational_association. With the
+    old exact-match, all 4 SQs scored 0.00. With the compatibility algebra,
+    they should get partial credit.
+
+    SQs: 2x causal_effect, 1 mediation, 1 heterogeneity
+    Claims: solver used observational language throughout
+    """
+
+    @pytest.fixture
+    def coral_sqs(self):
+        """Build the Coral case SQs."""
+        from sreg.models.open_investigation import SQComponent
+        sqs = []
+
+        # SQ1: thermal_stress → bleaching (causal_effect)
+        answer1 = ResolvedAnswer(exists=True, direction="positive", magnitude=3.84)
+        sqs.append(ResolvedSubQuestion(
+            intent=SubQuestionIntent(
+                sq_id="sq1", pattern="causal_effect",
+                roles=SQRoles(treatment="thermal_stress", outcome="bleaching"),
+                ask=AskOperator.EXISTENCE_AND_SIGN,
+            ),
+            resolved_answer=answer1,
+            components=[SQComponent(
+                component_id="sq1:main", pattern="causal_effect",
+                roles=SQRoles(treatment="thermal_stress", outcome="bleaching"),
+                ask=AskOperator.EXISTENCE_AND_SIGN,
+                contribution=1.0, resolved_answer=answer1,
+            )],
+        ))
+
+        # SQ2: prior_bleaching → recovery (causal_effect)
+        answer2 = ResolvedAnswer(exists=True, direction="negative", magnitude=-2.47)
+        sqs.append(ResolvedSubQuestion(
+            intent=SubQuestionIntent(
+                sq_id="sq2", pattern="causal_effect",
+                roles=SQRoles(treatment="prior_bleaching", outcome="recovery"),
+                ask=AskOperator.EXISTENCE_AND_SIGN,
+            ),
+            resolved_answer=answer2,
+            components=[SQComponent(
+                component_id="sq2:main", pattern="causal_effect",
+                roles=SQRoles(treatment="prior_bleaching", outcome="recovery"),
+                ask=AskOperator.EXISTENCE_AND_SIGN,
+                contribution=1.0, resolved_answer=answer2,
+            )],
+        ))
+
+        # SQ3: thermal_stress → bleaching mediated by water_temp (mediation)
+        answer3 = ResolvedAnswer(exists=True, direction="positive", magnitude=1.5)
+        sqs.append(ResolvedSubQuestion(
+            intent=SubQuestionIntent(
+                sq_id="sq3", pattern="mediation",
+                roles=SQRoles(
+                    treatment="thermal_stress", mediator="water_temp",
+                    outcome="bleaching",
+                ),
+                ask=AskOperator.EXISTENCE,
+            ),
+            resolved_answer=answer3,
+            components=[
+                SQComponent(
+                    component_id="sq3:indirect", pattern="mediation",
+                    roles=SQRoles(
+                        treatment="thermal_stress", mediator="water_temp",
+                        outcome="bleaching",
+                    ),
+                    ask=AskOperator.EXISTENCE,
+                    contribution=0.7, resolved_answer=answer3,
+                ),
+                SQComponent(
+                    component_id="sq3:total", pattern="causal_effect",
+                    roles=SQRoles(treatment="thermal_stress", outcome="bleaching"),
+                    ask=AskOperator.EXISTENCE,
+                    contribution=0.3, resolved_answer=answer3,
+                ),
+            ],
+            acceptance_rule=AcceptanceRule.ALL_OF,
+        ))
+
+        # SQ4: heterogeneity of thermal_stress effect by site_depth
+        answer4 = ResolvedAnswer(exists=True, direction="positive", magnitude=0.8)
+        sqs.append(ResolvedSubQuestion(
+            intent=SubQuestionIntent(
+                sq_id="sq4", pattern="heterogeneity",
+                roles=SQRoles(
+                    treatment="thermal_stress", outcome="bleaching",
+                    modifier="site_depth",
+                ),
+                ask=AskOperator.EXISTENCE,
+            ),
+            resolved_answer=answer4,
+            components=[SQComponent(
+                component_id="sq4:main", pattern="heterogeneity",
+                roles=SQRoles(
+                    treatment="thermal_stress", outcome="bleaching",
+                    modifier="site_depth",
+                ),
+                ask=AskOperator.EXISTENCE,
+                contribution=1.0, resolved_answer=answer4,
+            )],
+        ))
+
+        return sqs
+
+    def test_old_behavior_all_miss(self, coral_sqs):
+        """With observational claims, the OLD system gave 0 on all SQs.
+        Verify that the new algebra does BETTER than that."""
+        # Solver claims (all compiled as observational_association by compiler LLM)
+        claims = [
+            (ClaimIntent(
+                claim_id="c1", pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+                treatment="thermal_stress", outcome="bleaching",
+                direction=Direction.POSITIVE, evidence_type="observational",
+            ), 1.0),  # truth=1.0 (association IS real)
+            (ClaimIntent(
+                claim_id="c3", pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+                treatment="prior_bleaching", outcome="recovery",
+                direction=Direction.NEGATIVE, evidence_type="observational",
+            ), 1.0),
+        ]
+        result = score_episode_with_subquestions(claims, coral_sqs)
+
+        # SQ1 and SQ2 should now get partial credit (not 0.00!)
+        sq1 = next(s for s in result.sq_scores if s.sq_id == "sq1")
+        sq2 = next(s for s in result.sq_scores if s.sq_id == "sq2")
+        assert sq1.satisfaction > 0.0, "A21 FIX: sq1 should get credit now"
+        assert sq2.satisfaction > 0.0, "A21 FIX: sq2 should get credit now"
+        # The total should be materially better than the old 0.200
+        assert result.total > 0.200, (
+            f"Total {result.total} should be better than old 0.200"
+        )
+
+    def test_causal_claims_score_higher(self, coral_sqs):
+        """If the compiler correctly extracts causal_effect, scores should
+        be higher than observational_association."""
+        obs_claims = [
+            (ClaimIntent(
+                claim_id="c1", pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+                treatment="thermal_stress", outcome="bleaching",
+                direction=Direction.POSITIVE, evidence_type="observational",
+            ), 1.0),
+        ]
+        causal_claims = [
+            (ClaimIntent(
+                claim_id="c1", pattern=PatternClass.CAUSAL_EFFECT,
+                treatment="thermal_stress", outcome="bleaching",
+                direction=Direction.POSITIVE,
+            ), 1.0),
+        ]
+        obs_result = score_episode_with_subquestions(obs_claims, coral_sqs)
+        causal_result = score_episode_with_subquestions(causal_claims, coral_sqs)
+
+        assert causal_result.total > obs_result.total, (
+            f"Causal ({causal_result.total}) should outscore obs ({obs_result.total})"
+        )
+
+    def test_obs_claims_cross_family_partial(self, coral_sqs):
+        """Observational claim about thermal_stress→bleaching should
+        partially satisfy the mediation SQ (sq3) via cross-family compat."""
+        claims = [
+            (ClaimIntent(
+                claim_id="c1", pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+                treatment="thermal_stress", outcome="bleaching",
+                direction=Direction.POSITIVE, evidence_type="observational",
+            ), 1.0),
+        ]
+        result = score_episode_with_subquestions(claims, coral_sqs)
+        # SQ3 (mediation) has a causal total component — obs claim partially matches
+        sq3 = next(s for s in result.sq_scores if s.sq_id == "sq3")
+        assert sq3.satisfaction > 0.0, "Cross-family partial credit for mediation SQ"
+
 
 # ---------------------------------------------------------------------------
 # Validation tests

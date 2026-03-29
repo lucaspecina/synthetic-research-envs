@@ -28,24 +28,38 @@ Cada decision pasa por este doble filtro:
 Validar cambios de scoring contra los 23 escenarios:
 `research/synthesis/investigation_scenarios_rubric.md`.
 
-## Documentos del proyecto — que es cada uno y como mantenerlos
+## Donde buscar que
 
-| Documento | Que es | Frecuencia de lectura |
-|-----------|--------|----------------------|
-| `PROJECT.md` | Estrella polar: vision, principios, invariantes. No cambia seguido. | Antes de decisiones de diseno |
-| `ARCHITECTURE.md` | Referencia tecnica: componentes, contratos, flows. | Antes de implementar algo nuevo |
-| `CURRENT_STATE.md` | Explicacion end-to-end amigable de como funciona el sistema HOY. Sin jerga interna. | Verificar que sigue siendo verdad despues de cada cambio |
-| `TODO.md` | Trabajo pendiente + inbox de ideas. | Para saber que hacer |
-| `CHANGELOG.md` | Historia de cambios de producto (no diario de sesion). | Despues de cada commit |
-| `research/README.md` | Indice de investigacion. Apunta a synthesis/ y notes/. | Cuando agregues/muevas research docs |
+| Necesito... | Ir a... |
+|---|---|
+| Entender como funciona el sistema hoy | `CURRENT_STATE.md` |
+| Entender la arquitectura tecnica | `ARCHITECTURE.md` |
+| Vision, principios, invariantes | `PROJECT.md` |
+| Que hacer / trabajo pendiente | `TODO.md` |
+| Historial de cambios | `CHANGELOG.md` |
+| Investigacion y hallazgos | `research/README.md` (indice) |
+| 23 escenarios de validacion | `research/synthesis/investigation_scenarios_rubric.md` |
+| Vision de Open Investigation | `research/synthesis/open_investigation_vision.md` |
+| Scoring fundamentals | `research/synthesis/oi_scoring_fundamentals.md` |
+| Taxonomia de investigacion | `research/synthesis/Doc1_Taxonomia_El_Mapa.md` |
+| Scoring next design (sub-questions) | `research/synthesis/oi_scoring_next_design.md` |
+
+## Skills disponibles
+
+| Skill | Cuando usarla |
+|---|---|
+| `/run` | Generar un caso de investigacion con LLM |
+| `/eval` | Evaluar calidad de casos (L2, la que importa) |
+| `/precommit` | Workflow completo de commit (el unico valido) |
+| `/explain` | Presentar cambios al usuario antes de commit |
+| `/codex-collab` | Consultar Codex como segunda opinion |
+| `/plan` | Ver roadmap y estado del proyecto |
+| `/status` | Resumen rapido de donde estamos |
 
 ### research/ — mantener limpio
 
-- `synthesis/` = conclusiones consolidadas, pulidas. Referencia activa.
-- `notes/` = working docs, debates, exploraciones. Pueden volverse legacy.
-- `archive/` = legacy. Solo referencia historica.
-- **REGLA: si un doc de notes/ ya no es relevante, moverlo a archive/ o borrarlo.**
-  No dejar docs legacy donde alguien pueda encontrarlos y usarlos como si fueran actuales.
+- `synthesis/` = conclusiones consolidadas. `notes/` = working docs. `archive/` = legacy.
+- **Si un doc de notes/ ya no es relevante, moverlo a archive/ o borrarlo.**
 - Siempre actualizar `research/README.md` cuando muevas o crees un doc.
 
 ## Antes de cada commit — QUE ACTUALIZAR
@@ -75,22 +89,42 @@ skills, memorias, scripts, configs. Si algo quedo desactualizado, arreglarlo.**
 5. Sugerir proximos pasos
 ```
 
-## Test execution — MINIMO INDISPENSABLE
+## Validacion — LA UNICA QUE IMPORTA ES E2E
 
+**La validacion real de CUALQUIER cambio es una evaluacion multi-nivel,
+cualitativa, del end-to-end de la investigacion real.** Unit tests son un
+check mecanico secundario — confirman que el codigo no rompe, nada mas.
+NUNCA usar unit tests como evidencia de que un cambio "funciona". Para
+saber si funciona: correr el pipeline E2E con LLM real (`/run --oi`) y
+evaluar cualitativamente el resultado (`/eval`).
+
+### Unit tests — MINIMO INDISPENSABLE
+
+- **Solo correr tests DESPUES de cambiar codigo.** No como ritual, no como
+  verificacion previa a commit, no "por si acaso". Si no cambiaste codigo,
+  no corras tests.
 - **NUNCA correr la suite completa** salvo que el usuario lo pida explicitamente.
 - Si cambias un archivo, correr SOLO el test de ese archivo. UNA VEZ.
 - Si falla un import, arreglar el import — no re-correr toda la suite.
 - **NUNCA** correr tests en paralelo ni repetir la misma suite.
-- La validacion REAL es el E2E con LLM (`--oi`). Unit tests son secundarios.
 - En caso de duda: NO correr tests. Preguntar al usuario.
 
-## Evaluacion — 3 niveles
+### 3 niveles de evaluacion
 
-| Nivel | Que mide | Cuando |
-|-------|----------|--------|
-| L1 Tests (`pytest`) | Codigo funciona | Cada commit |
-| L2 Diagnostico (`/eval`) | Entornos buenos (cuali + cuanti + no-data baseline) | Post-cambio generacion |
-| L3 Transfer (futuro) | Entrenar en SREG mejora policies | Cuando haya policies |
+| Nivel | Que mide | Cuando | Importancia |
+|-------|----------|--------|-------------|
+| L1 Tests (`pytest`) | Codigo no rompe | Cada commit | Mecanico, secundario |
+| L2 E2E + Eval (`/eval`) | Investigacion real? Buen juicio? | Post-cambio | **LA QUE IMPORTA** |
+| L3 Transfer (futuro) | RL mejora policies | Cuando haya policies | Futura |
+
+**L2 es la evaluacion que decide si un cambio esta bien o mal.** Incluye:
+generacion E2E con LLM, rubrica cualitativa de 7 dimensiones, 6 critical
+failures, no-data baseline probe, y LA PREGUNTA doble. Ver `/eval`.
+
+**Validar contra los 23 escenarios** (`research/synthesis/investigation_scenarios_rubric.md`):
+cualquier cambio de scoring, compiler, prompts o contratos debe funcionar
+para CASI TODOS los 23 escenarios de investigacion diversos. Si solo
+funciona para 3 de 23, es un juguete. Si mejora 3 pero rompe 5, no vale.
 
 ## Environment setup
 
@@ -99,6 +133,15 @@ conda activate sreg  # Python 3.11
 pip install -e ".[dev]"
 ```
 
+## Azure LLM — SIEMPRE DISPONIBLE
+
+**Las credenciales de Azure estan en `.env` en la raiz del repo.** Se cargan
+automaticamente via `python-dotenv` en todos los scripts y el orchestrator.
+**NUNCA asumir que Azure no esta disponible.** Si necesitas el LLM, usalo.
+
+Modelos: `gpt-5.4` (orchestrator), `gpt-5.2-codex` (solver). Ver `.env` para
+lista completa y advertencias de costo.
+
 ## Tech stack
 
 - **networkx** — DAG: `nx.is_d_separator()` (NOT `nx.d_separated`)
@@ -106,7 +149,8 @@ pip install -e ".[dev]"
 - **openai SDK** — Responses API: `client.responses.create` (NOT `chat.completions`)
 - **pytest** + **ruff** (line length 100)
 
-Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`
+Env vars (en `.env`, cargados por dotenv): `AZURE_INFERENCE_CREDENTIAL`,
+`AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`, `AZURE_SOLVER_MODEL`
 
 ## Project structure
 
@@ -143,19 +187,11 @@ ruff check src/ tests/                    # Lint
 ruff format src/ tests/                   # Format
 ```
 
-## Git conventions
+## Git + Codex
 
 - Branch naming: `feature/<name>`, `fix/<name>`, `refactor/<name>`
-- Commit messages: imperative mood, concise
-- Always ask user before pushing
-
-## Codex collaboration
-
-**Only when Codex MCP is available.** Codex = critical collaborator, not yes-man.
-Mandatory for code review. Recommended for strategy/design. Skip for trivial fixes.
-SIEMPRE reusar `threadId` existente con `codex-reply`. Sesion nueva solo si el tema
-cambio completamente.
-
-## Worktrees
-
-Multiple sessions MUST use `claude --worktree <name>`. No active worktrees currently.
+- Always ask user before pushing. Multiple sessions: `claude --worktree <name>`.
+- **Codex** (when MCP available): mandatory for code review, recommended for design.
+  Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.
+- **CLAUDE LIDERA, CODEX ASESORA.** Formar opinion propia ANTES de consultar.
+  Presentar ambas opiniones, argumentar desacuerdos. El usuario decide.

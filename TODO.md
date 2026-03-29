@@ -464,34 +464,51 @@ Un LLM podria acertar sin datos. Es EL problema central para LA PREGUNTA.
 resultados 6 mundos, debate con Codex, patrones identificados).
 **Conecta con:** A1, A3 (modos semanticos), I2 (fictional mode)
 
-### A21. Evaluation harness no reconoce findings correctos — E2E 2026-03-28
+### A21. Evaluation harness no reconoce findings correctos — RESUELTO
 
-**EL problema actual mas critico.** En el E2E de 4 casos, el coral reef
-caso demostro que el solver PUEDE investigar y PUEDE submitir (5 claims),
-pero las 4 sub-preguntas scored 0.00 MISS. Los claims eran correctos.
+**Status: RESUELTO y validado E2E (2026-03-29).**
 
-**Root cause: claim compilation (LLM step) extrae patron equivocado.**
-El solver usa lenguaje hedgeado ("associated with") porque el prompt dice
-ser cauteloso. Pero los SQs esperan pattern=causal_effect. El compiler
-extrae pattern=observational_association -> exact-match falla.
+**Root cause:** A21 era un bug de ontologia, no de prompting. El campo
+`pattern` cargaba forma estructural + estatus epistemologico + routing
+de scoring. Solucion: compatibility algebra que da credito parcial
+(obs_association vs causal_effect = 0.65 en vez de 0.00).
 
-**Codex summary:** "the worlds may already be good enough, and the solver
-may already be capable of useful research behavior, but the evaluation
-harness is still not trustworthy enough to tell you that."
+**E2E validacion:**
+- Coral: obs claims puntuan 0.65 (antes 0.00). SQ Total: 0.552.
+- Soil: expuso A22 (ver abajo).
 
-**Sub-preguntas:**
-- [ ] Mejorar el compiler (LLM extraction): el bottleneck real es que el
-  compiler traduce mal los claims. Mejorar prompts, exemplars, fallbacks.
-  **NOTA: se intento resolver con structured claims (A21-fix) pero fue
-  REVERTIDO porque sesga al solver mostrando categorias de scoring.
-  La solucion es mejorar el compiler, no constreñir al solver.**
-- [ ] Split scoring into separate axes: topical match, inferential type,
-  sign, evidence strength. A claim can be topically correct but pattern-wrong.
-- [ ] Audit failed coral claims: classify as compiler miss vs SQ ontology
-  mismatch vs wrong answer.
+**Implementacion:** `oi_subquestions.py` (algebra), `oi_compiler.py` (v1 migrado).
+**Research:** `research/notes/a21_compiler_ontology_investigation.md`
+**Codex threads:** 019d3aec, 019d3b67
 
-**Evidencia:** `research/notes/e2e_qualitative_analysis_20260328.md` (Case 4)
-**Conecta con:** A15 (OI), A19 (SQ scoring), LA PREGUNTA
+### A22. Compiler abstention rate + patterns fijos — NUEVO BOTTLENECK
+
+**Descubierto durante E2E de A21 (2026-03-29).**
+
+El compiler rechaza la mayoria de claims complejos porque:
+1. `ClaimIntent` tiene UN solo treatment y UN solo outcome
+2. Solo hay 8 patterns fijos (causal_effect, mediation, etc.)
+3. El prompt dice "si no entra, abstener"
+
+Pero la gramatica composable (`open_investigation.py`) tiene 5 QueryKind x
+10 Measurement x 8 Comparison x 12 Assertion = expresividad enorme. Y el
+verifier ya sabe ejecutar todo contra el SCM. El cuello de botella esta
+en la capa intermedia (ClaimIntent), no en la capacidad de verificacion.
+
+**Evidencia soil case:** 3/4 claims ABSTENTION (cadena, multi-variable, residuales).
+
+**Propuesta (hibrida — patterns + fallback):**
+- **Paso 1:** Multi-intent — un claim → N ClaimIntents. Los 8 patterns
+  se mantienen como fast-path. Desbloquea claims compuestos.
+- **Paso 2:** Fallback a gramatica composable — si un fragmento no
+  encaja en ningun pattern, el LLM construye AtomicSpec directamente.
+  Desbloquea tipos nuevos (residuales, dose-response, etc.).
+- **Paso 3:** Guardar recetas nuevas que emergen del fallback como
+  patterns futuros. Los patterns crecen organicamente.
+
+**Research:** `research/notes/a22_compiler_direct_to_atomicspec.md`
+**Conecta con:** A21, scm_task_primitives, open_investigation_vision
+**Codex thread:** 019d3b67-eb81-7201-9151-9aa26e54ac24
 
 ### A22. Submission aversion — solver resists calling submit_claims
 

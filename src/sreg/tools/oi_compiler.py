@@ -681,31 +681,56 @@ def match_specs_to_families(
     """Match compiled specs to the best salience family.
 
     Returns list of (matched_family_id or None, spec) pairs.
-    Matching is deterministic: focus_signature overlap + pattern_class compatibility.
+
+    Uses the compatibility algebra (A21-exp2) instead of exact pattern match.
+    Since SalienceFamily only has pattern_class + focus_signature (no roles),
+    this uses family_compat * operator_compat * focus_overlap. The SQ scorer
+    (oi_subquestions.py) is the canonical scoring path with full role matching.
     """
+    from sreg.tools.oi_subquestions import (
+        derive_family,
+        derive_operator,
+        family_compat,
+        operator_compat,
+    )
 
     matches: list[tuple[str | None, AtomicSpec]] = []
 
     for spec in compiled_specs:
         focus_sig = set(_extract_focus_signature(spec))
         pattern = _infer_pattern_class(spec)
+        spec_family = derive_family(pattern)
+        spec_operator = derive_operator(pattern)
 
         best_family_id: str | None = None
         best_score = 0.0
 
         for family in families:
-            # Pattern class compatibility
             family_pattern = family.key.pattern_class
-            pattern_match = 1.0 if pattern == family_pattern else 0.0
+            fam_family = derive_family(family_pattern)
+            fam_operator = derive_operator(family_pattern)
 
-            # Focus signature overlap (Jaccard similarity)
+            # Structural compatibility: family + operator
+            fam_c = family_compat(spec_family.value, fam_family.value)
+            if fam_c == 0.0:
+                continue
+
+            # Operator compat only within same family
+            if spec_family == fam_family:
+                op_c = operator_compat(spec_operator.value, fam_operator.value)
+                if op_c == 0.0:
+                    op_c = 0.5
+            else:
+                op_c = 1.0
+
+            # Focus signature overlap (Jaccard)
             family_focus = set(family.key.focus_signature)
             intersection = len(focus_sig & family_focus)
             union = len(focus_sig | family_focus)
             focus_overlap = intersection / max(union, 1)
 
-            # Combined matching score: pattern must match, focus is bonus
-            match_score = pattern_match * (0.5 + 0.5 * focus_overlap)
+            # Combined: structural compat * focus overlap
+            match_score = fam_c * op_c * (0.3 + 0.7 * focus_overlap)
 
             if match_score > best_score:
                 best_score = match_score

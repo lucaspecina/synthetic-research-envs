@@ -75,6 +75,13 @@ Every change — code or docs — follows this workflow.
 If the commit changes orchestrator/tools/OI pipeline: note that `/eval` should
 be re-run to verify environment quality. This is a NOTE, not a blocker.
 
+## 23 escenarios check
+
+If the commit changes scoring, compiler, prompts, or contracts: verify mentally
+that the change works for ALMOST ALL 23 diverse investigation scenarios
+(`research/synthesis/investigation_scenarios_rubric.md`). If it only works for
+a few types, flag it before presenting to the user.
+
 ## Report format
 
 ```

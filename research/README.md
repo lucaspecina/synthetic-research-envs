@@ -159,6 +159,35 @@ desplazandose hacia `synthesis/`.
   23 tests, 7 Codex bugs fixed.
   Treatment world: 0.983 total (vs 0.400 with v2). Dual scoring wired to runner.
 
+### A21 Compiler Ontology Investigation (2026-03-29)
+- **Pregunta:** por que el compiler traduce mal los claims? Es un problema
+  de prompting o de ontologia?
+- **Empezar por:** `notes/a21_compiler_ontology_investigation.md`
+- **Hallazgo clave:** A21 es un bug de ontologia, no de prompting. El campo
+  `pattern` cargaba tres responsabilidades: forma estructural, estatus
+  epistemologico y routing de scoring. Solucion: compatibility algebra que
+  separa `relation_family`, `relation_operator`, roles y `claim_force`.
+- **Resultado E2E:** Coral: obs claims pasan de 0.00 a 0.65 (algebra funciona).
+  Soil: expuso A22 (compiler abstention rate).
+- **Codex thread:** 019d3aec-a7db-75e0-bafd-a2bb889aa901
+- **Conecta con:** A21 en `TODO.md`, A22, E2E qualitative analysis
+- **Status:** RESUELTO y VALIDADO E2E.
+
+### A22 Compiler: de patterns fijos a compilacion directa (2026-03-29)
+- **Pregunta:** por que el compiler rechaza claims correctos? Por que solo
+  hay 8 patterns cuando la gramatica composable puede expresar mucho mas?
+- **Empezar por:** `notes/a22_compiler_direct_to_atomicspec.md`
+- **Hallazgo clave:** El ClaimIntent con 8 patterns fijos y 1 treatment/1
+  outcome es un cuello de botella innecesario. La gramatica composable
+  (5 QueryKind x 10 Measurement x 8 Comparison x 12 Assertion) ya existe
+  en `open_investigation.py` y el verifier ya la ejecuta.
+- **Evidencia:** Soil case: 3/4 claims ABSTENTION por ser compuestos.
+- **Propuesta:** Camino A (multi-intent, inmediato) + Camino B (compilacion
+  directa a AtomicSpec, arquitectura correcta a largo plazo).
+- **Codex thread:** 019d3b67-eb81-7201-9151-9aa26e54ac24
+- **Conecta con:** A21, scm_task_primitives, open_investigation_vision
+- **Status:** PROPUESTA. Pendiente debate + diseno.
+
 ### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
 - **Pregunta:** por que SREG todavia no es investigacion real (post-OI pipeline)?
 - **Empezar por:** `notes/e2e_qualitative_analysis_20260328.md`

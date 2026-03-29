@@ -12,6 +12,12 @@ Evaluate Synthetic Research Cases (SRCs) for quality. Level 2 evaluation:
 
 Qualitative is MORE IMPORTANT. Scores can mislead (compiler bottleneck).
 
+## Azure LLM
+
+**Azure esta SIEMPRE disponible.** Credenciales en `.env` (raiz del repo),
+cargadas automaticamente por `python-dotenv`. No verificar env vars manualmente.
+Solo ejecutar los scripts.
+
 ## Step 1: Generate or select SRCs
 
 Parse $ARGUMENTS:
@@ -26,6 +32,12 @@ python scripts/generate_src.py --goal "..." -o experiments/eval_TOPIC/ --inspect
 # Generate with OI solver run
 python scripts/generate_src.py --goal "..." -o experiments/eval_TOPIC/ --oi --seed N
 ```
+
+## Validar contra los 23 escenarios
+
+Cualquier cambio de scoring, compiler o contratos debe funcionar para CASI
+TODOS los 23 escenarios diversos (`research/synthesis/investigation_scenarios_rubric.md`).
+Si solo funciona para 3 de 23, es un juguete. Si mejora 3 pero rompe 5, no vale.
 
 ## Step 2: Qualitative evaluation — structured rubric
 

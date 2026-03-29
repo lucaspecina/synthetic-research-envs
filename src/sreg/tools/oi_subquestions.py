@@ -19,7 +19,8 @@ Design decisions (from Codex debate, thread 019d32e4):
 from __future__ import annotations
 
 import logging
-from typing import Any
+from enum import StrEnum
+from typing import Any, NamedTuple
 
 from sreg.models.open_investigation import (
     AcceptanceRule,
@@ -61,28 +62,242 @@ DEFAULT_THRESHOLDS: dict[str, float] = {
     "effect_ranking": 0.0,
 }
 
-# Subsumption weights: (claim_pattern, sq_pattern) -> weight
-# Only non-zero entries listed. All others = 0.0.
-SUBSUMPTION_WEIGHTS: dict[tuple[str, str], float] = {
-    # mediation claim gives partial credit to causal_effect SQ
-    ("mediation", "causal_effect"): 0.60,
-    # heterogeneity claim gives partial credit to causal_effect SQ
-    ("heterogeneity", "causal_effect"): 0.40,
-    # causal_effect claim gives partial credit to mediation SQ (total effect component)
-    ("causal_effect", "mediation"): 0.35,
-    # causal_effect claim gives partial credit to confounding SQ
-    ("causal_effect", "confounding"): 0.35,
-    # obs_association claim gives partial credit to confounding SQ
-    ("observational_association", "confounding"): 0.35,
-    # causal_effect gives partial credit to heterogeneity SQ (base effect)
-    ("causal_effect", "heterogeneity"): 0.35,
-    # confounding claim gives partial credit to obs_association SQs
-    # (a confounding claim implies knowledge of the crude association)
-    ("confounding", "observational_association"): 0.40,
-    # confounding claim gives partial credit to causal_effect SQ
-    # (discovering confounding implies knowledge of the causal effect)
-    ("confounding", "causal_effect"): 0.35,
+# Legacy SUBSUMPTION_WEIGHTS removed — replaced by compatibility algebra (A21-exp2).
+# See FAMILY_COMPAT, OPERATOR_COMPAT, and structural_compatibility() below.
+
+
+# ---------------------------------------------------------------------------
+# EXPERIMENT A21-exp2: Compatibility Algebra
+# Replaces exact-match + subsumption with principled structural compatibility.
+# Design from Codex debate (thread 019d3aec): separate relation_family,
+# relation_operator, roles, and answer. Pattern no longer serves as both
+# structural form, epistemological status, and scoring route.
+# ---------------------------------------------------------------------------
+
+
+class RelationFamily(StrEnum):
+    """Structural family of a claim or sub-question."""
+    PAIRWISE = "pairwise"
+    MEDIATION = "mediation"
+    HETEROGENEITY = "heterogeneity"
+    CONFOUNDING = "confounding"
+    RANKING = "ranking"
+    TAIL_RISK = "tail_risk"
+    VARIANCE = "variance"
+
+
+class RelationOperator(StrEnum):
+    """How variables are related within a family."""
+    DO_CONTRAST = "do_contrast"
+    CONDITIONAL_ASSOCIATION = "conditional_association"
+    MARGINAL_ASSOCIATION = "marginal_association"
+    INDIRECT_PATHWAY = "indirect_pathway"
+    INTERACTION_CONTRAST = "interaction_contrast"
+    CONFOUNDING_GAP = "confounding_gap"
+    TAIL_PROBABILITY = "tail_probability"
+    VARIANCE_SHIFT = "variance_shift"
+    EFFECT_RANKING = "effect_ranking"
+
+
+class ClaimRepr(NamedTuple):
+    """Lightweight structural representation derived from ClaimIntent or SQ."""
+    family: RelationFamily
+    operator: RelationOperator
+    treatment: str
+    outcome: str
+    extra_roles: frozenset[str]  # mediator, modifier, confounder, etc.
+
+
+def derive_family(pattern: str) -> RelationFamily:
+    """Map PatternClass string to RelationFamily."""
+    return {
+        "causal_effect": RelationFamily.PAIRWISE,
+        "observational_association": RelationFamily.PAIRWISE,
+        "mediation": RelationFamily.MEDIATION,
+        "heterogeneity": RelationFamily.HETEROGENEITY,
+        "confounding": RelationFamily.CONFOUNDING,
+        "effect_ranking": RelationFamily.RANKING,
+        "tail_risk": RelationFamily.TAIL_RISK,
+        "variance_effect": RelationFamily.VARIANCE,
+    }[pattern]
+
+
+def derive_operator(pattern: str, evidence_type: str = "interventional") -> RelationOperator:
+    """Map PatternClass + evidence_type to RelationOperator."""
+    if pattern == "causal_effect":
+        return RelationOperator.DO_CONTRAST
+    if pattern == "observational_association":
+        return RelationOperator.CONDITIONAL_ASSOCIATION
+    if pattern == "mediation":
+        return RelationOperator.INDIRECT_PATHWAY
+    if pattern == "heterogeneity":
+        return RelationOperator.INTERACTION_CONTRAST
+    if pattern == "confounding":
+        return RelationOperator.CONFOUNDING_GAP
+    if pattern == "tail_risk":
+        return RelationOperator.TAIL_PROBABILITY
+    if pattern == "variance_effect":
+        return RelationOperator.VARIANCE_SHIFT
+    if pattern == "effect_ranking":
+        return RelationOperator.EFFECT_RANKING
+    return RelationOperator.DO_CONTRAST  # fallback
+
+
+def claim_repr_from_intent(claim: ClaimIntent) -> ClaimRepr:
+    """Derive ClaimRepr from a ClaimIntent."""
+    extras: set[str] = set()
+    if claim.mediator:
+        extras.add(claim.mediator)
+    if claim.modifier:
+        extras.add(claim.modifier)
+    if claim.confounder:
+        extras.add(claim.confounder)
+    return ClaimRepr(
+        family=derive_family(claim.pattern.value),
+        operator=derive_operator(claim.pattern.value, claim.evidence_type),
+        treatment=claim.treatment,
+        outcome=claim.outcome,
+        extra_roles=frozenset(extras),
+    )
+
+
+def claim_repr_from_sq(sq: SubQuestionIntent) -> ClaimRepr:
+    """Derive ClaimRepr from a SubQuestionIntent."""
+    extras: set[str] = set()
+    if sq.roles.mediator:
+        extras.add(sq.roles.mediator)
+    if sq.roles.modifier:
+        extras.add(sq.roles.modifier)
+    if sq.roles.confounder:
+        extras.add(sq.roles.confounder)
+    return ClaimRepr(
+        family=derive_family(sq.pattern),
+        operator=derive_operator(sq.pattern),
+        treatment=sq.roles.treatment or "",
+        outcome=sq.roles.outcome or "",
+        extra_roles=frozenset(extras),
+    )
+
+
+# --- Compatibility tables (from Codex debate, values agreed) ---
+
+# family_compat[claim_family][sq_family] -> weight
+# Asymmetric: richer claims support simpler questions better than vice versa.
+FAMILY_COMPAT: dict[tuple[str, str], float] = {
+    # Same family
+    ("pairwise", "pairwise"): 1.0,
+    ("mediation", "mediation"): 1.0,
+    ("heterogeneity", "heterogeneity"): 1.0,
+    ("confounding", "confounding"): 1.0,
+    ("ranking", "ranking"): 1.0,
+    ("tail_risk", "tail_risk"): 1.0,
+    ("variance", "variance"): 1.0,
+    # Richer → simpler (strong partial)
+    ("mediation", "pairwise"): 0.75,
+    ("heterogeneity", "pairwise"): 0.50,
+    ("confounding", "pairwise"): 0.40,
+    # Simpler → richer (weak partial)
+    ("pairwise", "mediation"): 0.25,
+    ("pairwise", "heterogeneity"): 0.25,
+    ("pairwise", "confounding"): 0.20,
 }
+
+# operator_compat[claim_op][sq_op] -> weight
+# Within same family. Asymmetric: stronger operators subsume weaker ones.
+OPERATOR_COMPAT: dict[tuple[str, str], float] = {
+    # Pairwise operators
+    ("do_contrast", "do_contrast"): 1.0,
+    ("conditional_association", "do_contrast"): 0.65,
+    ("marginal_association", "do_contrast"): 0.50,
+    ("do_contrast", "conditional_association"): 0.75,
+    ("do_contrast", "marginal_association"): 0.85,
+    ("conditional_association", "conditional_association"): 1.0,
+    ("marginal_association", "conditional_association"): 0.55,
+    ("conditional_association", "marginal_association"): 0.80,
+    ("marginal_association", "marginal_association"): 1.0,
+    # Non-pairwise operators (exact match only for now)
+    ("indirect_pathway", "indirect_pathway"): 1.0,
+    ("interaction_contrast", "interaction_contrast"): 1.0,
+    ("confounding_gap", "confounding_gap"): 1.0,
+    ("tail_probability", "tail_probability"): 1.0,
+    ("variance_shift", "variance_shift"): 1.0,
+    ("effect_ranking", "effect_ranking"): 1.0,
+}
+
+
+def family_compat(claim_fam: str, sq_fam: str) -> float:
+    """Get family compatibility score."""
+    return FAMILY_COMPAT.get((claim_fam, sq_fam), 0.0)
+
+
+def operator_compat(claim_op: str, sq_op: str) -> float:
+    """Get operator compatibility score."""
+    return OPERATOR_COMPAT.get((claim_op, sq_op), 0.0)
+
+
+def role_compat(claim: ClaimRepr, sq: ClaimRepr) -> float:
+    """Compute role compatibility.
+
+    Treatment and outcome are hard gates. Extra roles are bonuses.
+    """
+    # Hard gate: treatment and outcome must match
+    if claim.treatment != sq.treatment:
+        return 0.0
+    if claim.outcome != sq.outcome:
+        return 0.0
+
+    # If SQ requires extra roles and claim has them, bonus
+    if not sq.extra_roles:
+        return 1.0
+
+    # Check overlap of extra roles
+    matched = len(claim.extra_roles & sq.extra_roles)
+    required = len(sq.extra_roles)
+    if required == 0:
+        return 1.0
+    # Missing required roles = penalty but not zero
+    return 0.5 + 0.5 * (matched / required)
+
+
+def structural_compatibility(claim: ClaimRepr, sq: ClaimRepr) -> float:
+    """Compute structural compatibility between a claim and a sub-question.
+
+    This is the core of the compatibility algebra. It replaces both
+    exact-match and subsumption with a principled continuous score.
+
+    Returns a score in [0, 1] where:
+        1.0 = exact structural match
+        0.0 = incompatible
+        (0, 1) = partial compatibility
+
+    Formula: family_compat * operator_compat * role_compat
+    Multiplicative so that any zero dimension kills the match.
+
+    Operator compatibility only applies within the same family. When families
+    differ, the family_compat score already encodes how well one structural
+    type answers another. Applying operator_compat cross-family would
+    double-penalize (e.g., mediation→pairwise already penalized by 0.75,
+    then indirect_pathway→do_contrast would penalize again).
+    """
+    fam = family_compat(claim.family.value, sq.family.value)
+    if fam == 0.0:
+        return 0.0
+
+    role = role_compat(claim, sq)
+    if role == 0.0:
+        return 0.0
+
+    # Operator compat only applies within the same family
+    if claim.family == sq.family:
+        op = operator_compat(claim.operator.value, sq.operator.value)
+        if op == 0.0:
+            # Unknown combo within same family — weak support
+            op = 0.5
+    else:
+        # Cross-family: family_compat already captures the relationship
+        op = 1.0
+
+    return fam * op * role
 
 
 # ---------------------------------------------------------------------------
@@ -736,6 +951,12 @@ def score_claim_vs_subquestion(
 ) -> float:
     """Score how well one claim satisfies one resolved sub-question.
 
+    Uses the compatibility algebra (A21-exp2) instead of exact-match + subsumption.
+    The score is: truth * structural_compatibility * answer_compatibility.
+
+    Structural compatibility is computed from relation family, operator, and roles
+    using principled asymmetric tables (see FAMILY_COMPAT, OPERATOR_COMPAT).
+
     Args:
         claim: The compiled ClaimIntent.
         claim_truth: Pre-computed truth score (0..1) from SCM verification.
@@ -747,37 +968,28 @@ def score_claim_vs_subquestion(
     if claim_truth == 0.0:
         return 0.0
 
-    sq = resolved_sq.intent
+    claim_repr = claim_repr_from_intent(claim)
 
-    # Try direct match at SQ level
-    if _exact_pattern_roles_match(claim, sq):
-        answer_compat = _answer_compatibility(claim, resolved_sq.resolved_answer, sq.ask)
-        if answer_compat > 0:
-            return claim_truth * answer_compat
-
-    # Try component-level match
+    # Score against each component, take best.
+    # NOTE: contribution is NOT applied here — it belongs to the aggregation
+    # layer (score_episode_with_subquestions). This function answers:
+    # "how well does this claim match this sub-question's best component?"
     best = 0.0
     for comp in resolved_sq.components:
-        # Exact match with component
-        comp_sq = SubQuestionIntent(
+        comp_repr = claim_repr_from_sq(SubQuestionIntent(
             sq_id=comp.component_id, pattern=comp.pattern,
             roles=comp.roles, ask=comp.ask,
-        )
-        if _exact_pattern_roles_match(claim, comp_sq):
-            answer_compat = _answer_compatibility(claim, comp.resolved_answer, comp.ask)
-            score = claim_truth * answer_compat * comp.contribution
-            best = max(best, score)
+        ))
+
+        compat = structural_compatibility(claim_repr, comp_repr)
+        if compat == 0.0:
             continue
 
-        # Subsumption match
-        sub_w = SUBSUMPTION_WEIGHTS.get((claim.pattern.value, comp.pattern), 0.0)
-        if sub_w == 0.0:
-            continue
-        if not _roles_compatible_subsumption(claim, comp):
+        answer_score = _answer_compatibility(claim, comp.resolved_answer, comp.ask)
+        if answer_score == 0.0:
             continue
 
-        answer_compat = _answer_compatibility(claim, comp.resolved_answer, comp.ask)
-        score = claim_truth * sub_w * answer_compat * comp.contribution
+        score = claim_truth * compat * answer_score
         best = max(best, score)
 
     return best
@@ -918,55 +1130,8 @@ def score_episode_with_subquestions(
     )
 
 
-# ---------------------------------------------------------------------------
-# Matching helpers
-# ---------------------------------------------------------------------------
-
-
-def _exact_pattern_roles_match(claim: ClaimIntent, sq: SubQuestionIntent) -> bool:
-    """Check if claim pattern + roles exactly match the sub-question."""
-    if claim.pattern.value != sq.pattern:
-        return False
-
-    sr = sq.roles
-    if sr.treatment and claim.treatment != sr.treatment:
-        return False
-    if sr.outcome and claim.outcome != sr.outcome:
-        return False
-    if sr.mediator and claim.mediator != sr.mediator:
-        return False
-    if sr.modifier and claim.modifier != sr.modifier:
-        return False
-    if sr.confounder and claim.confounder != sr.confounder:
-        return False
-    # Effect ranking: candidate set must match
-    if sr.ranking_vars and set(claim.ranking_vars) != set(sr.ranking_vars):
-        return False
-    # Conditioning set: must match if specified
-    if sr.conditioning_set and set(claim.conditioning_set) != set(sr.conditioning_set):
-        return False
-    return True
-
-
-def _roles_compatible_subsumption(claim: ClaimIntent, comp: SQComponent) -> bool:
-    """Check if claim roles are compatible under subsumption.
-
-    More lenient than exact match but still checks key roles.
-    Confounder/mediator/modifier must match if specified in component.
-    """
-    cr = comp.roles
-    # Treatment and outcome must match if both specified
-    if cr.treatment and claim.treatment and claim.treatment != cr.treatment:
-        return False
-    if cr.outcome and claim.outcome and claim.outcome != cr.outcome:
-        return False
-    # Confounder must match if component specifies one
-    if cr.confounder and claim.confounder and claim.confounder != cr.confounder:
-        return False
-    # Mediator must match if component specifies one
-    if cr.mediator and claim.mediator and claim.mediator != cr.mediator:
-        return False
-    return True
+# Legacy _exact_pattern_roles_match and _roles_compatible_subsumption removed.
+# Replaced by structural_compatibility() using the compatibility algebra (A21-exp2).
 
 
 def _answer_compatibility(
@@ -1031,6 +1196,15 @@ __all__ = [
     "resolve_all",
     "score_claim_vs_subquestion",
     "score_episode_with_subquestions",
+    "structural_compatibility",
+    "derive_family",
+    "derive_operator",
+    "family_compat",
+    "operator_compat",
     "DEFAULT_THRESHOLDS",
-    "SUBSUMPTION_WEIGHTS",
+    "RelationFamily",
+    "RelationOperator",
+    "ClaimRepr",
+    "FAMILY_COMPAT",
+    "OPERATOR_COMPAT",
 ]

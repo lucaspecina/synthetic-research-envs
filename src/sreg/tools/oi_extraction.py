@@ -288,10 +288,19 @@ def compile_claim(
 
     # If parsing produced an abstention, return it
     if isinstance(parsed, CompilerOutput):
+        logger.info(
+            "Compile %s -> ABSTENTION: %s",
+            claim.claim_id, parsed.abstention_reason,
+        )
         return parsed
 
     # Lower to AtomicSpecs (lower_intent validates + lowers → CompilerOutput)
     intent = parsed
+    logger.info(
+        "Compile %s -> pattern=%s treat=%s out=%s dir=%s",
+        claim.claim_id, intent.pattern, intent.treatment, intent.outcome,
+        intent.direction,
+    )
     try:
         result = lower_intent(intent, summary)
     except Exception as e:

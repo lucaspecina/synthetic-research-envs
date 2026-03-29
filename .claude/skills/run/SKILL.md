@@ -14,6 +14,12 @@ Executes `scripts/generate_src.py` which:
 4. With `--inspect`: exports briefing, CSV, answer key, DAG visualization
 5. With `--oi`: runs the OI solver (free investigation + claim cards + compilation + verification)
 
+## Azure LLM
+
+**Azure esta SIEMPRE disponible.** Credenciales en `.env` (raiz del repo),
+cargadas automaticamente por `python-dotenv`. No verificar env vars manualmente.
+Solo ejecutar el script.
+
 ## How to run
 
 Parse $ARGUMENTS for optional parameters:
