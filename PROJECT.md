@@ -122,11 +122,18 @@ Todo lo que diseniemos tiene que acercar el entorno a una investigacion
 cientifica real, no a una mecanica de juego ni a un ejercicio abstracto
 disfrazado.
 
-> **LA PREGUNTA que guia todo el proyecto:**
-> **¿Por que esto todavia no es una investigacion real? ¿Que le falta?**
+> **LA PREGUNTA que guia todo el proyecto (doble filtro):**
 >
-> Esta pregunta debe estar presente en cada decision, cada evaluacion, cada
-> linea de codigo. La respuesta evoluciona a medida que SREG mejora.
+> **1. ¿Por que esto todavia no es una investigacion real? ¿Que le falta?**
+>
+> **2. ¿Por que un modelo entrenado con RL sobre SREG todavia no aprenderia
+> buen juicio cientifico?** ¿Que le falta al sistema para ensenar research
+> taste, descomposicion de problemas, generacion de preguntas fine-grained,
+> saber que es relevante para el objetivo y que no, saber que mirar y que
+> ignorar, saber cuando una conclusion es prematura vs bien fundada?
+>
+> Ambas preguntas deben estar presentes en cada decision, cada evaluacion,
+> cada linea de codigo. La respuesta evoluciona a medida que SREG mejora.
 > Las brechas conocidas estan en `research/synthesis/sreg_scientific_coverage.md`.
 
 Litmus test operativo: "Un investigador real en este dominio haria esto?"
@@ -235,6 +242,29 @@ a lo que enfrenta un investigador real.
 
 El resultado buscado no es solo "mas tasks". Es un entorno donde investigar
 bien sea necesario, medible y transferible.
+
+### Lo que un modelo deberia aprender entrenando con SREG
+
+El objetivo ultimo es que un modelo entrenado con RL sobre entornos SREG
+desarrolle **buen juicio cientifico** — no solo la capacidad de ejecutar
+analisis, sino el criterio para saber:
+
+- **Que investigar:** descomponer un problema abierto en preguntas concretas
+  y priorizarlas. Research taste.
+- **Que es relevante:** no toda pregunta ni todo dato importa. Saber que
+  analisis son relevantes para el objetivo, que mirar y que ignorar.
+- **Cuando pivotear:** si una linea de investigacion no lleva a nada,
+  cambiar de rumbo. Si un resultado contradice la hipotesis, replantear.
+  Tomar decisiones de investigacion, no solo ejecutar analisis.
+- **Cuando una conclusion es prematura:** resistir la tentacion de concluir
+  con evidencia insuficiente. Saber cuando hay que seguir investigando.
+- **Como planificar:** generar planes de investigacion que cubran el problema,
+  no solo ejecutar analisis sueltos.
+- **Como formular preguntas fine-grained:** no "que causa Y" sino "cual es
+  el efecto de X sobre Y controlando por Z, y cambia segun el nivel de W?"
+
+Si SREG no puede ensenar esto, no cumple su proposito. Cada decision de
+diseno debe evaluarse contra esta vara.
 
 ### Investigacion abierta (Open Investigation)
 

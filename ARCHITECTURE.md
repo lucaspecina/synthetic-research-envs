@@ -128,23 +128,16 @@ represente con varios contratos.
 
 ## 5. Contratos centrales
 
-### `DAGSpec`
-
-Contrato universal para describir una estructura DAG arbitraria sin CPDs.
-
-Desacopla la fuente de estructura de la generacion del mundo. Cualquier origen
-de estructura deberia poder emitir un `DAGSpec`.
-
-### `World`
+### `World` / `SCMWorld`
 
 Contrato del mundo formal completo.
 
-Contiene nodos, edges y la verdad formal del caso. Dos implementaciones:
+Contiene nodos, edges y la verdad formal del caso. La implementacion activa es
+**`SCMWorld`**: Structural Causal Model — grafo + ecuaciones estructurales +
+ruido. Variables continuas. Ver seccion 6.1.
 
-- **`SCMWorld`** (principal): Structural Causal Model — grafo + ecuaciones
-  estructurales + ruido. Variables continuas. Ver seccion 6.1.
-- **`World`** (legacy): BN discreta — grafo + CPD tables. Variables discretas
-  (3 estados). Disponible pero no se usa en el pipeline principal.
+`World` (BN discreta) existe como contrato legacy pero el codigo de ejecucion
+(pgmpy, ExactBayesSolver, CPD tables) fue eliminado.
 
 ### `CasePlan`
 
@@ -338,13 +331,6 @@ ordenes de magnitud menor que el del training.
 **Referencia:** `research/synthesis/scm_migration_rationale.md` para los
 fundamentos completos de la migracion.
 
-#### BN discreta (legacy)
-
-La BN discreta (`World` + `ExactBayesSolver` + pgmpy) sigue disponible
-pero ya NO es el pipeline principal. El pipeline E2E (orchestrator →
-world gen → task gen → problem builder) usa SCMWorld exclusivamente.
-La BN se mantiene por backward compatibility y para tests historicos.
-
 ### 6.2 Capa de diseno del caso
 
 Traduce un mundo posible a un research case investigable.
@@ -378,9 +364,10 @@ unico.
 
 ### 6.4 Capa de interaccion
 
-Convierte las acciones visibles del caso en una interfaz formalmente ejecutable.
+Convierte las acciones visibles del caso en una interfaz de investigacion.
 
-`Episode` y `EpisodeRunner` viven aca.
+En OI, el solver interactua via herramientas (python_exec, think, submit_claims)
+gestionadas por el OI driver. No hay EpisodeRunner ni budget de acciones.
 
 ### 6.5 Capa de evaluacion
 
@@ -398,14 +385,13 @@ El flujo canonico de generacion es:
 
 1. recibir un `goal`, seed o paper,
 2. proponer estructura y framing del caso,
-3. generar un `World` via templates o via `DAGSpec`,
+3. generar un `SCMWorld` con grafo + ecuaciones,
 4. validar el mundo,
 5. enriquecerlo semanticamente,
-6. disenar el `CasePlan`,
-7. generar `Task`s alineadas con ese plan,
+6. disenar el `CasePlan` con brief y sub-preguntas,
+7. generar datasets realistas,
 8. construir el `ResearchProblem`,
-9. generar el `Episode`,
-10. empaquetar todo como SRC.
+9. empaquetar todo como SRC.
 
 ### 7.2 Interaccion
 
@@ -565,7 +551,6 @@ El modo principal de evaluacion. Separa la evaluacion en 3 capas:
 - Asercion: positive, negative, near_zero, A>B, changepoint, sign_flip
 
 **Modos de evaluacion:**
-- **Guided** (legacy): preguntas pre-definidas, reward exacto end-to-end
 - **Open** (principal, Alpha-0): brief abierto, claim cards, compilacion + verificacion SCM
 - **Full Open** (futuro): solo brief, sin ninguna guia
 

@@ -3,10 +3,17 @@
 ## LA PREGUNTA — el filtro de todo
 
 > **Por que esto todavia no es una investigacion real? Que le falta?**
+>
+> **Por que un modelo entrenado con RL sobre SREG todavia no aprenderia
+> buen juicio cientifico?** Que le falta al sistema para ensenar:
+> research taste, descomposicion de problemas, generacion de preguntas
+> fine-grained, buen plan de investigacion, saber que es relevante para
+> el objetivo y que no, saber cuando una conclusion es prematura vs
+> bien fundada.
 
-Cada decision, cada cambio, cada linea de codigo pasa por este filtro.
-Si algo no se parece a investigacion real, es un bug. Si algo se parece
-a un juego artificial, hay que eliminarlo o rediseniarlo.
+Cada decision pasa por este doble filtro:
+1. Se parece a investigacion real? Si no, es un bug.
+2. Entrenaria buen juicio cientifico (incluida relevancia)? Si no, redisenar.
 
 ## Principios de scoring — NO NEGOCIABLE
 
@@ -51,8 +58,11 @@ Esto no es opcional. **Antes de commitear, revisar:**
 4. **research/README.md** — cambiaste o creaste docs de research? Actualizar indice.
 5. **ARCHITECTURE.md** — cambiaste componentes, contratos o flows? Actualizar.
 6. **Tests y scripts** — el cambio deja tests o scripts obsoletos? Eliminarlos.
+7. **Skills, memorias, otros** — el cambio deja skills (`.claude/skills/`),
+   memorias, o scripts con referencias obsoletas? Actualizarlos o eliminarlos.
 
-**Los docs no se actualizan "despues". Se actualizan COMO PARTE del cambio.**
+**"Actualizar" no es solo docs del repo. Es TODO lo que referencia al sistema:
+skills, memorias, scripts, configs. Si algo quedo desactualizado, arreglarlo.**
 
 ## Commit workflow — MANDATORIO
 
@@ -65,12 +75,14 @@ Esto no es opcional. **Antes de commitear, revisar:**
 5. Sugerir proximos pasos
 ```
 
-## Test execution — NO CORRER TESTS A LO LOCO
+## Test execution — MINIMO INDISPENSABLE
 
-- Correr SOLO tests del modulo afectado, NO la suite completa.
-- NO correr la misma suite en paralelo.
-- Suite completa solo UNA VEZ antes del commit final.
-- La validacion REAL es el E2E con LLM. Unit tests verifican que no se rompio nada.
+- **NUNCA correr la suite completa** salvo que el usuario lo pida explicitamente.
+- Si cambias un archivo, correr SOLO el test de ese archivo. UNA VEZ.
+- Si falla un import, arreglar el import — no re-correr toda la suite.
+- **NUNCA** correr tests en paralelo ni repetir la misma suite.
+- La validacion REAL es el E2E con LLM (`--oi`). Unit tests son secundarios.
+- En caso de duda: NO correr tests. Preguntar al usuario.
 
 ## Evaluacion — 3 niveles
 
@@ -89,7 +101,6 @@ pip install -e ".[dev]"
 
 ## Tech stack
 
-- **pgmpy** — BN (legacy): `DiscreteBayesianNetwork` (NOT `BayesianNetwork`)
 - **networkx** — DAG: `nx.is_d_separator()` (NOT `nx.d_separated`)
 - **numpy / scipy / pydantic v2** — sampling, distributions, contracts
 - **openai SDK** — Responses API: `client.responses.create` (NOT `chat.completions`)
@@ -101,18 +112,15 @@ Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`
 
 ```
 src/sreg/
-  models/        # Pydantic contracts
+  models/        # Pydantic contracts (SCM, OI, tasks, episodes)
   inference/     # LLM protocol (ModelClient, Responses API)
-  world/         # Templates, cpd_gen, DAG generators, SCM
-  solver/        # Teacher (ExactBayes + SCMSolver)
-  tools/         # WorldGen, TaskGen, Verifier, ProblemBuilder, OI pipeline
-  env/           # EpisodeRunner
-  orchestrator/  # LLM orchestrator (function calling)
-  agent/         # Solver diagnostico (python_exec, solve_case)
+  world/         # SCM engine (scm.py, expression compiler, scm_data)
+  solver/        # SCMSolver (teacher / ground truth)
+  tools/         # SCM pipeline + OI pipeline (compiler, verifier, salience, runner)
+  orchestrator/  # LLM orchestrator (function calling, SCM-only)
+  agent/         # python_exec + tool-calling engine (for OI solver)
   benchmarks/    # CLadder, QRData, DiscoveryBench
-  training/      # SregEnv/verifiers adapter (experimental)
-  harness/       # DiagnosticRunner, trajectories
-scripts/         # generate_src.py, run_benchmark.py, etc.
+scripts/         # generate_src.py, run_benchmark.py
 tests/           # Mirrors src/ structure
 research/        # Analisis y sintesis (ver research/README.md)
 ```

@@ -14,7 +14,6 @@ load_dotenv()
 
 from sreg.inference.responses_utils import convert_tools_for_responses
 from sreg.models.case_plan import CasePlan, EvalQuestionPlan
-from sreg.models.dag_spec import DAGNodeSpec, DAGSpec
 from sreg.models.open_investigation import (
     AskOperator,
     SQRoles,
@@ -23,24 +22,12 @@ from sreg.models.open_investigation import (
 )
 from sreg.models.research_problem import ResearchProblem
 from sreg.models.scm_spec import SCMSpec, SCMVariableSpec
-from sreg.models.task import TaskSpec, TaskType
+from sreg.models.task import TaskType
 from sreg.models.world import NodeType, World
 from sreg.orchestrator.prompts import SYSTEM_PROMPT, TOOL_DEFINITIONS
-from sreg.tools.data_sampler import DataSamplerConfig
-from sreg.tools.episode_gen import EpisodeGenConfig, EpisodeGenTool
-from sreg.tools.problem_builder import ProblemBuilder
 from sreg.tools.scm_problem_builder import SCMProblemBuilder
 from sreg.tools.scm_task_gen import SCMTaskGenTool
 from sreg.tools.scm_world_gen import SCMWorldGenTool
-from sreg.tools.task_gen import TaskGenTool
-from sreg.tools.world_check import WorldCheckTool
-from sreg.tools.world_gen import CustomWorldGenConfig, WorldGenConfig, WorldGenTool
-from sreg.world.dag_generators import (
-    generate_erdos_renyi,
-    generate_layered,
-    generate_preferential_attachment,
-    generate_spanning_tree,
-)
 from sreg.world.expression_compiler import ExpressionError
 from sreg.world.scm import SCMWorld
 
@@ -161,11 +148,6 @@ class Orchestrator:
                 api_key=os.environ.get("AZURE_INFERENCE_CREDENTIAL", ""),
             )
 
-        self._world_gen = WorldGenTool()
-        self._world_check = WorldCheckTool()
-        self._episode_gen = EpisodeGenTool()
-        self._task_gen = TaskGenTool()
-        self._problem_builder = ProblemBuilder()
         self._scm_world_gen = SCMWorldGenTool()
         self._scm_task_gen = SCMTaskGenTool()
         self._scm_problem_builder = SCMProblemBuilder()
@@ -279,20 +261,10 @@ class Orchestrator:
     def _dispatch_tool(self, name: str, args: dict, result: OrchestratorResult) -> dict:
         """Execute a tool call and return the result as a dict."""
         try:
-            if name == "world_gen":
-                return self._handle_world_gen(args, result)
-            elif name == "scm_construct":
+            if name == "scm_construct":
                 return self._handle_scm_construct(args, result)
-            elif name == "dag_generate":
-                return self._handle_dag_generate(args, result)
-            elif name == "dag_construct":
-                return self._handle_dag_construct(args, result)
             elif name == "world_check":
                 return self._handle_world_check(args, result)
-            elif name == "episode_gen":
-                return self._handle_episode_gen(args, result)
-            elif name == "task_gen":
-                return self._handle_task_gen(args, result)
             elif name == "apply_semantics":
                 return self._handle_apply_semantics(args, result)
             elif name == "design_case":
@@ -306,150 +278,6 @@ class Orchestrator:
         except Exception as e:
             logger.error(f"Tool {name} failed: {e}")
             return {"error": str(e)}
-
-    def _handle_world_gen(self, args: dict, result: OrchestratorResult) -> dict:
-        config = WorldGenConfig(
-            template_family=args.get("template_family", "latent_preference"),
-            num_nodes=args.get("num_nodes", 6),
-            num_latent=args.get("num_latent", 1),
-            num_states=args.get("num_states", 3),
-            edge_strength=args.get("edge_strength", 0.7),
-            seed=args.get("seed", 0),
-        )
-
-        world = self._world_gen.generate(config)
-        self._worlds[world.id] = world
-        result.world = world
-        result.attempts += 1
-
-        return {
-            "world_id": world.id,
-            "num_nodes": len(world.nodes),
-            "num_edges": len(world.edges),
-            "difficulty": world.difficulty.level,
-            "nodes": [{"name": n.name, "type": n.type, "states": n.states} for n in world.nodes],
-        }
-
-    def _handle_dag_generate(self, args: dict, result: OrchestratorResult) -> dict:
-        generator = args.get("generator", "erdos_renyi")
-        seed = args.get("seed", 42)
-        edge_strength = args.get("edge_strength", 0.7)
-        num_latent = args.get("num_latent", 1)
-        num_target = args.get("num_target", 1)
-        num_states = args.get("num_states", 3)
-
-        generators = {
-            "erdos_renyi": lambda: generate_erdos_renyi(
-                num_nodes=args.get("num_nodes", 10),
-                num_latent=num_latent,
-                num_target=num_target,
-                num_states=num_states,
-                edge_prob=args.get("edge_prob", 0.3),
-                seed=seed,
-            ),
-            "spanning_tree": lambda: generate_spanning_tree(
-                num_nodes=args.get("num_nodes", 10),
-                num_latent=num_latent,
-                num_target=num_target,
-                num_states=num_states,
-                extra_edge_prob=args.get("extra_edge_prob", 0.1),
-                seed=seed,
-            ),
-            "preferential_attachment": lambda: generate_preferential_attachment(
-                num_nodes=args.get("num_nodes", 10),
-                num_latent=num_latent,
-                num_target=num_target,
-                num_states=num_states,
-                num_edges_per_node=args.get("num_edges_per_node", 2),
-                seed=seed,
-            ),
-            "layered": lambda: generate_layered(
-                num_layers=args.get("num_layers", 4),
-                nodes_per_layer=args.get("nodes_per_layer", 3),
-                num_latent=num_latent,
-                num_target=num_target,
-                num_states=num_states,
-                inter_layer_prob=args.get("inter_layer_prob", 0.5),
-                skip_layer_prob=args.get("skip_layer_prob", 0.1),
-                seed=seed,
-            ),
-        }
-
-        if generator not in generators:
-            valid = list(generators.keys())
-            return {"error": f"Unknown generator: {generator}. Choose from: {valid}"}
-
-        spec = generators[generator]()
-        config = CustomWorldGenConfig(dag_spec=spec, edge_strength=edge_strength, seed=seed)
-        world = self._world_gen.generate_custom(config)
-        self._worlds[world.id] = world
-        result.world = world
-        result.attempts += 1
-
-        return {
-            "world_id": world.id,
-            "generator": generator,
-            "num_nodes": len(world.nodes),
-            "num_edges": len(world.edges),
-            "difficulty": world.difficulty.level,
-            "nodes": [
-                {"name": n.name, "type": n.type, "states": n.states} for n in world.nodes
-            ],
-        }
-
-    def _handle_dag_construct(self, args: dict, result: OrchestratorResult) -> dict:
-        raw_nodes = args.get("nodes", [])
-        raw_edges = args.get("edges", [])
-        edge_strength = args.get("edge_strength", 0.7)
-        seed = args.get("seed", 42)
-
-        if not raw_nodes:
-            return {"error": "nodes list is empty. Provide at least 3 nodes."}
-        if not raw_edges:
-            return {"error": "edges list is empty. Provide at least one directed edge."}
-
-        try:
-            dag_nodes = [
-                DAGNodeSpec(
-                    name=n["name"],
-                    type=NodeType(n["type"]),
-                    states=n["states"],
-                )
-                for n in raw_nodes
-            ]
-            dag_edges = [(e["from"], e["to"]) for e in raw_edges]
-            spec = DAGSpec(nodes=dag_nodes, edges=dag_edges)
-
-            # Extract edge directions (optional)
-            edge_directions: dict[tuple[str, str], str] = {}
-            for e in raw_edges:
-                d = e.get("direction")
-                if d in ("positive", "negative"):
-                    edge_directions[(e["from"], e["to"])] = d
-
-        except (ValueError, KeyError) as e:
-            return {"error": f"Invalid DAG specification: {e}"}
-
-        config = CustomWorldGenConfig(
-            dag_spec=spec,
-            edge_strength=edge_strength,
-            seed=seed,
-            edge_directions=edge_directions,
-        )
-        world = self._world_gen.generate_custom(config)
-        self._worlds[world.id] = world
-        result.world = world
-        result.attempts += 1
-
-        return {
-            "world_id": world.id,
-            "num_nodes": len(world.nodes),
-            "num_edges": len(world.edges),
-            "difficulty": world.difficulty.level,
-            "nodes": [
-                {"name": n.name, "type": n.type, "states": n.states} for n in world.nodes
-            ],
-        }
 
     def _handle_scm_construct(self, args: dict, result: OrchestratorResult) -> dict:
         raw_vars = args.get("variables", [])
@@ -516,72 +344,15 @@ class Orchestrator:
             return {"error": f"World '{world_id}' not found"}
 
         # SCMWorld is validated at construction time (NaN, Inf, variance, extremes)
-        if isinstance(world, SCMWorld):
-            result.validation_passed = True
-            return {
-                "passed": True,
-                "failures": [],
-                "metrics": {
-                    "num_variables": len(world.variables),
-                    "num_edges": sum(len(p) for p in world.graph.values()),
-                    "note": "SCM world was validated at construction (sampling check).",
-                },
-            }
-
-        check = self._world_check.check(world)
-        result.validation_passed = check.passed
-
+        result.validation_passed = True
         return {
-            "passed": check.passed,
-            "failures": check.failures,
-            "metrics": check.metrics,
-        }
-
-    def _handle_episode_gen(self, args: dict, result: OrchestratorResult) -> dict:
-        world_id = args["world_id"]
-        world = self._worlds.get(world_id)
-        if world is None:
-            return {"error": f"World '{world_id}' not found"}
-
-        budget = args.get("budget", 5)
-        config = EpisodeGenConfig(budget=budget, seed=0)
-        episode = self._episode_gen.generate(world, config)
-        result.episode = episode
-
-        return {
-            "episode_id": episode.id,
-            "budget": episode.budget,
-            "available_nodes": episode.available_nodes,
-            "num_initial_evidence": len(episode.initial_evidence),
-        }
-
-    def _handle_task_gen(self, args: dict, result: OrchestratorResult) -> dict:
-        world_id = args["world_id"]
-        world = self._worlds.get(world_id)
-        if world is None:
-            return {"error": f"World '{world_id}' not found"}
-
-        task_type_str = args.get("task_type", "causal_effect")
-        max_budget = args.get("max_budget", 5)
-
-        target_nodes = [n for n in world.nodes if n.type == NodeType.TARGET]
-        target = target_nodes[0].name if target_nodes else "target_outcome"
-
-        spec = TaskSpec(
-            type=TaskType(task_type_str),
-            target_node=target,
-            max_budget=max_budget,
-        )
-
-        task = self._task_gen.generate(world, spec)
-        result.task = task
-
-        return {
-            "task_id": task.id,
-            "type": task.type,
-            "question": task.question,
-            "target_node": task.target_node,
-            "num_available_evidence": len(task.available_evidence),
+            "passed": True,
+            "failures": [],
+            "metrics": {
+                "num_variables": len(world.variables),
+                "num_edges": sum(len(p) for p in world.graph.values()),
+                "note": "SCM world was validated at construction (sampling check).",
+            },
         }
 
     def _handle_apply_semantics(self, args: dict, result: OrchestratorResult) -> dict:
@@ -592,68 +363,27 @@ class Orchestrator:
 
         # SCMWorld: variables already have semantic names from the spec.
         # Just store the narrative metadata for use in build_problem.
-        if isinstance(world, SCMWorld):
-            semantics = {
-                "scenario_title": args.get("scenario_title", ""),
-                "scenario_description": args.get("scenario_description", ""),
-                "domain": args.get("domain", ""),
-                "theoretical_context": args.get("theoretical_context", ""),
-            }
-            self._world_semantics[world_id] = semantics
-            return {
-                "world_id": world_id,
-                "scenario_title": semantics["scenario_title"],
-                "domain": semantics["domain"],
-                "variables": [
-                    {"name": v, "role": (
-                        "latent" if v in world.latent_variables else "observable"
-                    )}
-                    for v in world.variables
-                ],
-                "next_step": (
-                    "Now call design_case to define evaluation questions, "
-                    "then build_problem."
-                ),
-            }
-
-        # BN World: rename nodes and apply metadata
-        node_renames: dict[str, str] = args.get("node_renames", {})
-        node_descriptions: dict[str, str] = args.get("node_descriptions", {})
-        edge_descriptions: dict[str, str] = args.get("edge_descriptions", {})
-
-        # Auto-complete identity mappings if node_renames is empty or partial.
-        world_node_names = {n.name for n in world.nodes}
-        if not node_renames:
-            node_renames = {n: n for n in world_node_names}
-
-        missing = world_node_names - set(node_renames.keys())
-        if missing:
-            for m in missing:
-                node_renames[m] = m
-
-        world = self._rename_world_nodes(world, node_renames, node_descriptions, edge_descriptions)
-
-        # Apply semantic metadata
-        world = world.model_copy(
-            update={
-                "scenario_title": args.get("scenario_title"),
-                "scenario_description": args.get("scenario_description"),
-                "domain": args.get("domain"),
-                "theoretical_context": args.get("theoretical_context"),
-            }
-        )
-
-        # Store updated world
-        self._worlds[world_id] = world
-        result.world = world
-
+        semantics = {
+            "scenario_title": args.get("scenario_title", ""),
+            "scenario_description": args.get("scenario_description", ""),
+            "domain": args.get("domain", ""),
+            "theoretical_context": args.get("theoretical_context", ""),
+        }
+        self._world_semantics[world_id] = semantics
         return {
             "world_id": world_id,
-            "scenario_title": world.scenario_title,
-            "domain": world.domain,
-            "nodes_renamed": len(node_renames),
-            "nodes": [{"name": n.name, "type": n.type} for n in world.nodes],
-            "next_step": "Now call build_problem to sample data and produce the final problem.",
+            "scenario_title": semantics["scenario_title"],
+            "domain": semantics["domain"],
+            "variables": [
+                {"name": v, "role": (
+                    "latent" if v in world.latent_variables else "observable"
+                )}
+                for v in world.variables
+            ],
+            "next_step": (
+                "Now call design_case to define evaluation questions, "
+                "then build_problem."
+            ),
         }
 
     # Eval types that REQUIRE node hints when used in a CasePlan.
@@ -976,82 +706,48 @@ class Orchestrator:
             return {"error": f"World '{world_id}' not found"}
 
         budget = args.get("budget", 5)
-        data_format = args.get("data_format", "tabular")
         num_rows = args.get("num_data_rows", 50)
         case_plan = self._case_plans.get(world_id)
 
-        # SCMWorld: use SCMProblemBuilder
-        if isinstance(world, SCMWorld):
-            from sreg.world.scm_data import PanelConfig
+        from sreg.world.scm_data import PanelConfig
 
-            semantics = self._world_semantics.get(world_id, {})
-            seed = self._world_seeds.get(world_id, 42)
+        semantics = self._world_semantics.get(world_id, {})
+        seed = self._world_seeds.get(world_id, 42)
 
-            # Get tasks from result if available (skip in OI mode)
-            tasks = None
-            if not self.oi_mode:
-                tasks = result.task if isinstance(result.task, list) else None
+        # Get tasks from result if available (skip in OI mode)
+        tasks = None
+        if not self.oi_mode:
+            tasks = result.task if isinstance(result.task, list) else None
 
-            effective_rows = max(num_rows, 200)
-            # Vary panel structure per SRC for realism (A18)
-            import numpy as _np  # noqa: E402
+        effective_rows = max(num_rows, 200)
+        # Vary panel structure per SRC for realism (A18)
+        import numpy as _np  # noqa: E402
 
-            _panel_rng = _np.random.default_rng(seed)
-            _n_sites = int(_panel_rng.integers(3, 16))  # 3-15 sites
-            _n_waves = int(_panel_rng.choice([2, 3, 3, 4, 5]))  # 2-5, mode=3
-            _n_proxy = int(_panel_rng.choice([1, 2, 2, 3]))  # 1-3 proxies
-            _dropout = round(float(_panel_rng.uniform(0.05, 0.15)), 2)
-            panel_config = PanelConfig(
-                n_sites=_n_sites,
-                n_waves=_n_waves,
-                n_proxy_columns=_n_proxy,
-                dropout_rate=_dropout,
-                seed=seed,
-            )
-
-            problem = self._scm_problem_builder.build(
-                world,
-                tasks=tasks,
-                budget=budget,
-                n_rows=effective_rows,
-                multi_dataset=True,
-                case_plan=case_plan,
-                seed=seed,
-                title=semantics.get("scenario_title"),
-                description=semantics.get("scenario_description"),
-                domain=semantics.get("domain"),
-                panel=panel_config,
-            )
-            result.problem = problem
-
-            return {
-                "title": problem.title,
-                "domain": problem.domain,
-                "budget": problem.budget,
-                "research_question": problem.research_question,
-                "num_data_assets": len(problem.data_assets),
-                "num_actions": len(problem.available_actions),
-                "target_node": problem.target_node,
-                "target_states": problem.target_states,
-            }
-
-        # BN World: use ProblemBuilder
-        data_config = DataSamplerConfig(
-            num_rows=max(num_rows, 200),  # Minimum 200 rows for realism
-            format=data_format,
-            seed=world.seed,
-            measurement_noise=0.05,  # 5% misclassification on ordinal variables
-            missing_rate=0.05,  # 5% MAR missingness
-            missing_mechanism="mar",  # Correlated with variable severity
-            multi_dataset=True,  # Multiple artifacts with different quality profiles
+        _panel_rng = _np.random.default_rng(seed)
+        _n_sites = int(_panel_rng.integers(3, 16))  # 3-15 sites
+        _n_waves = int(_panel_rng.choice([2, 3, 3, 4, 5]))  # 2-5, mode=3
+        _n_proxy = int(_panel_rng.choice([1, 2, 2, 3]))  # 1-3 proxies
+        _dropout = round(float(_panel_rng.uniform(0.05, 0.15)), 2)
+        panel_config = PanelConfig(
+            n_sites=_n_sites,
+            n_waves=_n_waves,
+            n_proxy_columns=_n_proxy,
+            dropout_rate=_dropout,
+            seed=seed,
         )
 
-        problem = self._problem_builder.build(
+        problem = self._scm_problem_builder.build(
             world,
+            tasks=tasks,
             budget=budget,
-            data_config=data_config,
-            rich_actions=True,
+            n_rows=effective_rows,
+            multi_dataset=True,
             case_plan=case_plan,
+            seed=seed,
+            title=semantics.get("scenario_title"),
+            description=semantics.get("scenario_description"),
+            domain=semantics.get("domain"),
+            panel=panel_config,
         )
         result.problem = problem
 
@@ -1066,55 +762,6 @@ class Orchestrator:
             "target_states": problem.target_states,
         }
 
-    @staticmethod
-    def _rename_world_nodes(
-        world: World,
-        renames: dict[str, str],
-        descriptions: dict[str, str],
-        edge_descs: dict[str, str],
-    ) -> World:
-        """Create a new World with nodes/edges/CPDs renamed according to the mapping."""
-        from sreg.models.world import CPD, Edge, Node
-
-        def r(name: str) -> str:
-            return renames.get(name, name)
-
-        new_nodes = [
-            Node(
-                name=r(n.name),
-                type=n.type,
-                description=descriptions.get(r(n.name), n.description),
-                states=list(n.states),
-            )
-            for n in world.nodes
-        ]
-
-        new_edges = [
-            Edge(
-                from_node=r(e.from_node),
-                to_node=r(e.to_node),
-                mechanism=edge_descs.get(f"{r(e.from_node)}->{r(e.to_node)}", e.mechanism),
-            )
-            for e in world.edges
-        ]
-
-        new_cpds = [
-            CPD(
-                node=r(cpd.node),
-                parents=[r(p) for p in cpd.parents],
-                table=[list(row) for row in cpd.table],
-                state_names={r(k): list(v) for k, v in cpd.state_names.items()},
-            )
-            for cpd in world.cpds
-        ]
-
-        return world.model_copy(
-            update={
-                "nodes": new_nodes,
-                "edges": new_edges,
-                "cpds": new_cpds,
-            }
-        )
 
 
 __all__ = ["Orchestrator", "OrchestratorResult"]

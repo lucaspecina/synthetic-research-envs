@@ -1,11 +1,11 @@
-"""LLM Agent solver for research problems."""
+"""Agent tools: python_exec engine for LLM solvers."""
 
-from sreg.agent.agent import AgentResult, AgentSolver
-from sreg.agent.prompts import AGENT_TOOL_DEFINITIONS, build_agent_system_prompt
+from sreg.agent.engine import SOLVER_TOOLS
+from sreg.agent.python_exec import ExecResult, execute_code, make_python_namespace
 
 __all__ = [
-    "AGENT_TOOL_DEFINITIONS",
-    "AgentResult",
-    "AgentSolver",
-    "build_agent_system_prompt",
+    "ExecResult",
+    "SOLVER_TOOLS",
+    "execute_code",
+    "make_python_namespace",
 ]

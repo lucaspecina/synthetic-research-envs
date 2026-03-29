@@ -22,10 +22,6 @@ Documentos de sintesis activos:
 
 - `synthesis/research_case_design.md`
 - `synthesis/real_papers_patterns.md`
-- `synthesis/eval_types_analysis.md` (cubre 9 de 12 tipos — pendiente update)
-- `synthesis/eval_strategy.md`
-- `synthesis/qualitative_eval_rubric.md`
-- `synthesis/benchmark_analysis.md`
 - `synthesis/sreg_scientific_coverage.md`
 - `synthesis/open_investigation_vision.md`
 - `synthesis/investigation_scenarios_rubric.md`
@@ -34,7 +30,6 @@ Documentos de sintesis activos:
 - `synthesis/oi_scoring_next_design.md`
 - `synthesis/scm_migration_rationale.md`
 - `synthesis/scientific_research_taxonomy.md`
-- `synthesis/qualitative_eval_2026_03_25.md`
 
 ### archive/
 Documentos viejos, superseded o referencias heredadas. Read-only.
@@ -73,56 +68,15 @@ desplazandose hacia `synthesis/`.
 - **Empezar por:** `synthesis/real_papers_patterns.md`
 - **Notas de apoyo:** `notes/real_investigations_analysis.md`
 
-### Eval types y taxonomia cientifica
-- **Pregunta:** que tipos de preguntas fuerzan investigacion real y cuales se
-  pueden resolver por shortcut, prior o estructura generica.
-- **Empezar por:** `synthesis/eval_types_analysis.md`
-- **Notas de apoyo:** `notes/scientific_taxonomy_deep_research.md` (deep research: como se hace
-  ciencia hoy, taxonomy explicita/implicita, curriculum RL propuesto),
-  `synthesis/scientific_research_taxonomy.md` (framework completo de
-  clasificacion con objectives, axes, workflows, scoring, ejemplos),
-  `archive/solver_trajectory_findings.md` (legacy)
-
-### Estrategia de evaluacion
-- **Pregunta:** como evaluar SREG sin reducirlo a un benchmark disfrazado.
-- **Empezar por:** `synthesis/eval_strategy.md`
-- **Rubrica cualitativa:** `synthesis/qualitative_eval_rubric.md` — 7
-  dimensiones + 6 critical failures + no-data baseline probe. Formaliza la
-  evaluacion cualitativa que antes era ad-hoc.
-- **Segunda evaluacion formal:** `synthesis/qualitative_eval_2026_03_25.md` —
-  3 SRCs post-I10 (football, coral, asthma). 6 problemas nuevos encontrados.
-  Mejora significativa en capa visible; problemas actuales son mas profundos.
-- **Notas de apoyo:** `notes/eval_design_notes.md`
-
-### Benchmarks externos
-- **Pregunta:** con que benchmarks conviene medir alineacion y transferencia
-  fuera de SREG.
-- **Empezar por:** `synthesis/benchmark_analysis.md`
-- **Notas de apoyo:** `notes/benchmark_results.md`
-
-### Modos semanticos (realistic vs fictional vs abstract)
-- **Pregunta:** que modo semantico fuerza mas investigacion genuina y minimiza
-  contaminacion por priors de pretraining.
-- **Empezar por:** `notes/semantic_modes_experiment_2026_03_17.md`
-- **Conecta con:** A3 y I2 en `TODO.md`
-- **Status:** dos experimentos (Vaca Muerta + Football). Ver notas para
-  hallazgos consolidados.
+### Taxonomia cientifica
+- **Pregunta:** que tipos de ciencia puede representar SREG y cuales no.
+- **Empezar por:** `synthesis/scientific_research_taxonomy.md`
 
 ### Cobertura cientifica de SREG
 - **Pregunta:** que tipos de ciencia puede representar SREG y cuales no.
 - **Empezar por:** `synthesis/sreg_scientific_coverage.md`
 - **Framework de referencia:** `synthesis/scientific_research_taxonomy.md`
 - **Conecta con:** A2, A4, A5, A8 en `TODO.md`
-
-### Por que SREG todavia no es investigacion real (debate)
-- **Pregunta:** que brechas fundamentales separan a SREG de la investigacion real,
-  mas alla de las conocidas (variables continuas, teoria inventada).
-- **Empezar por:** `notes/why_not_real_research_debate.md`
-- **Participantes:** Claude, Codex (gpt-5.2), usuario
-- **Hallazgos clave:** el solver no sabe que es una BN, pero los templates de
-  preguntas filtran el framework (do-operation, backdoor paths). Fix aplicado:
-  preguntas naturalizadas.
-- **Conecta con:** A1, A3 en `TODO.md`
 
 ### Mediciones indirectas — senales proxy en el SCM
 - **Pregunta:** como hacer que el solver no vea variables causales directamente
@@ -133,14 +87,6 @@ desplazandose hacia `synthesis/`.
   que nodos son latentes y cuales observables al diseñar el SCM.
 - **Conecta con:** Fase 3 (orchestrator diseña SCMs), LA PREGUNTA
 - **Status:** DOCUMENTADO. Implementar cuando orchestrator diseñe SCMs.
-
-### P2: Naturalizacion de preguntas
-- **Pregunta:** como eliminar node_ids como codigo y framing de do-calculus
-  de las preguntas visibles al investigador.
-- **Empezar por:** `notes/p2_semantic_question_naturalization.md`
-- **Conecta con:** I10 Fase 2c en `TODO.md`, hallazgos H1/H2/CF4 de evaluacion
-  cualitativa (`synthesis/qualitative_eval_2026_03_25.md`)
-- **Status:** IMPLEMENTADO. Pendiente: E2E con 3 SRCs nuevos.
 
 ### Brief vs eval separation — preguntas reales vs scoring oculto
 - **Pregunta:** como hacer que el investigador reciba un encargo de
@@ -210,7 +156,7 @@ desplazandose hacia `synthesis/`.
 - **Sub-question scoring:** `synthesis/oi_scoring_next_design.md` — next
   scoring architecture with orchestrator sub-questions. Design validated,
   implementation complete: `oi_subquestions.py` (resolution + scoring),
-  23 tests, 7 Codex bugs fixed. Prototype: `notes/oi_subquestion_prototype.md`.
+  23 tests, 7 Codex bugs fixed.
   Treatment world: 0.983 total (vs 0.400 with v2). Dual scoring wired to runner.
 
 ### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
@@ -228,8 +174,4 @@ desplazandose hacia `synthesis/`.
 - **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
   Model) con ecuaciones arbitrarias y reward via Monte Carlo.
 - **Empezar por:** `synthesis/scm_migration_rationale.md` (fundamentos completos)
-- **Evidencia de apoyo:** `notes/gaussian_bn_prototype_findings.md` (prototipo Gaussian)
-- **Que se mantiene:** grafo causal, d-separation, do-calculus, reward sin LLM judge
-- **Que cambia:** CPD tables -> ecuaciones Python, inferencia analitica -> Monte Carlo
-- **Status:** IMPLEMENTADO. Mergeado a main (Fases 1-4 completas).
-- **Conecta con:** A8 en `TODO.md`
+- **Status:** IMPLEMENTADO. Mergeado a main. BN legacy eliminado del repo.

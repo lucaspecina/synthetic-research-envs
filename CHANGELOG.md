@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+### 2026-03-29 — Massive legacy cleanup: BN + guided mode removal (~27K lines)
+
+**Entire BN/guided mode pipeline removed:**
+- Deleted `training/` (10 files), `harness/` (8 files) — full packages
+- Deleted `agent/agent.py`, `agent/prompts.py`, `agent/transformers_backend.py` — guided solver
+- Deleted `env/episode.py` — EpisodeRunner
+- Deleted BN tools: `world_gen.py`, `task_gen.py`, `problem_builder.py`,
+  `data_sampler.py`, `episode_gen.py`, `verifier.py`, `world_check.py`
+- Deleted BN world: `cpd_gen.py`, `dag_generators.py`, `pgmpy_utils.py`, 4 templates
+- Deleted `solver/exact_bayes.py` — BN teacher
+- Deleted legacy models: `dag_spec.py`, `env_protocol.py`, `agent_tools.py`, `code_exec.py`
+- Deleted `display.py`
+- Deleted 5 legacy scripts, 30+ legacy test files
+- Cleaned `orchestrator.py`: removed all BN handlers, SCM-only now
+- Cleaned `generate_src.py`: removed --solve, --report, BN inspect
+- All `__init__.py` exports updated to reflect surviving code
+- 16 research docs archived
+- Updated CURRENT_STATE, ARCHITECTURE, research/README to reflect SCM+OI only
+
+**Result:** ~101 files changed, ~27,347 lines removed. Repo is now SCM+OI only.
+
 ### 2026-03-29 — Documentation audit + A21 revert cleanup
 
 **A21 structured claims REVERTED (critical design violation):**

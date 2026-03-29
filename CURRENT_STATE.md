@@ -117,32 +117,14 @@ El resultado es un **reward signal exacto** que puede usarse para RL.
 
 ---
 
-## Open Investigation vs Guided (vs legacy)
-
-### Open Investigation (modo principal, activo)
+## Open Investigation — el unico modo
 
 El solver recibe un brief abierto y tiene libertad total. Entrega claim cards
 con sus hallazgos. El sistema compila y verifica contra el SCM.
 
-Esto es lo que SREG usa hoy. Es el modo que importa.
-
-### Guided mode (legacy funcional)
-
-El solver recibe preguntas predefinidas con respuestas exactas (ej: "cual es
-P(Y|do(X=high))?"). Hay 12 tipos de evaluacion (infer_target, causal_effect,
-ate, mediation, interaction, etc.). El scoring es directo — KL divergence,
-accuracy, match.
-
-Funciona y los tests pasan, pero es el pipeline viejo. Las preguntas predefinidas
-no fuerzan investigacion real — muchas se responden desde conocimiento general.
-
-### Legacy (existe pero no se usa activamente)
-
-- **BN discreta**: la capa formal original (pgmpy, variables discretas). Reemplazada
-  por SCM (variables continuas, ecuaciones arbitrarias). Los tests se mantienen.
-- **Research actions** (observe, intervene, budget): infraestructura de acciones
-  con costo. Desactivada porque era artificial ("observar X cuesta 2 puntos").
-- **QualitySuite v1/v2**: metricas automaticas del motor formal. Desactualizada.
+No hay modo "guided" ni preguntas predefinidas. Todo el codigo legacy (BN
+discreta, EpisodeRunner, guided tasks, research actions con budget) fue
+eliminado del repo.
 
 ---
 
@@ -230,9 +212,6 @@ Entrenar una policy con entornos SREG y medir si mejora en benchmarks externos
 - **SCM rejection sampling**: escala mal con muchas variables de evidencia (>5).
   Futuro: importance weighting.
 
-- **Legacy BN no desmantelada**: el codigo BN discreto sigue existiendo con tests.
-  No rompe nada pero agrega complejidad.
-
 ---
 
 ## Como ejecutar
@@ -241,10 +220,10 @@ Entrenar una policy con entornos SREG y medir si mejora en benchmarks externos
 conda activate sreg
 
 # Generar un SRC desde un paper
-python scripts/generate_src.py --seed-file seeds/paper.pdf -o output/ --inspect --report
+python scripts/generate_src.py --seed-file seeds/paper.pdf -o output/ --inspect
 
-# Generar con evaluacion del solver
-python scripts/generate_src.py --seed-file seeds/paper.pdf -o output/ --solve
+# Generar con OI (investigacion abierta)
+python scripts/generate_src.py --seed-file seeds/paper.pdf -o output/ --oi
 
 # Generar desde un goal libre
 python scripts/generate_src.py --goal "marine ecology" -o output/ --inspect
