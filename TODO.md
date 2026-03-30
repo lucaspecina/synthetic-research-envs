@@ -551,6 +551,28 @@ cerrada (PatternClass). El catalogo puede seguir como fast-path opcional.
 `research/notes/a23_grammar_first_sq_and_compiler.md`
 **Conecta con:** A22, S02, S03, S04, open_investigation_vision
 
+### A24. Runtime comun de validacion — DISCUSION ABIERTA
+
+**No reemplaza A23 como siguiente paso inmediato.**
+
+Pregunta de fondo: si el proyecto exige **un solo metodo general de scoring**
+para todo tipo de investigacion, `AtomicSpec` es el target final o solo la
+primera familia fuerte de validadores?
+
+Direccion exploratoria:
+- [ ] Clarificar que la taxonomia sirve para coverage audit y seed design, NO
+  para scoring profiles ni bifurcacion del reward
+- [ ] Disenar un concepto de `validator program` restringido/auditable sobre un
+  runtime comun, sin caer en codigo arbitrario
+- [ ] Mapear como `AtomicSpec` encaja como subconjunto de ese runtime comun
+- [ ] Evaluar si casos de prediccion/optimizacion se pueden expresar como
+  validators generales sin introducir scorers separados por tipo
+- [ ] Mantener A23 como prioridad corta: no saltar a esto sin antes explotar
+  bien la compilacion directa a atoms
+
+**Research:** `research/notes/a24_general_validator_runtime.md`
+**Conecta con:** PROJECT invariants, CLAUDE scoring principles, A23, S04
+
 ### A22. Submission aversion — solver resists calling submit_claims
 
 2/4 E2E cases: solver did real analysis but scored 0 because it never

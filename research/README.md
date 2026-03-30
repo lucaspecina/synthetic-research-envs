@@ -253,6 +253,21 @@ desplazandose hacia `synthesis/`.
 - **Status:** EVIDENCIA EMPIRICA COMPLETA. Siguiente: decidir integracion,
   disenar matching entre conjuntos de specs, calibrar prompting.
 
+### A24 Un solo runtime general de validacion (2026-03-30)
+- **Pregunta:** si SREG debe tener un solo metodo de scoring para todo, el
+  target final es `AtomicSpec` o un runtime mas general de validadores
+  ocultos ejecutables?
+- **Empezar por:** `notes/a24_general_validator_runtime.md`
+- **Hallazgo clave:** la taxonomia puede distinguir casos para coverage audit,
+  pero NO puede bifurcar el scoring. `AtomicSpec` parece ser una muy buena
+  familia de validators, pero quizas no el techo final para prediccion,
+  optimizacion o artefactos evaluables.
+- **Direccion propuesta:** mantener A23 como siguiente paso inmediato
+  (menos catalogo, mas atoms), pero pensar `AtomicSpec` como subconjunto de un
+  runtime comun de validator programs restringidos y auditables.
+- **Conecta con:** PROJECT invariants, CLAUDE scoring principles, A23, S04
+- **Status:** DISCUSION ABIERTA. Arquitectura de mediano/largo plazo.
+
 ### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
 - **Pregunta:** por que SREG todavia no es investigacion real (post-OI pipeline)?
 - **Empezar por:** `notes/e2e_qualitative_analysis_20260328.md`
