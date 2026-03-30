@@ -230,6 +230,27 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** A22, S02, S03, scm_task_primitives, open_investigation_vision
 - **Status:** PROPUESTA. Prioridad alta para la proxima ronda.
 
+### S04 Epistemic IR Gap Analysis + Direct-to-AtomicSpec prototype (2026-03-30)
+- **Pregunta:** exactamente que claims epistemologicos se pierden y por que
+  la IR no puede representarlos? Se puede compilar directo a AtomicSpec
+  sin catalogo?
+- **Empezar por:** `notes/s04_epistemic_ir_gap_analysis.md`
+- **Metodo:** (1) Trace completo de 4 claims de e2e_03 a traves del pipeline.
+  (2) Hand-craft de AtomicSpecs para C2 (adjustment sensitivity).
+  (3) Prototipo: LLM compila claims y SQs directo a AtomicSpec, sin PatternClass.
+- **Hallazgo clave del trace:** De 4 claims, 2 ABSTENTION, 1 direction
+  incorrecta, 1 OK pero matchea SQ equivocado. Score: 0.239 (cov=0.02).
+- **Hallazgo clave del prototipo directo:**
+  - C2: de ABSTENTION → 4 specs (incl. identifiability_check, TRUE)
+  - C3: de 0/2 TRUE → **3/3 TRUE** (incl. not_identifiable como instrumento)
+  - SQ epistemologica: de 1 SQ comprimida → **10 specs, 8/10 TRUE**
+  - **El camino directo recupera semantica que el catalogo pierde.**
+  - No se necesita un nuevo catalogo (BundleIR). Se necesita LLM → AtomicSpec.
+- **Codex thread:** 019d3f92-6b3b-7851-a5d2-d53830a07b56
+- **Conecta con:** A23, S03, A22, open_investigation_vision
+- **Status:** EVIDENCIA EMPIRICA COMPLETA. Siguiente: iterar prompt, probar
+  en e2e_02, decidir integracion al pipeline.
+
 ### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
 - **Pregunta:** por que SREG todavia no es investigacion real (post-OI pipeline)?
 - **Empezar por:** `notes/e2e_qualitative_analysis_20260328.md`
