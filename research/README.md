@@ -173,6 +173,18 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** A21 en `TODO.md`, A22, E2E qualitative analysis
 - **Status:** RESUELTO y VALIDADO E2E.
 
+### Autoresearch S02: Diverse E2E Diagnostics (2026-03-30)
+- **Pregunta:** como se comporta el sistema con tipos de investigacion distintos
+  al causal simple? Donde falla exactamente?
+- **Empezar por:** `autoresearch/s02_diverse_e2e_diagnostics.md`
+- **3 E2E corridos:** causal (vaca_muerta), predictivo (vaca_muerta_predictive),
+  epistemologico (identifiability_pollution). Scores: 0.580, 0.548, 0.364.
+- **Hallazgo clave:** correctness=1.0 en todos. Coverage es el cuello de
+  botella. 3 compiler misses (efecto_ranking, sign extraction, SQ matching)
+  + 6 solver misses (variables no exploradas, interacciones equivocadas).
+- **Fix aplicado:** force-submit en oi_driver.py (solver no submitia 2/3 veces).
+- **Conecta con:** S01, A22, compiler improvement roadmap
+
 ### A22 Compiler: de patterns fijos a compilacion directa (2026-03-29)
 - **Pregunta:** por que el compiler rechaza claims correctos? Por que solo
   hay 8 patterns cuando la gramatica composable puede expresar mucho mas?

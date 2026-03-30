@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### 2026-03-30 — S02 Diverse E2E diagnostics + force-submit fix
+
+**Force-submit mechanism:**
+- After main solver loop, if not submitted, one extra LLM turn with ONLY
+  `submit_claims` as available tool (python_exec removed)
+- Fixed 2/3 cases where solver exhausted iterations without submitting
+
+**Diverse E2E results (3 seeds, 3 types):**
+- Vaca Muerta causal: 0.580 (2/5 SQs, correctness 1.0)
+- Vaca Muerta predictive: 0.548 (2/5 SQs, correctness 1.0)
+- Identifiability epistemic: 0.364 (1/4 SQs, correctness 1.0)
+
+**Diagnostics:** 14 SQs total → 5 HIT, 6 SOLVER_MISS, 3 COMPILER_MISS.
+Compiler misses: effect_ranking from prose, sign extraction from literal
+slopes, claim-to-SQ matching. See `research/autoresearch/s02_diverse_e2e_diagnostics.md`.
+
+**New seed:** `seeds/vaca_muerta_predictive.md` — predictive classification
+variant (AUC-focused, ~18% prevalence imbalanced).
+
 ### 2026-03-29 — A22 multi-unit compiler: compound claims decomposed into N units
 
 **Multi-unit compiler pipeline:**

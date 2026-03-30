@@ -97,7 +97,11 @@ and C decreases D" = 3 separate observational_association intents.
 - For effect_ranking: list ALL variables being compared in ranking_vars.
 - If the claim uses causal language but the evidence is purely observational,
   still set pattern to the causal type but mark evidence_type as "observational".
-- "near_zero" direction means no meaningful effect was found. This is a valid finding.
+- "near_zero" direction means the estimated coefficient is close to zero in magnitude.
+- CRITICAL: direction reflects the SIGN of the estimated slope/coefficient, NOT its
+  statistical significance. A slope of -3.83 is "negative" even if p > 0.05.
+  Use "near_zero" ONLY when the coefficient itself is close to zero, not when
+  the p-value is large.
 - Output ONLY valid JSON, no explanations."""
 
 

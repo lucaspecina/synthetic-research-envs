@@ -162,6 +162,19 @@ POSITIVE_EXEMPLARS: list[tuple[str, ClaimIntent]] = [
             evidence_type="observational",
         ),
     ),
+    # --- SIGN vs SIGNIFICANCE: slope sign matters, not p-value ---
+    (
+        "Wind is weakly related to pollution (slope = -3.83, p = 0.32), "
+        "suggesting a non-significant but directionally negative relationship",
+        ClaimIntent(
+            claim_id="ex_obs_sign",
+            pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+            treatment="Wind",
+            outcome="pollution",
+            direction=Direction.NEGATIVE,  # slope is -3.83 → NEGATIVE, despite p > 0.05
+            evidence_type="observational",
+        ),
+    ),
     # --- NULL EFFECT / NEAR_ZERO (2 phrasings) ---
     (
         "There is no significant interaction between Depth and Algae on Fish",

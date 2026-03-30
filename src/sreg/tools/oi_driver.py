@@ -280,6 +280,12 @@ _NUDGE_FINAL = (
     "with whatever findings you have. Any analysis is better than no submission."
 )
 
+_NUDGE_FORCE_SUBMIT = (
+    "You have exhausted all iterations without submitting findings. "
+    "You MUST call submit_claims NOW. The ONLY tool available is submit_claims. "
+    "Summarize your key findings from the analyses you ran and submit them."
+)
+
 _MAX_NUDGES = 2  # Max prose-only nudges before giving up
 
 
@@ -451,6 +457,63 @@ def run_oi_investigation(
             elif remaining == 1 and not final_nudged:
                 final_nudged = True
                 messages.append({"role": "user", "content": _NUDGE_FINAL})
+
+    # ------------------------------------------------------------------
+    # Force-submit: if solver never submitted, give it one last chance
+    # with ONLY submit_claims available (no python_exec, no think).
+    # ------------------------------------------------------------------
+    if not runner.is_submitted:
+        logger.warning("Solver exhausted iterations without submitting — forcing submit round")
+        submit_tool = next(t for t in OI_SOLVER_TOOLS if t["function"]["name"] == "submit_claims")
+        submit_only_tools = convert_tools_for_responses([submit_tool])
+
+        messages.append({"role": "user", "content": _NUDGE_FORCE_SUBMIT})
+        force_kwargs: dict[str, Any] = {
+            "model": model,
+            "tools": submit_only_tools,
+            "previous_response_id": prev_response_id,
+            "input": _NUDGE_FORCE_SUBMIT,
+        }
+        force_resp = None
+        try:
+            force_resp = client.responses.create(**force_kwargs)
+        except Exception as e:
+            logger.warning("Force-submit with prev_id failed: %s — retrying standalone", e)
+            # Fallback: standalone call with conversation history for context
+            try:
+                force_resp = client.responses.create(
+                    model=model,
+                    tools=submit_only_tools,
+                    instructions=system_prompt,
+                    input=messages + [{"role": "user", "content": _NUDGE_FORCE_SUBMIT}],
+                )
+            except Exception as e2:
+                logger.warning("Force-submit standalone also failed: %s", e2)
+
+        if force_resp is not None:
+            prev_response_id = force_resp.id
+            for item in force_resp.output:
+                if item.type == "function_call":
+                    try:
+                        args = json.loads(item.arguments) if isinstance(item.arguments, str) else item.arguments
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning("Force-submit returned malformed arguments: %s", e)
+                        continue
+                    result_str = handler(item.name, args)
+                    messages.append({
+                        "role": "assistant",
+                        "content": "",
+                        "tool_calls": [{
+                            "id": item.call_id,
+                            "type": "function",
+                            "function": {"name": item.name, "arguments": item.arguments},
+                        }],
+                    })
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": item.call_id,
+                        "content": result_str,
+                    })
 
     return OIInvestigationResult(
         score=runner.get_score(),

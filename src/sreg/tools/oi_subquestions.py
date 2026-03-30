@@ -106,6 +106,7 @@ class ClaimRepr(NamedTuple):
     treatment: str
     outcome: str
     extra_roles: frozenset[str]  # mediator, modifier, confounder, etc.
+    ranking_vars: frozenset[str] = frozenset()  # for effect_ranking matching
 
 
 def derive_family(pattern: str) -> RelationFamily:
@@ -158,6 +159,7 @@ def claim_repr_from_intent(claim: ClaimIntent) -> ClaimRepr:
         treatment=claim.treatment,
         outcome=claim.outcome,
         extra_roles=frozenset(extras),
+        ranking_vars=frozenset(claim.ranking_vars) if claim.ranking_vars else frozenset(),
     )
 
 
@@ -176,6 +178,7 @@ def claim_repr_from_sq(sq: SubQuestionIntent) -> ClaimRepr:
         treatment=sq.roles.treatment or "",
         outcome=sq.roles.outcome or "",
         extra_roles=frozenset(extras),
+        ranking_vars=frozenset(sq.roles.ranking_vars) if sq.roles.ranking_vars else frozenset(),
     )
 
 
@@ -238,9 +241,30 @@ def operator_compat(claim_op: str, sq_op: str) -> float:
 def role_compat(claim: ClaimRepr, sq: ClaimRepr) -> float:
     """Compute role compatibility.
 
-    Treatment and outcome are hard gates. Extra roles are bonuses.
+    Treatment and outcome are hard gates for most patterns.
+    For effect_ranking: outcome must match, ranking_vars overlap replaces
+    the treatment gate (ranking has no single treatment).
     """
-    # Hard gate: treatment and outcome must match
+    # --- Special case: effect_ranking ---
+    # Ranking compares multiple variables' effects on an outcome.
+    # There is no meaningful "treatment" — match by outcome + ranking_vars.
+    if claim.family == RelationFamily.RANKING and sq.family == RelationFamily.RANKING:
+        # Outcome must match
+        if claim.outcome != sq.outcome:
+            return 0.0
+        # If both have ranking_vars, score by overlap
+        if sq.ranking_vars and claim.ranking_vars:
+            overlap = len(claim.ranking_vars & sq.ranking_vars)
+            required = len(sq.ranking_vars)
+            if overlap == 0:
+                return 0.0
+            return overlap / required
+        # If SQ has ranking_vars but claim doesn't (or vice versa), weak match
+        if sq.ranking_vars:
+            return 0.3
+        return 1.0
+
+    # --- Standard patterns: treatment and outcome are hard gates ---
     if claim.treatment != sq.treatment:
         return 0.0
     if claim.outcome != sq.outcome:
