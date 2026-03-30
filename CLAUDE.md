@@ -129,8 +129,13 @@ evaluar cualitativamente el resultado (`/eval`).
 generacion E2E con LLM, rubrica cualitativa de 7 dimensiones, 6 critical
 failures, no-data baseline probe, y LA PREGUNTA doble. Ver `/eval`.
 
-**Escenarios diversos**: ver triple filtro en LA PREGUNTA. Aplica a TODA
-decision de diseno, no solo a validacion post-hoc.
+**Escenarios diversos — NO NEGOCIABLE**: los E2E SIEMPRE deben cubrir tipos
+variados de investigacion. NUNCA correr solo causal simple. Cada batch de
+validacion debe incluir al menos 3 tipos distintos de:
+`research/synthesis/investigation_scenarios_rubric.md` (system mapping,
+heterogeneidad, confounding, descriptivo, multi-outcome, epistemologico, etc.).
+Si solo probaste "X causa Y", NO validaste nada. Usar seeds de `seeds/`
+para generar casos diversos: `python scripts/generate_src.py --seed-file seeds/X.md -o ... --oi`.
 
 ## Environment setup
 
@@ -171,6 +176,7 @@ src/sreg/
   agent/         # python_exec + tool-calling engine (for OI solver)
   benchmarks/    # CLadder, QRData, DiscoveryBench
 scripts/         # generate_src.py, run_benchmark.py
+seeds/           # Research seeds (.md/.pdf) for diverse E2E generation
 tests/           # Mirrors src/ structure
 research/        # Analisis y sintesis (ver research/README.md)
 ```

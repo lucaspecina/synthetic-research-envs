@@ -23,7 +23,7 @@ Solo ejecutar los scripts.
 Parse $ARGUMENTS:
 - If a path to an existing case is given, use that
 - If a topic/seed is given, generate with `/run`
-- If nothing specified, generate 2-3 SRCs with diverse seeds
+- If nothing specified, generate 3+ SRCs with DIVERSE types (NOT all causal)
 
 ```bash
 # Generate with inspection
