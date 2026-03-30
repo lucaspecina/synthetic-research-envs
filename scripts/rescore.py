@@ -161,7 +161,21 @@ def rescore(exp_dir: Path, use_llm: bool = True) -> dict:
     # --- Compile claims ---
     target = src["problem"].get("target") or src["problem"].get("target_node")
     summary = build_world_summary(world, target, n_mc=20_000, seed=42)
-    compiled = compile_episode_claims(claims, summary, llm_call=llm_call)
+
+    # Build extraction context from src.json
+    from sreg.tools.oi_extraction import ExtractionContext
+    ctx = ExtractionContext(
+        research_brief=src.get("problem", {}).get("research_question", ""),
+        domain=src.get("problem", {}).get("domain", ""),
+        description=src.get("problem", {}).get("description", ""),
+        title=src.get("problem", {}).get("title", ""),
+        sub_questions=[
+            {"sq_id": sq.sq_id, "pattern": sq.pattern,
+             "text_gloss": sq.text_gloss or sq.sq_id}
+            for sq in sqs
+        ],
+    )
+    compiled = compile_episode_claims(claims, summary, llm_call=llm_call, context=ctx)
 
     # --- Resolve SQs ---
     resolved = resolve_all(sqs, world, target=target, n_mc=20_000, seed=42)

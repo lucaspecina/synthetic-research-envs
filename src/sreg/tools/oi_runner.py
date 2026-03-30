@@ -335,13 +335,24 @@ class OIEpisodeRunner:
             compiled = compiled_claims
         else:
             from sreg.tools.oi_compiler import build_world_summary
-            from sreg.tools.oi_extraction import compile_episode_claims
+            from sreg.tools.oi_extraction import ExtractionContext, compile_episode_claims
 
             summary = build_world_summary(
                 self.world, self.target, n_mc=self.n_mc, seed=self.seed
             )
+            ctx = ExtractionContext(
+                research_brief=self.problem.research_question,
+                domain=self.problem.domain,
+                description=self.problem.description,
+                title=self.problem.title,
+                sub_questions=[
+                    {"sq_id": sq.sq_id, "pattern": sq.pattern,
+                     "text_gloss": sq.text_gloss or sq.sq_id}
+                    for sq in self._subquestions
+                ],
+            )
             compiled = compile_episode_claims(
-                claims, summary, llm_call=self._llm_call
+                claims, summary, llm_call=self._llm_call, context=ctx
             )
 
         self._submitted = True

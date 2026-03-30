@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from dataclasses import dataclass, field
 from typing import Any
 
 from sreg.models.open_investigation import ClaimCard
@@ -31,6 +32,31 @@ from sreg.tools.oi_compiler import (
 from sreg.tools.oi_exemplars import get_abstention_exemplars, get_positive_exemplars
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Extraction context — rich context from the pipeline
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ExtractionContext:
+    """Investigation context passed to the extraction LLM.
+
+    Provides the brief, domain info, variable descriptions, and sub-questions
+    so the LLM can disambiguate claims in context. Without this, the LLM only
+    sees variable names and must guess what the investigation was about.
+
+    S03 A/B test (2026-03-30): adding context eliminates invalid variable names
+    in conditioning_set and recovers claims from unnecessary abstention, without
+    introducing observable bias toward sub-question patterns.
+    """
+
+    research_brief: str = ""
+    domain: str = ""
+    description: str = ""
+    title: str = ""
+    sub_questions: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -102,13 +128,46 @@ and C decreases D" = 3 separate observational_association intents.
   statistical significance. A slope of -3.83 is "negative" even if p > 0.05.
   Use "near_zero" ONLY when the coefficient itself is close to zero, not when
   the p-value is large.
+- CRITICAL: extract the solver's CONCLUSION, not per-dataset raw findings. If the
+  claim reports "r = -0.19 in dataset A, r = +0.25 in dataset B", extract the
+  overall conclusion the solver draws, not separate contradictory intents.
+- ALL variable names in treatment, outcome, mediator, modifier, confounder,
+  conditioning_set, and ranking_vars MUST appear in the provided Variables list.
+  Dataset names (dataset_bg, dataset_survey), row identifiers (site_id, wave),
+  and other non-variable columns must NEVER appear in these fields.
 - Output ONLY valid JSON, no explanations."""
+
+
+def _build_context_block(ctx: ExtractionContext) -> str:
+    """Build the investigation context block for the system prompt."""
+    parts: list[str] = []
+    parts.append(
+        "\n\n## Investigation context (for disambiguation, NOT to force matching)\n"
+        "This context helps you understand what the investigation was about.\n"
+        "Extract what the claim ACTUALLY says, not what would best match a question."
+    )
+    if ctx.research_brief:
+        parts.append(f"\n### Research brief\n{ctx.research_brief}")
+    if ctx.description:
+        parts.append(f"\n### Domain context\n{ctx.description[:600]}")
+    if ctx.sub_questions:
+        sq_lines = []
+        for sq in ctx.sub_questions:
+            gloss = sq.get("text_gloss") or sq.get("sq_id", "?")
+            pattern = sq.get("pattern", "?")
+            sq_lines.append(f"- {sq.get('sq_id', '?')}: {gloss} (pattern={pattern})")
+        parts.append(
+            "\n### Investigation sub-questions (hidden from solver, for context only)\n"
+            + "\n".join(sq_lines)
+        )
+    return "\n".join(parts)
 
 
 def build_extraction_prompt(
     claim: ClaimCard,
     world_variables: list[str],
     n_exemplars: int = 5,
+    context: ExtractionContext | None = None,
 ) -> list[dict[str, str]]:
     """Build the messages list for LLM extraction.
 
@@ -119,9 +178,14 @@ def build_extraction_prompt(
         claim: The ClaimCard to compile.
         world_variables: List of variable names in the world.
         n_exemplars: Number of positive exemplars to include.
+        context: Optional investigation context (brief, domain, SQs).
     """
+    system = _SYSTEM_PROMPT
+    if context:
+        system += _build_context_block(context)
+
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "system", "content": system},
     ]
 
     # Few-shot examples (positive)
@@ -313,6 +377,7 @@ def compile_claim(
     claim: ClaimCard,
     summary: WorldSummary,
     llm_call: Any | None = None,
+    context: ExtractionContext | None = None,
 ) -> CompilerOutput:
     """Compile one ClaimCard through the full pipeline.
 
@@ -327,6 +392,7 @@ def compile_claim(
         summary: WorldSummary for validation and lowering.
         llm_call: Callable that takes messages list and returns response string.
             If None, uses deterministic fallback.
+        context: Optional investigation context (brief, domain, SQs).
     """
     from sreg.tools.oi_compiler import CompiledUnit, lower_intent
 
@@ -335,7 +401,7 @@ def compile_claim(
     if llm_call is not None:
         # LLM extraction path — fail closed on errors
         try:
-            messages = build_extraction_prompt(claim, world_vars)
+            messages = build_extraction_prompt(claim, world_vars, context=context)
             response_text = llm_call(messages)
             if not isinstance(response_text, str):
                 response_text = str(response_text)
@@ -404,9 +470,10 @@ def compile_episode_claims(
     claims: list[ClaimCard],
     summary: WorldSummary,
     llm_call: Any | None = None,
+    context: ExtractionContext | None = None,
 ) -> list[CompilerOutput]:
     """Compile all claims for an episode."""
-    return [compile_claim(c, summary, llm_call) for c in claims]
+    return [compile_claim(c, summary, llm_call, context) for c in claims]
 
 
 # ---------------------------------------------------------------------------
@@ -519,6 +586,7 @@ def _deterministic_extract(
 
 
 __all__ = [
+    "ExtractionContext",
     "build_extraction_prompt",
     "compile_claim",
     "compile_episode_claims",
