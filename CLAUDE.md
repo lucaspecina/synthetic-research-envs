@@ -1,5 +1,12 @@
 # SREG — Claude Code Project Configuration
 
+## AUTORESEARCH: ACTIVADO
+
+Loop autonomo: **Debatir** (Codex) → **Probar** (E2E/scripts) → **Ver
+resultados** → **Reflexionar + documentar** → **Repetir**. No frenar a menos
+que el usuario interrumpa. Nunca solo debate — siempre probar cosas reales.
+Documentar en `research/autoresearch/`. Para desactivar: cambiar a DESACTIVADO.
+
 ## LA PREGUNTA — el filtro de todo
 
 > **Por que esto todavia no es una investigacion real? Que le falta?**
@@ -62,13 +69,10 @@ Cada decision pasa por este TRIPLE filtro:
 
 ### research/ — mantener limpio
 
-- `synthesis/` = conclusiones consolidadas. `notes/` = working docs. `archive/` = legacy.
-- **Si un doc de notes/ ya no es relevante, moverlo a archive/ o borrarlo.**
+- `synthesis/` = conclusiones. `notes/` = working docs. `archive/` = legacy.
 - Siempre actualizar `research/README.md` cuando muevas o crees un doc.
 
 ## Antes de cada commit — QUE ACTUALIZAR
-
-Esto no es opcional. **Antes de commitear, revisar:**
 
 1. **CURRENT_STATE.md** — el cambio afecta como funciona el sistema? Actualizar.
 2. **CHANGELOG.md** — agregar entrada describiendo el cambio (producto, no internals).
@@ -182,12 +186,7 @@ research/        # Analisis y sintesis (ver research/README.md)
 
 ## Commands
 
-```bash
-pytest tests/ -v                          # All tests
-pytest tests/tools/test_scm_world_gen.py -v   # Specific file
-ruff check src/ tests/                    # Lint
-ruff format src/ tests/                   # Format
-```
+`pytest tests/ -v` | `pytest tests/tools/test_X.py -v` | `ruff check src/ tests/` | `ruff format src/ tests/`
 
 ## Git + Codex
 
