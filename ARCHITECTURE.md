@@ -56,6 +56,13 @@ sin romper el nucleo verificable del sistema.
 - training loops de RL,
 - simulacion cientifica totalmente abierta sin estructura formal,
 - evaluacion cuyo nucleo dependa solo de jueces humanos o LLM-as-judge,
+- **ciencia que produce artefactos evaluables** (predicciones scored por AUC,
+  policies, disenos) — el solver entrega claims sobre el mundo, no artefactos
+  ejecutables. Ver `PROJECT.md` "Scope actual y horizontes futuros",
+- **interaccion rica con el entorno** (proponer experimentos, pedir datos,
+  gestionar budget, colaboradores simulados) — el solver investiga con las
+  herramientas actuales (python_exec, load/save_artifact, helpers de analisis),
+- **material teorico sintetico** (papers ficticios, literatura inventada),
 - y un salto inmediato a cualquier idea futura del `PROJECT.md` sin pasar por
   contratos y flujos estables.
 

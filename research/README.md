@@ -268,6 +268,17 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** PROJECT invariants, CLAUDE scoring principles, A23, S04
 - **Status:** DISCUSION ABIERTA. Arquitectura de mediano/largo plazo.
 
+### S06 SubQuestionIntent Architecture Research (2026-03-30)
+- **Pregunta:** como deberia ser el nuevo contrato de SubQuestionIntent,
+  la compilacion a AtomicSpec, y el primer experimento para validar
+  diversidad de SQs?
+- **Empezar por:** `notes/s06_sq_intent_architecture_research.md`
+- **Propuesta:** SQ = text_gloss + verification_specs (AtomicSpecs directos).
+  Pattern desaparece como obligatorio, queda como hint. Matching sobre specs.
+  Metricas: unique_measurement_kinds, spec_validity, variable_relevance.
+- **Conecta con:** S04, S05, A23, A24, CLAUDE scoring principles
+- **Status:** PROPUESTA PARA DISCUSION.
+
 ### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
 - **Pregunta:** por que SREG todavia no es investigacion real (post-OI pipeline)?
 - **Empezar por:** `notes/e2e_qualitative_analysis_20260328.md`

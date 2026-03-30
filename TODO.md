@@ -905,6 +905,30 @@ type-fit rules). Lo que queda:
 
 ## Futuro
 
+### Exclusiones de scope actual — horizontes de expansion
+
+Estas NO son tareas pendientes. Son capacidades que el sistema hoy no
+tiene por decision explicita de scope (`PROJECT.md` "Scope actual y
+horizontes futuros"). Se listan aca para que cuando decidamos expandir,
+el punto de partida este claro.
+
+**H1. Ciencia que produce artefactos evaluables.**
+El solver hoy entrega claims sobre el mundo. En el futuro podria
+entregar predicciones (scored por AUC/RMSE), policies, disenos
+experimentales u otros artefactos. Requiere validator programs mas
+generales que AtomicSpec (ver A24). Referencia: `PROJECT.md` horizonte 1.
+
+**H2. Interaccion rica con el entorno investigativo.**
+Proponer experimentos, pedir campanas de datos, gestionar budget,
+interactuar con colaboradores simulados, elegir instrumentos. Requiere
+research actions como interfaz del entorno. Referencia: `PROJECT.md`
+horizonte 2, item de research actions abajo.
+
+**H3. Material teorico sintetico.**
+Papers ficticios, hallazgos previos contradictorios, teorias rivales.
+Requiere generacion de literatura sintetica. Referencia: `PROJECT.md`
+horizonte 3, A4, I7.
+
 ### Horizonte siguiente del core
 
 - [ ] MechanismSpec, mechanism library, composicion mechanism-first.

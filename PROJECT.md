@@ -104,6 +104,70 @@ La vara conceptual es esta:
 
 ---
 
+## Scope actual y horizontes futuros
+
+### Lo que SREG evalua HOY
+
+**Ciencia que produce conocimiento.** El solver investiga un mundo,
+descubre relaciones, identifica mecanismos, reporta hallazgos. El
+sistema verifica si esos hallazgos son verdaderos, relevantes y cubren
+lo pedido. El output del solver es **claims sobre el mundo** -- no
+artefactos ejecutables.
+
+Esto incluye una diversidad amplia de investigacion:
+- causal (efectos, mediacion, confounding, interacciones)
+- descriptiva (perfiles, distribucion, segmentacion)
+- epistemologica (identificabilidad, robustez, sensibilidad al ajuste)
+- metodologica (comparacion de estimadores, sesgo de seleccion)
+- predictiva como conocimiento ("que predice Y y cuanto")
+- system mapping (estructura causal, ranking de drivers)
+
+Todo esto es verificable contra el SCM con la gramatica composable
+existente (AtomicSpec).
+
+### Lo que queda FUERA del scope actual -- horizontes futuros
+
+Estas son extensiones valiosas que la arquitectura debe permitir, pero
+que no se implementan ni se evaluan todavia.
+
+**1. Ciencia que produce capacidad / artefactos evaluables**
+
+Investigacion donde el solver entrega un artefacto (modelo predictivo,
+ranking, policy, diseno) y el sistema lo evalua con metricas de
+performance (AUC, RMSE, reward acumulado, etc.) en vez de verificar
+claims sobre el mundo.
+
+Ejemplos: maximizar AUC en holdout, proponer la policy optima bajo
+constraints, calibracion de probabilidades.
+
+Requiere: validator programs mas generales que AtomicSpec, capaces de
+evaluar artefactos del solver contra datos ocultos (horizonte A24).
+
+**2. Interaccion rica con el entorno investigativo**
+
+El solver no solo analiza datos existentes -- propone experimentos,
+pide campanas de datos, gestiona budget, interactua con colaboradores
+simulados, elige instrumentos. Las acciones tienen costo y sus
+resultados informan las siguientes decisiones.
+
+Requiere: research actions como interfaz del entorno (no herramientas
+internas del solver), ciclo iterativo, budget como recurso del caso.
+
+**3. Material teorico sintetico**
+
+Papers ficticios, hallazgos previos contradictorios, teorias rivales.
+El solver tiene que integrar literatura inventada con datos para
+investigar.
+
+Requiere: generacion de literatura sintetica derivada parcialmente del
+mundo verdadero, mecanismo para que el solver consulte y cite fuentes.
+
+Cada horizonte es una etapa futura del proyecto, no una limitacion
+permanente. La seccion "El potencial es muy amplio" describe la vision
+completa. Esta seccion aclara que se evalua hoy y que no.
+
+---
+
 ## Invariantes
 
 ### 1. Verdad formal y reward exacto
