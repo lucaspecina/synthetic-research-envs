@@ -175,6 +175,19 @@ POSITIVE_EXEMPLARS: list[tuple[str, ClaimIntent]] = [
             evidence_type="observational",
         ),
     ),
+    (
+        "Across datasets, wind_dispersion_index shows weak and inconsistent "
+        "relationships with particle_proxy_index, so there is no reliable "
+        "directional association to treat as stable evidence",
+        ClaimIntent(
+            claim_id="ex_obs_inconsistent",
+            pattern=PatternClass.OBSERVATIONAL_ASSOCIATION,
+            treatment="wind_dispersion_index",
+            outcome="particle_proxy_index",
+            direction=Direction.NEAR_ZERO,
+            evidence_type="observational",
+        ),
+    ),
     # --- NULL EFFECT / NEAR_ZERO (2 phrasings) ---
     (
         "There is no significant interaction between Depth and Algae on Fish",

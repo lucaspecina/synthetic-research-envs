@@ -200,6 +200,36 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** A21, scm_task_primitives, open_investigation_vision
 - **Status:** PROPUESTA. Pendiente debate + diseno.
 
+### S03 Extraction Diagnosis — A/B test y taxonomia de fallos (2026-03-30)
+- **Pregunta:** por que el compiler LLM pierde informacion de claims complejos?
+- **Empezar por:** `notes/s03_extraction_diagnosis.md`
+- **Hallazgo clave:** el compiler operaba en vacio de contexto (solo nombres
+  de variables). A/B test: brief+SQs+descripciones elimina variables invalidas
+  y recupera claims de abstention. Pero e2e_03 (epistemologico) no mejora.
+- **Taxonomia:** F1 vars invalidas, F2 abstention recuperable, F3 direcciones
+  contradictorias, F4 sign/significance, F5 campos faltantes, F6 submission aversion.
+- **Conecta con:** A22, A23, S02
+- **Status:** IMPLEMENTADO (S03a). Validacion parcial: ayuda modestamente,
+  pero no resuelve casos epistemologicos (limitacion de la IR, no del contexto).
+
+### A23 Grammar-first para SQ y compiler (2026-03-30)
+- **Pregunta:** el bottleneck actual es solo extraccion LLM, o estamos
+  forzando tanto SQ como claims a pasar por un catalogo demasiado estrecho
+  de patterns conocidos?
+- **Empezar por:** `notes/a23_grammar_first_sq_and_compiler.md`
+- **Hallazgo clave:** la gramatica atomica ya es suficientemente rica; el
+  sesgo a causal simple entra antes, porque SQ y claims se comprimen a
+  `pattern + roles` antes de llegar al verifier.
+- **Evidencia:** `e2e_02` pierde atoms pairwise al colapsar a ranking;
+  `e2e_03` comprime un brief epistemologico a SQs causales estrechas;
+  `e2e_05` muestra que cuando todo entra en causal-simple el sistema
+  funciona mejor, pero el matching sigue sobrepremiando claims broad.
+- **Direccion propuesta:** SQ grammar-first (bundles mas cercanos a
+  `AtomicSpec`), patterns como fast-path solamente, compiler hibrido con
+  fallback directo a gramatica atomica para claims fuera de catalogo.
+- **Conecta con:** A22, S02, S03, scm_task_primitives, open_investigation_vision
+- **Status:** PROPUESTA. Prioridad alta para la proxima ronda.
+
 ### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
 - **Pregunta:** por que SREG todavia no es investigacion real (post-OI pipeline)?
 - **Empezar por:** `notes/e2e_qualitative_analysis_20260328.md`

@@ -260,6 +260,36 @@ class OIEpisodeRunner:
         """The target variable for this investigation."""
         return self.problem.target_node
 
+    def _build_extraction_context(self, observable_names: list[str]):
+        """Build rich context for the claim-extraction LLM."""
+        from sreg.tools.oi_extraction import ExtractionContext
+
+        variable_descriptions: dict[str, str] = {}
+        for name in observable_names:
+            meta = self.world.variable_meta.get(name)
+            if not meta or not (meta.description or meta.unit):
+                continue
+            desc = meta.description.rstrip(".") if meta.description else ""
+            if meta.unit:
+                desc = f"{desc} [unit: {meta.unit}]" if desc else f"unit: {meta.unit}"
+            variable_descriptions[name] = desc
+
+        return ExtractionContext(
+            research_brief=self.problem.research_question,
+            domain=self.problem.domain,
+            description=self.problem.description,
+            title=self.problem.title,
+            variable_descriptions=variable_descriptions,
+            sub_questions=[
+                {
+                    "sq_id": sq.sq_id,
+                    "pattern": sq.pattern,
+                    "text_gloss": sq.text_gloss or sq.sq_id,
+                }
+                for sq in self._subquestions
+            ],
+        )
+
     @property
     def research_brief(self) -> str:
         """The research question/brief visible to the solver."""
@@ -335,22 +365,12 @@ class OIEpisodeRunner:
             compiled = compiled_claims
         else:
             from sreg.tools.oi_compiler import build_world_summary
-            from sreg.tools.oi_extraction import ExtractionContext, compile_episode_claims
+            from sreg.tools.oi_extraction import compile_episode_claims
 
             summary = build_world_summary(
                 self.world, self.target, n_mc=self.n_mc, seed=self.seed
             )
-            ctx = ExtractionContext(
-                research_brief=self.problem.research_question,
-                domain=self.problem.domain,
-                description=self.problem.description,
-                title=self.problem.title,
-                sub_questions=[
-                    {"sq_id": sq.sq_id, "pattern": sq.pattern,
-                     "text_gloss": sq.text_gloss or sq.sq_id}
-                    for sq in self._subquestions
-                ],
-            )
+            ctx = self._build_extraction_context(summary.observable_names)
             compiled = compile_episode_claims(
                 claims, summary, llm_call=self._llm_call, context=ctx
             )

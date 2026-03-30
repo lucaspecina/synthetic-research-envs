@@ -173,14 +173,46 @@ se descarta.
 ## Problemas que el contexto NO resuelve
 
 1. **Direcciones contradictorias** (F3) — necesita prompt: "extract the
-  solver's CONCLUSION, not per-dataset raw findings"
+   solver's CONCLUSION, not per-dataset raw findings"
 2. **No-determinismo LLM** — mismos claims producen diferentes extracciones
-  en diferentes runs. Esto es inherente al LLM.
+   en diferentes runs. Esto es inherente al LLM.
 3. **Submission aversion** (F6) — problema del solver, no del compiler.
 
-## Proximos pasos propuestos
+## Validacion post-implementacion (S03a rescore)
 
-1. **Enriquecer el prompt de extraccion** con brief, descripciones, SQs (S03a)
-2. **Agregar guidance para claims multi-dataset** — "extract the conclusion" (S03b)
-3. **Atacar submission aversion** — draft_claim tool? (S03c, diferente modulo)
+Despues de implementar el prompt enriquecido (brief + descripciones + SQs +
+variable descriptions + exemplar `ex_obs_inconsistent`), se re-scorearon
+los 3 casos con claims:
+
+| Caso | Pre-S03a | Post-S03a |
+|------|----------|-----------|
+| e2e_02 (predictive) | 0.502 | 0.502-0.665 |
+| e2e_03 (epistemic) | 0.0-0.439 | **0.239** (estable) |
+| e2e_05 (confounding) | 0.843 | 0.700-0.780 |
+
+**Conclusion:** el contexto ayuda modestamente en casos limpios (e2e_02) y
+no introduce regresion en el mejor caso (e2e_05, dentro de varianza LLM).
+Pero **no resuelve el caso epistemologico** (e2e_03 clavado en 0.239).
+
+### Por que e2e_03 no mejora
+
+El caso epistemologico tiene claims que no encajan en ninguna PatternClass:
+- "el instrumento (viento) no es creible" → no es causal_effect ni obs_assoc
+- "la missingness limita la identificacion" → no hay patron para esto
+- "el efecto es sensible al ajuste" → parcialmente obs_assoc pero pierde matiz
+
+El problema no es falta de contexto — es que la IR (`ClaimIntent` con
+`PatternClass`) no puede representar conclusiones epistemologicas o
+metodologicas. Esto valida la tesis de A23: la gramatica atomica es rica,
+pero la IR intermedia es estrecha.
+
+## Proximos pasos
+
+1. **S03a implementado y validado.** Commit.
+2. **A23 queda como diagnostico + hipotesis.** No como tarea ejecutiva.
+   La evidencia parcial (e2e_03 no mejora con contexto) lo sustenta,
+   pero el diseno exacto (SQ como bundles, compiler hibrido) no esta validado.
+3. **Siguiente investigacion:** analizar EXACTAMENTE que claims del caso
+   epistemologico se pierden y que expresividad les falta a la IR, para
+   darle a A23 evidencia concreta y pasar de hipotesis a propuesta.
 

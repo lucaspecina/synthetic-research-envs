@@ -33,6 +33,17 @@ from sreg.tools.oi_exemplars import get_abstention_exemplars, get_positive_exemp
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_EXEMPLAR_IDS = (
+    "ex_ce_1",
+    "ex_med_1",
+    "ex_het_1",
+    "ex_obs_1",
+    "ex_obs_sign",
+    "ex_conf_1",
+    "ex_rank_1",
+    "ex_obs_inconsistent",
+)
+
 
 # ---------------------------------------------------------------------------
 # Extraction context — rich context from the pipeline
@@ -56,6 +67,7 @@ class ExtractionContext:
     domain: str = ""
     description: str = ""
     title: str = ""
+    variable_descriptions: dict[str, str] = field(default_factory=dict)
     sub_questions: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -146,10 +158,23 @@ def _build_context_block(ctx: ExtractionContext) -> str:
         "This context helps you understand what the investigation was about.\n"
         "Extract what the claim ACTUALLY says, not what would best match a question."
     )
+    if ctx.title:
+        parts.append(f"\n### Investigation title\n{ctx.title}")
+    if ctx.domain:
+        parts.append(f"\n### Domain\n{ctx.domain}")
     if ctx.research_brief:
         parts.append(f"\n### Research brief\n{ctx.research_brief}")
     if ctx.description:
         parts.append(f"\n### Domain context\n{ctx.description[:600]}")
+    if ctx.variable_descriptions:
+        var_lines = [
+            f"- {name}: {desc}"
+            for name, desc in sorted(ctx.variable_descriptions.items())
+        ]
+        parts.append(
+            "\n### Variable descriptions\n"
+            + "\n".join(var_lines)
+        )
     if ctx.sub_questions:
         sq_lines = []
         for sq in ctx.sub_questions:
@@ -163,10 +188,52 @@ def _build_context_block(ctx: ExtractionContext) -> str:
     return "\n".join(parts)
 
 
+def _select_positive_exemplars(
+    n_exemplars: int | None,
+) -> list[tuple[str, ClaimIntent]]:
+    """Select a compact but diverse exemplar set.
+
+    The default prompt should cover the extraction failure modes that actually
+    show up in E2E: observational claims, sign-vs-significance, confounding,
+    effect_ranking from prose, and mixed/inconsistent evidence. A small curated
+    bank is more stable than taking the first N items or the full bank.
+    """
+    positives = get_positive_exemplars()
+    by_id = {intent.claim_id: (text, intent) for text, intent in positives}
+
+    selected: list[tuple[str, ClaimIntent]] = []
+    seen_ids: set[str] = set()
+
+    target_ids = (
+        _DEFAULT_EXEMPLAR_IDS
+        if n_exemplars is None
+        else _DEFAULT_EXEMPLAR_IDS[:n_exemplars]
+    )
+    for exemplar_id in target_ids:
+        pair = by_id.get(exemplar_id)
+        if pair is None:
+            continue
+        selected.append(pair)
+        seen_ids.add(exemplar_id)
+
+    if n_exemplars is None:
+        return selected
+
+    for text, intent in positives:
+        if len(selected) >= n_exemplars:
+            break
+        if intent.claim_id in seen_ids:
+            continue
+        selected.append((text, intent))
+        seen_ids.add(intent.claim_id)
+
+    return selected
+
+
 def build_extraction_prompt(
     claim: ClaimCard,
     world_variables: list[str],
-    n_exemplars: int = 5,
+    n_exemplars: int | None = None,
     context: ExtractionContext | None = None,
 ) -> list[dict[str, str]]:
     """Build the messages list for LLM extraction.
@@ -177,7 +244,7 @@ def build_extraction_prompt(
     Args:
         claim: The ClaimCard to compile.
         world_variables: List of variable names in the world.
-        n_exemplars: Number of positive exemplars to include.
+        n_exemplars: Number of positive exemplars to include. None = use all.
         context: Optional investigation context (brief, domain, SQs).
     """
     system = _SYSTEM_PROMPT
@@ -189,7 +256,7 @@ def build_extraction_prompt(
     ]
 
     # Few-shot examples (positive)
-    positives = get_positive_exemplars()[:n_exemplars]
+    positives = _select_positive_exemplars(n_exemplars)
     for text, intent in positives:
         messages.append({
             "role": "user",

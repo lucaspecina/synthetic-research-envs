@@ -520,6 +520,35 @@ informacion de claims complejos:
 - [ ] **effect_ranking from prose**: extraer rankings de magnitud de efecto
   desde texto libre del solver (extraccion, no matching)
 
+### A23. SQ grammar-first + menos sesgo al catalogo conocido — NEXT ARCHITECTURAL DIRECTION
+
+**Descubierto durante analisis cualitativo post-S02/S03 (2026-03-30).**
+
+S03 mostro que mejorar contexto de extraccion ayuda, pero no explica por si
+solo los casos epistemologicos o metodologicos. El problema mas profundo es
+que tanto las SQ ocultas como los claims del solver siguen pasando demasiado
+temprano por `pattern + roles`, lo que sesga la evaluacion a causal simple.
+
+**Tesis:** la gramatica atomica ya es rica; el cuello es usar demasiado el
+catalogo conocido antes de llegar al verifier.
+
+**Direccion prioritaria:**
+- [ ] **SQ grammar-first:** disenar una IR de SQ mas cercana a bundles de
+  `AtomicSpec`, en vez de obligar `pattern + roles + ask`
+- [ ] **Resolver SQ sin catalogo fijo:** permitir que `resolve_subquestion()`
+  baje desde bundles/spec-recipes en vez de reconstruir `ClaimIntent`
+- [ ] **Compiler hibrido para claims:** mantener patterns como fast-path, pero
+  agregar fallback directo a gramatica atomica cuando no encaja una receta
+- [ ] **Matching/scoring semantico:** reducir dependencia de `pattern` y usar
+  compatibilidad entre bundles/atoms (variables, assertions, comparaciones)
+- [ ] **Validacion focalizada:** rerun `e2e_02`, `e2e_03`, `e2e_05` y medir si
+  briefs no causal-simple dejan de comprimirse a preguntas causales estrechas
+- [ ] **Claim formalization** dejarlo fuera por ahora; retomarlo solo como
+  mitigacion secundaria si hiciera falta mejorar recall de extraccion
+
+**Research:** `research/notes/a23_grammar_first_sq_and_compiler.md`
+**Conecta con:** A22, S02, S03, scm_task_primitives, open_investigation_vision
+
 ### A22. Submission aversion — solver resists calling submit_claims
 
 2/4 E2E cases: solver did real analysis but scored 0 because it never

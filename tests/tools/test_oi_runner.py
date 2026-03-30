@@ -7,8 +7,11 @@ import pandas as pd
 import pytest
 
 from sreg.models.open_investigation import (
+    AskOperator,
     ClaimCard,
     EvidenceRef,
+    SQRoles,
+    SubQuestionIntent,
 )
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_runner import ArtifactCatalog, OIEpisodeRunner
@@ -60,7 +63,7 @@ def _make_problem(
 
 def _make_scm_world():
     """Create a minimal SCMWorld for testing."""
-    from sreg.world.scm import SCMWorld
+    from sreg.world.scm import SCMWorld, VariableMeta
 
     return SCMWorld(
         id="test_world",
@@ -73,6 +76,11 @@ def _make_scm_world():
             "A": lambda p, rng: rng.normal(5, 2),
             "B": lambda p, rng: 0.5 * p["A"] + rng.normal(3, 1),
             "Y": lambda p, rng: 0.8 * p["A"] + 0.3 * p["B"] + rng.normal(0, 1),
+        },
+        variable_meta={
+            "A": VariableMeta(description="Exposure intensity", unit="mg/L"),
+            "B": VariableMeta(description="Intermediate burden", unit="index"),
+            "Y": VariableMeta(description="Outcome response", unit="points"),
         },
     )
 
@@ -261,6 +269,34 @@ class TestRunnerHelpers:
 
 
 class TestRunnerSubmission:
+    def test_build_extraction_context_includes_metadata_and_sqs(self):
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world)
+        runner.set_subquestions([
+            SubQuestionIntent(
+                sq_id="sq1",
+                pattern="causal_effect",
+                roles=SQRoles(treatment="A", outcome="Y"),
+                ask=AskOperator.SIGN,
+                text_gloss="Does A increase Y?",
+            )
+        ])
+
+        ctx = runner._build_extraction_context(["A", "Y"])
+
+        assert ctx.title == "Test Investigation"
+        assert ctx.domain == "test"
+        assert ctx.variable_descriptions["A"] == "Exposure intensity [unit: mg/L]"
+        assert ctx.variable_descriptions["Y"] == "Outcome response [unit: points]"
+        assert ctx.sub_questions == [
+            {
+                "sq_id": "sq1",
+                "pattern": "causal_effect",
+                "text_gloss": "Does A increase Y?",
+            }
+        ]
+
     def test_submit_prevents_double_submission(self):
         problem = _make_problem()
         world = _make_scm_world()
@@ -270,6 +306,30 @@ class TestRunnerSubmission:
         runner.submit_claims(claims)
         with pytest.raises(RuntimeError, match="already submitted"):
             runner.submit_claims(claims)
+
+    def test_submit_passes_context_to_compiler(self, monkeypatch):
+        from sreg.tools.oi_compiler import CompilerOutput
+
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world)
+        captured: dict[str, object] = {}
+
+        def fake_compile_episode_claims(claims, summary, llm_call=None, context=None):
+            captured["context"] = context
+            return [CompilerOutput(claim_id=claims[0].claim_id, status="abstention")]
+
+        monkeypatch.setattr(
+            "sreg.tools.oi_extraction.compile_episode_claims",
+            fake_compile_episode_claims,
+        )
+
+        runner.submit_claims([_make_claim()])
+
+        ctx = captured["context"]
+        assert ctx.title == "Test Investigation"
+        assert ctx.domain == "test"
+        assert ctx.variable_descriptions["A"] == "Exposure intensity [unit: mg/L]"
 
     def test_submit_validates_claim_count(self):
         problem = _make_problem()

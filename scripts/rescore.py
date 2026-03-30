@@ -16,10 +16,10 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from dotenv import load_dotenv
 load_dotenv()
 
 
@@ -51,20 +51,33 @@ def extract_claims_from_trace(result: dict) -> list[dict]:
     return claims
 
 
+def _build_variable_descriptions(world, observable_names: list[str]) -> dict[str, str]:
+    """Build extraction-time variable descriptions from SCM metadata."""
+    variable_descriptions: dict[str, str] = {}
+    for name in observable_names:
+        meta = world.variable_meta.get(name)
+        if not meta or not (meta.description or meta.unit):
+            continue
+        desc = meta.description.rstrip(".") if meta.description else ""
+        if meta.unit:
+            desc = f"{desc} [unit: {meta.unit}]" if desc else f"unit: {meta.unit}"
+        variable_descriptions[name] = desc
+    return variable_descriptions
+
+
 def rescore(exp_dir: Path, use_llm: bool = True) -> dict:
     """Re-compile and re-score an experiment."""
     from sreg.models.open_investigation import ClaimCard, SubQuestionIntent
-    from sreg.tools.oi_compiler import build_world_summary, CompilerOutput
+    from sreg.models.scm_spec import SCMSpec
+    from sreg.solver.scm_solver import SCMSolver
+    from sreg.tools.oi_compiler import CompilerOutput, build_world_summary
     from sreg.tools.oi_extraction import compile_episode_claims
     from sreg.tools.oi_subquestions import (
         resolve_all,
         score_episode_with_subquestions,
     )
     from sreg.tools.oi_verifier import verify_atom
-    from sreg.solver.scm_solver import SCMSolver
-    from sreg.world.scm import SCMWorld
     from sreg.tools.scm_world_gen import SCMWorldGenTool
-    from sreg.models.scm_spec import SCMSpec
 
     exp = load_experiment(exp_dir)
     src = exp["src"]
@@ -169,6 +182,9 @@ def rescore(exp_dir: Path, use_llm: bool = True) -> dict:
         domain=src.get("problem", {}).get("domain", ""),
         description=src.get("problem", {}).get("description", ""),
         title=src.get("problem", {}).get("title", ""),
+        variable_descriptions=_build_variable_descriptions(
+            world, summary.observable_names
+        ),
         sub_questions=[
             {"sq_id": sq.sq_id, "pattern": sq.pattern,
              "text_gloss": sq.text_gloss or sq.sq_id}
@@ -261,7 +277,10 @@ def main():
         s = result["score"]
         print(f"  Claims: {result['n_claims']} -> {result['n_compiled_units']} units")
         print(f"  SQs: {result['n_sqs']}")
-        print(f"  Score: {s['total']} (cov={s['coverage']} corr={s['correctness']} novel={s['novel_bonus']})")
+        print(
+            f"  Score: {s['total']} "
+            f"(cov={s['coverage']} corr={s['correctness']} novel={s['novel_bonus']})"
+        )
         print()
 
         hits = sum(1 for sq in result["sqs"] if sq["hit"])
@@ -269,7 +288,10 @@ def main():
         for sq in result["sqs"]:
             marker = "[+]" if sq["hit"] else "[-]"
             match_info = f" <- {sq['matched_by']}" if sq["matched_by"] else ""
-            print(f"    {marker} {sq['sq_id']} ({sq['tier']}): sat={sq['satisfaction']}{match_info}")
+            print(
+                f"    {marker} {sq['sq_id']} ({sq['tier']}): "
+                f"sat={sq['satisfaction']}{match_info}"
+            )
 
 
 if __name__ == "__main__":

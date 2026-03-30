@@ -14,6 +14,7 @@ from sreg.tools.oi_compiler import (
     WorldSummary,
 )
 from sreg.tools.oi_extraction import (
+    ExtractionContext,
     _deterministic_extract,
     _extract_json,
     build_extraction_prompt,
@@ -119,6 +120,27 @@ class TestBuildExtractionPrompt:
         # = 1 + 6 + 4 + 1 = 12
         assert len(messages) == 12
 
+    def test_default_uses_curated_diverse_exemplars(self):
+        claim = _make_claim()
+        messages = build_extraction_prompt(claim, ["A", "Y"])
+
+        assert len(messages) == 1 + (8 * 2) + 4 + 1
+        assert any(
+            "slope = -3.83" in m["content"]
+            for m in messages
+            if m["role"] == "user"
+        )
+        assert any(
+            "no reliable directional association" in m["content"]
+            for m in messages
+            if m["role"] == "user"
+        )
+        assert any(
+            "strongest causal effect on Y" in m["content"]
+            for m in messages
+            if m["role"] == "user"
+        )
+
     def test_last_message_is_user_claim(self):
         claim = _make_claim(text="Temperature affects yield")
         messages = build_extraction_prompt(claim, ["temperature", "yield"])
@@ -136,6 +158,38 @@ class TestBuildExtractionPrompt:
         last = messages[-1]
         assert "Focus variables: X, Y" in last["content"]
         assert "Pattern hints: causal_effect" in last["content"]
+
+    def test_includes_rich_context_when_provided(self):
+        claim = _make_claim()
+        ctx = ExtractionContext(
+            title="Meridia gut ecology",
+            domain="microbiome systems biology",
+            research_brief="Identify the main microbial drivers of host outcomes.",
+            description="Observational cohort with multiple health domains.",
+            variable_descriptions={
+                "A": "antibiotic exposure [unit: recent episodes]",
+                "Y": "immune regulation score [unit: points]",
+            },
+            sub_questions=[
+                {
+                    "sq_id": "sq1",
+                    "pattern": "causal_effect",
+                    "text_gloss": "Does A affect Y?",
+                },
+            ],
+        )
+
+        messages = build_extraction_prompt(claim, ["A", "Y"], context=ctx)
+        system = messages[0]["content"]
+
+        assert "### Investigation title" in system
+        assert "Meridia gut ecology" in system
+        assert "### Domain" in system
+        assert "microbiome systems biology" in system
+        assert "### Variable descriptions" in system
+        assert "- A: antibiotic exposure [unit: recent episodes]" in system
+        assert "- Y: immune regulation score [unit: points]" in system
+        assert "sq1: Does A affect Y? (pattern=causal_effect)" in system
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +430,32 @@ class TestCompileClaim:
         result = compile_claim(claim, summary, llm_call=mock_llm)
         assert result.compiled
         assert len(result.specs) > 0
+
+    def test_compile_passes_context_to_llm_prompt(self):
+        claim = _make_claim(focus=["A", "Y"])
+        summary = _make_summary()
+        captured: dict[str, str] = {}
+        ctx = ExtractionContext(
+            title="Context title",
+            domain="test domain",
+            variable_descriptions={"A": "exposure score", "Y": "outcome score"},
+        )
+
+        def mock_llm(messages):
+            captured["system"] = messages[0]["content"]
+            return json.dumps({
+                "pattern": "causal_effect",
+                "treatment": "A",
+                "outcome": "Y",
+                "direction": "positive",
+                "evidence_type": "interventional",
+            })
+
+        result = compile_claim(claim, summary, llm_call=mock_llm, context=ctx)
+        assert result.compiled
+        assert "Context title" in captured["system"]
+        assert "test domain" in captured["system"]
+        assert "- A: exposure score" in captured["system"]
 
     def test_compile_with_llm_abstention(self):
         claim = _make_claim(text="Something vague")
