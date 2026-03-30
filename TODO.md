@@ -513,8 +513,12 @@ informacion de claims complejos:
   las relaciones pairwise (A->B, B->C, A->C), no solo la cadena narrativa
 - [ ] **Indirect/distal conclusion extraction**: conclusiones implicitas
   o distales se pierden en la extraccion
+- [x] **effect_ranking matching** (S02): ranking_vars en ClaimRepr + role_compat
+  special case. Ranking ya no muere por hard gate en treatment.
+- [x] **Sign vs significance** (S02): prompt + exemplar. Slope -3.83 ya no se
+  clasifica como near_zero por p > 0.05.
 - [ ] **effect_ranking from prose**: extraer rankings de magnitud de efecto
-  desde texto libre del solver
+  desde texto libre del solver (extraccion, no matching)
 
 ### A22. Submission aversion — solver resists calling submit_claims
 
@@ -529,9 +533,9 @@ terminal. It always wants "one more analysis" before committing.
 **Mitigaciones implementadas:**
 - [x] Progressive deadline nudges (3-phase: halfway, deadline, final)
 - [x] Hard submit guard on final iteration (reject non-submit tool calls)
-- [ ] Validate hard submit guard in E2E rerun
+- [x] Validate hard submit guard in E2E rerun (S02: 2/3 cases fixed)
+- [x] Force-submit fallback (S02): turno extra con SOLO submit_claims disponible
 - [ ] Consider continuous claim drafting (draft_claim tool, finalize at end)
-- [ ] Consider auto-submit fallback (extract claims from analysis log)
 
 **Evidencia:** `research/notes/e2e_qualitative_analysis_20260328.md` (Cases 1, 3)
 

@@ -399,6 +399,11 @@ Puede:
 El runner valida acciones y devuelve observaciones o resultados consistentes con
 la verdad formal del caso.
 
+Si el solver agota iteraciones sin llamar a `submit_claims`, un mecanismo de
+force-submit le da un turno extra con SOLO `submit_claims` disponible (sin
+`python_exec` ni `think`). Esto mitiga la "submission aversion" donde el solver
+prefiere seguir analizando en vez de entregar hallazgos.
+
 En este horizonte, la interfaz del solver separa dos cosas:
 
 - herramientas libres de razonamiento y analisis, como `python_exec` o `think`,

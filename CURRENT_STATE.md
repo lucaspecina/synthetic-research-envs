@@ -207,8 +207,10 @@ Entrenar una policy con entornos SREG y medir si mejora en benchmarks externos
   la calidad de extraccion LLM sigue siendo el cuello de botella — chain claims
   no extraen todas las relaciones pairwise, y conclusiones indirectas se pierden.
 
-- **Submission aversion**: el solver a veces investiga bien pero no entrega sus
-  claims a tiempo. 2 de 4 casos en la ultima evaluacion sacaron 0 por esto.
+- **Submission aversion (mitigada)**: el solver a veces investiga bien pero no
+  entrega sus claims a tiempo. Mitigacion S02: force-submit da al solver un turno
+  extra con SOLO `submit_claims` disponible si agota iteraciones sin submittear.
+  Funciona en la mayoria de los casos pero es solucion temporal.
 
 - **Preguntas no data-indexed**: algunas preguntas se pueden responder sin mirar
   los datos (desde conocimiento general). Esto es un problema del guided mode;
