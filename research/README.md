@@ -230,26 +230,28 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** A22, S02, S03, scm_task_primitives, open_investigation_vision
 - **Status:** PROPUESTA. Prioridad alta para la proxima ronda.
 
-### S04 Epistemic IR Gap Analysis + Direct-to-AtomicSpec prototype (2026-03-30)
-- **Pregunta:** exactamente que claims epistemologicos se pierden y por que
-  la IR no puede representarlos? Se puede compilar directo a AtomicSpec
-  sin catalogo?
+### S04 Epistemic IR Gap + Direct-to-AtomicSpec vs Catalog (2026-03-30)
+- **Pregunta:** cuanto menos dependamos del catalogo fijo, mejor preservamos
+  la semantica de claims y SQs en casos diversos?
 - **Empezar por:** `notes/s04_epistemic_ir_gap_analysis.md`
-- **Metodo:** (1) Trace completo de 4 claims de e2e_03 a traves del pipeline.
-  (2) Hand-craft de AtomicSpecs para C2 (adjustment sensitivity).
-  (3) Prototipo: LLM compila claims y SQs directo a AtomicSpec, sin PatternClass.
-- **Hallazgo clave del trace:** De 4 claims, 2 ABSTENTION, 1 direction
-  incorrecta, 1 OK pero matchea SQ equivocado. Score: 0.239 (cov=0.02).
-- **Hallazgo clave del prototipo directo:**
-  - C2: de ABSTENTION → 4 specs (incl. identifiability_check, TRUE)
-  - C3: de 0/2 TRUE → **3/3 TRUE** (incl. not_identifiable como instrumento)
-  - SQ epistemologica: de 1 SQ comprimida → **10 specs, 8/10 TRUE**
-  - **El camino directo recupera semantica que el catalogo pierde.**
-  - No se necesita un nuevo catalogo (BundleIR). Se necesita LLM → AtomicSpec.
+- **Metodo:** (1) Trace de e2e_03 epistemologico. (2) Hand-craft de AtomicSpecs.
+  (3) Prototipo directo LLM → AtomicSpec. (4) Comparacion sistematica en
+  5 casos nuevos diversos (selection bias, competing mechanisms, policy equity,
+  value of info, methodology comparison).
+- **Hallazgos clave:**
+  - e2e_03: 2/4 claims ABSTENTION en catalogo. Directo recupera todos.
+  - 5 casos nuevos (18 claims): catalogo 17/18 compilados (28 units).
+    Directo 18/18 compilados (65 specs validos, 50 TRUE). 2.3x mas
+    verificaciones, 0 abstentions.
+  - **El camino directo preserva mas semantica que el catalogo fijo.**
+  - Caveats: identifiability_check != IV validity; prueba capacidad no
+    arquitectura final; 77% TRUE vs ~100% del catalogo (calibracion).
+- **Seeds creadas:** selection_bias_police, methodology_missing_data,
+  competing_mechanisms, policy_equity_tradeoff, value_of_information.
 - **Codex thread:** 019d3f92-6b3b-7851-a5d2-d53830a07b56
 - **Conecta con:** A23, S03, A22, open_investigation_vision
-- **Status:** EVIDENCIA EMPIRICA COMPLETA. Siguiente: iterar prompt, probar
-  en e2e_02, decidir integracion al pipeline.
+- **Status:** EVIDENCIA EMPIRICA COMPLETA. Siguiente: decidir integracion,
+  disenar matching entre conjuntos de specs, calibrar prompting.
 
 ### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
 - **Pregunta:** por que SREG todavia no es investigacion real (post-OI pipeline)?

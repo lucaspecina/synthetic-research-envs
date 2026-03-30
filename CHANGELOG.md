@@ -5,6 +5,33 @@
 
 ## [Unreleased]
 
+### 2026-03-30 — S04 Direct-to-AtomicSpec: catalog vs direct compilation
+
+**Research finding:** the less we depend on the fixed catalog (PatternClass),
+the better we preserve claim/SQ semantics across diverse investigation types.
+
+**Evidence (S04):**
+- Traced e2e_03 epistemic claims through full pipeline: 2/4 ABSTENTION,
+  score 0.239. Hand-crafted AtomicSpecs verified correctly (partial_correlation
+  shrinks from 0.517 to 0.189).
+- Direct compilation prototype (LLM → AtomicSpec, no catalog):
+  - e2e_03: C2 ABSTENTION → 4 specs; C3 0/2 TRUE → 3/3 TRUE
+  - SQ brief: 1 compressed SQ → 10 specs (8/10 TRUE)
+- Systematic comparison on 5 NEW diverse cases (18 claims):
+  catalog 17/18 compiled (28 units), direct 18/18 (65 specs, 50 TRUE).
+
+**5 new seeds for diverse investigation types:**
+- selection_bias_police.md (scenario #11)
+- methodology_missing_data.md (scenario #17)
+- competing_mechanisms.md (scenario #22)
+- policy_equity_tradeoff.md (scenario #3)
+- value_of_information.md (scenario #23)
+
+**5 new experiments:** e2e_07 through e2e_11, all with submitted claims.
+
+**Scripts:** `direct_to_atoms.py`, `compare_compilers.py`, `test_c2_bundle.py`,
+`trace_e2e_03.py` — diagnostic and comparison tools.
+
 ### 2026-03-30 — S02 Diverse E2E diagnostics + force-submit fix
 
 **Force-submit mechanism:**

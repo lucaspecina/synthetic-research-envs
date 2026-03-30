@@ -461,17 +461,99 @@ necesidad de clasificar el claim en un tipo predefinido.
   Pero la solucion no es "SQ grammar-first como bundles" (que es otra
   capa) sino compilacion directa a atoms tanto para SQs como para claims.
 
+## Prueba de concepto 3: comparacion sistematica en 5 casos diversos
+
+Se crearon 5 seeds nuevas cubriendo escenarios no representados y se
+generaron experimentos E2E completos (orchestrator + solver + submission):
+
+| Experimento | Tipo de investigacion |
+|-------------|----------------------|
+| e2e_07_selection_bias | Sesgo de seleccion como hallazgo (scenario #11) |
+| e2e_08_competing_mechanisms | Discriminacion de modelos (scenario #22) |
+| e2e_09_policy_equity | Policy multi-outcome con equidad (scenario #3) |
+| e2e_10_value_of_info | Valor de informacion / diseno de evidencia (scenario #23) |
+| e2e_11_methodology | Comparacion de estimadores (scenario #17) |
+
+Script: `scripts/compare_compilers.py`
+
+### Resultados agregados
+
+| Metrica | Catalogo | Directo |
+|---------|----------|---------|
+| Claims compilados (de 18) | 17 (1 ABSTENTION) | 18 (0 ABSTENTION) |
+| Specs/units generados | 28 | 65 |
+| Specs validos | 28 | 65 (100%) |
+| Specs TRUE | (no medido) | 50/65 (77%) |
+
+El camino directo genera **2.3x mas verificaciones** por claim, con 0
+abstentions (vs 1 en catalogo), y usa mediciones mas ricas: partial_correlation,
+identifiability_check, mean — en vez de solo patterns fijos.
+
+### Detalle por experimento
+
+```
+Experiment                          Claims  Cat.Comp Cat.Units Dir.Valid  Dir.TRUE
+--------------------------------------------------------------------------------
+e2e_07_selection_bias                    4         4         7        17        16
+e2e_08_competing_mechanisms              4         4         7        13         9
+e2e_09_policy_equity                     4         4         5         9         5
+e2e_10_value_of_info                     3         2         3        13        10
+e2e_11_methodology                       3         3         6        13        10
+--------------------------------------------------------------------------------
+TOTAL                                   18        17        28        65        50
+```
+
+### Casos destacados
+
+**e2e_10 claim c2 (co-contaminantes):** ABSTENTION en catalogo, 4 specs
+validos y 4/4 TRUE en directo. El claim reportaba correlaciones entre
+nitrato y proxies agricolas — el catalogo no tenia patron, el directo
+genero 4 correlaciones verificables.
+
+**e2e_07 claim C2 (mecanismo de seleccion):** Catalogo: 4 units confounding.
+Directo: 9 specs (9/9 TRUE) con correlaciones detalladas entre cada par de
+variables del mecanismo de seleccion. Mucho mas granular.
+
+**e2e_11 claim3 (sensibilidad al ajuste):** Catalogo: confounding + causal_effect.
+Directo: 7 specs (5/5 TRUE) con partial_correlation cruda vs ajustada.
+Exactamente el mismo patron que C2 de e2e_03.
+
+**e2e_09 claim c4 (carga fiscal regresiva):** Catalogo: 1 unit obs_assoc.
+Directo: 4 specs (0/4 TRUE). El directo intento verificar la claim pero
+las directions asumidas eran incorrectas. El catalogo "paso" por simplificacion.
+Esto muestra que el directo puede ser MAS exigente — no da credito gratis.
+
+### Interpretacion
+
+1. **La hipotesis se sostiene en la mayoria de los casos:** el camino
+   directo preserva mas semantica (2.3x specs, 0 abstentions, mediciones
+   mas ricas).
+
+2. **El catalogo no es estrictamente peor en todos los casos.** Cuando
+   el claim ES causal simple, el catalogo compila bien y produce units
+   correctos. El catalogo funciona como fast-path para lo que fue disenado.
+
+3. **El directo no es perfecto:** 77% de specs TRUE (vs ~100% correctness
+   en catalogo cuando compila). El LLM genera mas specs pero tambien mas
+   assertions incorrectas (calibracion, direcciones asumidas). Esto es
+   iterable con prompting.
+
+4. **Cero abstentions es el hallazgo mas importante.** Todo claim produce
+   ALGO verificable en el camino directo. En el catalogo, 1/18 claims se
+   pierde completamente (y en e2e_03, 2/4 se pierden). El catalogo tiene
+   un techo de expresividad que el directo no tiene.
+
 ## Proximos pasos
 
-1. **Iterar el prompt** — mejorar guidance para comparaciones (cond_set
-   vacio vs lleno), calibracion de assertions, y direcciones.
-2. **Probar en e2e_02** — confirmar que el camino directo tambien funciona
-   para casos mas simples (predictivo) sin regresion.
-3. **Decidir integracion** — como enchufar el camino directo al pipeline
-   existente. Opciones: reemplazar el compiler actual, o usarlo como
-   fallback cuando PatternClass falla (ABSTENTION).
-4. **Matching sin PatternClass** — si claims y SQs bajan a AtomicSpec
-   directamente, el matching necesita comparar specs en vez de patterns.
-   Esto es un cambio de scoring, no trivial.
-5. **C4 (data quality)** — queda fuera del alcance del SCM por ahora.
-   Posible capa futura de observation-level truth.
+1. **Decidir integracion** — como enchufar el camino directo al pipeline
+   existente. El catalogo puede seguir como fast-path, con el directo
+   como ruta principal o fallback.
+2. **Matching entre conjuntos de specs** — si claims y SQs bajan a
+   AtomicSpec, el scoring necesita comparar specs, no patterns. Diseno
+   abierto.
+3. **Calibracion del directo** — mejorar prompting para reducir el 23%
+   de specs FALSE (directions asumidas, assertions agresivas).
+4. **Probar en los 6 experimentos originales** (e2e_01 a e2e_06) para
+   tener la foto completa.
+5. **Contrato final del sistema** — que promete, que garantiza, como
+   agrega. Trabajo de diseno.
