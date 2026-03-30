@@ -75,12 +75,16 @@ Every change — code or docs — follows this workflow.
 If the commit changes orchestrator/tools/OI pipeline: note that `/eval` should
 be re-run to verify environment quality. This is a NOTE, not a blocker.
 
-## 23 escenarios check
+## Escenarios diversos check — OBLIGATORIO para cambios de diseno
 
-If the commit changes scoring, compiler, prompts, or contracts: verify mentally
-that the change works for ALMOST ALL 23 diverse investigation scenarios
-(`research/synthesis/investigation_scenarios_rubric.md`). If it only works for
-a few types, flag it before presenting to the user.
+**ANTES de disenar o implementar** cualquier cambio en scoring, compiler,
+prompts, contratos, o IR: repasar mentalmente los escenarios diversos
+(`research/synthesis/investigation_scenarios_rubric.md`).
+
+No solo "X causa Y" — verificar que funciona para: system mapping,
+structure discovery, descriptivo, predictivo, epistemologico, optimizacion,
+multi-outcome, etc. Si solo funciona para causal simple, es un juguete.
+Si mejora 3 tipos pero rompe 5, no vale. Flaggear ANTES de presentar.
 
 ## Report format
 

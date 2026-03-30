@@ -33,11 +33,15 @@ python scripts/generate_src.py --goal "..." -o experiments/eval_TOPIC/ --inspect
 python scripts/generate_src.py --goal "..." -o experiments/eval_TOPIC/ --oi --seed N
 ```
 
-## Validar contra los 23 escenarios
+## Validar contra escenarios diversos — NO NEGOCIABLE
 
-Cualquier cambio de scoring, compiler o contratos debe funcionar para CASI
-TODOS los 23 escenarios diversos (`research/synthesis/investigation_scenarios_rubric.md`).
-Si solo funciona para 3 de 23, es un juguete. Si mejora 3 pero rompe 5, no vale.
+Cualquier cambio de scoring, compiler, IR, o contratos debe funcionar para
+la MAYORIA de los tipos de investigacion diversos
+(`research/synthesis/investigation_scenarios_rubric.md`).
+
+No solo "X causa Y" — tambien: system mapping, structure discovery,
+descriptivo, predictivo, epistemologico, optimizacion, multi-outcome, etc.
+Si solo funciona para causal simple, es un juguete. Si mejora 3 pero rompe 5, no vale.
 
 ## Step 2: Qualitative evaluation — structured rubric
 

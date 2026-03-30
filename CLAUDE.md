@@ -11,9 +11,14 @@
 > el objetivo y que no, saber cuando una conclusion es prematura vs
 > bien fundada.
 
-Cada decision pasa por este doble filtro:
+Cada decision pasa por este TRIPLE filtro:
 1. Se parece a investigacion real? Si no, es un bug.
 2. Entrenaria buen juicio cientifico (incluida relevancia)? Si no, redisenar.
+3. Funciona para la MAYORIA de los tipos de investigacion? No solo "X causa Y"
+   — system mapping, structure discovery, descriptivo, predictivo, epistemologico,
+   optimizacion, multi-outcome, etc. Si solo funciona para causal simple, es un
+   juguete. Repasar mentalmente los escenarios diversos ANTES de disenar:
+   `research/synthesis/investigation_scenarios_rubric.md`.
 
 ## Principios de scoring — NO NEGOCIABLE
 
@@ -24,9 +29,8 @@ Cada decision pasa por este doble filtro:
    para funcionar, es un juego, no evaluacion de investigacion.
 5. **Verificacion es el core** — el SCM verifica. El scoring solo pregunta:
    es verdad? es relevante? cubrio lo pedido? no spameo?
-
-Validar cambios de scoring contra los 23 escenarios:
-`research/synthesis/investigation_scenarios_rubric.md`.
+6. **Diversidad de investigacion** — todo diseno debe funcionar para los tipos
+   diversos de investigacion (ver triple filtro arriba). No disenar para "X→Y".
 
 ## Donde buscar que
 
@@ -121,10 +125,8 @@ evaluar cualitativamente el resultado (`/eval`).
 generacion E2E con LLM, rubrica cualitativa de 7 dimensiones, 6 critical
 failures, no-data baseline probe, y LA PREGUNTA doble. Ver `/eval`.
 
-**Validar contra los 23 escenarios** (`research/synthesis/investigation_scenarios_rubric.md`):
-cualquier cambio de scoring, compiler, prompts o contratos debe funcionar
-para CASI TODOS los 23 escenarios de investigacion diversos. Si solo
-funciona para 3 de 23, es un juguete. Si mejora 3 pero rompe 5, no vale.
+**Escenarios diversos**: ver triple filtro en LA PREGUNTA. Aplica a TODA
+decision de diseno, no solo a validacion post-hoc.
 
 ## Environment setup
 
