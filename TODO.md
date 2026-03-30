@@ -481,34 +481,40 @@ de scoring. Solucion: compatibility algebra que da credito parcial
 **Research:** `research/notes/a21_compiler_ontology_investigation.md`
 **Codex threads:** 019d3aec, 019d3b67
 
-### A22. Compiler abstention rate + patterns fijos — NUEVO BOTTLENECK
+### A22. Compiler abstention rate + patterns fijos — DONE (multi-unit)
 
-**Descubierto durante E2E de A21 (2026-03-29).**
+**Descubierto durante E2E de A21 (2026-03-29). Resuelto con multi-unit compiler.**
 
-El compiler rechaza la mayoria de claims complejos porque:
-1. `ClaimIntent` tiene UN solo treatment y UN solo outcome
-2. Solo hay 8 patterns fijos (causal_effect, mediation, etc.)
-3. El prompt dice "si no entra, abstener"
+El compiler rechazaba claims complejos porque `ClaimIntent` tenia UN solo
+treatment y UN solo outcome. Solucion: `compile_claim()` extrae N intents
+por claim, crea un `CompiledUnit` por intent. `CompilerOutput` tiene lista
+de units con status `compiled`/`partial`/`abstention`.
 
-Pero la gramatica composable (`open_investigation.py`) tiene 5 QueryKind x
-10 Measurement x 8 Comparison x 12 Assertion = expresividad enorme. Y el
-verifier ya sabe ejecutar todo contra el SCM. El cuello de botella esta
-en la capa intermedia (ClaimIntent), no en la capacidad de verificacion.
+**E2E validacion:** soil 0.200->0.980, coral 0.807, logistics +0.08.
 
-**Evidencia soil case:** 3/4 claims ABSTENTION (cadena, multi-variable, residuales).
+**Paso 1 (DONE):** Multi-intent — un claim -> N ClaimIntents + CompiledUnits.
+**Paso 2 (futuro):** Fallback a gramatica composable para tipos nuevos.
+**Paso 3 (futuro):** Patterns organicos desde fallback.
 
-**Propuesta (hibrida — patterns + fallback):**
-- **Paso 1:** Multi-intent — un claim → N ClaimIntents. Los 8 patterns
-  se mantienen como fast-path. Desbloquea claims compuestos.
-- **Paso 2:** Fallback a gramatica composable — si un fragmento no
-  encaja en ningun pattern, el LLM construye AtomicSpec directamente.
-  Desbloquea tipos nuevos (residuales, dose-response, etc.).
-- **Paso 3:** Guardar recetas nuevas que emergen del fallback como
-  patterns futuros. Los patterns crecen organicamente.
+**Siguiente bottleneck (S03):** calidad de extraccion LLM. Ver items abajo.
 
 **Research:** `research/notes/a22_compiler_direct_to_atomicspec.md`
 **Conecta con:** A21, scm_task_primitives, open_investigation_vision
 **Codex thread:** 019d3b67-eb81-7201-9151-9aa26e54ac24
+
+### S03. Compiler LLM extraction quality — NEXT BOTTLENECK
+
+**Descubierto durante S02 forensics de A22 (2026-03-29).**
+
+Multi-unit resolvio abstention, pero la extraccion LLM sigue perdiendo
+informacion de claims complejos:
+
+- [ ] **Chain claim extraction**: "A causes B causes C" debe extraer TODAS
+  las relaciones pairwise (A->B, B->C, A->C), no solo la cadena narrativa
+- [ ] **Indirect/distal conclusion extraction**: conclusiones implicitas
+  o distales se pierden en la extraccion
+- [ ] **effect_ranking from prose**: extraer rankings de magnitud de efecto
+  desde texto libre del solver
 
 ### A22. Submission aversion — solver resists calling submit_claims
 

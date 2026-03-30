@@ -438,7 +438,7 @@ class OIEpisodeRunner:
             target=self.target, n_mc=self.n_mc, seed=self.seed,
         )
 
-        # Extract (ClaimIntent, truth) tuples from compiled outputs
+        # Extract (ClaimIntent, truth) tuples — one per CompiledUnit (A22)
         from sreg.tools.oi_compiler import CompilerOutput
         from sreg.tools.oi_verifier import verify_atom
 
@@ -447,18 +447,17 @@ class OIEpisodeRunner:
         for co in compiled:
             if not isinstance(co, CompilerOutput) or not co.compiled:
                 continue
-            if co.intent is None:
-                continue
-            # Compute truth: conjunctive (all atoms must hold)
-            if co.specs:
-                verdicts = [
-                    verify_atom(s, self.world, solver, self.n_mc, self.seed)
-                    for s in co.specs
-                ]
-                truth = 1.0 if all(v.solver_assertion_holds for v in verdicts) else 0.0
-            else:
-                truth = 0.0
-            claim_tuples.append((co.intent, truth))
+            for unit in co.units:
+                # Per-unit truth: conjunctive (all atoms in unit must hold)
+                if unit.specs:
+                    verdicts = [
+                        verify_atom(s, self.world, solver, self.n_mc, self.seed)
+                        for s in unit.specs
+                    ]
+                    truth = 1.0 if all(v.solver_assertion_holds for v in verdicts) else 0.0
+                else:
+                    truth = 0.0
+                claim_tuples.append((unit.intent, truth))
 
         return score_episode_with_subquestions(claim_tuples, resolved)
 

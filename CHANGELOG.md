@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### 2026-03-29 — A22 multi-unit compiler: compound claims decomposed into N units
+
+**Multi-unit compiler pipeline:**
+- New `CompiledUnit` model: each unit has its own `ClaimIntent` + `AtomicSpecs`
+- `CompilerOutput` restructured with `units` list and status (`compiled` /
+  `partial` / `abstention`)
+- `compile_claim()` iterates N intents extracted from a single claim, creates
+  one `CompiledUnit` per intent
+- SQ scoring now per-unit instead of per-claim flat
+
+**E2E validation:**
+- Soil: 0.200 -> 0.980 (chain claim now decomposes into pairwise units)
+- Coral: 0.807 (compound claims fully compiled)
+- Logistics: +0.08 improvement
+- S02 forensics: compiler LLM extraction quality is the next bottleneck
+  (chain claims miss pairwise relationships, indirect conclusions lost)
+
 ### 2026-03-29 — Deep cleanup round 2: remove last BN vestiges from active code
 
 **Code cleanup:**

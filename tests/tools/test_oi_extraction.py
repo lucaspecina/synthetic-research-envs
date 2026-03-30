@@ -153,9 +153,10 @@ class TestParseExtractionResponse:
             "evidence_type": "interventional",
         })
         result = parse_extraction_response(response, "c1")
-        assert isinstance(result, ClaimIntent)
-        assert result.pattern == PatternClass.CAUSAL_EFFECT
-        assert result.treatment == "A"
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].pattern == PatternClass.CAUSAL_EFFECT
+        assert result[0].treatment == "A"
 
     def test_parses_mediation(self):
         response = json.dumps({
@@ -167,8 +168,8 @@ class TestParseExtractionResponse:
             "evidence_type": "interventional",
         })
         result = parse_extraction_response(response, "c1")
-        assert isinstance(result, ClaimIntent)
-        assert result.mediator == "M"
+        assert isinstance(result, list)
+        assert result[0].mediator == "M"
 
     def test_parses_abstention(self):
         response = json.dumps({
@@ -183,7 +184,7 @@ class TestParseExtractionResponse:
     def test_handles_markdown_fenced(self):
         response = '```json\n{"pattern": "causal_effect", "treatment": "A", "outcome": "Y"}\n```'
         result = parse_extraction_response(response, "c1")
-        assert isinstance(result, ClaimIntent)
+        assert isinstance(result, list)
 
     def test_handles_invalid_json(self):
         result = parse_extraction_response("not json at all", "c1")
@@ -202,6 +203,75 @@ class TestParseExtractionResponse:
             "treatment": "A",
             "outcome": "Y",
         })
+        result = parse_extraction_response(response, "c1")
+        assert isinstance(result, CompilerOutput)
+        assert result.status == "abstention"
+
+    def test_parses_multi_unit_wrapper(self):
+        """Multi-unit: {"intents": [...]} produces list of ClaimIntents."""
+        response = json.dumps({
+            "intents": [
+                {
+                    "pattern": "causal_effect",
+                    "treatment": "A",
+                    "outcome": "B",
+                    "direction": "positive",
+                },
+                {
+                    "pattern": "causal_effect",
+                    "treatment": "B",
+                    "outcome": "Y",
+                    "direction": "negative",
+                },
+            ]
+        })
+        result = parse_extraction_response(response, "c1")
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0].treatment == "A"
+        assert result[0].outcome == "B"
+        assert result[1].treatment == "B"
+        assert result[1].outcome == "Y"
+        assert result[1].direction == Direction.NEGATIVE
+        # All intents get indexed claim_id
+        assert result[0].claim_id == "c1::0"
+        assert result[1].claim_id == "c1::1"
+
+    def test_multi_unit_partial_failure(self):
+        """Multi-unit with one invalid intent still returns the valid ones."""
+        response = json.dumps({
+            "intents": [
+                {
+                    "pattern": "causal_effect",
+                    "treatment": "A",
+                    "outcome": "Y",
+                    "direction": "positive",
+                },
+                {
+                    "pattern": "invalid_pattern",
+                    "treatment": "B",
+                    "outcome": "Y",
+                },
+            ]
+        })
+        result = parse_extraction_response(response, "c1")
+        assert isinstance(result, list)
+        assert len(result) == 1  # only the valid one
+
+    def test_multi_unit_all_invalid_produces_abstention(self):
+        """Multi-unit where all intents fail -> abstention."""
+        response = json.dumps({
+            "intents": [
+                {"pattern": "bad1", "treatment": "A", "outcome": "Y"},
+                {"pattern": "bad2", "treatment": "B", "outcome": "Y"},
+            ]
+        })
+        result = parse_extraction_response(response, "c1")
+        assert isinstance(result, CompilerOutput)
+        assert result.status == "abstention"
+
+    def test_multi_unit_empty_array_produces_abstention(self):
+        response = json.dumps({"intents": []})
         result = parse_extraction_response(response, "c1")
         assert isinstance(result, CompilerOutput)
         assert result.status == "abstention"
@@ -371,3 +441,94 @@ class TestCompileClaim:
         result = compile_claim(claim, summary, llm_call=weird_llm)
         # Should handle gracefully (converts to str or abstains)
         assert isinstance(result, CompilerOutput)
+
+    def test_compile_multi_unit_from_llm(self):
+        """Compound claim → N intents → N CompiledUnits."""
+        claim = _make_claim("c_multi", "A increases B, and B increases Y", ["A", "B", "Y"])
+        summary = _make_summary()
+
+        def mock_llm(messages):
+            return json.dumps({
+                "intents": [
+                    {
+                        "pattern": "causal_effect",
+                        "treatment": "A",
+                        "outcome": "B",
+                        "direction": "positive",
+                    },
+                    {
+                        "pattern": "causal_effect",
+                        "treatment": "B",
+                        "outcome": "Y",
+                        "direction": "positive",
+                    },
+                ]
+            })
+
+        result = compile_claim(claim, summary, llm_call=mock_llm)
+        assert result.compiled
+        assert result.status == "compiled"
+        assert len(result.units) == 2
+        assert result.units[0].intent.treatment == "A"
+        assert result.units[0].intent.outcome == "B"
+        assert result.units[1].intent.treatment == "B"
+        assert result.units[1].intent.outcome == "Y"
+        # Flat specs includes all units' specs
+        assert len(result.specs) >= 2
+
+    def test_compile_multi_unit_partial(self):
+        """One intent valid, one invalid → partial compilation."""
+        claim = _make_claim("c_partial", "A increases Y, Q increases W", ["A", "Y"])
+        summary = _make_summary()
+
+        def mock_llm(messages):
+            return json.dumps({
+                "intents": [
+                    {
+                        "pattern": "causal_effect",
+                        "treatment": "A",
+                        "outcome": "Y",
+                        "direction": "positive",
+                    },
+                    {
+                        "pattern": "causal_effect",
+                        "treatment": "Q",  # not in world
+                        "outcome": "W",    # not in world
+                        "direction": "positive",
+                    },
+                ]
+            })
+
+        result = compile_claim(claim, summary, llm_call=mock_llm)
+        assert result.compiled
+        assert result.status == "partial"
+        assert len(result.units) == 1
+        assert len(result.uncompiled_fragments) == 1
+
+    def test_compile_multi_unit_all_fail(self):
+        """All intents fail validation → abstention."""
+        claim = _make_claim("c_allfail", "Q increases W, W increases X")
+        summary = _make_summary()
+
+        def mock_llm(messages):
+            return json.dumps({
+                "intents": [
+                    {
+                        "pattern": "causal_effect",
+                        "treatment": "Q",
+                        "outcome": "W",
+                        "direction": "positive",
+                    },
+                    {
+                        "pattern": "causal_effect",
+                        "treatment": "W",
+                        "outcome": "X",
+                        "direction": "positive",
+                    },
+                ]
+            })
+
+        result = compile_claim(claim, summary, llm_call=mock_llm)
+        assert not result.compiled
+        assert result.status == "abstention"
+        assert "2 intent(s) failed" in result.abstention_reason

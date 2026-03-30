@@ -529,10 +529,13 @@ El modo principal de evaluacion. Separa la evaluacion en 3 capas:
 1. **Solver** — investiga libre, entrega claim cards (max 5).
    Cada card tiene: texto, variables foco, confianza, evidencia.
    El solver NO ve categorias de scoring ni patrones esperados.
-2. **Compiler** — traduce claim cards a specs ejecutables. Usa una
-   GRAMATICA COMPOSABLE de 4 piezas (Simulacion + Medicion + Comparacion +
-   Asercion). El compiler NO juzga calidad — solo traduce.
-3. **SCM Verifier** — ejecuta specs contra el SCM (determinista, sin LLM).
+2. **Compiler** — traduce claim cards a specs ejecutables. Cada claim se
+   descompone en N `CompiledUnit`s (one per `ClaimIntent`). Usa una GRAMATICA
+   COMPOSABLE de 4 piezas (Simulacion + Medicion + Comparacion + Asercion).
+   `CompilerOutput` tiene lista de units + status (`compiled`/`partial`/
+   `abstention`). El compiler NO juzga calidad — solo traduce.
+3. **SCM Verifier** — ejecuta specs de cada unit contra el SCM (determinista,
+   sin LLM). Scoring se computa per-unit.
 
 **Gramatica composable:**
 - ~24 piezas atomicas que se combinan en cientos de verificaciones posibles
@@ -549,9 +552,10 @@ El modo principal de evaluacion. Separa la evaluacion en 3 capas:
 SCM exacta DESPUES de compilacion. La compilacion tiene subjetividad
 encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
 
-**Bottleneck actual:** el compiler (LLM extraction) es el cuello de botella.
-Claims correctas del solver se traducen mal y reciben score 0. Esto es el
-problema a resolver, no el solver ni el verifier.
+**Bottleneck actual:** el multi-unit compiler (A22) resolvio la abstention rate
+descomponiendo claims compuestos en N CompiledUnits. El bottleneck ahora es la
+calidad de extraccion LLM — chain claims no extraen relaciones pairwise,
+conclusiones indirectas se pierden (S03).
 
 Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
 

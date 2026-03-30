@@ -216,20 +216,57 @@ class ClaimIntent(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class CompiledUnit(BaseModel):
+    """One verifiable unit extracted from a claim.
+
+    Each unit has its own intent (the LLM-extracted symbolic IR) and specs
+    (the deterministic lowering to AtomicSpecs). A compound claim produces
+    N CompiledUnits; a simple claim produces 1.
+
+    ClaimIntent is the current lowering backend. Future backends (direct
+    AtomicSpec DSL, structural, identifiability) can be added per-unit.
+    """
+
+    unit_id: str = Field(min_length=1)
+    intent: ClaimIntent
+    specs: list[AtomicSpec] = Field(default_factory=list)
+    backend: Literal["claim_intent"] = "claim_intent"
+
+
 class CompilerOutput(BaseModel):
-    """Result of compiling one ClaimCard."""
+    """Result of compiling one ClaimCard.
+
+    1:1 with ClaimCard. May contain 0..N CompiledUnits. Multi-unit claims
+    (A22) produce N units from compound assertions. Warranty, trace, and
+    efficiency are keyed by claim_id (unchanged).
+    """
 
     claim_id: str
-    status: Literal["compiled", "abstention"] = "compiled"
-    specs: list[AtomicSpec] = Field(default_factory=list)
+    status: Literal["compiled", "partial", "abstention"] = "compiled"
+    units: list[CompiledUnit] = Field(default_factory=list)
     abstention_reason: str | None = None
-    intent: ClaimIntent | None = Field(
-        default=None, description="Preserved ClaimIntent for sub-question scoring"
+    uncompiled_fragments: list[str] = Field(
+        default_factory=list, description="Fragments that could not be compiled"
     )
 
     @property
     def compiled(self) -> bool:
-        return self.status == "compiled" and len(self.specs) > 0
+        return self.status in ("compiled", "partial") and len(self.units) > 0
+
+    @property
+    def specs(self) -> list[AtomicSpec]:
+        """Flat list of all specs across units (backward compat)."""
+        return [spec for u in self.units for spec in u.specs]
+
+    @property
+    def intents(self) -> list[ClaimIntent]:
+        """All intents across units."""
+        return [u.intent for u in self.units]
+
+    @property
+    def intent(self) -> ClaimIntent | None:
+        """Single intent for backward compat. Returns first or None."""
+        return self.units[0].intent if self.units else None
 
 
 # ---------------------------------------------------------------------------
@@ -351,7 +388,12 @@ def lower_intent(intent: ClaimIntent, summary: WorldSummary) -> CompilerOutput:
             abstention_reason=f"Lowering error: {e}",
         )
 
-    return CompilerOutput(claim_id=intent.claim_id, specs=specs, intent=intent)
+    unit = CompiledUnit(
+        unit_id=intent.claim_id,
+        intent=intent,
+        specs=specs,
+    )
+    return CompilerOutput(claim_id=intent.claim_id, units=[unit])
 
 
 def _lower_causal_effect(intent: ClaimIntent, summary: WorldSummary) -> list[AtomicSpec]:
@@ -1055,6 +1097,7 @@ def score_compiled_episode_v2(
 
 __all__ = [
     "ClaimIntent",
+    "CompiledUnit",
     "CompilerOutput",
     "Direction",
     "PatternClass",

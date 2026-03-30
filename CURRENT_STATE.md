@@ -89,22 +89,26 @@ analizarlo, y que concluir.
 
 Las claim cards del solver pasan por un pipeline de 3 capas:
 
-1. **Extractor (LLM):** traduce el texto libre de cada claim a una intencion
-   estructurada — que tipo de hallazgo es (efecto causal, mediacion, confounding...)
-   y que variables involucra.
+1. **Extractor (LLM):** traduce el texto libre de cada claim a una o mas
+   intenciones estructuradas (`ClaimIntent`) — que tipo de hallazgo es (efecto
+   causal, mediacion, confounding...) y que variables involucra. Claims
+   compuestos (ej. "A causa B que causa C") se descomponen en N intenciones.
 
-2. **Compiler (deterministico):** convierte la intencion a specs ejecutables
-   contra el SCM. Usa una gramatica composable (~24 piezas atomicas que se
-   combinan en cientos de verificaciones posibles).
+2. **Compiler (deterministico):** convierte cada intencion a un `CompiledUnit`
+   con specs ejecutables contra el SCM. Usa una gramatica composable (~24
+   piezas atomicas que se combinan en cientos de verificaciones posibles).
+   La salida (`CompilerOutput`) tiene una lista de units y un status
+   (`compiled` / `partial` / `abstention`).
 
-3. **Verifier (deterministico):** ejecuta las specs contra el SCM via Monte
-   Carlo. Produce un resultado numerico exacto — true/false con magnitud.
+3. **Verifier (deterministico):** ejecuta las specs de cada unit contra el SCM
+   via Monte Carlo. Produce un resultado numerico exacto — true/false con
+   magnitud. El scoring se computa per-unit y luego se agrega.
 
 > **Ejemplo:** El solver dice "la industria causa contaminacion". El extractor
 > identifica: patron=causal_effect, causa=industria, efecto=contaminacion.
-> El compiler genera una spec: "simular industria alta vs baja, medir
-> contaminacion, comparar medias". El verifier ejecuta 100K samples en el SCM
-> y dice: "si, efecto significativo de +2.3 unidades, el claim es correcto".
+> El compiler genera un CompiledUnit con spec: "simular industria alta vs baja,
+> medir contaminacion, comparar medias". El verifier ejecuta 100K samples en el
+> SCM y dice: "si, efecto significativo de +2.3 unidades, el claim es correcto".
 
 ### Paso 6: Scoring
 
@@ -198,9 +202,10 @@ Entrenar una policy con entornos SREG y medir si mejora en benchmarks externos
 
 ## Que falta (limitaciones honestas)
 
-- **El compiler es el bottleneck**: el solver puede investigar bien y descubrir
-  cosas correctas, pero si el compiler (LLM extraction) traduce mal el claim,
-  el score sale 0. Caso real: coral reef con 5 claims correctos, todos scored 0.
+- **El compiler LLM extraction es el bottleneck**: el multi-unit compiler (A22)
+  resolvio la abstention rate descomponiendo claims compuestos en N units. Pero
+  la calidad de extraccion LLM sigue siendo el cuello de botella — chain claims
+  no extraen todas las relaciones pairwise, y conclusiones indirectas se pierden.
 
 - **Submission aversion**: el solver a veces investiga bien pero no entrega sus
   claims a tiempo. 2 de 4 casos en la ultima evaluacion sacaron 0 por esto.

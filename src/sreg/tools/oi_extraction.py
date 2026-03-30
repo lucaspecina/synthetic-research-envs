@@ -41,11 +41,12 @@ _SYSTEM_PROMPT = """\
 You are a scientific claim compiler. Your job is to extract the structured
 intent from a natural-language research claim.
 
-Given a claim and the variables available in the world, output a JSON object
-with the fields below. If the claim cannot be compiled (too vague, about
-model fit, about sample properties), output {"abstention": true, "reason": "..."}.
+Given a claim and the variables available in the world, extract one or more
+verifiable assertions. If the claim fits a single pattern, output ONE intent
+object. If it contains MULTIPLE distinct assertions (chain: X->M->Y->Z, or
+fork: X->Y AND X->Z), output a wrapper with multiple intents.
 
-## Output format (compiled)
+## Output format — single assertion (most common)
 {
   "pattern": "<causal_effect|mediation|heterogeneity|tail_risk|variance_effect|\
 observational_association|effect_ranking|confounding>",
@@ -60,11 +61,29 @@ observational_association|effect_ranking|confounding>",
   "evidence_type": "<interventional|observational>"
 }
 
-## Output format (abstention)
+## Output format — multiple assertions (compound claims)
+{
+  "intents": [
+    { <intent object as above> },
+    { <intent object as above> }
+  ]
+}
+
+## Output format — abstention
 {
   "abstention": true,
   "reason": "<brief explanation>"
 }
+
+## CRITICAL: when to use multiple intents vs a single rich pattern
+- "A affects Y through M" = ONE mediation intent (NOT two pairwise intents)
+- "A confounds the X->Y relationship" = ONE confounding intent
+- "The effect of X on Y depends on Z" = ONE heterogeneity intent
+- "X is the strongest predictor of Y among A, B, C" = ONE effect_ranking intent
+- "A is associated with Y controlling for B, C" = ONE observational_association
+ONLY use multiple intents when the claim makes SEPARATE assertions that
+cannot fit in a single pattern. Example: "A increases B, B increases C,
+and C decreases D" = 3 separate observational_association intents.
 
 ## Rules
 - Variable names must EXACTLY match the world's variable list.
@@ -168,17 +187,38 @@ def _intent_to_json(intent: ClaimIntent) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def _parse_single_intent(data: dict[str, Any], claim_id: str, idx: int = 0) -> ClaimIntent:
+    """Parse a single intent dict into a ClaimIntent. Raises on invalid fields."""
+    return ClaimIntent(
+        claim_id=f"{claim_id}::{idx}",
+        pattern=PatternClass(data["pattern"]),
+        treatment=data["treatment"],
+        outcome=data["outcome"],
+        direction=Direction(data.get("direction", "positive")),
+        mediator=data.get("mediator"),
+        modifier=data.get("modifier"),
+        confounder=data.get("confounder"),
+        ranking_vars=data.get("ranking_vars", []),
+        conditioning_set=data.get("conditioning_set", []),
+        evidence_type=data.get("evidence_type", "interventional"),
+    )
+
+
 def parse_extraction_response(
     response_text: str,
     claim_id: str,
-) -> CompilerOutput | ClaimIntent:
-    """Parse LLM response into ClaimIntent or CompilerOutput (abstention).
+) -> list[ClaimIntent] | CompilerOutput:
+    """Parse LLM response into list of ClaimIntents or CompilerOutput (abstention).
+
+    Accepts 3 formats:
+    - Legacy single: {"pattern": ..., "treatment": ..., "outcome": ...}
+    - Multi-unit wrapper: {"intents": [{...}, {...}]}
+    - Abstention: {"abstention": true, "reason": "..."}
 
     Returns:
-        ClaimIntent if successfully parsed.
+        list[ClaimIntent] if successfully parsed (1 or more intents).
         CompilerOutput with abstention if the LLM abstained or parsing failed.
     """
-    # Extract JSON from response (may have markdown fencing)
     json_str = _extract_json(response_text)
     if json_str is None:
         return CompilerOutput(
@@ -196,36 +236,53 @@ def parse_extraction_response(
             abstention_reason=f"Invalid JSON: {e}",
         )
 
-    # Check for abstention
-    if data.get("abstention"):
+    # Abstention
+    if isinstance(data, dict) and data.get("abstention"):
         return CompilerOutput(
             claim_id=claim_id,
             status="abstention",
             abstention_reason=data.get("reason", "LLM abstained"),
         )
 
-    # Parse as ClaimIntent
-    try:
-        intent = ClaimIntent(
-            claim_id=claim_id,
-            pattern=PatternClass(data["pattern"]),
-            treatment=data["treatment"],
-            outcome=data["outcome"],
-            direction=Direction(data.get("direction", "positive")),
-            mediator=data.get("mediator"),
-            modifier=data.get("modifier"),
-            confounder=data.get("confounder"),
-            ranking_vars=data.get("ranking_vars", []),
-            conditioning_set=data.get("conditioning_set", []),
-            evidence_type=data.get("evidence_type", "interventional"),
-        )
-        return intent
-    except (KeyError, ValueError) as e:
-        return CompilerOutput(
-            claim_id=claim_id,
-            status="abstention",
-            abstention_reason=f"Invalid intent fields: {e}",
-        )
+    # Multi-unit wrapper: {"intents": [...]}
+    if isinstance(data, dict) and "intents" in data:
+        intent_list = data["intents"]
+        if not isinstance(intent_list, list) or len(intent_list) == 0:
+            return CompilerOutput(
+                claim_id=claim_id,
+                status="abstention",
+                abstention_reason="Empty intents array in wrapper",
+            )
+        parsed: list[ClaimIntent] = []
+        for idx, item in enumerate(intent_list):
+            try:
+                parsed.append(_parse_single_intent(item, claim_id, idx))
+            except (KeyError, ValueError) as e:
+                logger.warning("Intent %d failed for %s: %s", idx, claim_id, e)
+        if not parsed:
+            return CompilerOutput(
+                claim_id=claim_id,
+                status="abstention",
+                abstention_reason="All intents in wrapper failed to parse",
+            )
+        return parsed
+
+    # Legacy single intent: {"pattern": ..., ...}
+    if isinstance(data, dict) and "pattern" in data:
+        try:
+            return [_parse_single_intent(data, claim_id)]
+        except (KeyError, ValueError) as e:
+            return CompilerOutput(
+                claim_id=claim_id,
+                status="abstention",
+                abstention_reason=f"Invalid intent fields: {e}",
+            )
+
+    return CompilerOutput(
+        claim_id=claim_id,
+        status="abstention",
+        abstention_reason=f"Unrecognized response format: {str(data)[:200]}",
+    )
 
 
 def _extract_json(text: str) -> str | None:
@@ -257,13 +314,17 @@ def compile_claim(
 
     Pipeline: prompt → LLM → parse → validate → lower → output.
 
+    Handles multi-unit claims (A22): compound claims produce N intents,
+    each lowered independently to a CompiledUnit. Final CompilerOutput
+    collects all units with status compiled/partial/abstention.
+
     Args:
         claim: The ClaimCard to compile.
         summary: WorldSummary for validation and lowering.
         llm_call: Callable that takes messages list and returns response string.
             If None, uses deterministic fallback.
     """
-    from sreg.tools.oi_compiler import lower_intent
+    from sreg.tools.oi_compiler import CompiledUnit, lower_intent
 
     world_vars = summary.observable_names
 
@@ -283,8 +344,9 @@ def compile_claim(
                 abstention_reason=f"LLM extraction error: {e}",
             )
     else:
-        # Deterministic fallback
-        parsed = _deterministic_extract(claim, world_vars)
+        # Deterministic fallback returns single ClaimIntent | CompilerOutput
+        det = _deterministic_extract(claim, world_vars)
+        parsed = det if isinstance(det, CompilerOutput) else [det]
 
     # If parsing produced an abstention, return it
     if isinstance(parsed, CompilerOutput):
@@ -294,23 +356,44 @@ def compile_claim(
         )
         return parsed
 
-    # Lower to AtomicSpecs (lower_intent validates + lowers → CompilerOutput)
-    intent = parsed
-    logger.info(
-        "Compile %s -> pattern=%s treat=%s out=%s dir=%s",
-        claim.claim_id, intent.pattern, intent.treatment, intent.outcome,
-        intent.direction,
-    )
-    try:
-        result = lower_intent(intent, summary)
-    except Exception as e:
+    # Lower each intent to a CompiledUnit
+    intents: list[ClaimIntent] = parsed
+    all_units: list[CompiledUnit] = []
+    failures: list[str] = []
+
+    for intent in intents:
+        logger.info(
+            "Compile %s -> pattern=%s treat=%s out=%s dir=%s",
+            claim.claim_id, intent.pattern, intent.treatment, intent.outcome,
+            intent.direction,
+        )
+        try:
+            result = lower_intent(intent, summary)
+            if result.compiled:
+                all_units.extend(result.units)
+            else:
+                failures.append(result.abstention_reason or "Unknown lowering failure")
+        except Exception as e:
+            failures.append(f"Lowering failed for {intent.claim_id}: {e}")
+
+    # Assemble final output
+    if not all_units:
         return CompilerOutput(
             claim_id=claim.claim_id,
             status="abstention",
-            abstention_reason=f"Lowering failed: {e}",
+            abstention_reason=(
+                f"All {len(intents)} intent(s) failed to lower: "
+                + "; ".join(failures)
+            ),
         )
 
-    return result
+    status = "compiled" if not failures else "partial"
+    return CompilerOutput(
+        claim_id=claim.claim_id,
+        status=status,
+        units=all_units,
+        uncompiled_fragments=failures,
+    )
 
 
 def compile_episode_claims(
