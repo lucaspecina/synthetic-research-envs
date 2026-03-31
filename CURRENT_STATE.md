@@ -708,23 +708,65 @@ Esta tabla muestra tipos diversos de investigacion y si el sistema actual
 puede evaluarlos. La columna "v1" es el path de produccion; "v2" es el
 prototipo de SQ specs-based.
 
-| # | Tipo de investigacion | Ejemplo | v1 | v2 | Limitacion |
-|---|---|---|---|---|---|
-| 1 | **Causal simple** | "X causa Y? Con que magnitud?" | SI | SI | — |
-| 2 | **Confounding** | "Z confunde X→Y?" | SI | SI | — |
-| 3 | **Mediacion** | "El efecto de X pasa por M?" | SI | SI | — |
-| 4 | **Heterogeneidad** | "El efecto de X varia por subgrupo?" | SI | SI | — |
-| 5 | **Epistemologico** | "Es robusta la asociacion al ajuste?" | NO | SI | v1 fuerza pattern causal |
-| 6 | **Descriptivo** | "Que variables se asocian con Y?" | NO | SI | v1 fuerza treatment/outcome |
-| 7 | **System mapping** | "Cual es la estructura causal?" | PARCIAL | SI | v1 solo cubre pares, no estructura |
-| 8 | **Multi-outcome** | "Trade-off entre supervivencia y toxicidad" | PARCIAL | SI | v1 evalua cada outcome por separado |
-| 9 | **Tail risk** | "Prob de fallo catastrofico bajo stress?" | SI | SI | — |
-| 10 | **Value of information** | "Que medicion reduce mas la incertidumbre?" | NO | PARCIAL | v2 verifica building blocks, no VOI puro |
-| 11 | **Selection bias** | "Es real o artefacto de seleccion?" | NO | SI | v1 no tiene SQ para adjustment sensitivity |
-| 12 | **Equidad de politica** | "El impuesto afecta igual a todos los NSE?" | PARCIAL | SI | v1 solo capta heterogeneidad por modifier |
-| 13 | **Structure discovery** | "Quien influye a quien? Que es directo?" | NO | PARCIAL | v2 puede compilar specs de estructura parcial |
-| 14 | **Prediccion / optimizacion** | "Maximizar AUC" o "mejor configuracion" | NO | NO | Fuera del scope actual (ver PROJECT.md H1) |
-| 15 | **Diseño experimental** | "Que dato conviene recolectar primero?" | NO | NO | Fuera del scope actual (ver PROJECT.md H2) |
+1. **Causal simple** — v1: SI, v2: SI
+   - Formal: "X causa Y? Con que magnitud?"
+   - Real: "Los antibioticos tempranos reducen la mortalidad en sepsis? En cuanto?"
+
+2. **Confounding** — v1: SI, v2: SI
+   - Formal: "Z confunde X->Y?"
+   - Real: "La severidad del paciente explica por que los que tardan mas en recibir antibioticos mueren mas?"
+
+3. **Mediacion** — v1: SI, v2: SI
+   - Formal: "El efecto de X pasa por M?"
+   - Real: "La contaminacion afecta la expectativa de vida directamente o porque primero causa enfermedades respiratorias?"
+
+4. **Heterogeneidad** — v1: SI, v2: SI
+   - Formal: "El efecto de X varia por subgrupo?"
+   - Real: "La inmunoterapia funciona igual en pacientes con biomarcador alto vs bajo?"
+
+5. **Epistemologico** — v1: NO, v2: SI (v1 fuerza pattern causal)
+   - Formal: "Es robusta la asociacion al ajuste?"
+   - Real: "La correlacion entre contaminacion y enfermedad respiratoria sobrevive si controlamos por tabaquismo y acceso a salud?"
+
+6. **Descriptivo** — v1: NO, v2: SI (v1 fuerza treatment/outcome)
+   - Formal: "Que variables se asocian con Y?"
+   - Real: "De los 5 marcadores de salud, cuales correlacionan mas fuerte con la diversidad del microbioma?"
+
+7. **System mapping** — v1: PARCIAL, v2: SI (v1 solo cubre pares)
+   - Formal: "Cual es la estructura causal del sistema?"
+   - Real: "Por que se atrasan las entregas? Es el proveedor, el transporte o el inventario? Como interactuan?"
+
+8. **Multi-outcome / trade-off** — v1: PARCIAL, v2: SI (v1 evalua outcomes por separado)
+   - Formal: "Trade-off entre supervivencia y toxicidad"
+   - Real: "El esquema A de inmunoterapia mejora supervivencia pero aumenta toxicidad severa. Cuando conviene usarlo?"
+
+9. **Tail risk** — v1: SI, v2: SI
+   - Formal: "Prob de fallo catastrofico bajo stress?"
+   - Real: "El diseno termico A tiene 3x mas probabilidad de thermal runaway arriba de 40C?"
+
+10. **Value of information** — v1: NO, v2: PARCIAL (v2 verifica building blocks, no VOI puro)
+    - Formal: "Que medicion reduce mas la incertidumbre?"
+    - Real: "Para decidir si la contaminacion causa cancer, conviene mas medir exposicion individual o hacer un estudio de intervencion?"
+
+11. **Selection bias** — v1: NO, v2: SI (v1 no tiene SQ para adjustment sensitivity)
+    - Formal: "El efecto es real o artefacto de seleccion?"
+    - Real: "Los arrestos policiales parecen sesgados por raza, pero los datos solo incluyen los detenidos. El sesgo es real o refleja quien entra en la muestra?"
+
+12. **Equidad de politica** — v1: PARCIAL, v2: SI (v1 solo capta heterogeneidad por modifier)
+    - Formal: "La politica afecta igual a todos los grupos?"
+    - Real: "El impuesto a bebidas azucaradas reduce consumo, pero afecta proporcionalmente mas a hogares de bajos ingresos?"
+
+13. **Structure discovery** — v1: NO, v2: PARCIAL (v2 compila specs de estructura parcial)
+    - Formal: "Quien influye a quien? Que es directo vs indirecto?"
+    - Real: "Con registros de actividad cerebral de 6 regiones, reconstruir que region influye a cual durante la tarea"
+
+14. **Prediccion / optimizacion** — v1: NO, v2: NO (fuera del scope actual, ver PROJECT.md H1)
+    - Formal: "Maximizar AUC" o "mejor configuracion"
+    - Real: "Encontrar la combinacion de temperatura y presion que maximiza el rendimiento del proceso quimico"
+
+15. **Diseno experimental** — v1: NO, v2: NO (fuera del scope actual, ver PROJECT.md H2)
+    - Formal: "Que dato conviene recolectar primero?"
+    - Real: "Tengo presupuesto para 100 mediciones. Donde las pongo para aprender mas sobre el sistema?"
 
 **Resumen**: v1 funciona bien para los primeros 4 (causal clasico). v2 extiende
 la cobertura a ~12 de 15 tipos. Los 2-3 restantes requieren extensiones

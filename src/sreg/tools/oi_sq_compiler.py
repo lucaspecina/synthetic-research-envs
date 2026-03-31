@@ -411,3 +411,210 @@ def compile_sq_to_specs(
         )
 
     return SQCompileResult(sq=sq, errors=errors, raw_response=raw)
+
+
+# ---------------------------------------------------------------------------
+# Semantic validation: does the compiled spec match the text_gloss intent?
+# ---------------------------------------------------------------------------
+
+# Keywords that imply causal / interventional intent
+_CAUSAL_KEYWORDS = {
+    "causally", "causal effect", "causal impact", "intervention",
+    "do(", "if we intervene", "would happen if",
+}
+
+# Keywords that imply the text expects an increase
+_INCREASE_KEYWORDS = {
+    "increase", "increases", "worsen", "worsens", "raise", "raises",
+    "higher", "more", "amplify", "amplifies", "exacerbate",
+}
+
+# Keywords that imply the text expects a decrease
+_DECREASE_KEYWORDS = {
+    "reduce", "reduces", "decrease", "decreases", "lower", "lowers",
+    "mitigate", "mitigates", "diminish", "protect",
+}
+
+# Keywords for confounding questions
+_CONFOUND_KEYWORDS = {
+    "confound", "confounding", "confounded", "spurious", "explained by",
+    "driven by", "mostly because", "apparent",
+}
+
+# Keywords for mediation questions
+_MEDIATION_KEYWORDS = {
+    "mediate", "mediated", "mediates", "through", "pathway", "indirect",
+    "transmitted", "channel",
+}
+
+# Keywords for identifiability / unobserved
+_IDENT_KEYWORDS = {
+    "identifiable", "unobserved", "unmeasured", "latent", "hidden",
+    "can we identify", "can the effect be identified",
+}
+
+
+def _text_has_keyword(text: str, keywords: set[str]) -> bool:
+    """Check if text contains any of the keywords (case-insensitive)."""
+    text_lower = text.lower()
+    return any(kw in text_lower for kw in keywords)
+
+
+def validate_compilation_alignment(
+    sq: SubQuestionIntentV2,
+) -> list[dict[str, str]]:
+    """Check if compiled specs align with the text_gloss intent.
+
+    Returns a list of issues found. Each issue is a dict with:
+    - severity: "warning" or "error"
+    - check: name of the check
+    - message: description of the problem
+
+    Empty list = no issues found.
+    """
+    issues: list[dict[str, str]] = []
+    text = sq.text_gloss
+    specs = sq.verification_specs
+
+    # --- Check 1: Causal text → interventional arms ---
+    if _text_has_keyword(text, _CAUSAL_KEYWORDS):
+        has_intervene = any(
+            any(arm.kind == "intervene" for arm in vs.spec.arms)
+            for vs in specs
+            if vs.role == "required"
+        )
+        if not has_intervene:
+            issues.append({
+                "severity": "error",
+                "check": "causal_needs_intervene",
+                "message": (
+                    "Text implies causal intent but no required spec uses "
+                    "interventional arms. Observational specs alone cannot "
+                    "verify causal claims."
+                ),
+            })
+
+    # --- Check 2: Direction alignment ---
+    required_specs = [vs for vs in specs if vs.role == "required"]
+    if _text_has_keyword(text, _INCREASE_KEYWORDS):
+        positive_assertions = {"positive", "greater_than"}
+        has_positive = any(
+            vs.spec.assertion and vs.spec.assertion.kind in positive_assertions
+            for vs in required_specs
+        )
+        has_negative = any(
+            vs.spec.assertion and vs.spec.assertion.kind == "negative"
+            for vs in required_specs
+        )
+        if has_negative and not has_positive:
+            issues.append({
+                "severity": "warning",
+                "check": "direction_mismatch",
+                "message": (
+                    "Text implies an increase but required spec asserts negative. "
+                    "Check if the comparison direction is inverted."
+                ),
+            })
+
+    if _text_has_keyword(text, _DECREASE_KEYWORDS):
+        negative_assertions = {"negative", "less_than"}
+        has_negative = any(
+            vs.spec.assertion and vs.spec.assertion.kind in negative_assertions
+            for vs in required_specs
+        )
+        has_positive = any(
+            vs.spec.assertion and vs.spec.assertion.kind == "positive"
+            for vs in required_specs
+        )
+        if has_positive and not has_negative:
+            issues.append({
+                "severity": "warning",
+                "check": "direction_mismatch",
+                "message": (
+                    "Text implies a decrease but required spec asserts positive. "
+                    "Check if the comparison direction is inverted."
+                ),
+            })
+
+    # --- Check 3: Focus variables appear in specs ---
+    if sq.focus_variables:
+        spec_vars: set[str] = set()
+        for vs in specs:
+            m = vs.spec.measurement
+            for field in ("target", "lhs", "rhs", "treatment", "outcome"):
+                val = getattr(m, field, None)
+                if isinstance(val, str):
+                    spec_vars.add(val)
+                elif isinstance(val, (tuple, list)):
+                    spec_vars.update(str(v) for v in val)
+            if m.cond_set:
+                spec_vars.update(m.cond_set)
+            for arm in vs.spec.arms:
+                if arm.values:
+                    spec_vars.update(arm.values.keys())
+
+        missing = set(sq.focus_variables) - spec_vars
+        if missing:
+            issues.append({
+                "severity": "warning",
+                "check": "focus_vars_missing",
+                "message": (
+                    f"Focus variables {missing} not found in any spec. "
+                    f"The compiled specs may not address the intended question."
+                ),
+            })
+
+    # --- Check 4: Confounding text → appropriate specs ---
+    if _text_has_keyword(text, _CONFOUND_KEYWORDS):
+        has_confound_spec = any(
+            vs.spec.measurement.kind in ("partial_correlation", "identifiability_check")
+            for vs in required_specs
+        )
+        if not has_confound_spec:
+            issues.append({
+                "severity": "warning",
+                "check": "confound_needs_conditioning",
+                "message": (
+                    "Text implies confounding analysis but no required spec "
+                    "uses partial_correlation or identifiability_check."
+                ),
+            })
+
+    # --- Check 5: Mediation text → appropriate specs ---
+    if _text_has_keyword(text, _MEDIATION_KEYWORDS):
+        has_multiple_paths = (
+            sum(1 for vs in specs
+                if any(arm.kind == "intervene" for arm in vs.spec.arms))
+            >= 2
+        ) or any(
+            vs.spec.measurement.kind == "partial_correlation"
+            for vs in specs
+        )
+        if not has_multiple_paths:
+            issues.append({
+                "severity": "warning",
+                "check": "mediation_needs_paths",
+                "message": (
+                    "Text implies mediation analysis but specs don't compare "
+                    "direct vs indirect paths (need multiple interventional "
+                    "specs or partial correlations)."
+                ),
+            })
+
+    # --- Check 6: Identifiability text → identifiability_check ---
+    if _text_has_keyword(text, _IDENT_KEYWORDS):
+        has_ident = any(
+            vs.spec.measurement.kind == "identifiability_check"
+            for vs in specs
+        )
+        if not has_ident:
+            issues.append({
+                "severity": "warning",
+                "check": "ident_needs_check",
+                "message": (
+                    "Text implies identifiability concern but no spec uses "
+                    "identifiability_check measurement."
+                ),
+            })
+
+    return issues

@@ -54,45 +54,48 @@ Call design_case with these fields:
 - **deliverables**: 3-5 action items the investigator should deliver.
 - **sub_questions**: 4-6 hidden sub-questions that define the scoring agenda.
   The solver NEVER sees these — they are used for evaluation only.
-  Use any pattern that fits the research question. The system is general —
-  all patterns (causal_effect, observational_association, mediation,
-  confounding, heterogeneity, effect_ranking) work for any world.
+  Write each as a NATURAL LANGUAGE research question. The system will
+  automatically compile them into formal verification specs.
 
 ### Sub-question format
 
 Each sub-question has:
 - **sq_id**: Unique ID (e.g., "sq1", "sq2")
-- **pattern**: What type of finding this is about:
-  - "causal_effect": does X causally affect Y?
-  - "mediation": does the effect go through M?
-  - "confounding": does Z confound the X-Y relationship?
-  - "heterogeneity": does the effect of X on Y depend on Z?
-  - "observational_association": are X and Y associated? (observational only)
-  - "effect_ranking": which variables matter most for Y?
-  - "tail_risk": does X affect extreme values of Y?
-- **roles**: Which variables fill which role:
-  - treatment: the cause/exposure variable
-  - outcome: the effect/response variable
-  - mediator: intermediate variable (for mediation)
-  - modifier: effect modifier (for heterogeneity)
-  - confounder: confounding variable (for confounding)
-  - ranking_vars: list of variables to rank (for effect_ranking)
-- **ask**: What aspect to evaluate:
-  - "existence": does the effect exist?
-  - "sign": is it positive or negative?
-  - "existence_and_sign": both existence and direction
-  - "magnitude": how large is it?
-  - "rank_order": which is larger? (for effect_ranking)
-- **tier**: How important this sub-question is:
+- **text_gloss**: A concrete research question in natural language. Must imply
+  a verifiable relationship, mechanism, or estimand. NOT a vague topic.
+- **tier**: Importance level:
   - "high" (weight 1.0): core question, central to the brief
   - "medium" (weight 0.6): important but secondary
   - "low" (weight 0.4): peripheral, nice to discover
+- **focus_variables** (optional): Variables central to this question.
+
+### What makes a GOOD sub-question
+
+A good SQ is concrete enough that a researcher could design a study to answer it.
+It implies a specific relationship, comparison, or estimand — even if phrased
+in natural language.
+
+GOOD examples (diverse types):
+- "Does X causally increase Y, or is the association driven by confounding from Z?"
+- "Which variables have the strongest influence on Y? Rank them."
+- "Is the effect of X on Y mediated through M, or is there a direct path?"
+- "Does the effect of X on Y differ depending on the level of Z?"
+- "What is the observational correlation structure among X, Y, and Z?"
+- "Can the causal effect of X on Y be identified from observational data,
+  given that Z is unobserved?"
+- "Does X affect the variance (not just the mean) of Y?"
+- "Among all parents of Y, which has the strongest total causal effect?"
+
+BAD examples (too vague, not verifiable):
+- "Investigate the role of X" (no estimand)
+- "Understand the system" (not a question)
+- "What factors matter?" (too broad, no relationship implied)
 
 ### Portfolio rules
 
 - Use 4-6 sub-questions (4 is fine, 7 is too many)
 - At least 2-3 should be HIGH tier
-- At least 2 different patterns
+- Cover DIVERSE aspects: causal, confounding, mediation, ranking, etc.
 - Each HIGH sub-question should be anchored to a deliverable
 - The brief should naturally imply the top 2-3 sub-questions
 
@@ -100,6 +103,7 @@ Each sub-question has:
 
 - Do NOT put specific sub-question details in the brief — keep it vague
 - Do NOT create more than 1 near-zero/null-finding sub-question
+- Do NOT limit yourself to "does X cause Y" — explore diverse question types
 """
 
 
@@ -117,6 +121,7 @@ class OrchestratorResult:
         self.messages: list[dict] = []
         self.inspiration_manifest: dict | None = None
         self.sub_questions: list | None = None  # list[SubQuestionIntent]
+        self.sub_questions_v2: list | None = None  # list[SubQuestionIntentV2]
 
 
 class Orchestrator:
@@ -153,10 +158,30 @@ class Orchestrator:
         self._worlds: dict[str, SCMWorld] = {}
         self._case_plans: dict[str, CasePlan] = {}
         self._world_seeds: dict[str, int] = {}
+        self._oi_sqs_v2: dict[str, list] = {}  # world_id -> [SubQuestionIntentV2]
         self._world_semantics: dict[str, dict] = {}
 
         # Convert tool definitions to Responses API format
         self._tools = convert_tools_for_responses(TOOL_DEFINITIONS)
+
+    def _call_text_model(self, system: str, user: str) -> str:
+        """Simple text-in/text-out LLM call (no tools).
+
+        Used by the SQ compile step to convert text_gloss -> AtomicSpecs.
+        """
+        response = self._client.responses.create(
+            model=self.model,
+            instructions=system,
+            input=user,
+        )
+        # Concatenate all text parts (responses can be multi-part)
+        parts: list[str] = []
+        for item in response.output:
+            if item.type == "message":
+                for part in item.content:
+                    if hasattr(part, "text"):
+                        parts.append(part.text)
+        return "".join(parts)
 
     def run(self, goal: str) -> OrchestratorResult:
         """Run the orchestrator with a high-level goal.
@@ -542,6 +567,57 @@ class Orchestrator:
             "next_step": "Now call build_problem to sample data and produce the final problem.",
         }
 
+    def _compile_oi_subquestions(
+        self,
+        raw_sqs: list[dict],
+        world: SCMWorld,
+    ) -> tuple[list, list[str]]:
+        """Compile raw SQ dicts (text_gloss) into SubQuestionIntentV2 via LLM.
+
+        Returns (compiled_sqs, errors).
+        """
+        from sreg.models.open_investigation import SubQuestionIntentV2
+        from sreg.tools.oi_compiler import build_world_summary
+        from sreg.tools.oi_sq_compiler import compile_sq_to_specs
+
+        # Build world summary for the compiler
+        target = world.variables[-1]  # same convention as SCMProblemBuilder
+        summary = build_world_summary(world, target)
+
+        compiled: list[SubQuestionIntentV2] = []
+        errors: list[str] = []
+
+        for i, raw in enumerate(raw_sqs):
+            sq_id = raw.get("sq_id", f"sq{i+1}")
+            text_gloss = raw.get("text_gloss", "")
+            focus_vars = tuple(raw.get("focus_variables", []))
+            tier = SQTier(raw.get("tier", "high"))
+
+            if not text_gloss:
+                errors.append(f"{sq_id}: empty text_gloss")
+                continue
+
+            logger.info("Compiling SQ %s: %s", sq_id, text_gloss[:80])
+            result = compile_sq_to_specs(
+                sq_id=sq_id,
+                text_gloss=text_gloss,
+                focus_variables=focus_vars,
+                tier=tier,
+                summary=summary,
+                llm_call=self._call_text_model,
+            )
+
+            if result.success:
+                compiled.append(result.sq)
+                n_specs = len(result.sq.verification_specs)
+                n_req = len(result.sq.required_specs)
+                logger.info("  -> OK: %d specs (%d required)", n_specs, n_req)
+            else:
+                errors.append(f"{sq_id}: {'; '.join(result.errors)}")
+                logger.warning("  -> FAIL: %s", result.errors)
+
+        return compiled, errors
+
     def _build_oi_case_plan(
         self,
         args: dict,
@@ -551,73 +627,56 @@ class Orchestrator:
         obs_node_names: set[str],
         result: OrchestratorResult,
     ) -> dict:
-        """Build CasePlan for OI mode: brief + sub-questions, no eval questions."""
+        """Build CasePlan for OI mode: brief + sub-questions v2 (text -> specs)."""
         raw_sqs = args.get("sub_questions", [])
-        # epistemic_regime removed — system is general, no type-based filtering
 
         if not raw_sqs:
             return {
                 "error": (
                     "OI mode requires sub_questions (4-6 items). "
-                    "Provide sub_questions with pattern, roles, ask, tier "
-                    "for each investigation agenda item."
+                    "Provide sub_questions with sq_id, text_gloss, tier."
                 ),
             }
 
-        # Parse SubQuestionIntents from raw dicts
-        parsed_sqs: list[SubQuestionIntent] = []
-        parse_errors: list[str] = []
-        for i, raw in enumerate(raw_sqs):
-            try:
-                # Build SQRoles from raw dict
-                raw_roles = raw.get("roles", {})
-                roles = SQRoles(
-                    treatment=raw_roles.get("treatment"),
-                    outcome=raw_roles.get("outcome"),
-                    mediator=raw_roles.get("mediator"),
-                    modifier=raw_roles.get("modifier"),
-                    confounder=raw_roles.get("confounder"),
-                    ranking_vars=raw_roles.get("ranking_vars", []),
-                    conditioning_set=raw_roles.get("conditioning_set", []),
-                )
-                sq = SubQuestionIntent(
-                    sq_id=raw.get("sq_id", f"sq{i+1}"),
-                    pattern=raw.get("pattern", ""),
-                    roles=roles,
-                    ask=AskOperator(raw.get("ask", "existence")),
-                    tier=SQTier(raw.get("tier", "high")),
-                    materiality_threshold=raw.get("materiality_threshold"),
-                    text_gloss=raw.get("text_gloss"),
-                )
-                parsed_sqs.append(sq)
-            except (ValueError, KeyError) as e:
-                parse_errors.append(f"sub_question[{i}]: {e}")
+        # Compile text SQs to AtomicSpec bundles via LLM
+        compiled_sqs, compile_errors = self._compile_oi_subquestions(
+            raw_sqs, world
+        )
 
-        if parse_errors:
-            return {"error": f"Invalid sub-questions: {'; '.join(parse_errors)}"}
+        min_required = max(2, len(raw_sqs) // 2)
+        if len(compiled_sqs) < min_required:
+            return {
+                "error": (
+                    f"Too few sub-questions compiled: {len(compiled_sqs)}/{len(raw_sqs)} "
+                    f"(need at least {min_required})"
+                ),
+                "compile_errors": compile_errors,
+                "hint": (
+                    "Write more concrete questions that imply a verifiable "
+                    "relationship. E.g. 'Does X causally affect Y?' not "
+                    "'Investigate the role of X'."
+                ),
+            }
 
-        # Validate against world
-        if parsed_sqs:
-            from sreg.tools.oi_subquestions import validate_sub_questions
+        # Store v2 SQs in transitional storage
+        self._oi_sqs_v2[world_id] = compiled_sqs
+        result.sub_questions_v2 = compiled_sqs
 
-            accepted, val_errors = validate_sub_questions(
-                parsed_sqs, world
-            )
-            hard_errors = [
-                e for e in val_errors if e.get("severity") == "hard"
-            ]
-            if hard_errors:
-                return {
-                    "error": "Sub-question validation failed",
-                    "validation_errors": hard_errors,
-                    "accepted_sq_ids": [sq.sq_id for sq in accepted],
-                    "hint": (
-                        "Fix or remove rejected SQs and retry. "
-                        "Accepted SQs can be kept as-is."
-                    ),
-                }
+        # Build v1 shim SQs ONLY to satisfy CasePlan validator
+        # (CasePlan requires questions OR oi_sub_questions non-empty)
+        # These are NOT exposed via result.sub_questions to avoid
+        # downstream code resolving/scoring against fake variables.
+        shim_sqs = []
+        for sq_v2 in compiled_sqs:
+            shim_sqs.append(SubQuestionIntent(
+                sq_id=sq_v2.sq_id,
+                pattern="causal_effect",
+                roles=SQRoles(treatment="_shim", outcome="_shim"),
+                ask=AskOperator.EXISTENCE,
+                tier=sq_v2.tier,
+                text_gloss=sq_v2.text_gloss,
+            ))
 
-        # Build CasePlan with sub-questions (no eval questions)
         plan = CasePlan(
             title=args.get("title", "Open Investigation"),
             research_context=args.get("research_context", research_brief),
@@ -626,29 +685,29 @@ class Orchestrator:
                 "Investigate the phenomenon described in the brief",
                 "Report your findings as structured claims",
             ]),
-            oi_sub_questions=parsed_sqs if parsed_sqs else None,
-            # epistemic_regime removed from CasePlan
+            oi_sub_questions=shim_sqs,
             shared_budget=args.get("shared_budget", 5),
             rationale=args.get("rationale", "Open Investigation mode"),
         )
 
         self._case_plans[world_id] = plan
-        result.sub_questions = parsed_sqs if parsed_sqs else None
 
+        # Build response
         response: dict = {
             "title": plan.title,
             "research_brief": plan.research_brief,
             "deliverables": plan.deliverables,
             "mode": "open_investigation",
+            "num_sub_questions": len(compiled_sqs),
+            "sub_question_tiers": {
+                sq.sq_id: sq.tier.value for sq in compiled_sqs
+            },
+            "compiled_specs_per_sq": {
+                sq.sq_id: len(sq.verification_specs) for sq in compiled_sqs
+            },
         }
-        if parsed_sqs:
-            response["num_sub_questions"] = len(parsed_sqs)
-            response["sub_question_patterns"] = sorted(
-                {sq.pattern for sq in parsed_sqs}
-            )
-            response["sub_question_tiers"] = {
-                sq.sq_id: sq.tier.value for sq in parsed_sqs
-            }
+        if compile_errors:
+            response["compile_warnings"] = compile_errors
         response["next_step"] = (
             "Now call build_problem to sample data and produce the final problem."
         )

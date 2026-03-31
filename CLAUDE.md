@@ -8,13 +8,7 @@ DESACTIVADO. Documentar en `research/`.
 ### Modo conversacional (cuando NO esta en autoresearch)
 
 Cuando el usuario indica que no estamos en autoresearch, cambiar a modo
-colaborativo:
-- **Ir contando lo que haces** paso a paso, amigablemente, en espanol.
-- **Consultar antes de avanzar** — no hacer 3 pasos seguidos sin preguntar.
-- **Explicar decisiones** — por que elegiste este approach, que alternativas
-  descartaste, que dudas tenes.
-- **Esperar feedback** entre pasos significativos.
-- No es un monologuo tecnico — es una conversacion de trabajo.
+colaborativo: normal, ir ida y vuelta hablando con el. 
 
 ### Research workflow — ITERATIVO
 
@@ -86,7 +80,7 @@ Cada decision pasa por este TRIPLE filtro:
 
 | Necesito... | Ir a... |
 |---|---|
-| Entender como funciona el sistema hoy | `CURRENT_STATE.md` |
+| Entender como funciona el sistema hoy (usuario, explicacion AMIGABLE) | `CURRENT_STATE.md` |
 | Entender la arquitectura tecnica | `ARCHITECTURE.md` |
 | Vision, principios, invariantes | `PROJECT.md` |
 | Que hacer / trabajo pendiente | `TODO.md` |
@@ -149,8 +143,15 @@ NUNCA usar unit tests como evidencia de que un cambio "funciona". Para
 saber si funciona: correr el pipeline E2E con LLM real (`/run --oi`) y
 evaluar cualitativamente el resultado (`/eval`).
 
-### Unit tests — MINIMO INDISPENSABLE
+**Escenarios diversos — NO NEGOCIABLE**: los E2E SIEMPRE deben cubrir tipos
+variados de investigacion. NUNCA correr solo causal simple. Cada batch de
+validacion debe incluir al menos 3 tipos distintos de:
+`research/synthesis/investigation_scenarios_rubric.md` (system mapping,
+heterogeneidad, confounding, descriptivo, multi-outcome, epistemologico, etc.).
+Si solo probaste "X causa Y", NO validaste nada. Usar seeds de `seeds/`
+para generar casos diversos: `python scripts/generate_src.py --seed-file seeds/X.md -o ... --oi`.
 
+**Unit tests - MINIMO INDISPENSABLE**
 - **Solo correr tests DESPUES de cambiar codigo.** No como ritual, no como
   verificacion previa a commit, no "por si acaso". Si no cambiaste codigo,
   no corras tests.
@@ -159,26 +160,6 @@ evaluar cualitativamente el resultado (`/eval`).
 - Si falla un import, arreglar el import — no re-correr toda la suite.
 - **NUNCA** correr tests en paralelo ni repetir la misma suite.
 - En caso de duda: NO correr tests. Preguntar al usuario.
-
-### 3 niveles de evaluacion
-
-| Nivel | Que mide | Cuando | Importancia |
-|-------|----------|--------|-------------|
-| L1 Tests (`pytest`) | Codigo no rompe | Cada commit | Mecanico, secundario |
-| L2 E2E + Eval (`/eval`) | Investigacion real? Buen juicio? | Post-cambio | **LA QUE IMPORTA** |
-| L3 Transfer (futuro) | RL mejora policies | Cuando haya policies | Futura |
-
-**L2 es la evaluacion que decide si un cambio esta bien o mal.** Incluye:
-generacion E2E con LLM, rubrica cualitativa de 7 dimensiones, 6 critical
-failures, no-data baseline probe, y LA PREGUNTA doble. Ver `/eval`.
-
-**Escenarios diversos — NO NEGOCIABLE**: los E2E SIEMPRE deben cubrir tipos
-variados de investigacion. NUNCA correr solo causal simple. Cada batch de
-validacion debe incluir al menos 3 tipos distintos de:
-`research/synthesis/investigation_scenarios_rubric.md` (system mapping,
-heterogeneidad, confounding, descriptivo, multi-outcome, epistemologico, etc.).
-Si solo probaste "X causa Y", NO validaste nada. Usar seeds de `seeds/`
-para generar casos diversos: `python scripts/generate_src.py --seed-file seeds/X.md -o ... --oi`.
 
 ## Environment setup
 

@@ -543,6 +543,11 @@ cerrada (PatternClass). El catalogo puede seguir como fast-path opcional.
 - [x] **Compile step:** `compile_sq_to_specs()` — LLM + grammar, sin pattern routing
 - [x] **Matching:** `spec_match()` exacto en estimand + bipartite 1-a-1, pooled
 - [x] **Primer test acotado:** 5 SQs diversas, 18 specs, 72% TRUE, 4 meas kinds
+- [x] **Orchestrador v2:** genera SQs como texto libre, compila a specs (spike)
+- [x] **Validacion semantica:** `validate_compilation_alignment()` — chequea
+  causal→intervene, direccion, variables, confounding, mediation, identifiability
+- [~] **Answer key:** agregar verify_atom al compile step para que las SQs
+  tengan respuestas precomputadas (esencial para ranking y otros tipos)
 - [ ] **E2E real:** generar caso completo, correr solver, scoring v2
 - [ ] **Comparacion v1 vs v2:** mismos episodios, comparar scores y cobertura
 - [ ] **Calibracion del directo:** reducir specs FALSE (prompting, ejemplos)
@@ -631,6 +636,100 @@ descripcion de dataset tipo dump tecnico. Rompe realismo.
 - [ ] Que el orchestrator escriba la descripcion del dataset?
 
 **Evidencia:** `research/synthesis/qualitative_eval_2026_03_25.md` (P2, P6)
+
+---
+
+## Limpieza — eliminar legacy que no aporta
+
+### A26. Scoring de relevancia — claim vs SQ
+
+**Decidido 2026-03-31.** Ver `research/synthesis/scoring_relevance_design.md`.
+
+El scoring de claims tiene dos componentes:
+- **Verdad:** claim → AtomicSpec → verify contra SCM (determinístico, funciona)
+- **Relevancia:** esta claim responde a alguna SQ del brief?
+
+**Opciones evaluadas:**
+- Spec vs spec (determinístico, fragil, ~60-70%)
+- Features Python (determinístico, muchos edge cases, ~70%)
+- LLM juez (rapido de implementar, ~90%, no RL-safe)
+- **Hibrido (ELEGIDO):** LLM ahora, determinístico para RL despues
+
+**Pendiente:**
+- [ ] Implementar LLM juez de relevancia (prompt simple: claim_text + sq_text
+  + specs como pistas → relevance 0..1)
+- [ ] Probar E2E con 7 seeds diversas
+- [ ] Medir donde falla la relevancia (false positives, false negatives)
+- [ ] Evaluar si features determinísticas alcanzan para reemplazar LLM en RL
+- [ ] Score final: verdad × relevancia × tier
+
+**Los specs se generan igual** (para verdad y como pistas). La capa de
+relevancia es intercambiable. Todas las opciones quedan disponibles.
+
+**Conecta con:** A23, A24, scoring_relevance_design.md
+
+### A25. Metricas custom para prediccion y optimizacion
+
+Hoy SREG evalua con AtomicSpecs (DSL composable contra el SCM). Pero para
+prediccion y optimizacion, no deberiamos necesitar inventar nada nuevo — solo
+una metrica custom ejecutable:
+
+**La idea:** el caso define UNA metrica puntual (ej: MSE, AUC, rendimiento
+quimico) + un dataset latente (holdout no visible al solver). El solver
+entrega un modelo/prediccion/configuracion. El sistema ejecuta la metrica
+contra el holdout y eso es el score.
+
+**Variantes:**
+- **Prediccion:** solver recibe dataset sin target, sistema tiene target oculto,
+  se mide MSE/AUC/etc contra holdout
+- **Optimizacion:** solver propone configuracion de variables, sistema evalua
+  contra funcion objetivo oculta (el SCM mismo)
+- **Hibrido:** el caso tiene SQs de entendimiento + metrica de performance
+
+**Preguntas abiertas:**
+- [ ] Cuanta infra nueva necesita? (dataset holdout, metrica runner, etc.)
+- [ ] Se puede expresar como un tipo especial de AtomicSpec o es algo aparte?
+- [ ] Como convive con SQs? (un caso puede tener SQs + metrica custom?)
+- [ ] Es compatible con el principio "un solo metodo de scoring"?
+
+**Esto NO requiere la infra de H1/H2 del PROJECT.md.** Es mas simple: una
+funcion que toma output del solver y devuelve un numero. El SCM ya puede
+generar holdouts y evaluar.
+
+**Pensar despues de cerrar SQ v2 + limpieza.**
+
+### L0. Reescribir CURRENT_STATE.md — post cambios
+
+Cuando terminemos los cambios actuales (SQ v2 integrado, limpieza legacy),
+reescribir CURRENT_STATE para que:
+- Sea un walkthrough narrado del E2E, no secciones tecnicas sueltas
+- Explique cada paso con ejemplos concretos (no solo nombres de clases)
+- Critique abstracciones innecesarias (ClaimCard, WorldSummary, etc.)
+- Menos nombres tecnicos, mas "que pasa y por que"
+- La tabla de 15 tipos de investigacion se mantiene
+- Las explicaciones de SQ, claims, scoring van dentro del flow, no aparte
+
+**Hacer DESPUES de terminar L1 + integracion SQ v2. No antes.**
+
+### L1. Eliminar warrant system y OI helpers instrumentadas
+
+El solver deberia investigar con codigo libre (`python_exec` + pandas/numpy).
+Las helpers instrumentadas (`oi.corr`, `oi.regress`, `oi.stratify`) son
+wrappers que solo agregan trace logging para warrant. El warrant no participa
+en el scoring actual (sub-questions) y agrega complejidad innecesaria.
+
+**Que eliminar:**
+- [ ] `src/sreg/tools/oi_helpers.py` — helpers instrumentadas completas
+- [ ] `src/sreg/tools/oi_warrant.py` — sistema de warrant completo
+- [ ] `WarrantResult` y campos de warrant en `EpisodeScore` (`raw_correctness`,
+  `avg_warrant`, `warrant_active`) en `open_investigation.py`
+- [ ] `AnalysisRecord` en `open_investigation.py` (solo existe para warrant)
+- [ ] Referencias a `oi_helpers` en `oi_runner.py` (namespace injection)
+- [ ] Tests asociados en `tests/tools/`
+- [ ] Docs que referencien warrant como feature activo
+
+**Por que:** el solver puede hacer lo mismo con pandas. Warrant es infra
+para un feature que nunca llego al reward principal. Complejidad sin valor.
 
 ---
 

@@ -806,8 +806,9 @@ TOOL_DEFINITIONS = [
                         "type": "array",
                         "description": (
                             "Hidden sub-questions for OI scoring (4-6 items). "
-                            "Used instead of 'questions' in Open Investigation mode. "
-                            "Each defines a pattern + roles + ask + tier."
+                            "Each is a natural-language research question that "
+                            "the system will compile into formal verification specs. "
+                            "Write concrete, verifiable questions — not vague topics."
                         ),
                         "items": {
                             "type": "object",
@@ -816,54 +817,15 @@ TOOL_DEFINITIONS = [
                                     "type": "string",
                                     "description": "Unique ID, e.g. 'sq1'.",
                                 },
-                                "pattern": {
+                                "text_gloss": {
                                     "type": "string",
-                                    "enum": [
-                                        "causal_effect",
-                                        "mediation",
-                                        "confounding",
-                                        "heterogeneity",
-                                        "observational_association",
-                                        "effect_ranking",
-                                        "tail_risk",
-                                    ],
                                     "description": (
-                                        "What type of finding this SQ asks about."
-                                    ),
-                                },
-                                "roles": {
-                                    "type": "object",
-                                    "properties": {
-                                        "treatment": {"type": "string"},
-                                        "outcome": {"type": "string"},
-                                        "mediator": {"type": "string"},
-                                        "modifier": {"type": "string"},
-                                        "confounder": {"type": "string"},
-                                        "ranking_vars": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                        },
-                                    },
-                                    "description": (
-                                        "Variable roles. Required roles depend on "
-                                        "pattern: causal_effect needs treatment+outcome, "
-                                        "mediation needs treatment+mediator+outcome, "
-                                        "confounding needs treatment+outcome+confounder, "
-                                        "heterogeneity needs treatment+modifier+outcome."
-                                    ),
-                                },
-                                "ask": {
-                                    "type": "string",
-                                    "enum": [
-                                        "existence",
-                                        "sign",
-                                        "existence_and_sign",
-                                        "magnitude",
-                                        "rank_order",
-                                    ],
-                                    "description": (
-                                        "What to evaluate: existence, sign, "
-                                        "existence_and_sign, magnitude, rank_order."
+                                        "The research question in natural language. "
+                                        "Must be concrete enough to imply a verifiable "
+                                        "relationship or estimand. E.g. 'Does industrial "
+                                        "pollution causally increase respiratory disease "
+                                        "incidence, or is the association confounded by "
+                                        "socioeconomic factors?'"
                                     ),
                                 },
                                 "tier": {
@@ -874,19 +836,18 @@ TOOL_DEFINITIONS = [
                                         "low (0.4). Use 2-3 high, 1-2 medium."
                                     ),
                                 },
-                                "text_gloss": {
-                                    "type": "string",
+                                "focus_variables": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
                                     "description": (
-                                        "Human-readable description. Not used in "
-                                        "scoring, for documentation only."
+                                        "Variables central to this question (optional). "
+                                        "Helps ground the compilation step."
                                     ),
                                 },
                             },
                             "required": [
                                 "sq_id",
-                                "pattern",
-                                "roles",
-                                "ask",
+                                "text_gloss",
                                 "tier",
                             ],
                         },

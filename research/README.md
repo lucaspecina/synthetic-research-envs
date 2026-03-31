@@ -28,6 +28,7 @@ Documentos de sintesis activos:
 - `synthesis/Doc1_Taxonomia_El_Mapa.md`
 - `synthesis/oi_scoring_fundamentals.md`
 - `synthesis/oi_scoring_next_design.md`
+- `synthesis/scoring_relevance_design.md` — Verdad vs relevancia, opciones de matching, answer key
 - `synthesis/scm_migration_rationale.md`
 - `synthesis/scientific_research_taxonomy.md`
 
