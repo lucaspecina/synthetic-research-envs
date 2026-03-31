@@ -585,6 +585,63 @@ class ResolvedSubQuestion(BaseModel):
         return self
 
 
+# ---------------------------------------------------------------------------
+# Sub-Questions v2 — specs-based, no PatternClass
+# ---------------------------------------------------------------------------
+
+
+class VerificationSpec(BaseModel):
+    """A single verification within a sub-question bundle.
+
+    Each SQ carries 1..N of these. The role distinguishes obligatory
+    verifications (required) from bonus evidence (support).
+    """
+
+    spec: AtomicSpec
+    role: Literal["required", "support"] = "required"
+    verdict: AtomVerdict | None = None
+
+
+class SubQuestionIntentV2(BaseModel):
+    """Specs-based sub-question — no PatternClass, no roles enum.
+
+    The semantics are expressed entirely through the verification_specs bundle.
+    text_gloss is free-form for human readability; it does NOT participate
+    in matching or scoring.
+
+    Coexists with SubQuestionIntent (v1) during migration.
+    """
+
+    sq_id: str = Field(min_length=1)
+    text_gloss: str = Field(
+        min_length=5,
+        description="Free-form human-readable description of the investigation need",
+    )
+    verification_specs: list[VerificationSpec] = Field(min_length=1)
+    tier: SQTier = SQTier.HIGH
+    focus_variables: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_at_least_one_required(self) -> SubQuestionIntentV2:
+        has_required = any(vs.role == "required" for vs in self.verification_specs)
+        if not has_required:
+            raise ValueError("SubQuestionIntentV2 must have at least one required spec")
+        return self
+
+    @property
+    def weight(self) -> float:
+        """Weight from tier mapping."""
+        return SQ_TIER_WEIGHTS[self.tier.value]
+
+    @property
+    def required_specs(self) -> list[VerificationSpec]:
+        return [vs for vs in self.verification_specs if vs.role == "required"]
+
+    @property
+    def support_specs(self) -> list[VerificationSpec]:
+        return [vs for vs in self.verification_specs if vs.role == "support"]
+
+
 class SubQuestionScore(BaseModel):
     """Per-sub-question scoring result."""
 
@@ -666,6 +723,8 @@ __all__ = [
     "ResolvedAnswer",
     "SQComponent",
     "ResolvedSubQuestion",
+    "VerificationSpec",
+    "SubQuestionIntentV2",
     "SubQuestionScore",
     "EpisodeSubQuestionScore",
     "SPEC_BASE",

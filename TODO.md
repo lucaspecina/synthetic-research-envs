@@ -539,13 +539,14 @@ cerrada (PatternClass). El catalogo puede seguir como fast-path opcional.
 **Spec de diseno:** `research/synthesis/sq_v2_matching_spec.md` (CANONICO).
 
 **Pendiente:**
-- [ ] **Modelo v2:** SubQuestionIntentV2 + VerificationSpec (required/support)
-- [ ] **Compile step:** `compile_sq_to_specs()` — LLM + grammar, sin pattern routing
-- [ ] **Matching:** `spec_match()` exacto en estimand + bipartite 1-a-1
-- [ ] **Primer experimento:** 4 seeds diversas, pipeline v1 vs v2, medir
-  diversidad/relevancia/coverage
-- [ ] **Calibracion del directo:** reducir el 23% de specs FALSE (prompting)
-- [ ] **Integracion:** si funciona, reemplazar v1 en el pipeline
+- [x] **Modelo v2:** SubQuestionIntentV2 + VerificationSpec (required/support)
+- [x] **Compile step:** `compile_sq_to_specs()` — LLM + grammar, sin pattern routing
+- [x] **Matching:** `spec_match()` exacto en estimand + bipartite 1-a-1, pooled
+- [x] **Primer test acotado:** 5 SQs diversas, 18 specs, 72% TRUE, 4 meas kinds
+- [ ] **E2E real:** generar caso completo, correr solver, scoring v2
+- [ ] **Comparacion v1 vs v2:** mismos episodios, comparar scores y cobertura
+- [ ] **Calibracion del directo:** reducir specs FALSE (prompting, ejemplos)
+- [ ] **Integracion:** si funciona, reemplazar v1 en el pipeline del orchestrador
 
 **Research:** `research/notes/s04_epistemic_ir_gap_analysis.md`,
 `research/notes/a23_grammar_first_sq_and_compiler.md`,

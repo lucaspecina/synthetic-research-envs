@@ -654,181 +654,142 @@ No es una solucion filosoficamente elegante, pero mejoro bastante el E2E.
 
 ---
 
-## Los bottlenecks actuales, sin maquillarlos
+## SQ v2 — prototipo implementado (en evaluacion)
 
-### 1. La extraccion LLM sigue siendo fragil
+Ademas del path v1 (pattern-based), existe un prototipo v2 que libera las SQs
+del catalogo de 8 patterns. El spec canonico esta en
+`research/synthesis/sq_v2_matching_spec.md`.
 
-El extractor mejoro, y ahora recibe mas contexto del caso:
+### Que cambia en v2
 
-- titulo
-- dominio
-- brief
-- descripcion
-- descripciones de variables
-- sub-questions visibles para el compiler
+| Concepto | v1 (actual) | v2 (prototipo) |
+|---|---|---|
+| SQ se define como | pattern + roles + ask | text_gloss + verification_specs |
+| Verificacion | Se construye via ClaimIntent | Bundle de AtomicSpecs directo |
+| Roles en la SQ | treatment, outcome, mediator... | required/support por spec |
+| Matching claim-SQ | family_compat x operator_compat | Exacto en estimand, fuzzy en assertion |
+| Compilacion | Routing por pattern | LLM + grammar composable |
 
-Pero sigue habiendo fallas tipicas:
+### Modelos nuevos
 
-- claims compuestas que se comprimen demasiado;
-- rankings extraidos sin los atoms pairwise que tambien estaban implicados;
-- conclusiones metodologicas o epistemologicas que no entran bien en los 8 patterns.
+- `SubQuestionIntentV2` — sq_id, text_gloss, verification_specs, tier, focus_variables
+- `VerificationSpec` — AtomicSpec + role (required/support) + verdict
 
-### 2. El sistema sigue sesgado a causal simple
+### Modulos nuevos
 
-Este es probablemente el hallazgo mas importante de la ronda actual.
+- `oi_sq_compiler.py` — compile step LLM: text_gloss → AtomicSpec bundle
+- `oi_sq_matching.py` — spec_match + bipartite 1-a-1 + episode scoring
 
-El sesgo a causal simple no aparece solo porque el extractor LLM sea flojo.
-Aparece porque dos cosas distintas siguen pasando por una IR estrecha:
+### Primer test (2026-03-30)
 
-- las claims del solver;
-- y las sub-questions ocultas.
+5 SQs diversas (causal, epistemologico, descriptivo, confounding, mediacion)
+compiladas y verificadas contra un SCM de 8 nodos:
 
-Hoy la gramatica atomica es mucho mas rica que el catalogo actual de patterns,
-pero en la practica seguimos obligando gran parte del sistema a hablar en:
+- 5/5 compilaron exitosamente
+- 18 specs totales (promedio 3.6/SQ)
+- 4 measurement kinds distintos (vs ~2 con v1)
+- 0 errores de validacion
+- 13/18 TRUE contra el SCM (72%)
+- Causal y epistemologico: 100% TRUE
+- Los FALSE son assertions que no coinciden con el SCM — funcionamiento esperado
 
-- `causal_effect`
-- `mediation`
-- `heterogeneity`
-- `confounding`
-- etc.
+### Lo que falta para que v2 reemplace a v1
 
-Eso funciona bien en casos textbook.
-Funciona peor en casos:
-
-- epistemologicos;
-- metodologicos;
-- de identificabilidad;
-- de estabilidad entre datasets;
-- o de system mapping menos causal-simple.
-
-### 3. Las SQ hoy no son grammar-first
-
-Este es el punto central de A23.
-
-Aunque ya tengamos `AtomicSpec`, las SQ todavia se representan como:
-
-- `pattern + roles + ask`
-
-y solo despues se convierten a specs.
-
-Eso significa que la propia answer key del sistema ya viene recortada por el
-catalogo conocido.
-
-### 4. Matching y scoring todavia dependen demasiado de pattern
-
-Incluso cuando el solver dice algo razonable, el matching puede premiar una
-claim mas broad en vez de una claim mas semantica y especifica.
-
-Esto aparecio con claridad en los casos de confounding y en los casos donde
-una claim de ranking se comia relaciones pairwise mas precisas.
-
-### 5. Warrant aun no esta plenamente integrado al path principal
-
-La capa de evidencia/provenance existe y es util.
-Pero el reward principal actual no la explota al maximo.
-
-Todavia hay trabajo para unificar:
-
-- verdad;
-- cobertura;
-- relevancia;
-- y evidencia real del proceso de investigacion.
+1. Probar en E2E real (generar caso, solver investiga, scoring con v2)
+2. Comparar scores v1 vs v2 en los mismos episodios
+3. Integrar compile step al pipeline del orchestrador
+4. Calibrar prompting del compile step
 
 ---
 
-## Entonces, cual es la arquitectura conceptual correcta hoy?
+## 15 tipos de investigacion — que puede hacer el sistema hoy
 
-La forma mas sana de pensar el sistema actual es esta:
+Esta tabla muestra tipos diversos de investigacion y si el sistema actual
+puede evaluarlos. La columna "v1" es el path de produccion; "v2" es el
+prototipo de SQ specs-based.
 
-### Lo que ya esta bien encaminado
+| # | Tipo de investigacion | Ejemplo | v1 | v2 | Limitacion |
+|---|---|---|---|---|---|
+| 1 | **Causal simple** | "X causa Y? Con que magnitud?" | SI | SI | — |
+| 2 | **Confounding** | "Z confunde X→Y?" | SI | SI | — |
+| 3 | **Mediacion** | "El efecto de X pasa por M?" | SI | SI | — |
+| 4 | **Heterogeneidad** | "El efecto de X varia por subgrupo?" | SI | SI | — |
+| 5 | **Epistemologico** | "Es robusta la asociacion al ajuste?" | NO | SI | v1 fuerza pattern causal |
+| 6 | **Descriptivo** | "Que variables se asocian con Y?" | NO | SI | v1 fuerza treatment/outcome |
+| 7 | **System mapping** | "Cual es la estructura causal?" | PARCIAL | SI | v1 solo cubre pares, no estructura |
+| 8 | **Multi-outcome** | "Trade-off entre supervivencia y toxicidad" | PARCIAL | SI | v1 evalua cada outcome por separado |
+| 9 | **Tail risk** | "Prob de fallo catastrofico bajo stress?" | SI | SI | — |
+| 10 | **Value of information** | "Que medicion reduce mas la incertidumbre?" | NO | PARCIAL | v2 verifica building blocks, no VOI puro |
+| 11 | **Selection bias** | "Es real o artefacto de seleccion?" | NO | SI | v1 no tiene SQ para adjustment sensitivity |
+| 12 | **Equidad de politica** | "El impuesto afecta igual a todos los NSE?" | PARCIAL | SI | v1 solo capta heterogeneidad por modifier |
+| 13 | **Structure discovery** | "Quien influye a quien? Que es directo?" | NO | PARCIAL | v2 puede compilar specs de estructura parcial |
+| 14 | **Prediccion / optimizacion** | "Maximizar AUC" o "mejor configuracion" | NO | NO | Fuera del scope actual (ver PROJECT.md H1) |
+| 15 | **Diseño experimental** | "Que dato conviene recolectar primero?" | NO | NO | Fuera del scope actual (ver PROJECT.md H2) |
 
-- mundo oculto formal (`SCMWorld`)
-- problema visible realista (`ResearchProblem`)
-- solver libre (`Open Investigation`)
-- verificacion exacta (`AtomicSpec` + verifier)
-
-### Lo que hoy esta demasiado angosto
-
-- la IR intermedia de claims (`ClaimIntent`)
-- la IR intermedia de sub-questions (`SubQuestionIntent`)
-
-### La tension central actual
-
-No falta un mejor verificador.
-No falta mas Monte Carlo.
-No falta inventar 50 patterns nuevos.
-
-Lo que falta es dejar de preguntar:
-
-- "que pattern es esto?"
-
-y empezar a preguntar mas seguido:
-
-- "que atoms hacen falta para verificar esta conclusion?"
-
-Ese cambio vale tanto para:
-
-- claims del solver;
-- como para sub-questions.
+**Resumen**: v1 funciona bien para los primeros 4 (causal clasico). v2 extiende
+la cobertura a ~12 de 15 tipos. Los 2-3 restantes requieren extensiones
+arquitecturales futuras (artefactos evaluables, interaccion con el entorno).
 
 ---
 
-## Direccion activa hoy
+## Los bottlenecks actuales
 
-La direccion de trabajo abierta despues de A23 es:
+### 1. Las SQ v1 siguen sesgadas a causal simple
 
-1. **SQ grammar-first**
-   Las SQ deberian acercarse mas a bundles de `AtomicSpec` o a una receta
-   composicional equivalente, en vez de depender tanto de `pattern + roles + ask`.
+Hallazgo S05: 10/10 experimentos generan los mismos SQ patterns sin importar
+el seed. Esto ya tiene solucion en el prototipo v2 (ver arriba), pero v2
+todavia no esta integrado al pipeline de produccion.
 
-2. **Compiler hibrido para claims**
-   Mantener los `patterns` como fast-path cuando calzan bien, pero agregar
-   fallback directo a gramatica atomica cuando no calzan.
+### 2. La extraccion LLM de claims sigue fragil
 
-3. **Matching mas semantico**
-   Menos dependencia de pattern fijo, mas compatibilidad entre bundles de
-   verificacion, variables, assertions y tipo de conclusion.
+El extractor mejoro con contexto (S03a), pero claims compuestas, rankings y
+conclusiones epistemologicas siguen siendo problematicas cuando pasan por el
+catalogo de 8 patterns.
 
-4. **Formalizacion extra de claims**
-   Puede servir como mitigacion, pero por ahora NO es la prioridad principal.
+### 3. Warrant no esta en el path principal
+
+La capa de evidencia/provenance existe pero no participa en el score de
+sub-questions. Integrarla es trabajo pendiente.
+
+---
+
+## Direccion activa
+
+1. **Integrar SQ v2 al pipeline** — reemplazar v1 en el path de produccion.
+2. **Compilacion directa de claims** — mismo enfoque grammar-first para claims
+   (S04 ya lo valido, falta integrar).
+3. **Probar en E2E real** — generar casos diversos, correr solver, comparar
+   scoring v1 vs v2.
 
 ---
 
 ## Si alguien quiere leer el sistema en orden
 
-Este es un orden recomendable para navegar el repo sin perderse:
-
-1. `CURRENT_STATE.md`
-2. `PROJECT.md`
-3. `ARCHITECTURE.md`
-4. `research/README.md`
-5. `src/sreg/models/open_investigation.py`
-6. `src/sreg/tools/oi_runner.py`
-7. `src/sreg/tools/oi_extraction.py`
-8. `src/sreg/tools/oi_compiler.py`
-9. `src/sreg/tools/oi_subquestions.py`
-10. `src/sreg/tools/oi_verifier.py`
-
-Y para entender la discusion activa:
-
-11. `research/notes/a22_compiler_direct_to_atomicspec.md`
-12. `research/notes/a23_grammar_first_sq_and_compiler.md`
+1. `CURRENT_STATE.md` — este documento
+2. `PROJECT.md` — vision y principios
+3. `ARCHITECTURE.md` — referencia tecnica
+4. `research/README.md` — indice de investigacion
+5. `research/synthesis/sq_v2_matching_spec.md` — spec de SQ v2
+6. `src/sreg/models/open_investigation.py` — modelos (v1 + v2)
+7. `src/sreg/tools/oi_sq_compiler.py` — compile step v2
+8. `src/sreg/tools/oi_sq_matching.py` — matching v2
+9. `src/sreg/tools/oi_verifier.py` — verificador (compartido v1/v2)
+10. `src/sreg/tools/oi_runner.py` — runtime de episodios
 
 ---
 
 ## Resumen corto
 
-Si hubiera que resumir todo el sistema actual en pocas lineas:
+SREG construye un mundo causal oculto y un problema visible de investigacion.
+El solver investiga libremente sobre datasets. Entrega `ClaimCard`s. El sistema
+las traduce a `AtomicSpec`s y las verifica exactamente contra el mundo.
 
-- SREG construye un mundo causal oculto y un problema visible de investigacion.
-- El solver investiga libremente sobre datasets, no sobre el SCM.
-- Al final entrega `ClaimCard`s.
-- El sistema traduce esas claims a `ClaimIntent`, luego a `AtomicSpec`, y las
-  verifica exactamente contra el mundo.
-- Ademas resuelve una agenda oculta de `SubQuestionIntent`s para medir coverage.
-- El score principal actual sale de ese matching claim-vs-subquestion.
-- El verifier formal (`AtomicSpec`) ya es bastante rico.
-- El cuello actual esta antes: claims y SQs siguen demasiado atadas a un
-  catalogo estrecho de patterns conocidos.
+Una agenda oculta de sub-questions define que deberia cubrir la investigacion.
+Claims se matchean contra esa agenda para medir coverage.
 
-Ese es el estado real del sistema hoy.
+Hoy (v1), tanto claims como SQs pasan por un catalogo estrecho de 8 patterns
+que sesga todo a causal simple. El prototipo v2 libera las SQs de ese catalogo
+usando bundles de AtomicSpecs directamente. Primer test exitoso: 5/5 SQs
+diversas compiladas, 4 measurement kinds, 72% truth rate.
+
+Proximo paso: integrar v2 al pipeline y probar en E2E real.

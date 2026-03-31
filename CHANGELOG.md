@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+### 2026-03-30 — SQ v2 prototype: specs-based sub-questions
+
+**New models:** `SubQuestionIntentV2` + `VerificationSpec` in
+`open_investigation.py`. SQ = text_gloss + verification_specs (AtomicSpec
+bundle with required/support roles) + tier. No pattern, no roles enum.
+Coexists with v1.
+
+**New modules:**
+- `oi_sq_compiler.py` — LLM compile step: text_gloss → AtomicSpec bundle.
+  Uses composable grammar (same as S04 direct-to-atoms).
+- `oi_sq_matching.py` — spec_match (exact on estimand, fuzzy on assertion),
+  bipartite 1-to-1 matching, episode-level scoring. Pools all claim-specs
+  across claims (fix for per-claim penalty identified by Cursor review).
+
+**First test results (5 diverse SQs against 8-node SCM):**
+- 5/5 compiled, 18 specs total, 4 measurement kinds (vs ~2 with v1)
+- 0 validation errors, 13/18 TRUE (72%)
+- Causal + epistemological: 100% TRUE
+
+**Script:** `test_sq_v2_compile.py` — focused test without full E2E.
+
+**Spec:** `research/synthesis/sq_v2_matching_spec.md` (canonical design doc).
+
 ### 2026-03-30 — S04 Direct-to-AtomicSpec: catalog vs direct compilation
 
 **Research finding:** the less we depend on the fixed catalog (PatternClass),

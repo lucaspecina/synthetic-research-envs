@@ -280,7 +280,10 @@ desplazandose hacia `synthesis/`.
 - **Evidencia:** S05 (10/10 causualizados), S04 (direct compilation 2.3x),
   debate Claude-Codex-Gemini sobre matching.
 - **Conecta con:** S04, S05, A23, A24, PROJECT scope boundaries
-- **Status:** APROBADO PARA IMPLEMENTAR. Primer experimento definido.
+- **Status:** PROTOTIPO IMPLEMENTADO. Primer test exitoso (5/5 SQs, 72% TRUE).
+- **Implementacion:** `SubQuestionIntentV2` + `VerificationSpec` en
+  `open_investigation.py`. Compile step en `oi_sq_compiler.py`. Matching en
+  `oi_sq_matching.py`. Test script: `scripts/test_sq_v2_compile.py`.
 - **Docs superseded:** `notes/s05_*` (diagnostico, marcado superseded),
   `archive/s06_*` (research, archivado).
 

@@ -1,9 +1,20 @@
 # SREG — Claude Code Project Configuration
 
-## AUTORESEARCH: ACTIVADO
+## AUTORESEARCH: DESACTIVADO
 
 No frenar a menos que el usuario interrumpa. Para desactivar: cambiar a
 DESACTIVADO. Documentar en `research/`.
+
+### Modo conversacional (cuando NO esta en autoresearch)
+
+Cuando el usuario indica que no estamos en autoresearch, cambiar a modo
+colaborativo:
+- **Ir contando lo que haces** paso a paso, amigablemente, en espanol.
+- **Consultar antes de avanzar** — no hacer 3 pasos seguidos sin preguntar.
+- **Explicar decisiones** — por que elegiste este approach, que alternativas
+  descartaste, que dudas tenes.
+- **Esperar feedback** entre pasos significativos.
+- No es un monologuo tecnico — es una conversacion de trabajo.
 
 ### Research workflow — ITERATIVO
 
