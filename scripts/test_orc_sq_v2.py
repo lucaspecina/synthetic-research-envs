@@ -113,41 +113,49 @@ for sq in result.sub_questions_v2:
 
 print(f"\nAlignment: {alignment_ok} OK, {alignment_warn} warnings, {alignment_err} errors")
 
-# Verify specs against SCM
-print("\n=== Verification against SCM ===")
-from sreg.solver.scm_solver import SCMSolver
-from sreg.tools.oi_verifier import verify_atom
-
-solver = SCMSolver(result.world)
+# Answer key check: verdicts should be pre-filled by grounding
+print("\n=== Answer Keys (pre-grounded verdicts) ===")
 
 total_specs = 0
-total_execute = 0
+total_grounded = 0
 total_true = 0
 total_false = 0
-total_crash = 0
+total_no_verdict = 0
 
 for sq in result.sub_questions_v2:
     print(f"\n--- {sq.sq_id}: {sq.text_gloss[:80]} ---")
     for j, vs in enumerate(sq.verification_specs):
         total_specs += 1
-        try:
-            verdict = verify_atom(vs.spec, result.world, solver)
-            gt = verdict.ground_truth
-            holds = verdict.solver_assertion_holds
-            detail = verdict.detail
-            effect = detail.get("effect_size", detail.get("value", "?"))
+        if vs.verdict:
+            total_grounded += 1
+            gt = vs.verdict.ground_truth
+            holds = vs.verdict.solver_assertion_holds
+            detail = vs.verdict.detail or {}
+            comparison = detail.get("comparison", {})
+            # Show relevant info based on assertion type
+            assertion_kind = vs.spec.assertion.kind if vs.spec.assertion else "?"
+            extra = ""
+            if assertion_kind == "rank_order" and vs.spec.assertion.order:
+                extra = f" order={list(vs.spec.assertion.order)}"
+            elif "difference" in comparison:
+                extra = f" diff={comparison['difference']:.4f}"
+            elif "value" in comparison:
+                extra = f" value={comparison['value']}"
             print(f"  spec[{j}] [{vs.role}]: holds={holds} "
-                  f"(ground_truth={gt}, effect={effect})")
-            total_execute += 1
+                  f"(gt={gt}, assert={assertion_kind}{extra})")
             if holds:
                 total_true += 1
             else:
                 total_false += 1
-        except Exception as e:
-            print(f"  spec[{j}] [{vs.role}]: CRASH - {e}")
-            total_crash += 1
+        else:
+            total_no_verdict += 1
+            print(f"  spec[{j}] [{vs.role}]: NO VERDICT (not grounded)")
 
-print(f"\nSCM results: {total_specs} specs, {total_execute} executed, "
-      f"{total_true} TRUE, {total_false} FALSE, {total_crash} CRASH")
+print(f"\nAnswer keys: {total_specs} specs, {total_grounded} grounded, "
+      f"{total_true} TRUE, {total_false} FALSE, {total_no_verdict} no verdict")
+
+if total_false > 0:
+    print(f"  WARNING: {total_false} specs have FALSE verdicts "
+          f"(assertion repair didn't fix them)")
 
 print("\nDone.")

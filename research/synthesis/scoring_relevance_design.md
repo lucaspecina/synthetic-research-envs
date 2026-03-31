@@ -76,12 +76,13 @@ y para tener disponibles). La capa de relevancia es intercambiable.
 - **Los specs no se tiran.** Sirven para: verdad, pistas al LLM,
   forzar concrecion en las SQs, matching futuro.
 
-## Answer Key: el compilador ejecuta contra el SCM
+## Answer Key: el SCM como fuente de verdad RICA
 
-Descubrimiento clave del spike: el compilador de SQs DEBE poder ejecutar
-los specs contra el SCM para obtener las respuestas reales.
+Descubrimiento clave: el teacher ejecuta los specs contra el SCM para
+obtener las respuestas reales. Pero la respuesta NO es una Assertion
+simplificada — es el resultado completo del SCM.
 
-### El problema (ejemplo ranking)
+### El problema original (ranking)
 
 ```
 SQ: "Cuales son las causas mas importantes del sanding?"
@@ -90,44 +91,129 @@ SCM devuelve: ranking real = stress > fluid > pressure > spacing
 Pero el spec no sabia el orden → FALSE
 ```
 
-### La solucion
+### Primer intento (INCORRECTO): derivar Assertion del resultado
 
-El teacher tiene acceso completo al SCM. Las SQs son la agenda oculta
-del teacher. El teacher SABE las respuestas. Entonces:
+Intentamos: ejecutar verify_atom → leer comparison_result → derivar una
+Assertion que describa la realidad (positive, negative, rank_order, etc).
+
+**Por que fallo:**
+- Fuerza verdades ricas a un vocabulario de ~13 etiquetas
+- `ratio=0.7` → "positive" (INCORRECTO: significa 30% menos que referencia)
+- `no changepoint` → "near_zero" (INCORRECTO: puede haber efecto fuerte sin quiebre)
+- Rankings de arms vs rankings de variables (el verifier rankea labels)
+- Introduce arbitrariedades: distintas ramas para cada tipo de resultado
+- Viola principios: "un solo metodo para todo", "no construir un juego"
+
+### BUG downstream — fix parcial
+
+`oi_sq_matching.py` descartaba SQ specs donde
+`sq_verdict.solver_assertion_holds == False`. Con el nuevo diseno, eso
+descartaba answer keys validos. **Fix aplicado:** se elimino el gate.
+
+**Dependencia parcial que queda:** `assertion_compat()` todavia compara
+la Assertion de la SQ (hipotesis del compiler) con la del claim. Es decir,
+el matching ya no DESCARTA por holds=False, pero todavia USA la Assertion
+del teacher como senal de compatibilidad. Esto debe migrar a comparar
+claim result vs answer key rico / features derivadas del resultado SCM.
+
+### La solucion correcta: answer key = resultado rico del SCM
 
 ```
 1. Orchestrador genera SQ como texto
-2. Compiler traduce a spec (assertion generico o vacio)
-3. verify_atom ejecuta contra SCM → obtiene respuesta real
-4. Se actualiza el spec con la respuesta (answer key)
-5. Ahora tenemos SQ + answer key para comparar contra claims
+2. Compiler traduce a spec (arms + measurement + comparison)
+3. verify_atom ejecuta contra SCM → obtiene RESULTADO COMPLETO:
+   - comparison_result: {difference: -15.43, ranking: (...), value: True, ...}
+   - measurements: {arm1: 42.3, arm2: 27.8, ...}
+   - ground_truth: el valor resuelto
+4. Se guarda el RESULTADO COMPLETO como answer key (no una Assertion)
+5. La Assertion es una VISTA del answer key, no la verdad misma
 ```
 
-Esto aplica a todos los tipos:
-- **Ranking:** el SCM dice el orden real
-- **Causal:** el SCM dice si el efecto existe y su signo/magnitud
-- **Confounding:** el SCM dice si la asociacion desaparece al controlar
-- **Identifiability:** el SCM dice si el efecto es identificable
-- **Descriptivo:** el SCM dice las correlaciones reales
+### Que cambia
 
-El verify_atom dry-run NO es opcional — es esencial para que las SQs
-tengan answer key.
+**Answer key tipo** — no es un `AssertionKind` sino una estructura rica:
+- Para causal: {effect_size: -15.43, direction: negative, magnitude: large}
+- Para ranking: {order: [stress, fluid, pressure, spacing], gaps: [...]}
+- Para correlacion: {raw: 0.72, partial: 0.31, conditioned_on: [Z]}
+- Para identifiability: {identifiable: True, valid_adjustment_sets: [...]}
 
-## Score final (formula)
+**Comparacion claim vs answer key** — dos caminos posibles:
+- **LLM juez** (ahora): claim_text + sq_text + answer_key_rico → relevance
+- **Determinístico** (para RL): comparar claim compilada contra answer key
+  usando la estructura rica, no etiquetas simplificadas
+
+**Ventaja:** nunca se pierde informacion. El answer key siempre tiene la
+verdad completa. El scoring puede ser tan fino o tan grueso como necesite.
+
+## Score final (formula — SIN CAMBIOS de concepto)
 
 ```
-claim_score = verdad(spec, SCM) x relevancia(claim, SQ) x tier_weight
+claim_score = verdad(claim, SCM) x relevancia(claim, SQ) x tier_weight
 
 donde:
-  verdad     = 0 o 1 (SCM dice TRUE o FALSE, binario)
-  relevancia = 0..1 (LLM juez ahora, determinístico despues)
+  verdad     = 0 o 1 (claim compilada → verify contra SCM, binario)
+  relevancia = 0..1 (LLM juez ahora, puede usar answer key como contexto)
   tier       = 1.0 (high), 0.6 (medium), 0.4 (low)
 ```
 
+## Insights arquitectonicos (2026-03-31)
+
+### verify_atom mezcla resolve + assert — separar en el futuro
+
+`verify_atom()` hoy hace DOS cosas en una sola llamada:
+1. **Resolver** la query contra el SCM (measurements, comparison_result)
+2. **Evaluar** si la Assertion del caller matchea el resultado
+
+Para el teacher, solo nos importa (1) — el resultado rico. La Assertion es
+la hipotesis del compiler, no la verdad. Para el solver, nos importan ambas
+— la Assertion ES la claim.
+
+**Hoy funciona** porque `ground_sq_answer_key()` simplemente ignora
+`solver_assertion_holds` y toma `verdict.detail` como answer key.
+
+**Pero la mezcla conceptual queda en la infraestructura.** En el futuro
+conviene separar explicitamente:
+```
+resolution = resolve(spec, world, solver)   # solo SCM query
+verdict    = assert_(resolution, assertion) # evaluar claim
+```
+
+Esto haria explicita la asimetria teacher/solver y eliminaria la confusion
+de que `holds=False` en teacher side "invalide" el answer key.
+
+**No hacerlo ahora** — el workaround actual (ignorar holds en teacher) es
+limpio y suficiente. La separacion es para cuando toquemos verify_atom.
+
+### Rankings complejos: composicion, no specs monoliticos
+
+Preguntas como "cuales variables tienen mayor ATE sobre Y?" no se resuelven
+con un unico spec de 8 arms + ranking. Se resuelven por **composicion**:
+
+```
+spec_1: ATE de X1 sobre Y → answer_key = {ate: 15.3}
+spec_2: ATE de X2 sobre Y → answer_key = {ate: -8.7}
+spec_3: ATE de X3 sobre Y → answer_key = {ate: 22.1}
+...
+answer key rico agrega: ranking = [X3, X1, X2] por |ATE|
+```
+
+**Por que:** un spec atomico con N arms intenta meter demasiada semantica
+en una sola unidad. El verifier termina rankeando arm labels (escenarios),
+no entidades cientificas (variables). La composicion mantiene los specs
+simples y deja que la agregacion del answer key produzca la respuesta rica.
+
+**Implicacion para el compiler:** cuando el LLM ve una SQ de ranking,
+deberia generar N specs (uno por variable/entidad) en lugar de intentar
+un solo spec monolitico. El answer key rico del SQ (no del spec individual)
+hace la agregacion.
+
 ## Proximos pasos
 
-1. Agregar verify_atom al compile step (answer key generation)
-2. Implementar LLM juez de relevancia (simple prompt)
+1. **Disenar answer key rico** — que estructura necesita cada tipo de
+   comparison result para ser un answer key completo (A27)
+2. Implementar LLM juez de relevancia (simple prompt, puede usar answer key)
 3. Probar E2E con 7 seeds diversas
 4. Medir donde falla la relevancia
 5. Decidir si features determinísticas alcanzan para RL
+6. Separar resolve/assert en verify_atom (cuando se toque el verifier)
+7. Ranking por composicion en el compiler (cuando se toque el compiler)

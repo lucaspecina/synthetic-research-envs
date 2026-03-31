@@ -134,14 +134,46 @@ for sq_def in test_sqs:
     else:
         print(f"\n  Alignment: OK")
 
-    # Verify against SCM
-    print(f"\n  SCM verification:")
-    for j, vs in enumerate(sq.verification_specs):
-        try:
-            verdict = verify_atom(vs.spec, world, solver)
-            print(f"    spec[{j}]: holds={verdict.solver_assertion_holds} "
-                  f"(gt={verdict.ground_truth})")
-        except Exception as e:
-            print(f"    spec[{j}]: CRASH - {e}")
+    # Ground answer key against SCM
+    from sreg.tools.oi_sq_compiler import ground_sq_answer_key
+
+    print(f"\n  Answer key grounding (rich SCM result, NOT derived assertions):")
+    gr = ground_sq_answer_key(sq, world, solver)
+    print(f"    executed={gr.n_executed}, crashed={gr.n_crashed}")
+
+    if gr.warnings:
+        for w in gr.warnings:
+            print(f"    [warn] {w}")
+
+    if gr.success:
+        print(f"    Grounded specs: {len(gr.sq.verification_specs)}")
+        for j, vs in enumerate(gr.sq.verification_specs):
+            v = vs.verdict
+            if not v:
+                print(f"      spec[{j}] [{vs.role}]: NO VERDICT")
+                continue
+            # Show the RICH answer key (comparison result), not just the assertion
+            detail = v.detail or {}
+            comparison = detail.get("comparison", {})
+            compiler_assert = vs.spec.assertion.kind
+            # Summarize the answer key
+            ak_summary = ""
+            if "ranking" in comparison:
+                ak_summary = f"ranking={list(comparison['ranking'])}"
+            elif "difference" in comparison:
+                ak_summary = f"diff={comparison['difference']:.4f}"
+            elif "gap" in comparison:
+                ak_summary = f"gap={comparison['gap']:.4f}"
+            elif "value" in comparison:
+                val = comparison["value"]
+                ak_summary = f"value={val}"
+            else:
+                ak_summary = f"keys={list(comparison.keys())}"
+            print(f"      spec[{j}] [{vs.role}]: "
+                  f"compiler_assert={compiler_assert} "
+                  f"holds={v.solver_assertion_holds} | "
+                  f"answer_key: {ak_summary}")
+    else:
+        print(f"    GROUNDING FAILED")
 
 print("\nDone.")

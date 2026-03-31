@@ -546,8 +546,9 @@ cerrada (PatternClass). El catalogo puede seguir como fast-path opcional.
 - [x] **Orchestrador v2:** genera SQs como texto libre, compila a specs (spike)
 - [x] **Validacion semantica:** `validate_compilation_alignment()` — chequea
   causal→intervene, direccion, variables, confounding, mediation, identifiability
-- [~] **Answer key:** agregar verify_atom al compile step para que las SQs
-  tengan respuestas precomputadas (esencial para ranking y otros tipos)
+- [~] **Answer key:** verify_atom en compile step funciona, pero derivar
+  Assertion del resultado es un callejon sin salida (ver A27). El answer
+  key debe ser el resultado rico del SCM, no una Assertion simplificada.
 - [ ] **E2E real:** generar caso completo, correr solver, scoring v2
 - [ ] **Comparacion v1 vs v2:** mismos episodios, comparar scores y cobertura
 - [ ] **Calibracion del directo:** reducir specs FALSE (prompting, ejemplos)
@@ -667,6 +668,69 @@ El scoring de claims tiene dos componentes:
 relevancia es intercambiable. Todas las opciones quedan disponibles.
 
 **Conecta con:** A23, A24, scoring_relevance_design.md
+
+### A27. Answer key rico — el SCM result como verdad, no Assertion
+
+**Descubierto 2026-03-31.** El spike de answer key generation (A23) mostro
+que derivar una `Assertion` del resultado del SCM es un callejon sin salida.
+
+**El problema:** forzar verdades ricas del SCM a ~13 tipos de Assertion
+pierde informacion y crea arbitrariedades:
+- `ratio=0.7` → "positive" (INCORRECTO: es 30% menos que la referencia)
+- `no changepoint` → "near_zero" (INCORRECTO: puede haber efecto fuerte sin quiebre)
+- Rankings de arm labels vs rankings de variables (el verifier rankea labels)
+- Cada tipo de comparison_result necesitaba su propia rama de derivacion
+- Viola: "un solo metodo para todo", "no construir un juego de slots"
+
+**La solucion:** el answer key no es una Assertion simplificada sino el
+resultado completo del SCM:
+- comparison_result: {difference: -15.43, ranking: (...), value: True, ...}
+- measurements por arm: {treated: 42.3, control: 27.8, ...}
+- ground_truth: valor resuelto
+
+La Assertion se convierte en VISTA del answer key, no en la verdad misma.
+
+**Implicaciones:**
+- El `VerificationSpec.verdict` ya guarda `AtomVerdict` con `detail` rico.
+  Eso ES el answer key — solo falta tratarlo como tal en scoring/matching.
+- El LLM juez de relevancia puede recibir el answer key rico como contexto
+  (no necesita la Assertion para nada)
+- Para matching determinístico futuro: comparar claim result vs SQ answer key
+  usando la estructura rica, no etiquetas
+- La Assertion del compiler sigue siendo util como "hipotesis del LLM",
+  pero no como verdad
+
+**BUG CONOCIDO (no parchear, resolver con el rediseno):**
+`oi_sq_matching.py` lineas 140-141 descarta SQ specs con
+`solver_assertion_holds=False`. Con el nuevo diseno, eso descarta answer
+keys validos donde el compiler adivino mal la asercion. El matcher
+completo debe cambiar para usar el answer key rico, no `holds`.
+
+**Pendiente:**
+- [x] Actualizar ground_sq_answer_key para guardar el resultado rico sin
+  intentar derivar/reparar Assertions
+- [x] **CRITICO:** Actualizar `oi_sq_matching.py` para NO usar
+  `sq_verdict.solver_assertion_holds` como gate de validez del teacher.
+  El answer key rico (verdict.detail) es la verdad, no la Assertion.
+- [ ] Definir estructura del answer key rico por tipo de comparison result
+- [ ] Decidir si answer key vive en VerificationSpec.verdict (ya esta) o
+  en un campo dedicado (ej: `AtomResolution` separado de `AtomVerdict`)
+- [ ] Actualizar LLM juez de relevancia para usar answer key rico
+- [ ] **Desacoplar matching de la Assertion del teacher:** `oi_sq_matching.py`
+  ya no usa `solver_assertion_holds` como gate, pero `assertion_compat()` todavia
+  compara la Assertion de la SQ (hipotesis del compiler) con la del claim.
+  El matching completo debe migrar a comparar claim result vs answer key rico
+  / features derivadas del resultado SCM, no Assertions del teacher.
+- [ ] **Separar resolve/assert en verify_atom:** hoy mezcla resolver la
+  query SCM + evaluar la Assertion en una sola llamada. Para teacher solo
+  importa resolve. Separar a `resolve(spec)` + `assert_(resolution, assertion)`
+  cuando se toque el verifier.
+- [ ] **Rankings por composicion:** SQs de ranking deben compilar a N specs
+  atomicos (uno por variable/entidad) en lugar de un spec monolitico con
+  N arms. El answer key rico del SQ agrega los resultados individuales en
+  un ranking. Hoy el verifier rankea arm labels (escenarios), no entidades.
+
+**Conecta con:** A23, A24, A26, scoring_relevance_design.md
 
 ### A25. Metricas custom para prediccion y optimizacion
 

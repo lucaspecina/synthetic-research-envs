@@ -571,14 +571,20 @@ class Orchestrator:
         self,
         raw_sqs: list[dict],
         world: SCMWorld,
+        world_seed: int = 42,
     ) -> tuple[list, list[str]]:
         """Compile raw SQ dicts (text_gloss) into SubQuestionIntentV2 via LLM.
 
-        Returns (compiled_sqs, errors).
+        Two phases:
+        1. Compile: text_gloss -> AtomicSpec bundle (LLM)
+        2. Ground: run specs against SCM -> fill verdicts + repair assertions
+
+        Returns (grounded_sqs, errors).
         """
         from sreg.models.open_investigation import SubQuestionIntentV2
+        from sreg.solver.scm_solver import SCMSolver
         from sreg.tools.oi_compiler import build_world_summary
-        from sreg.tools.oi_sq_compiler import compile_sq_to_specs
+        from sreg.tools.oi_sq_compiler import compile_sq_to_specs, ground_sq_answer_key
 
         # Build world summary for the compiler
         target = world.variables[-1]  # same convention as SCMProblemBuilder
@@ -587,6 +593,7 @@ class Orchestrator:
         compiled: list[SubQuestionIntentV2] = []
         errors: list[str] = []
 
+        # Phase 1: compile text -> specs
         for i, raw in enumerate(raw_sqs):
             sq_id = raw.get("sq_id", f"sq{i+1}")
             text_gloss = raw.get("text_gloss", "")
@@ -616,7 +623,33 @@ class Orchestrator:
                 errors.append(f"{sq_id}: {'; '.join(result.errors)}")
                 logger.warning("  -> FAIL: %s", result.errors)
 
-        return compiled, errors
+        if not compiled:
+            return compiled, errors
+
+        # Phase 2: ground against SCM (answer key generation)
+        logger.info("Grounding %d compiled SQs against SCM...", len(compiled))
+        solver = SCMSolver(world)
+        grounded: list[SubQuestionIntentV2] = []
+
+        for sq in compiled:
+            logger.info("Grounding SQ %s...", sq.sq_id)
+            gr = ground_sq_answer_key(sq, world, solver, seed=world_seed)
+
+            if gr.success:
+                grounded.append(gr.sq)
+                logger.info(
+                    "  -> OK: %d executed, %d crashed",
+                    gr.n_executed, gr.n_crashed,
+                )
+            else:
+                errors.append(f"{sq.sq_id}: grounding failed ({'; '.join(gr.warnings)})")
+                logger.warning("  -> FAIL: %s", gr.warnings)
+
+            if gr.warnings:
+                for w in gr.warnings:
+                    logger.info("  [warn] %s", w)
+
+        return grounded, errors
 
     def _build_oi_case_plan(
         self,
@@ -638,9 +671,10 @@ class Orchestrator:
                 ),
             }
 
-        # Compile text SQs to AtomicSpec bundles via LLM
+        # Compile text SQs to AtomicSpec bundles via LLM + ground against SCM
+        seed = self._world_seeds.get(world_id, 42)
         compiled_sqs, compile_errors = self._compile_oi_subquestions(
-            raw_sqs, world
+            raw_sqs, world, world_seed=seed
         )
 
         min_required = max(2, len(raw_sqs) // 2)

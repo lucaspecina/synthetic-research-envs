@@ -1,8 +1,9 @@
-"""SQ v2 compile step: text_gloss -> VerificationSpec bundle.
+"""SQ v2 compile step: text_gloss -> VerificationSpec bundle + answer key grounding.
 
 Implements Camino B from sq_v2_matching_spec.md:
 - Orchestrator generates SQ as text (sq_id, text_gloss, focus_variables, tier)
 - This module compiles to SubQuestionIntentV2 with verification_specs
+- After compilation, ground_sq_answer_key() runs specs against SCM to fill verdicts
 
 The LLM produces AtomicSpec(s) directly using the composable grammar.
 No PatternClass, no routing, no catalog.
@@ -19,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import ValidationError
@@ -225,19 +227,19 @@ def _validate_variables(spec_dict: dict, world_vars: set[str]) -> list[str]:
     """Check that all variable references in a spec exist in the world."""
     errors = []
     meas = spec_dict.get("measurement", {})
-    for field in ("target", "lhs", "rhs", "treatment", "outcome"):
-        val = meas.get(field)
+    for fld in ("target", "lhs", "rhs", "treatment", "outcome"):
+        val = meas.get(fld)
         if val and isinstance(val, str) and val not in world_vars:
-            errors.append(f"measurement.{field}={val} not in world variables")
+            errors.append(f"measurement.{fld}={val} not in world variables")
         elif val and isinstance(val, (list, tuple)):
             for v in val:
                 if v not in world_vars:
-                    errors.append(f"measurement.{field} contains {v} not in world variables")
-    for field in ("cond_set", "candidate_causes", "candidate_adjust_set"):
-        vals = meas.get(field, ())
+                    errors.append(f"measurement.{fld} contains {v} not in world variables")
+    for fld in ("cond_set", "candidate_causes", "candidate_adjust_set"):
+        vals = meas.get(fld, ())
         for v in vals:
             if v not in world_vars:
-                errors.append(f"measurement.{field} contains {v} not in world variables")
+                errors.append(f"measurement.{fld} contains {v} not in world variables")
     for arm in spec_dict.get("arms", []):
         for v in arm.get("values", {}):
             if v not in world_vars:
@@ -618,3 +620,113 @@ def validate_compilation_alignment(
             })
 
     return issues
+
+
+# ---------------------------------------------------------------------------
+# Answer key grounding: run specs against SCM, repair assertions, fill verdicts
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SQGroundingResult:
+    """Result of grounding a compiled SQ against the SCM.
+
+    The answer key is the RICH SCM result stored in each VerificationSpec.verdict
+    (AtomVerdict.detail has measurements + comparison_result). NOT the Assertion.
+
+    IMPORTANT: verdict.solver_assertion_holds reflects whether the LLM compiler's
+    GUESSED assertion matched reality. It is NOT a validity gate for the answer key.
+    A spec with holds=False still has a valid answer key in verdict.detail — it just
+    means the compiler guessed wrong about the direction/type.
+    """
+
+    sq: SubQuestionIntentV2 | None  # with verdicts filled (None if all crashed)
+    n_executed: int = 0   # specs that ran successfully against SCM
+    n_crashed: int = 0    # specs that crashed during verify_atom
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def success(self) -> bool:
+        return self.sq is not None
+
+
+def ground_sq_answer_key(
+    sq: SubQuestionIntentV2,
+    world: Any,
+    solver: Any,
+    seed: int = 42,
+) -> SQGroundingResult:
+    """Ground a compiled SQ against the SCM: run each spec and store the result.
+
+    This is RESOLUTION, not evaluation. The answer key is the rich SCM result
+    stored in each verdict.detail (measurements, comparison_result, ground_truth).
+    The compiler's Assertion is left as-is — it's just the LLM's hypothesis,
+    not the truth. The truth lives in the verdict.
+
+    Only rejects specs that CRASH (can't execute). A spec whose assertion
+    doesn't hold is still valid — it has a good answer key, the compiler
+    just guessed wrong about the assertion.
+
+    Args:
+        seed: deterministic seed for verify_atom MC sampling. Critical for
+              reproducible answer keys across runs (RL-safe).
+    """
+    from sreg.tools.oi_verifier import verify_atom
+
+    grounded_specs: list[VerificationSpec] = []
+    n_executed = 0
+    n_crashed = 0
+    warnings: list[str] = []
+
+    for i, vs in enumerate(sq.verification_specs):
+        spec_id = vs.spec.spec_id
+        # Per-spec seed offset to avoid correlation between specs
+        spec_seed = seed + i * 7919
+
+        try:
+            verdict = verify_atom(vs.spec, world, solver, seed=spec_seed)
+        except Exception as e:
+            warnings.append(f"{spec_id}: verify crash: {e}")
+            n_crashed += 1
+            continue
+
+        n_executed += 1
+
+        # Log diagnostic: did the compiler's assertion match reality?
+        if not verdict.solver_assertion_holds:
+            logger.info(
+                "  %s: compiler assertion %s != ground truth (gt=%s) "
+                "-- answer key is valid, assertion was wrong",
+                spec_id,
+                vs.spec.assertion.kind,
+                verdict.ground_truth,
+            )
+
+        # Store spec with verdict (answer key = verdict.detail)
+        grounded_specs.append(
+            VerificationSpec(spec=vs.spec, role=vs.role, verdict=verdict)
+        )
+
+    if not grounded_specs:
+        warnings.append("All specs crashed -- SQ cannot be grounded")
+        return SQGroundingResult(
+            sq=None,
+            n_executed=n_executed,
+            n_crashed=n_crashed,
+            warnings=warnings,
+        )
+
+    grounded_sq = SubQuestionIntentV2(
+        sq_id=sq.sq_id,
+        text_gloss=sq.text_gloss,
+        verification_specs=grounded_specs,
+        tier=sq.tier,
+        focus_variables=sq.focus_variables,
+    )
+
+    return SQGroundingResult(
+        sq=grounded_sq,
+        n_executed=n_executed,
+        n_crashed=n_crashed,
+        warnings=warnings,
+    )

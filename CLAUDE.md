@@ -1,80 +1,57 @@
 # SREG — Claude Code Project Configuration
 
-## AUTORESEARCH: DESACTIVADO
+## 🚨 MODO DE TRABAJO ACTUAL: COLABORATIVO 🚨
+*(Cambiar a "AUTORESEARCH" cuando se requiera trabajo autónomo sin frenar)*
 
-No frenar a menos que el usuario interrumpa. Para desactivar: cambiar a
-DESACTIVADO. Documentar en `research/`.
+Existen **DOS modos de trabajo completamente distintos**.
 
-### Modo conversacional (cuando NO esta en autoresearch)
+### MODO 1: COLABORATIVO (Con el usuario)
+Este es el flujo de siempre. Es pausado, interactivo y requiere aprobación humana.
+- **Ir contando lo que haces** paso a paso, amigablemente, en español.
+- **Consultar antes de avanzar** — no hacer 3 pasos seguidos sin preguntar.
+- **Explicar decisiones** — por qué elegiste este approach, qué alternativas descartaste.
+- **Debatir con Codex** — buscar una segunda opinión técnica antes de implementar cambios grandes.
+- **Esperar feedback** entre pasos significativos. No commitear sin OK explícito.
 
-Cuando el usuario indica que no estamos en autoresearch, cambiar a modo
-colaborativo: normal, ir ida y vuelta hablando con el. 
+### MODO 2: AUTORESEARCH (Autónomo)
+Este modo es para cuando el usuario te pide que investigues o implementes algo por tu cuenta, sin frenar.
+- **NO frenar a menos que el usuario interrumpa.**
+- **Registrar todo** a modo de logs y documentos en `research/`.
+- **Ciclo Iterativo Autónomo:** PENSAR (hipótesis) -> PROBAR (scripts/experimentos) -> ANALIZAR (documentar resultados) -> PENSAR...
 
-### Research workflow — ITERATIVO
+---
 
-El ciclo de research tiene dos fases que se alternan:
+## 🚨 PRINCIPIOS RECTORES Y CHECKLIST DE DISEÑO 🚨
 
-**Fase PENSAR:**
-Reflexionar + buscar info + debatir (Codex, otras AIs, usuario) + generar
-hipotesis o idea concreta. NO implementar durante esta fase. El output es
-un spec, una propuesta, o una hipotesis documentada.
+**OBLIGATORIO PARA AMBOS MODOS.** Antes de escribir código, debes demostrar (en el chat o en tus logs de autoresearch) que el diseño propuesto respeta estos principios.
 
-**Fase PROBAR:**
-Implementar de manera controlada, con capacidad de revertir. Prototipos
-acotados, scripts, experimentos. Medir resultados concretos. NO refactorear
-el pipeline completo — probar primero en acotado.
-
-**Fase ANALIZAR:**
-Ver resultados + sacar conclusiones + documentar. Decidir si la hipotesis
-se valido o no. Si se valido, integrar. Si no, volver a PENSAR.
-
-```
-PENSAR (reflexionar + info + debate + hipotesis)
-   ↓
-PROBAR (controlado, reversible, acotado)
-   ↓
-ANALIZAR (resultados + conclusiones + documentar)
-   ↓
-PENSAR ...
-```
-
-**Reglas:**
-- Nunca solo debate — siempre probar cosas reales.
-- Nunca solo implementar — siempre pensar antes.
-- Los prototipos coexisten con el pipeline actual (no romper lo que funciona).
-- Documentar en cada fase, no solo al final.
-
-## LA PREGUNTA — el filtro de todo
-
-> **Por que esto todavia no es una investigacion real? Que le falta?**
+### LA PREGUNTA (El filtro de todo)
+> **¿Por qué esto todavía no es una investigación real? ¿Qué le falta?**
 >
-> **Por que un modelo entrenado con RL sobre SREG todavia no aprenderia
-> buen juicio cientifico?** Que le falta al sistema para ensenar:
-> research taste, descomposicion de problemas, generacion de preguntas
-> fine-grained, buen plan de investigacion, saber que es relevante para
-> el objetivo y que no, saber cuando una conclusion es prematura vs
-> bien fundada.
+> **¿Por qué un modelo entrenado con RL sobre SREG todavía no aprendería buen juicio científico?** Que le falta al sistema para enseñar: research taste, descomposición de problemas, generación de preguntas fine-grained, buen plan de investigación, saber qué es relevante para el objetivo y qué no, saber cuándo una conclusión es prematura vs bien fundada.
 
-Cada decision pasa por este TRIPLE filtro:
-1. Se parece a investigacion real? Si no, es un bug.
-2. Entrenaria buen juicio cientifico (incluida relevancia)? Si no, redisenar.
-3. Funciona para la MAYORIA de los tipos de investigacion? No solo "X causa Y"
-   — system mapping, structure discovery, descriptivo, predictivo, epistemologico,
-   optimizacion, multi-outcome, etc. Si solo funciona para causal simple, es un
-   juguete. Repasar mentalmente los escenarios diversos ANTES de disenar:
-   `research/synthesis/investigation_scenarios_rubric.md`.
+Cada decisión pasa por este TRIPLE filtro:
+1. ¿Se parece a investigación real? Si no, es un bug.
+2. ¿Entrenaría buen juicio científico (incluida relevancia)? Si no, rediseñar.
+3. ¿Funciona para la MAYORÍA de los tipos de investigación? No solo "X causa Y" — system mapping, structure discovery, descriptivo, predictivo, epistemológico, optimización, multi-outcome, etc. Si solo funciona para causal simple, es un juguete. Repasar mentalmente los escenarios diversos ANTES de diseñar: `research/synthesis/investigation_scenarios_rubric.md`.
 
-## Principios de scoring — NO NEGOCIABLE
+### El Checklist de Diseño (Responde estas 4 preguntas antes de codear):
+1. **¿Estoy creando un parche hardcodeado o una regla universal?**
+   *(Si escribes `if tipo == X` para manejar un caso borde, estás fallando. Busca la propiedad matemática subyacente. Ej: la verdad canónica es el output del SCM, no una aserción forzada).*
+2. **¿Esto mete un LLM en el loop de scoring de VERDAD?**
+   *(Prohibido. La Verdad es matemática contra el SCM. La Relevancia puede usar LLM hoy, pero debe ser reemplazable por feature-matching para RL).*
+3. **¿Esto fuerza al sistema a un tipo de investigación específico?**
+   *(Debe soportar causal simple, system mapping, descriptivo, epistemológico, etc).*
+4. **¿El Solver podría hackear esto sin investigar los datos?**
+   *(Si el Solver gana puntos adivinando o usando fuerza bruta textual, el reward es débil).*
 
-1. **UN solo metodo para todo** — sin scoring profiles por tipo de investigacion.
+### Principios de Scoring — NO NEGOCIABLES
+1. **UN solo método para todo** — sin scoring profiles por tipo de investigación.
 2. **El sistema se adapta a los casos** — el scoring no fuerza una forma.
-3. **El brief es libre** — una pregunta, varias, vagos, mixtos: todo valido.
-4. **No construir un juego** — si necesita "roles", "slots", "pattern_weights"
-   para funcionar, es un juego, no evaluacion de investigacion.
-5. **Verificacion es el core** — el SCM verifica. El scoring solo pregunta:
-   es verdad? es relevante? cubrio lo pedido? no spameo?
-6. **Diversidad de investigacion** — todo diseno debe funcionar para los tipos
-   diversos de investigacion (ver triple filtro arriba). No disenar para "X→Y".
+3. **El brief es libre** — una pregunta, varias, vagos, mixtos: todo válido.
+4. **No construir un juego** — si necesita "roles", "slots", "pattern_weights" para funcionar, es un juego, no evaluación de investigación.
+5. **Verificación es el core** — el SCM verifica. El scoring solo pregunta: ¿es verdad? ¿es relevante? ¿cubrió lo pedido? ¿no spameó?
+6. **Diversidad de investigación** — todo diseño debe funcionar para los tipos diversos de investigación. No diseñar solo para "X→Y".
 
 ## Donde buscar que
 
@@ -98,7 +75,6 @@ Cada decision pasa por este TRIPLE filtro:
 |---|---|
 | `/run` | Generar un caso de investigacion con LLM |
 | `/eval` | Evaluar calidad de casos (L2, la que importa) |
-| `/precommit` | Workflow completo de commit (el unico valido) |
 | `/explain` | Presentar cambios al usuario antes de commit |
 | `/codex-collab` | Consultar Codex como segunda opinion |
 | `/plan` | Ver roadmap y estado del proyecto |
@@ -118,21 +94,10 @@ Cada decision pasa por este TRIPLE filtro:
 5. **ARCHITECTURE.md** — cambiaste componentes, contratos o flows? Actualizar.
 6. **Tests y scripts** — el cambio deja tests o scripts obsoletos? Eliminarlos.
 7. **Skills, memorias, otros** — el cambio deja skills (`.claude/skills/`),
-   memorias, o scripts con referencias obsoletas? Actualizarlos o eliminarlos.
+ memorias, o scripts con referencias obsoletas? Actualizarlos o eliminarlos.
 
 **"Actualizar" no es solo docs del repo. Es TODO lo que referencia al sistema:
 skills, memorias, scripts, configs. Si algo quedo desactualizado, arreglarlo.**
-
-## Commit workflow — MANDATORIO
-
-```
-1. Desarrollo + Tests (pytest modulo afectado + ruff)
-2. Codex review + Fix (MANDATORIO si MCP disponible, skip si trivial)
-3. Presentar al usuario — explicar en espanol, pedir aprobacion
-   ESPERAR aprobacion. NO commitear sin ella.
-4. Actualizar docs (ver lista arriba) + Commit
-5. Sugerir proximos pasos
-```
 
 ## Validacion — LA UNICA QUE IMPORTA ES E2E
 
@@ -164,7 +129,7 @@ para generar casos diversos: `python scripts/generate_src.py --seed-file seeds/X
 ## Environment setup
 
 ```bash
-conda activate sreg  # Python 3.11
+conda activate sreg # Python 3.11
 pip install -e ".[dev]"
 ```
 
@@ -191,18 +156,18 @@ Env vars (en `.env`, cargados por dotenv): `AZURE_INFERENCE_CREDENTIAL`,
 
 ```
 src/sreg/
-  models/        # Pydantic contracts (SCM, OI, tasks, episodes)
-  inference/     # LLM protocol (ModelClient, Responses API)
-  world/         # SCM engine (scm.py, expression compiler, scm_data)
-  solver/        # SCMSolver (teacher / ground truth)
-  tools/         # SCM pipeline + OI pipeline (compiler, verifier, salience, runner)
-  orchestrator/  # LLM orchestrator (function calling, SCM-only)
-  agent/         # python_exec + tool-calling engine (for OI solver)
-  benchmarks/    # CLadder, QRData, DiscoveryBench
-scripts/         # generate_src.py, run_benchmark.py
-seeds/           # Research seeds (.md/.pdf) for diverse E2E generation
-tests/           # Mirrors src/ structure
-research/        # Analisis y sintesis (ver research/README.md)
+ models/ # Pydantic contracts (SCM, OI, tasks, episodes)
+ inference/ # LLM protocol (ModelClient, Responses API)
+ world/ # SCM engine (scm.py, expression compiler, scm_data)
+ solver/ # SCMSolver (teacher / ground truth)
+ tools/ # SCM pipeline + OI pipeline (compiler, verifier, salience, runner)
+ orchestrator/ # LLM orchestrator (function calling, SCM-only)
+ agent/ # python_exec + tool-calling engine (for OI solver)
+ benchmarks/ # CLadder, QRData, DiscoveryBench
+scripts/ # generate_src.py, run_benchmark.py
+seeds/ # Research seeds (.md/.pdf) for diverse E2E generation
+tests/ # Mirrors src/ structure
+research/ # Analisis y sintesis (ver research/README.md)
 ```
 
 ## Code conventions
@@ -223,6 +188,6 @@ research/        # Analisis y sintesis (ver research/README.md)
 - Branch naming: `feature/<name>`, `fix/<name>`, `refactor/<name>`
 - Always ask user before pushing. Multiple sessions: `claude --worktree <name>`.
 - **Codex** (when MCP available): mandatory for code review, recommended for design.
-  Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.
+ Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.
 - **CLAUDE LIDERA, CODEX ASESORA.** Formar opinion propia ANTES de consultar.
-  Presentar ambas opiniones, argumentar desacuerdos. El usuario decide.
+ Presentar ambas opiniones, argumentar desacuerdos. El usuario decide.

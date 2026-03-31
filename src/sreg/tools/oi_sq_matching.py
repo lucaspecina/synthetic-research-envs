@@ -137,9 +137,10 @@ def spec_match(claim_spec: AtomicSpec, sq_spec: AtomicSpec,
     if claim_verdict is not None and not claim_verdict.solver_assertion_holds:
         return 0.0
 
-    # SQ spec FALSE in ground truth — skip, don't penalize
-    if sq_verdict is not None and not sq_verdict.solver_assertion_holds:
-        return 0.0
+    # NOTE: we do NOT gate on sq_verdict.solver_assertion_holds.
+    # For teacher-side SQ specs, holds=False just means the compiler's
+    # assertion guess was wrong — the answer key (verdict.detail) is still
+    # valid. The truth lives in the rich SCM result, not in the Assertion.
 
     # Soft score: assertion compatibility
     return assertion_compat(claim_spec.assertion.kind, sq_spec.assertion.kind)
