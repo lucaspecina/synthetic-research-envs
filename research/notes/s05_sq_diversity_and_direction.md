@@ -3,7 +3,7 @@
 **Date:** 2026-03-30
 **Type:** Analisis / decision de direccion
 **Branch:** autoresearch-open-investigation
-**Status:** DECISION TOMADA. Documentada para no volver a debatirlo.
+**Status:** SUPERSEDED por `synthesis/sq_v2_matching_spec.md`. Diagnostico y evidencia siguen siendo validos.
 **Prerequisitos:** S04, A23, A24
 
 ## El hallazgo

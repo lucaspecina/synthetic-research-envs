@@ -536,20 +536,21 @@ mejor preservamos la semantica de claims y SQs en casos diversos.
 **Direccion:** compilacion directa claim → AtomicSpec(s), sin IR intermedia
 cerrada (PatternClass). El catalogo puede seguir como fast-path opcional.
 
+**Spec de diseno:** `research/synthesis/sq_v2_matching_spec.md` (CANONICO).
+
 **Pendiente:**
-- [ ] **Decidir integracion:** como enchufar el camino directo al pipeline
-  existente (reemplazar, fallback, o dual)
-- [ ] **Matching entre conjuntos de specs:** si claims y SQs bajan a specs,
-  el scoring necesita comparar specs, no patterns. Diseno abierto.
-- [ ] **Calibracion del directo:** reducir el 23% de specs FALSE (directions
-  asumidas, assertions agresivas). Iterable con prompting.
-- [ ] **SQs directas a specs:** misma logica que claims. El orchestrator
-  genera SQs como conjuntos de AtomicSpec verificables.
-- [ ] **Probar en e2e_01 a e2e_06** para tener la foto completa.
+- [ ] **Modelo v2:** SubQuestionIntentV2 + VerificationSpec (required/support)
+- [ ] **Compile step:** `compile_sq_to_specs()` — LLM + grammar, sin pattern routing
+- [ ] **Matching:** `spec_match()` exacto en estimand + bipartite 1-a-1
+- [ ] **Primer experimento:** 4 seeds diversas, pipeline v1 vs v2, medir
+  diversidad/relevancia/coverage
+- [ ] **Calibracion del directo:** reducir el 23% de specs FALSE (prompting)
+- [ ] **Integracion:** si funciona, reemplazar v1 en el pipeline
 
 **Research:** `research/notes/s04_epistemic_ir_gap_analysis.md`,
-`research/notes/a23_grammar_first_sq_and_compiler.md`
-**Conecta con:** A22, S02, S03, S04, open_investigation_vision
+`research/notes/a23_grammar_first_sq_and_compiler.md`,
+`research/synthesis/sq_v2_matching_spec.md`
+**Conecta con:** A22, S02, S03, S04, S05, open_investigation_vision
 
 ### A24. Runtime comun de validacion — DISCUSION ABIERTA
 

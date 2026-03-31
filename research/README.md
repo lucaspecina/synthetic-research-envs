@@ -268,16 +268,21 @@ desplazandose hacia `synthesis/`.
 - **Conecta con:** PROJECT invariants, CLAUDE scoring principles, A23, S04
 - **Status:** DISCUSION ABIERTA. Arquitectura de mediano/largo plazo.
 
-### S06 SubQuestionIntent Architecture Research (2026-03-30)
-- **Pregunta:** como deberia ser el nuevo contrato de SubQuestionIntent,
-  la compilacion a AtomicSpec, y el primer experimento para validar
-  diversidad de SQs?
-- **Empezar por:** `notes/s06_sq_intent_architecture_research.md`
-- **Propuesta:** SQ = text_gloss + verification_specs (AtomicSpecs directos).
-  Pattern desaparece como obligatorio, queda como hint. Matching sobre specs.
-  Metricas: unique_measurement_kinds, spec_validity, variable_relevance.
-- **Conecta con:** S04, S05, A23, A24, CLAUDE scoring principles
-- **Status:** PROPUESTA PARA DISCUSION.
+### SQ v2 Matching Spec — spec de diseno consolidado (2026-03-30)
+- **Pregunta:** como liberar SQs del catalogo de 8 patterns, como matchear
+  claim-specs vs SQ-specs, como agregar el score.
+- **Empezar por:** `synthesis/sq_v2_matching_spec.md` (CANONICO)
+- **Decisiones clave:** SQ = text_gloss + verification_specs (required/support)
+  + tier. Sin pattern. Match exacto en estimand (measurement kind + variables
+  + conditioning). Fuzzy solo en assertion. Bipartite 1-a-1. Anti-spam via
+  precision gate. Compile step separado (orc genera texto, compilador baja
+  a specs).
+- **Evidencia:** S05 (10/10 causualizados), S04 (direct compilation 2.3x),
+  debate Claude-Codex-Gemini sobre matching.
+- **Conecta con:** S04, S05, A23, A24, PROJECT scope boundaries
+- **Status:** APROBADO PARA IMPLEMENTAR. Primer experimento definido.
+- **Docs superseded:** `notes/s05_*` (diagnostico, marcado superseded),
+  `archive/s06_*` (research, archivado).
 
 ### E2E Qualitative Analysis — 4-case evaluation (2026-03-28)
 - **Pregunta:** por que SREG todavia no es investigacion real (post-OI pipeline)?
