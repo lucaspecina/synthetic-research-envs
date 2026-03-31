@@ -2,10 +2,42 @@
 
 ## AUTORESEARCH: ACTIVADO
 
-Loop autonomo: **Debatir** (Codex) → **Probar** (E2E/scripts) → **Ver
-resultados** → **Reflexionar + documentar** → **Repetir**. No frenar a menos
-que el usuario interrumpa. Nunca solo debate — siempre probar cosas reales.
-Documentar en `research/autoresearch/`. Para desactivar: cambiar a DESACTIVADO.
+No frenar a menos que el usuario interrumpa. Para desactivar: cambiar a
+DESACTIVADO. Documentar en `research/`.
+
+### Research workflow — ITERATIVO
+
+El ciclo de research tiene dos fases que se alternan:
+
+**Fase PENSAR:**
+Reflexionar + buscar info + debatir (Codex, otras AIs, usuario) + generar
+hipotesis o idea concreta. NO implementar durante esta fase. El output es
+un spec, una propuesta, o una hipotesis documentada.
+
+**Fase PROBAR:**
+Implementar de manera controlada, con capacidad de revertir. Prototipos
+acotados, scripts, experimentos. Medir resultados concretos. NO refactorear
+el pipeline completo — probar primero en acotado.
+
+**Fase ANALIZAR:**
+Ver resultados + sacar conclusiones + documentar. Decidir si la hipotesis
+se valido o no. Si se valido, integrar. Si no, volver a PENSAR.
+
+```
+PENSAR (reflexionar + info + debate + hipotesis)
+   ↓
+PROBAR (controlado, reversible, acotado)
+   ↓
+ANALIZAR (resultados + conclusiones + documentar)
+   ↓
+PENSAR ...
+```
+
+**Reglas:**
+- Nunca solo debate — siempre probar cosas reales.
+- Nunca solo implementar — siempre pensar antes.
+- Los prototipos coexisten con el pipeline actual (no romper lo que funciona).
+- Documentar en cada fase, no solo al final.
 
 ## LA PREGUNTA — el filtro de todo
 
