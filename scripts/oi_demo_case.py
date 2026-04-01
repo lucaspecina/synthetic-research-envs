@@ -200,7 +200,7 @@ def build_report(
     lines.append(f"> **Domain:** {domain}")
     lines.append(f"> **Solver:** {solver_model} | **Compiler:** {compiler_model}")
     lines.append(f"> **Investigation steps:** {result.n_steps} | "
-                 f"**Time:** {elapsed:.0f}s")
+                 f"**Time:** {float(elapsed):.0f}s")
     lines.append("")
 
     # =========================================================
@@ -658,7 +658,7 @@ def main():
     # Build and save report
     report = build_report(
         args.world, world, problem, result,
-        elapsed, solver_model, compiler_model,
+        elapsed=elapsed, solver_model=solver_model, compiler_model=compiler_model,
         runner=runner, sub_questions=sqs,
     )
 
