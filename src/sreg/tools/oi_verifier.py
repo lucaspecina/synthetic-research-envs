@@ -309,7 +309,7 @@ def _measure(
             values[label] = _measure_sweep(measurement, result)
             continue
 
-        if result.get("kind") == "adjust":
+        if result.get("kind") in ("adjust", "adjust_fallback"):
             samples = result["samples"]
             values[label] = _measure_from_samples(measurement, samples)
             continue
