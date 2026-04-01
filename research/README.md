@@ -141,12 +141,9 @@ desplazandose hacia `synthesis/`.
   composable, debate Claude-Codex-ChatGPT. Working doc activo.
 - **Diseno del compiler:** `notes/oi_compiler_design.md` — arquitectura
   LLM->ClaimIntent->lowering->AtomicSpec. Debate con Codex.
-- **Diseno del warrant:** `notes/oi_warrant_design.md` — evidence warrant
-  system. Verifica que el solver investigo para respaldar sus claims.
-  4 niveles, multiplicador claim-level, debate con Codex.
 - **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
-- **Status:** Alpha-0 piloteado con LLMs reales (6 runs, 3 mundos).
-  Warrant disabled para Alpha. ~240 OI-specific tests.
+- **Status:** Alpha con LLM relevance judge. Warrant system eliminado (L1).
+  E2E validado con 3 seeds diversas (scores 0.41-0.89).
 - **Scoring fundamentals:** `synthesis/oi_scoring_fundamentals.md` — framework
   mental para el scoring de OI. Salience map = piso, no techo. Verdad
   se verifica contra SCM directamente, no contra lista precomputada.

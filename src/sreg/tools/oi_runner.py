@@ -1,19 +1,17 @@
 """OI Episode Runner: orchestrates solver investigation + scoring pipeline.
 
 This is the central piece that connects all OI components:
-  solver namespace -> load_artifact -> python_exec -> helpers -> trace
-  -> submit_claims -> compile -> verify -> warrant -> score
+  solver namespace -> load_artifact -> python_exec -> trace
+  -> submit_claims -> compile -> verify -> score
 
 The runner manages:
 1. Artifact catalog + loading with provenance tracking
-2. Python execution namespace with OI helpers injected
+2. Python execution namespace
 3. EpisodeTrace accumulation
 4. Scoring pipeline integration
 
 The solver itself (LLM generating code/decisions) is injected externally.
 This module handles everything EXCEPT the LLM calls.
-
-Design: research/notes/oi_trace_contract.md
 """
 
 from __future__ import annotations
@@ -25,7 +23,6 @@ from typing import Any
 import pandas as pd
 
 from sreg.models.open_investigation import (
-    AnalysisRecord,
     ArtifactAccess,
     ClaimCard,
     EpisodeScore,
@@ -37,7 +34,6 @@ from sreg.models.open_investigation import (
 )
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.solver.scm_solver import SCMSolver
-from sreg.tools.oi_helpers import OIHelpers, tag_dataframe
 from sreg.world.scm import SCMWorld
 
 logger = logging.getLogger(__name__)
@@ -92,7 +88,7 @@ class ArtifactCatalog:
 
         asset = self._base[artifact_id]
         df = pd.DataFrame(asset.data)
-        df = tag_dataframe(df, artifact_id)
+        df._oi_artifact_id = artifact_id  # type: ignore[attr-defined]
         self._loaded[artifact_id] = df
         return df
 
@@ -101,8 +97,7 @@ class ArtifactCatalog:
     ) -> str:
         """Save a solver-created artifact. Returns new artifact_id."""
         new_id = f"derived_{label}_{uuid.uuid4().hex[:6]}"
-        tagged = tag_dataframe(df.copy(), new_id)
-        self._derived[new_id] = tagged
+        self._derived[new_id] = df.copy()
         self._lineage[new_id] = parent_ids or []
         return new_id
 
@@ -126,39 +121,6 @@ class ArtifactCatalog:
                 entry["source"] = asset.source
             info.append(entry)
         return info
-
-
-class _OIHelpersProxy:
-    """Proxy that exposes only public analysis methods of OIHelpers.
-
-    Prevents solver code from accessing _log(), _trace, or other internals
-    that would allow forging warrant evidence without real analysis.
-    """
-
-    __slots__ = ("_corr", "_regress", "_stratify", "_test_independence", "_groupby_mean")
-
-    def __init__(self, helpers: OIHelpers):
-        # Bind to the methods directly — no backref to helpers object
-        self._corr = helpers.corr
-        self._regress = helpers.regress
-        self._stratify = helpers.stratify
-        self._test_independence = helpers.test_independence
-        self._groupby_mean = helpers.groupby_mean
-
-    def corr(self, *args: Any, **kwargs: Any) -> Any:
-        return self._corr(*args, **kwargs)
-
-    def regress(self, *args: Any, **kwargs: Any) -> Any:
-        return self._regress(*args, **kwargs)
-
-    def stratify(self, *args: Any, **kwargs: Any) -> Any:
-        return self._stratify(*args, **kwargs)
-
-    def test_independence(self, *args: Any, **kwargs: Any) -> Any:
-        return self._test_independence(*args, **kwargs)
-
-    def groupby_mean(self, *args: Any, **kwargs: Any) -> Any:
-        return self._groupby_mean(*args, **kwargs)
 
 
 class OIEpisodeRunner:
@@ -201,9 +163,6 @@ class OIEpisodeRunner:
         # Artifact management
         self.catalog = ArtifactCatalog(problem.data_assets)
 
-        # Instrumented helpers
-        self._helpers = OIHelpers(self.trace, self._step)
-
         # Python namespace
         self._namespace = self._build_namespace()
 
@@ -216,7 +175,6 @@ class OIEpisodeRunner:
 
         SECURITY: Functions are wrapped as plain closures to prevent
         solver code from reaching runner internals via __self__.
-        The oi helpers object only exposes public analysis methods.
         """
         from sreg.agent.python_exec import make_python_namespace
 
@@ -234,28 +192,13 @@ class OIEpisodeRunner:
             return catalog.load(artifact_id)
 
         def save_artifact(df: pd.DataFrame, label: str) -> str:
-            # Infer parent from source df's tag
             parent_id = getattr(df, "_oi_artifact_id", None)
             parent_ids = [parent_id] if parent_id else []
             new_id = catalog.save_derived(df, label, parent_ids=parent_ids)
-            # Log as analysis record for provenance
-            trace.analyses.append(
-                AnalysisRecord(
-                    analysis_id=f"oi_save_{uuid.uuid4().hex[:8]}",
-                    input_artifact_ids=parent_ids or ["unknown"],
-                    columns_used=[],
-                    op_type="derive",
-                    step=step["current"],
-                    output_artifact_id=new_id,
-                )
-            )
             return new_id
 
         ns["load_artifact"] = load_artifact
         ns["save_artifact"] = save_artifact
-        # Expose OIHelpers via proxy — only public analysis methods,
-        # no _log, _trace, or other internals accessible to solver
-        ns["oi"] = _OIHelpersProxy(self._helpers)
         return ns
 
     @property

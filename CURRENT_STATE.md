@@ -99,7 +99,7 @@ sistema actual.
 | `ResearchProblem` | El problema visible que recibe el solver | `models/research_problem.py` | Define brief, datasets y metadatos |
 | `DataAsset` | Un dataset/artefacto visible | `models/research_problem.py` | Es lo que el solver carga con `load_artifact` |
 | `OIEpisodeRunner` | El runtime de un episodio OI | `tools/oi_runner.py` | Conecta solver, artefactos, trace y scoring |
-| `EpisodeTrace` | Log estructurado de lo que hizo el solver | `models/open_investigation.py` | Sirve para provenance y warrant |
+| `EpisodeTrace` | Log estructurado de lo que hizo el solver | `models/open_investigation.py` | Registra accesos a artefactos |
 | `ClaimCard` | La forma en que el solver entrega hallazgos | `models/open_investigation.py` | Es la entrada humana/semi-estructurada al compiler |
 | `ClaimIntent` | IR simbolica intermedia del compiler | `tools/oi_compiler.py` | Traduce una claim libre a pattern + roles |
 | `WorldSummary` | Resumen canonico del mundo | `tools/oi_compiler.py` | Convierte palabras vagas como "high" o "low" en valores concretos |
@@ -192,17 +192,10 @@ Hoy el solver opera principalmente con:
 - `python_exec`
 - `load_artifact(...)`
 - `save_artifact(...)`
-- `oi.corr(...)`, `oi.regress(...)`, `oi.stratify(...)`, etc.
 - `submit_claims(...)`
 
-Cada vez que carga un artefacto o corre analisis, el runner lo registra en
-`EpisodeTrace`.
-
-Eso es importante por dos motivos:
-
-- permite reconstruir que hizo realmente el solver;
-- y habilita el sistema de `warrant` / evidencia, aunque hoy no sea el score
-  principal del path de sub-questions.
+Cada vez que carga un artefacto, el runner lo registra en `EpisodeTrace`.
+Esto permite reconstruir que hizo realmente el solver.
 
 ### 5. El solver entrega `ClaimCard`s
 
@@ -537,50 +530,19 @@ En el repo todavia existen conceptos como:
 - `EpisodeScore`
 - `ClaimVerdict`
 - `SalienceFamily`
-- `warrant`
 - `efficiency`
 
-pero hoy eso pertenece sobre todo al path v2 / diagnostico con salience map.
+pero hoy eso pertenece sobre todo al path de salience map (diagnostico).
 
-En cambio, el **path principal** de los E2E recientes usa:
+El **path principal** de los E2E usa:
 
-- `SubQuestionIntent`
-- `ResolvedSubQuestion`
+- `SubQuestionIntentV2` + `VerificationSpec`
 - `EpisodeSubQuestionScore`
+- LLM relevance judge (`oi_relevance_judge.py`)
 
-Esto importa porque si uno lee rapido el repo, puede pensar que `warrant` y
-`efficiency` son el score principal actual. Hoy no lo son.
-
----
-
-## El sistema de warrant: que es y donde entra hoy
-
-`warrant` intenta responder una pregunta distinta de "esto es verdad?".
-
-Pregunta:
-
-- "El solver llego a esta claim investigando de verdad, o la tiro desde priors?"
-
-Para eso usa `EpisodeTrace`:
-
-- que artefactos cargo;
-- en que paso;
-- que columnas uso;
-- que tipo de analisis corrio;
-- y si eso paso antes de submittear la claim.
-
-Ese sistema existe, esta bastante trabajado, y vive en:
-
-- `src/sreg/tools/oi_warrant.py`
-
-Pero es importante entender el estado actual:
-
-- existe como mecanismo serio de evidencia/provenance;
-- forma parte del path de scoring diagnostico;
-- pero no es la pieza central del score de sub-questions usado en la ronda
-  E2E mas reciente.
-
-O sea: no esta "muerto", pero tampoco es hoy el centro del reward principal.
+**Nota:** el sistema de warrant (que intentaba medir si el solver habia
+investigado de verdad antes de submitir) fue eliminado (L1, 2026-04-01).
+El solver usa pandas/numpy directamente, sin helpers instrumentadas.
 
 ---
 
@@ -654,7 +616,7 @@ No es una solucion filosoficamente elegante, pero mejoro bastante el E2E.
 
 ---
 
-## SQ v2 — prototipo implementado (en evaluacion)
+## SQ v2 — Pipeline principal (integrado)
 
 Ademas del path v1 (pattern-based), existe un prototipo v2 que libera las SQs
 del catalogo de 8 patterns. El spec canonico esta en
@@ -693,12 +655,9 @@ compiladas y verificadas contra un SCM de 8 nodos:
 - Causal y epistemologico: 100% TRUE
 - Los FALSE son assertions que no coinciden con el SCM — funcionamiento esperado
 
-### Lo que falta para que v2 reemplace a v1
+### Estado actual
 
-1. Probar en E2E real (generar caso, solver investiga, scoring con v2)
-2. Comparar scores v1 vs v2 en los mismos episodios
-3. Integrar compile step al pipeline del orchestrador
-4. Calibrar prompting del compile step
+El pipeline v2 ya esta integrado en el runner principal (OIEpisodeRunner). El scoring combina la verdad exacta del SCM (via AtomicSpecs) con la relevancia semantica evaluada por un LLM (oi_relevance_judge.py).
 
 ---
 
@@ -829,9 +788,4 @@ las traduce a `AtomicSpec`s y las verifica exactamente contra el mundo.
 Una agenda oculta de sub-questions define que deberia cubrir la investigacion.
 Claims se matchean contra esa agenda para medir coverage.
 
-Hoy (v1), tanto claims como SQs pasan por un catalogo estrecho de 8 patterns
-que sesga todo a causal simple. El prototipo v2 libera las SQs de ese catalogo
-usando bundles de AtomicSpecs directamente. Primer test exitoso: 5/5 SQs
-diversas compiladas, 4 measurement kinds, 72% truth rate.
-
-Proximo paso: integrar v2 al pipeline y probar en E2E real.
+Hoy el path principal (v2) libera las SQs del catalogo de patterns usando bundles de AtomicSpecs directamente y un LLM juez de relevancia. El pipeline E2E ya esta integrado y validado con multiples seeds diversas.

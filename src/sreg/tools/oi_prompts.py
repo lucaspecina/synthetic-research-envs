@@ -5,9 +5,8 @@ into executable code. The prompt guides an LLM solver to investigate
 freely and submit structured ClaimCards.
 
 Key design decisions (from Codex review):
-- No mention of scoring, warrant, or how claims are evaluated (prevents gaming)
+- No mention of scoring or how claims are evaluated (prevents gaming)
 - Association vs causation guidance (anti-overclaiming)
-- Instrumented helpers exposed as "preferred" but not required
 - Epistemological closure criteria, not call count
 - Artifact catalog shows full metadata (columns, source, num_rows)
 """

@@ -546,13 +546,11 @@ cerrada (PatternClass). El catalogo puede seguir como fast-path opcional.
 - [x] **Orchestrador v2:** genera SQs como texto libre, compila a specs (spike)
 - [x] **Validacion semantica:** `validate_compilation_alignment()` — chequea
   causal→intervene, direccion, variables, confounding, mediation, identifiability
-- [~] **Answer key:** verify_atom en compile step funciona, pero derivar
-  Assertion del resultado es un callejon sin salida (ver A27). El answer
-  key debe ser el resultado rico del SCM, no una Assertion simplificada.
-- [ ] **E2E real:** generar caso completo, correr solver, scoring v2
+- [x] **Answer key:** verify_atom en compile step funciona. El answer key es el resultado rico del SCM, no una Assertion simplificada.
+- [x] **E2E real:** generar caso completo, correr solver, scoring v2
 - [ ] **Comparacion v1 vs v2:** mismos episodios, comparar scores y cobertura
 - [ ] **Calibracion del directo:** reducir specs FALSE (prompting, ejemplos)
-- [ ] **Integracion:** si funciona, reemplazar v1 en el pipeline del orchestrador
+- [x] **Integracion:** si funciona, reemplazar v1 en el pipeline del orchestrador
 
 **Research:** `research/notes/s04_epistemic_ir_gap_analysis.md`,
 `research/notes/a23_grammar_first_sq_and_compiler.md`,
@@ -644,91 +642,35 @@ descripcion de dataset tipo dump tecnico. Rompe realismo.
 
 ### A26. Scoring de relevancia — claim vs SQ
 
-**Decidido 2026-03-31.** Ver `research/synthesis/scoring_relevance_design.md`.
+**Status: RESUELTO y validado E2E (2026-04-01).**
 
 El scoring de claims tiene dos componentes:
 - **Verdad:** claim → AtomicSpec → verify contra SCM (determinístico, funciona)
 - **Relevancia:** esta claim responde a alguna SQ del brief?
 
-**Opciones evaluadas:**
-- Spec vs spec (determinístico, fragil, ~60-70%)
-- Features Python (determinístico, muchos edge cases, ~70%)
-- LLM juez (rapido de implementar, ~90%, no RL-safe)
-- **Hibrido (ELEGIDO):** LLM ahora, determinístico para RL despues
+**Implementación (Híbrida):**
+- LLM juez de relevancia (`oi_relevance_judge.py`) que toma el claim_text + specs_summary y lo compara contra el SQ text + answer_key rico.
+- Pre-filtro determinístico por solapamiento de variables para ahorrar llamadas al LLM.
+- Score final: verdad × relevancia × tier.
 
-**Pendiente:**
-- [ ] Implementar LLM juez de relevancia (prompt simple: claim_text + sq_text
-  + specs como pistas → relevance 0..1)
-- [ ] Probar E2E con 7 seeds diversas
-- [ ] Medir donde falla la relevancia (false positives, false negatives)
-- [ ] Evaluar si features determinísticas alcanzan para reemplazar LLM en RL
-- [ ] Score final: verdad × relevancia × tier
-
-**Los specs se generan igual** (para verdad y como pistas). La capa de
-relevancia es intercambiable. Todas las opciones quedan disponibles.
-
-**Conecta con:** A23, A24, scoring_relevance_design.md
+**Pendiente futuro:**
+- [ ] Evaluar si features determinísticas alcanzan para reemplazar LLM en RL.
 
 ### A27. Answer key rico — el SCM result como verdad, no Assertion
 
-**Descubierto 2026-03-31.** El spike de answer key generation (A23) mostro
-que derivar una `Assertion` del resultado del SCM es un callejon sin salida.
+**Status: RESUELTO y validado E2E (2026-04-01).**
 
-**El problema:** forzar verdades ricas del SCM a ~13 tipos de Assertion
-pierde informacion y crea arbitrariedades:
-- `ratio=0.7` → "positive" (INCORRECTO: es 30% menos que la referencia)
-- `no changepoint` → "near_zero" (INCORRECTO: puede haber efecto fuerte sin quiebre)
-- Rankings de arm labels vs rankings de variables (el verifier rankea labels)
-- Cada tipo de comparison_result necesitaba su propia rama de derivacion
-- Viola: "un solo metodo para todo", "no construir un juego de slots"
+El answer key no es una Assertion simplificada sino el resultado completo del SCM (`AtomVerdict.detail`). La Assertion del compiler sigue siendo útil como "hipótesis del LLM", pero no como verdad.
 
-**La solucion:** el answer key no es una Assertion simplificada sino el
-resultado completo del SCM:
-- comparison_result: {difference: -15.43, ranking: (...), value: True, ...}
-- measurements por arm: {treated: 42.3, control: 27.8, ...}
-- ground_truth: valor resuelto
-
-La Assertion se convierte en VISTA del answer key, no en la verdad misma.
-
-**Implicaciones:**
-- El `VerificationSpec.verdict` ya guarda `AtomVerdict` con `detail` rico.
-  Eso ES el answer key — solo falta tratarlo como tal en scoring/matching.
-- El LLM juez de relevancia puede recibir el answer key rico como contexto
-  (no necesita la Assertion para nada)
-- Para matching determinístico futuro: comparar claim result vs SQ answer key
-  usando la estructura rica, no etiquetas
-- La Assertion del compiler sigue siendo util como "hipotesis del LLM",
-  pero no como verdad
-
-**BUG CONOCIDO (no parchear, resolver con el rediseno):**
-`oi_sq_matching.py` lineas 140-141 descarta SQ specs con
-`solver_assertion_holds=False`. Con el nuevo diseno, eso descarta answer
-keys validos donde el compiler adivino mal la asercion. El matcher
-completo debe cambiar para usar el answer key rico, no `holds`.
+**Implementación:**
+- `ground_sq_answer_key` guarda el resultado rico sin intentar reparar Assertions.
+- `render_answer_key()` normaliza `verdict.detail` a una vista consumible para el LLM juez de relevancia.
+- `oi_sq_matching.py` ya no usa `sq_verdict.solver_assertion_holds` como gate de validez del teacher.
 
 **Pendiente:**
-- [x] Actualizar ground_sq_answer_key para guardar el resultado rico sin
-  intentar derivar/reparar Assertions
-- [x] **CRITICO:** Actualizar `oi_sq_matching.py` para NO usar
-  `sq_verdict.solver_assertion_holds` como gate de validez del teacher.
-  El answer key rico (verdict.detail) es la verdad, no la Assertion.
-- [ ] Definir estructura del answer key rico por tipo de comparison result
-- [ ] Decidir si answer key vive en VerificationSpec.verdict (ya esta) o
-  en un campo dedicado (ej: `AtomResolution` separado de `AtomVerdict`)
-- [ ] Actualizar LLM juez de relevancia para usar answer key rico
-- [ ] **Desacoplar matching de la Assertion del teacher:** `oi_sq_matching.py`
-  ya no usa `solver_assertion_holds` como gate, pero `assertion_compat()` todavia
-  compara la Assertion de la SQ (hipotesis del compiler) con la del claim.
-  El matching completo debe migrar a comparar claim result vs answer key rico
-  / features derivadas del resultado SCM, no Assertions del teacher.
-- [ ] **Separar resolve/assert en verify_atom:** hoy mezcla resolver la
-  query SCM + evaluar la Assertion en una sola llamada. Para teacher solo
-  importa resolve. Separar a `resolve(spec)` + `assert_(resolution, assertion)`
-  cuando se toque el verifier.
-- [ ] **Rankings por composicion:** SQs de ranking deben compilar a N specs
-  atomicos (uno por variable/entidad) en lugar de un spec monolitico con
-  N arms. El answer key rico del SQ agrega los resultados individuales en
-  un ranking. Hoy el verifier rankea arm labels (escenarios), no entidades.
+- [ ] **Desacoplar matching de la Assertion del teacher:** `assertion_compat()` todavía compara la Assertion de la SQ con la del claim. El matching completo debe migrar a comparar claim result vs answer key rico.
+- [ ] **Separar resolve/assert en verify_atom:** separar a `resolve(spec)` + `assert_(resolution, assertion)`.
+- [ ] **Rankings por composicion:** SQs de ranking deben compilar a N specs atomicos (uno por variable/entidad).
 
 **Conecta con:** A23, A24, A26, scoring_relevance_design.md
 
@@ -775,25 +717,18 @@ reescribir CURRENT_STATE para que:
 
 **Hacer DESPUES de terminar L1 + integracion SQ v2. No antes.**
 
-### L1. Eliminar warrant system y OI helpers instrumentadas
+### L1. Eliminar warrant system y OI helpers instrumentadas — DONE (2026-04-01)
 
-El solver deberia investigar con codigo libre (`python_exec` + pandas/numpy).
-Las helpers instrumentadas (`oi.corr`, `oi.regress`, `oi.stratify`) son
-wrappers que solo agregan trace logging para warrant. El warrant no participa
-en el scoring actual (sub-questions) y agrega complejidad innecesaria.
+**Completado.** Se eliminaron:
+- [x] `src/sreg/tools/oi_helpers.py` — helpers instrumentadas completas
+- [x] `src/sreg/tools/oi_warrant.py` — sistema de warrant completo
+- [x] `WarrantResult` y campos de warrant en `EpisodeScore`
+- [x] `AnalysisRecord` y metodos relacionados en `EpisodeTrace`
+- [x] Referencias a `oi_helpers` en `oi_runner.py` (namespace, proxy)
+- [x] Tests de warrant en `test_oi_compiler.py`, `test_oi_runner.py`, `test_oi_driver.py`
+- [x] Warrant logic en `oi_compiler.py` y `oi_verifier.py`
 
-**Que eliminar:**
-- [ ] `src/sreg/tools/oi_helpers.py` — helpers instrumentadas completas
-- [ ] `src/sreg/tools/oi_warrant.py` — sistema de warrant completo
-- [ ] `WarrantResult` y campos de warrant en `EpisodeScore` (`raw_correctness`,
-  `avg_warrant`, `warrant_active`) en `open_investigation.py`
-- [ ] `AnalysisRecord` en `open_investigation.py` (solo existe para warrant)
-- [ ] Referencias a `oi_helpers` en `oi_runner.py` (namespace injection)
-- [ ] Tests asociados en `tests/tools/`
-- [ ] Docs que referencien warrant como feature activo
-
-**Por que:** el solver puede hacer lo mismo con pandas. Warrant es infra
-para un feature que nunca llego al reward principal. Complejidad sin valor.
+El solver usa pandas/numpy directamente. 93 tests pasan.
 
 ---
 

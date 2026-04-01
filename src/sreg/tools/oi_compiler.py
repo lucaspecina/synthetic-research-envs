@@ -812,69 +812,34 @@ def score_compiled_episode(
         solver: SCMSolver for Monte Carlo verification.
         n_mc: Monte Carlo sample count.
         seed: Random seed.
-        claim_cards: Original ClaimCards (for warrant). Must align 1:1
-            with compiled_claims by claim_id.
-        trace: EpisodeTrace from solver's investigation (for warrant).
-        data_asset_ids: Valid artifact IDs in the problem (for warrant).
+        claim_cards: Original ClaimCards (unused, kept for API compat).
+        trace: EpisodeTrace from solver's investigation (unused).
+        data_asset_ids: Valid artifact IDs in the problem (unused).
     """
     from sreg.tools.oi_verifier import score_episode, verify_atom
-    from sreg.tools.oi_warrant import compute_episode_warrants
 
     claim_matches: list[tuple[str, float]] = []
-    warrant_per_match: list[float] = []
     n_claims_submitted = len(compiled_claims)
 
-    # Build warrant scores per claim if trace available
-    claim_warrant_map: dict[str, float] = {}
-    if claim_cards is not None and trace is not None and data_asset_ids is not None:
-        # Build focus vars from compiled specs for more precise warrant
-        focus_vars_per_claim: dict[str, set[str]] = {}
-        for co in compiled_claims:
-            if co.compiled:
-                fvars: set[str] = set()
-                for spec in co.specs:
-                    fvars.update(_extract_focus_signature(spec))
-                focus_vars_per_claim[co.claim_id] = fvars
-
-        warrants = compute_episode_warrants(
-            claim_cards, data_asset_ids, trace, focus_vars_per_claim
-        )
-        if warrants is not None:
-            for card, w in zip(claim_cards, warrants):
-                claim_warrant_map[card.claim_id] = w
-
-    warrant_active = bool(claim_warrant_map)
-
     for claim_output in compiled_claims:
-        claim_warrant = claim_warrant_map.get(claim_output.claim_id, 1.0)
-
         if not claim_output.compiled:
-            # Abstention: 0 correctness, no family match
             claim_matches.append(("__abstention__", 0.0))
-            warrant_per_match.append(claim_warrant)
             continue
 
-        # Match each compiled spec to families
         matched = match_specs_to_families(claim_output.specs, families)
 
         for family_id, spec in matched:
             if family_id is None:
                 claim_matches.append(("__unmatched__", 0.0))
-                warrant_per_match.append(claim_warrant)
                 continue
 
-            # Verify the spec against the SCM
             verdict = verify_atom(spec, world, solver, n_mc=n_mc, seed=seed)
             claim_matches.append((family_id, verdict.score))
-            # Same warrant for all specs from this claim
-            warrant_per_match.append(claim_warrant)
 
-    # Score using episode scorer with optional warrant
     episode = score_episode(
         claim_matches=claim_matches,
         families=families,
         n_claims=n_claims_submitted,
-        warrant_scores=warrant_per_match if warrant_active else None,
     )
 
     return episode
@@ -971,34 +936,13 @@ def score_compiled_episode_v2(
     - Descriptive claims without target get additional penalty
     """
     from sreg.tools.oi_verifier import score_episode_v2, verify_atom
-    from sreg.tools.oi_warrant import compute_episode_warrants
 
     n_claims_submitted = len(compiled_claims)
     dag = world.dag
 
-    # Build warrant scores per claim if trace available
-    claim_warrant_map: dict[str, float] = {}
-    if claim_cards is not None and trace is not None and data_asset_ids is not None:
-        focus_vars_per_claim: dict[str, set[str]] = {}
-        for co in compiled_claims:
-            if co.compiled:
-                fvars: set[str] = set()
-                for spec in co.specs:
-                    fvars.update(_extract_focus_signature(spec))
-                focus_vars_per_claim[co.claim_id] = fvars
-
-        warrants = compute_episode_warrants(
-            claim_cards, data_asset_ids, trace, focus_vars_per_claim
-        )
-        if warrants is not None:
-            for card, w in zip(claim_cards, warrants):
-                claim_warrant_map[card.claim_id] = w
-
-    # Process each claim
     claim_verdicts: list[ClaimVerdict] = []
 
     for claim_output in compiled_claims:
-        claim_warrant = claim_warrant_map.get(claim_output.claim_id, 1.0)
 
         if not claim_output.compiled:
             # Abstention: 0 truth, 0 relevance
@@ -1056,13 +1000,8 @@ def score_compiled_episode_v2(
                             best_family_id = fam_id
                         break
 
-        # 4. Effective score: truth * relevance * warrant
-        from sreg.models.open_investigation import WARRANT_PRIOR_FLOOR
-        if claim_warrant_map:
-            warrant_mult = WARRANT_PRIOR_FLOOR + (1.0 - WARRANT_PRIOR_FLOOR) * claim_warrant
-        else:
-            warrant_mult = 1.0
-        effective = truth * relevance * warrant_mult
+        # 4. Effective score: truth * relevance
+        effective = truth * relevance
 
         # Determine verdict label
         if truth == 0.0:

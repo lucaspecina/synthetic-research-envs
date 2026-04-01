@@ -212,19 +212,6 @@ class TestToolHandler:
         )
         assert "50" in result
 
-    def test_python_exec_has_oi_helpers(self):
-        runner = _make_runner()
-        handler = build_oi_tool_handler(runner)
-        result = handler(
-            "python_exec",
-            {"code": (
-                "df = load_artifact('dataset_bg')\n"
-                "r = oi.corr(df, cols=['A', 'Y'])\n"
-                "print(type(r))"
-            )},
-        )
-        assert "DataFrame" in result
-
     def test_submit_claims_success(self):
         runner = _make_runner()
         handler = build_oi_tool_handler(runner)
@@ -438,21 +425,18 @@ class TestScriptedInvestigation:
         assert "dataset_bg" in accessed
         assert "dataset_survey" in accessed
 
-    def test_trace_records_analyses(self):
-        """Trace should record OI helper calls."""
+    def test_trace_records_accesses(self):
+        """Trace should record artifact accesses."""
         runner = _make_runner()
         script = [
             ScriptedAction(
                 tool="python_exec",
-                args={"code": (
-                    "df = load_artifact('dataset_bg')\n"
-                    "oi.corr(df, cols=['A', 'Y'])"
-                )},
+                args={"code": "df = load_artifact('dataset_bg')"},
             ),
             ScriptedAction(tool=None),
         ]
         result = run_oi_scripted(runner, script)
-        assert len(result.trace.analyses) > 0
+        assert len(result.trace.accesses) > 0
 
     def test_post_submit_code_blocked_in_script(self):
         """Code after submit should be blocked even in scripted mode."""

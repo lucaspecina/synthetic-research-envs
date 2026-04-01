@@ -8,16 +8,10 @@ Two modes:
      with OI-specific control flow (submit-is-terminal, deadline nudging).
   2. Scripted: run_oi_scripted() takes predetermined actions for testing.
 
-The driver does NOT know about scoring internals (salience, compiler, warrant).
+The driver does NOT know about scoring internals (salience, compiler).
 It only knows: prompt the solver, dispatch tool calls, return results.
 
 Design: follows engine.py patterns (tool handler, Responses API chaining).
-
-KNOWN LIMITATION (deferred to RL hardening):
-  The solver can reach runner internals via Python introspection
-  (e.g. oi._corr.__self__._trace, load_artifact.__closure__). This allows
-  forging warrant evidence. For Alpha-1 the solver is cooperative; true
-  isolation requires a subprocess boundary (future work).
 """
 
 from __future__ import annotations

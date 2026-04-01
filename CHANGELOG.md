@@ -5,6 +5,40 @@
 
 ## [Unreleased]
 
+### 2026-04-01 — L1: Eliminate warrant system and OI helpers
+
+**Removed:** entire warrant system (`oi_warrant.py`, `oi_helpers.py`) and all
+instrumented helpers (`oi.corr`, `oi.regress`, `oi.stratify`, etc). The solver
+now uses pandas/numpy directly via `python_exec`.
+
+**Removed from models:** `WarrantResult`, `AnalysisRecord`, warrant fields
+from `EpisodeScore` (`raw_correctness`, `avg_warrant`, `warrant_active`),
+`WARRANT_PRIOR_FLOOR` constant. `EpisodeTrace` simplified to accesses only.
+
+**Removed from scoring:** warrant multiplier in `oi_compiler.py` (both v1 and
+v2 paths) and `oi_verifier.py`. Score is now purely truth-based.
+
+**Why:** warrant never participated in the main SQ scoring path. It added
+complexity (~800 lines) without contributing to the reward signal. The solver
+can do the same analyses with raw pandas.
+
+**Tests:** 93 pass. All warrant-specific tests removed, remaining tests
+updated to use pandas instead of `oi.*` helpers.
+
+### 2026-04-01 — Paso B: LLM relevance judge + E2E scoring pipeline
+
+**New:** `oi_relevance_judge.py` — LLM judge scores claim × SQ relevance
+(0..1) with pre-filter by variable overlap. Scoring formula:
+`total = correctness × weighted_coverage`.
+
+**Fixes:** auto-compute adjust_set from DAG, force-submit sends pending
+tool outputs, focus_variables max 8→12, score wiring in driver.
+
+**E2E results (3 diverse seeds):**
+- identifiability_pollution (epistemological): 0.413
+- vaca_muerta (causal complex): 0.533
+- microbiome (system mapping): 0.889
+
 ### 2026-03-30 — SQ v2 prototype: specs-based sub-questions
 
 **New models:** `SubQuestionIntentV2` + `VerificationSpec` in

@@ -230,37 +230,21 @@ class TestRunnerNamespace:
 
 
 # ---------------------------------------------------------------------------
-# OIEpisodeRunner — helpers integration
+# OIEpisodeRunner — namespace basics
 # ---------------------------------------------------------------------------
 
 
-class TestRunnerHelpers:
-    def test_oi_helpers_available(self):
+class TestRunnerNamespace:
+    def test_load_artifact_available(self):
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world)
 
         result = runner.run_code(
             'df = load_artifact("dataset_bg")\n'
-            'corr = oi.corr(df, cols=["A", "Y"])\n'
-            'corr.shape'
+            'df.shape'
         )
         assert result["ok"]
-        assert "(2, 2)" in result["output"]
-
-    def test_helpers_log_to_trace(self):
-        problem = _make_problem()
-        world = _make_scm_world()
-        runner = OIEpisodeRunner(problem, world)
-
-        runner.run_code(
-            'df = load_artifact("dataset_bg")\n'
-            'oi.corr(df, cols=["A", "Y"])\n'
-            'oi.regress(df, y="Y", x=["A"])'
-        )
-        assert len(runner.trace.analyses) == 2
-        assert runner.trace.analyses[0].op_type == "correlation"
-        assert runner.trace.analyses[1].op_type == "regression"
 
 
 # ---------------------------------------------------------------------------
@@ -472,23 +456,18 @@ class TestMockSolverFlow:
         r = runner.run_code('print(bg.describe())')
         assert r["ok"]
 
-        # Step 3: Analyze with helpers
-        r = runner.run_code('corr = oi.corr(bg, cols=["A", "B", "Y"])')
+        # Step 3: Analyze with pandas (solver uses raw code)
+        r = runner.run_code('corr = bg[["A", "B", "Y"]].corr()')
         assert r["ok"]
-        r = runner.run_code('reg = oi.regress(bg, y="Y", x=["A"], controls=["B"])')
+        r = runner.run_code('import numpy as np; print(np.corrcoef(bg["A"], bg["Y"]))')
         assert r["ok"]
 
         # Step 4: Load second dataset
         r = runner.run_code('survey = load_artifact("dataset_survey")')
         assert r["ok"]
 
-        # Step 5: More analysis
-        r = runner.run_code('oi.test_independence(survey, x="A", y="Y", z="B")')
-        assert r["ok"]
-
         # Verify trace accumulated
         assert len(runner.trace.accesses) == 2
-        assert len(runner.trace.analyses) == 3
 
         # Step 6: Submit claims with pre-compiled intents
         claim = _make_claim(
@@ -598,29 +577,6 @@ class TestNamespaceSecurity:
         assert result["ok"]
         assert "False" in result["output"]
 
-    def test_oi_proxy_blocks_log(self):
-        """Solver can't call oi._log() to forge warrant evidence."""
-        problem = _make_problem()
-        world = _make_scm_world()
-        runner = OIEpisodeRunner(problem, world)
-
-        result = runner.run_code("has_log = hasattr(oi, '_log')\nprint(has_log)")
-        assert result["ok"]
-        assert "False" in result["output"]
-
-    def test_oi_proxy_blocks_trace(self):
-        """Solver can't access oi._trace to manipulate trace."""
-        problem = _make_problem()
-        world = _make_scm_world()
-        runner = OIEpisodeRunner(problem, world)
-
-        result = runner.run_code(
-            "has_trace = hasattr(oi, '_trace')\nprint(has_trace)"
-        )
-        assert result["ok"]
-        assert "False" in result["output"]
-
-
 class TestDerivedArtifactProvenance:
     def test_save_artifact_logs_analysis_record(self):
         problem = _make_problem()
@@ -631,13 +587,10 @@ class TestDerivedArtifactProvenance:
         runner.run_code('filtered = df[df["A"] > 0]')
         runner.run_code('new_id = save_artifact(filtered, "positive_A")')
 
-        # Should have logged an AnalysisRecord for the derivation
-        derive_records = [
-            r for r in runner.trace.analyses if r.op_type == "derive"
-        ]
-        assert len(derive_records) == 1
-        assert derive_records[0].output_artifact_id is not None
-        assert derive_records[0].output_artifact_id.startswith("derived_positive_A")
+        # Verify save_artifact returned an ID
+        result = runner.run_code('new_id')
+        assert result["ok"]
+        assert "derived_positive_A" in result["output"]
 
     def test_derived_artifact_in_all_ids(self):
         problem = _make_problem()

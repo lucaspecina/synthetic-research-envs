@@ -22,7 +22,6 @@ from sreg.models.open_investigation import (
     OVERCLAIM_MAX,
     SPEC_BASE,
     SPEC_BONUS_MAX,
-    WARRANT_PRIOR_FLOOR,
     Assertion,
     AssertionKind,
     AtomicSpec,
@@ -790,8 +789,6 @@ def score_episode(
     families: list[SalienceFamily],
     n_claims: int,
     claim_budget: int = MAX_CLAIMS,
-    warrant_scores: list[float] | None = None,
-    prior_floor: float = WARRANT_PRIOR_FLOOR,
 ) -> EpisodeScore:
     """Compute episode-level score from claim matches.
 
@@ -800,51 +797,20 @@ def score_episode(
         families: The salience map families.
         n_claims: Number of claims the solver submitted.
         claim_budget: Maximum allowed claims (default K=5).
-        warrant_scores: Optional per-claim warrant scores [0, 1].
-            When None, warrant is disabled (full credit for all).
-            When provided, each claim's truth score is multiplied by
-            (prior_floor + (1 - prior_floor) * warrant) affecting both
-            correctness and coverage eligibility.
-        prior_floor: Minimum credit for correct claims without evidence.
-            Default 0.15 (15% credit for being right from priors).
     """
-    warrant_active = warrant_scores is not None
     n_matches = len(claim_matches)
+    scores = [s for _, s in claim_matches]
+    correctness = sum(scores) / max(n_matches, 1)
 
-    # Compute raw scores (before warrant)
-    raw_scores = [s for _, s in claim_matches]
-    raw_correctness = sum(raw_scores) / max(n_matches, 1)
-
-    # Apply warrant multiplier if active
-    if warrant_active:
-        if len(warrant_scores) != n_matches:
-            raise ValueError(
-                f"warrant_scores length ({len(warrant_scores)}) must match "
-                f"claim_matches length ({n_matches})"
-            )
-        effective_scores = [
-            truth * (prior_floor + (1.0 - prior_floor) * w)
-            for truth, w in zip(raw_scores, warrant_scores)
-        ]
-        avg_warrant = sum(warrant_scores) / max(len(warrant_scores), 1)
-    else:
-        effective_scores = raw_scores
-        avg_warrant = None
-
-    # Correctness: average effective score across all claims
-    correctness = sum(effective_scores) / max(n_matches, 1)
-
-    # Coverage uses effective scores too (warrant-gated per Codex)
-    best_effective_by_family: dict[str, float] = {}
-    for (family_id, _), eff in zip(claim_matches, effective_scores):
-        best_effective_by_family[family_id] = max(
-            best_effective_by_family.get(family_id, 0.0), eff
-        )
+    # Coverage: best score per family
+    best_by_family: dict[str, float] = {}
+    for (family_id, _), s in zip(claim_matches, scores):
+        best_by_family[family_id] = max(best_by_family.get(family_id, 0.0), s)
 
     families_hit = sum(
         1
         for f in families
-        if best_effective_by_family.get(f.family_id, 0.0) >= FAMILY_HIT_THRESHOLD
+        if best_by_family.get(f.family_id, 0.0) >= FAMILY_HIT_THRESHOLD
     )
     coverage = families_hit / max(len(families), 1)
 
@@ -867,9 +833,6 @@ def score_episode(
         families_hit=families_hit,
         families_total=len(families),
         precision_gate_active=precision_gate,
-        raw_correctness=raw_correctness if warrant_active else None,
-        avg_warrant=avg_warrant,
-        warrant_active=warrant_active,
     )
 
 
