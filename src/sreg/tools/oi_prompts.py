@@ -88,7 +88,7 @@ def build_oi_tools_section(artifact_catalog: list[dict[str, Any]]) -> str:
         "ones.\n"
         "Each claim must include:\n"
         "- claim_text: What you found (natural language, 15-800 chars)\n"
-        "- focus_variables: Which variables are involved (1-8 variables)\n"
+        "- focus_variables: Which variables are involved (1-12 variables)\n"
         "- confidence: How confident you are (0.0 to 1.0)\n"
         "- evidence_basis: What data supports this (artifact_id + rationale)\n"
         "IMPORTANT: \"No significant effect\" is a valid finding. If you "

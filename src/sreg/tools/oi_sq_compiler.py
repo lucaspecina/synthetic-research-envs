@@ -27,6 +27,7 @@ from pydantic import ValidationError
 
 from sreg.models.open_investigation import (
     AtomicSpec,
+    AtomVerdict,
     SQTier,
     SubQuestionIntentV2,
     VerificationSpec,
@@ -730,3 +731,184 @@ def ground_sq_answer_key(
         n_crashed=n_crashed,
         warnings=warnings,
     )
+
+
+# ---------------------------------------------------------------------------
+# Answer key view — normalized adapter for external consumers
+# ---------------------------------------------------------------------------
+
+
+def render_answer_key(verdict: AtomVerdict) -> dict[str, Any]:
+    """Normalize verdict.detail into a stable view for external consumers.
+
+    This is the ONLY function that should read verdict.detail.  All consumers
+    (LLM judge, future deterministic matcher, diagnostics) go through here.
+
+    Returns a dict with stable keys:
+        result_type : str   — "difference", "ratio", "ranking", "gap",
+                              "proportion", "changepoint", "contrast",
+                              "scalar", "bool", "error", "empty", "unknown"
+        value       : Any   — the main result (float, bool, list, dict)
+        arms        : dict  — measurements per arm (ALWAYS from detail.measurements)
+        headline    : str   — human-readable one-liner (for debug / display only)
+        meta        : dict  — comparison_kind, measurement_kind, spec_id
+        values      : dict  — (optional, ranking/gap only) labeled values from comparison
+    """
+    detail = verdict.detail
+    spec = verdict.spec
+
+    # -- Edge: error or empty detail --
+    if "error" in detail:
+        return {
+            "result_type": "error",
+            "value": None,
+            "arms": {},
+            "headline": f"error: {detail['error']}",
+            "meta": _answer_key_meta(spec),
+        }
+
+    measurements = detail.get("measurements", {})
+    comparison = detail.get("comparison", {})
+
+    if not comparison:
+        return {
+            "result_type": "empty",
+            "value": None,
+            "arms": measurements,
+            "headline": "no comparison result",
+            "meta": _answer_key_meta(spec),
+        }
+
+    meta = _answer_key_meta(spec)
+    arms = measurements
+
+    # -- Dispatch by comparison keys (NOT by enum — works from the data) --
+
+    if "ranking" in comparison:
+        ranking = list(comparison["ranking"])
+        values = comparison.get("values", {})
+        parts = " > ".join(ranking)
+        return {
+            "result_type": "ranking",
+            "value": ranking,
+            "arms": arms,
+            "values": values,
+            "headline": f"ranking: {parts}",
+            "meta": meta,
+        }
+
+    if "changepoint" in comparison:
+        cp = comparison["changepoint"]
+        if cp.get("detected"):
+            cp_x = cp.get("changepoint_x", "?")
+            cp_r = cp.get("reduction_fraction")
+            hl = f"changepoint at x={cp_x}"
+            if isinstance(cp_r, (int, float)):
+                hl += f" (reduction={cp_r:.1%})"
+        else:
+            hl = "no changepoint detected"
+        return {
+            "result_type": "changepoint",
+            "value": cp,
+            "arms": arms,
+            "headline": hl,
+            "meta": meta,
+        }
+
+    if "contrast_diff" in comparison:
+        cd = comparison["contrast_diff"]
+        return {
+            "result_type": "contrast",
+            "value": cd,
+            "arms": arms,
+            "headline": f"contrast diff = {cd:+.4g}",
+            "meta": meta,
+        }
+
+    if "difference" in comparison:
+        diff = comparison["difference"]
+        ref = comparison.get("ref")
+        other = comparison.get("other")
+        hl = f"difference = {diff:+.4g}"
+        if ref is not None and other is not None:
+            hl += f" ({other:.4g} vs {ref:.4g})"
+        return {
+            "result_type": "difference",
+            "value": diff,
+            "arms": arms,
+            "headline": hl,
+            "meta": meta,
+        }
+
+    if "ratio" in comparison:
+        r = comparison["ratio"]
+        return {
+            "result_type": "ratio",
+            "value": r,
+            "arms": arms,
+            "headline": f"ratio = {r:.4g}",
+            "meta": meta,
+        }
+
+    if "gap" in comparison:
+        g = comparison["gap"]
+        values = comparison.get("values", {})
+        return {
+            "result_type": "gap",
+            "value": g,
+            "arms": arms,
+            "values": values,
+            "headline": f"gap = {g:.4g}",
+            "meta": meta,
+        }
+
+    if "proportion" in comparison:
+        p = comparison["proportion"]
+        return {
+            "result_type": "proportion",
+            "value": p,
+            "arms": arms,
+            "headline": f"proportion = {p:.4g}",
+            "meta": meta,
+        }
+
+    if "value" in comparison:
+        v = comparison["value"]
+        if isinstance(v, bool):
+            return {
+                "result_type": "bool",
+                "value": v,
+                "arms": arms,
+                "headline": str(v),
+                "meta": meta,
+            }
+        return {
+            "result_type": "scalar",
+            "value": v,
+            "arms": arms,
+            "headline": f"value = {v}" if not isinstance(v, str) else v,
+            "meta": meta,
+        }
+
+    # Fallback — unknown comparison structure
+    logger.warning(
+        "render_answer_key: unrecognized comparison keys %s for spec %s",
+        list(comparison.keys()),
+        spec.spec_id,
+    )
+    return {
+        "result_type": "unknown",
+        "value": comparison,
+        "arms": arms,
+        "headline": f"unknown comparison: {list(comparison.keys())}",
+        "meta": meta,
+    }
+
+
+def _answer_key_meta(spec: AtomicSpec) -> dict[str, str]:
+    """Extract stable metadata from the spec for traceability."""
+    return {
+        "spec_id": spec.spec_id,
+        "comparison_kind": spec.comparison.kind.value if spec.comparison else "",
+        "measurement_kind": spec.measurement.kind.value if spec.measurement else "",
+    }

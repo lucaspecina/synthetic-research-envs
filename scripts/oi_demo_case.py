@@ -434,19 +434,40 @@ def build_report(
         lines.append(f"|--------|-------|")
         lines.append(f"| **Total** | **{s.total:.3f}** |")
         lines.append(f"| Correctness | {s.correctness:.3f} |")
-        lines.append(f"| Coverage | {s.coverage:.3f} |")
-        lines.append(f"| Efficiency | {s.efficiency:.3f} |")
-        lines.append(f"| Families hit | {s.families_hit} / {s.families_total} |")
-        lines.append(f"| Precision gate | {'active' if s.precision_gate_active else 'inactive'} |")
-        lines.append("")
 
-        lines.append("**Score formula:** "
-                     f"{s.W_CORRECTNESS:.0%} correctness + "
-                     f"{s.W_COVERAGE:.0%} coverage + "
-                     f"{s.W_EFFICIENCY:.0%} efficiency")
-        lines.append("")
+        # Handle both EpisodeScore (v1) and EpisodeSubQuestionScore (v2)
+        from sreg.models.open_investigation import EpisodeSubQuestionScore
+        if isinstance(s, EpisodeSubQuestionScore):
+            lines.append(f"| Coverage | {s.coverage:.3f} |")
+            lines.append(f"| Weighted Coverage | {s.weighted_coverage:.3f} |")
+            lines.append("")
+            lines.append("**Score formula:** total = correctness x weighted_coverage")
+            lines.append("")
+            if s.sq_scores:
+                lines.append("### Per-SQ scores")
+                lines.append("")
+                lines.append("| SQ | Satisfaction | Best Claim | Matched |")
+                lines.append("|-----|-------------|------------|---------|")
+                for sq in s.sq_scores:
+                    lines.append(
+                        f"| {sq.sq_id} | {sq.satisfaction:.3f} | "
+                        f"{sq.best_claim_id or '-'} | "
+                        f"{'yes' if sq.matched else 'no'} |"
+                    )
+                lines.append("")
+        else:
+            lines.append(f"| Coverage | {s.coverage:.3f} |")
+            lines.append(f"| Efficiency | {s.efficiency:.3f} |")
+            lines.append(f"| Families hit | {s.families_hit} / {s.families_total} |")
+            lines.append(f"| Precision gate | {'active' if s.precision_gate_active else 'inactive'} |")
+            lines.append("")
+            lines.append("**Score formula:** "
+                         f"{s.W_CORRECTNESS:.0%} correctness + "
+                         f"{s.W_COVERAGE:.0%} coverage + "
+                         f"{s.W_EFFICIENCY:.0%} efficiency")
+            lines.append("")
 
-        if s.claim_verdicts:
+        if hasattr(s, "claim_verdicts") and s.claim_verdicts:
             lines.append("## Per-claim verdicts")
             lines.append("")
             lines.append("| Claim | Verdict | Score | Matched family |")
@@ -561,11 +582,15 @@ def build_report(
     lines.append("")
     if result.score:
         s = result.score
-        n_true = sum(1 for cv in s.claim_verdicts if cv.score > 0.5)
-        n_total = len(s.claim_verdicts)
-        lines.append(f"The solver submitted **{n_total} claims**, of which "
-                     f"**{n_true}** were verified as true against the SCM "
-                     f"(correctness {s.correctness:.0%}).")
+        if hasattr(s, "claim_verdicts"):
+            n_true = sum(1 for cv in s.claim_verdicts if cv.score > 0.5)
+            n_total = len(s.claim_verdicts)
+            lines.append(f"The solver submitted **{n_total} claims**, of which "
+                         f"**{n_true}** were verified as true against the SCM "
+                         f"(correctness {s.correctness:.0%}).")
+        else:
+            lines.append(f"Correctness: **{s.correctness:.0%}** "
+                         f"(mean truth of all claims).")
         lines.append("")
     if sq_score and sub_questions:
         n_hit = sum(1 for s in sq_score.sq_scores if s.matched)

@@ -207,7 +207,7 @@ class ClaimCard(BaseModel):
 
     claim_id: str = Field(min_length=1)
     claim_text: str = Field(min_length=15, max_length=800)
-    focus_variables: list[str] = Field(min_length=1, max_length=8)
+    focus_variables: list[str] = Field(min_length=1, max_length=12)
     confidence: float = Field(ge=0.0, le=1.0)
     evidence_basis: list[EvidenceRef] = Field(min_length=1, max_length=5)
 
@@ -375,7 +375,42 @@ class SalienceMap(BaseModel):
 
 
 class AtomVerdict(BaseModel):
-    """Result of verifying a single AtomicSpec against the SCM."""
+    """Result of verifying a single AtomicSpec against the SCM.
+
+    The ``detail`` field is the **rich answer key** — the canonical truth
+    artifact produced by the SCM.  It always contains two stable keys:
+
+    - ``"measurements"``: ``dict[str, float | bool | dict]`` — one entry per
+      arm label.  Value is ``float`` for most MeasurementKinds, ``bool`` for
+      IDENTIFIABILITY_CHECK, ``dict[float, float]`` for SWEEP arms.
+    - ``"comparison"``: ``dict[str, Any]`` — structure depends on
+      ComparisonKind (see contract below).
+
+    **COMPARISON CONTRACT** (stable keys by ComparisonKind):
+
+    - IDENTITY:      ``{value: scalar}``
+    - DIFFERENCE:    ``{difference: float, ref: float, other: float}``
+    - RATIO:         ``{ratio: float}``
+    - RANKING:       ``{ranking: tuple[str,...], values: dict[str,float]}``
+    - GAP:           ``{gap: float, values: dict[str,float]}``
+    - PROPORTION:    ``{proportion: float}``
+    - PIECEWISE_FIT: ``{sweep_data: dict, changepoint: {detected: bool,
+                       changepoint_x?: float, reduction_fraction?: float}}``
+    - CONTRAST_DIFF: ``{contrast_diff: float}``
+
+    **ASYMMETRY — teacher vs solver:**
+
+    - For the **teacher** (SQ answer keys), ``detail`` IS the answer key.
+      ``solver_assertion_holds`` only reflects whether the compiler's guessed
+      Assertion matched reality — it is diagnostic, NOT a validity gate.
+    - For the **solver** (claim verification), ``solver_assertion_holds`` is
+      the core truth signal: did the solver's claim hold against the SCM?
+
+    **FUTURE:** When multiple consumers need the rich answer key, promote
+    ``detail`` to a formal ``AtomResolution`` model.  For now, consumers
+    should use ``render_answer_key()`` (in ``oi_sq_compiler``) instead of
+    reading ``detail`` directly.
+    """
 
     atom_id: str
     spec: AtomicSpec

@@ -179,6 +179,55 @@ def _filter_condition(
     return result
 
 
+def _find_backdoor_set(
+    world: SCMWorld, treatment: str, outcome: str,
+) -> tuple[str, ...] | None:
+    """Find a minimal valid backdoor adjustment set from the DAG.
+
+    Returns a tuple of variable names (sorted for determinism), or None
+    if no valid set exists. Only uses observable variables and excludes
+    descendants of the treatment.
+    """
+    import networkx as nx
+
+    dag = world.dag
+    obs = set(world.observable_variables)
+
+    if treatment not in dag.nodes or outcome not in dag.nodes:
+        return None
+
+    mutilated = dag.copy()
+    out_edges = list(mutilated.out_edges(treatment))
+    mutilated.remove_edges_from(out_edges)
+
+    desc_treatment = nx.descendants(dag, treatment)
+
+    def _is_valid(z_set: set[str]) -> bool:
+        if z_set & desc_treatment:
+            return False
+        try:
+            return nx.is_d_separator(mutilated, {treatment}, {outcome}, z_set)
+        except Exception:
+            return False
+
+    # Strategy 1: parents of treatment (minimal, common sufficient set)
+    parents = set(dag.predecessors(treatment)) & obs
+    if parents and _is_valid(parents):
+        return tuple(sorted(parents))
+
+    # Strategy 2: non-descendant observable ancestors of outcome
+    anc_outcome = nx.ancestors(dag, outcome) & obs
+    candidate = anc_outcome - desc_treatment - {treatment}
+    if candidate and _is_valid(candidate):
+        return tuple(sorted(candidate))
+
+    # No backdoor path (treatment is root → always identifiable, empty set)
+    if not list(dag.predecessors(treatment)):
+        return ()
+
+    return None
+
+
 def _run_adjustment(
     arm: QueryArm,
     world: SCMWorld,
@@ -191,15 +240,41 @@ def _run_adjustment(
     Uses OBSERVATIONAL data + stratification by adjust_set, NOT do().
     This is the key distinction from INTERVENE: adjust estimates the causal
     effect from observational data using the backdoor formula.
+
+    If adjust_set is empty, auto-computes a valid set from the DAG.
     """
     if not arm.treatment or not arm.outcome:
         raise ValueError("adjust arm requires treatment and outcome")
-    if not arm.adjust_set:
-        raise ValueError("adjust arm requires adjust_set (backdoor variables)")
+
+    # Auto-compute adjust_set if the compiler didn't provide one
+    if arm.adjust_set:
+        adjust_vars = list(arm.adjust_set)
+    else:
+        auto_set = _find_backdoor_set(world, arm.treatment, arm.outcome)
+        if auto_set is None:
+            raise ValueError(
+                f"adjust arm for {arm.treatment}->{arm.outcome}: no valid "
+                "backdoor adjustment set exists in the DAG"
+            )
+        if not auto_set:
+            # Root treatment, no confounders — fall back to interventional
+            logger.info(
+                "adjust %s->%s: treatment is root, using interventional.",
+                arm.treatment, arm.outcome,
+            )
+            x_val = float(arm.values.get(arm.treatment, 0.0))
+            samples = solver.interventional_samples(
+                arm.outcome, do={arm.treatment: x_val}, n=n_mc, seed=seed
+            )
+            return {"samples": samples, "kind": "adjust_fallback", "treatment_val": x_val}
+        adjust_vars = list(auto_set)
+        logger.warning(
+            "adjust %s->%s: adjust_set was empty, auto-computed from DAG: %s",
+            arm.treatment, arm.outcome, adjust_vars,
+        )
 
     x_val = float(arm.values.get(arm.treatment, 0.0))
     outcome = arm.outcome
-    adjust_vars = list(arm.adjust_set)
 
     # Sample observational data (NO interventions)
     df = world.sample(n=n_mc, seed=seed)
@@ -418,10 +493,8 @@ def _measure_partial_correlation(measurement: Measurement, df: pd.DataFrame) -> 
 def _measure_identifiability(measurement: Measurement, world: SCMWorld) -> bool:
     """Check if a causal effect is identifiable from the DAG + observed vars.
 
-    Uses the backdoor criterion: Z is a valid adjustment set if it blocks all
-    backdoor paths (non-causal paths into treatment) WITHOUT blocking causal paths.
-    This requires d-separation in a *mutilated* graph (outgoing edges from treatment
-    removed), NOT the undirected graph.
+    Uses the backdoor criterion via _find_backdoor_set(). If a candidate set
+    is provided in the measurement, validates it directly instead.
     """
     import networkx as nx
 
@@ -436,49 +509,26 @@ def _measure_identifiability(measurement: Measurement, world: SCMWorld) -> bool:
     if treatment not in dag.nodes or outcome not in dag.nodes:
         return False
 
-    # Build mutilated graph: remove all outgoing edges from treatment
-    # This graph is used to check backdoor criterion via d-separation
-    mutilated = dag.copy()
-    out_edges = list(mutilated.out_edges(treatment))
-    mutilated.remove_edges_from(out_edges)
-
-    def _is_valid_backdoor(z_set: set[str]) -> bool:
-        """Check if z_set satisfies backdoor criterion in the mutilated graph."""
-        # Z must not contain descendants of treatment (in the original graph)
-        desc_treatment = nx.descendants(dag, treatment)
-        if z_set & desc_treatment:
+    # Check candidate set if provided (validate specific set)
+    if measurement.candidate_adjust_set:
+        adjust = set(measurement.candidate_adjust_set)
+        if not adjust.issubset(obs):
             return False
-        # Z must d-separate treatment from outcome in the mutilated graph
+        # Validate via mutilated graph
+        mutilated = dag.copy()
+        out_edges = list(mutilated.out_edges(treatment))
+        mutilated.remove_edges_from(out_edges)
+        desc_treatment = nx.descendants(dag, treatment)
+        if adjust & desc_treatment:
+            return False
         try:
-            return nx.is_d_separator(mutilated, {treatment}, {outcome}, z_set)
+            return nx.is_d_separator(mutilated, {treatment}, {outcome}, adjust)
         except Exception:
             return False
 
-    # Check candidate set if provided
-    if measurement.candidate_adjust_set:
-        adjust = set(measurement.candidate_adjust_set)
-        # Adjustment set must only contain observable variables
-        if not adjust.issubset(obs):
-            return False
-        return _is_valid_backdoor(adjust)
-
-    # Without candidate set: try parents of treatment (common sufficient set)
-    parents = set(dag.predecessors(treatment)) & obs
-    if parents and _is_valid_backdoor(parents):
-        return True
-
-    # Try: all non-descendant observable ancestors of outcome
-    desc_treatment = nx.descendants(dag, treatment)
-    anc_outcome = nx.ancestors(dag, outcome) & obs
-    candidate = anc_outcome - desc_treatment - {treatment}
-    if candidate and _is_valid_backdoor(candidate):
-        return True
-
-    # No backdoor path at all? (treatment has no parents → always identifiable)
-    if not list(dag.predecessors(treatment)):
-        return True
-
-    return False
+    # No candidate: check if ANY valid set exists
+    result = _find_backdoor_set(world, treatment, outcome)
+    return result is not None
 
 
 # ---------------------------------------------------------------------------

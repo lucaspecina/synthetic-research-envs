@@ -750,9 +750,13 @@ def main():
             )
 
             # Wire orchestrator-generated sub-questions if available
-            if result.sub_questions:
+            # Prefer v2 (specs-based, LLM judge scoring) over v1
+            if getattr(result, "sub_questions_v2", None):
+                runner.set_subquestions_v2(result.sub_questions_v2)
+                _print(f"  SQs v2: {len(result.sub_questions_v2)} from orchestrator (judge scoring)")
+            elif result.sub_questions:
                 runner.set_subquestions(result.sub_questions)
-                _print(f"  SQs: {len(result.sub_questions)} from orchestrator")
+                _print(f"  SQs v1: {len(result.sub_questions)} from orchestrator")
 
             import time as _time
             t0 = _time.time()
@@ -765,8 +769,9 @@ def main():
             _print(f"  Submitted: {oi_result.submitted}")
             if oi_result.score:
                 s = oi_result.score
+                cov = getattr(s, "weighted_coverage", None) or getattr(s, "coverage", 0.0)
                 _print(f"  Score: total={s.total:.3f} correct={s.correctness:.3f} "
-                       f"coverage={s.coverage:.3f}")
+                       f"coverage={cov:.3f}")
 
             # Save results (include conversation for debugging)
             # Extract solver tool calls for analysis

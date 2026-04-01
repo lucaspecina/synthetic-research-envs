@@ -32,6 +32,8 @@ from sreg.models.open_investigation import (
     EpisodeSubQuestionScore,
     EpisodeTrace,
     SubQuestionIntent,
+    SubQuestionIntentV2,
+    SubQuestionScore,
 )
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.solver.scm_solver import SCMSolver
@@ -187,8 +189,9 @@ class OIEpisodeRunner:
         self.n_mc = n_mc
         self._llm_call = llm_call
 
-        # Sub-questions for scoring (optional)
+        # Sub-questions for scoring (optional — v1 or v2, not both)
         self._subquestions: list[SubQuestionIntent] = []
+        self._subquestions_v2: list[SubQuestionIntentV2] = []
         self._sq_score: EpisodeSubQuestionScore | None = None
 
         # Trace infrastructure
@@ -274,20 +277,33 @@ class OIEpisodeRunner:
                 desc = f"{desc} [unit: {meta.unit}]" if desc else f"unit: {meta.unit}"
             variable_descriptions[name] = desc
 
-        return ExtractionContext(
-            research_brief=self.problem.research_question,
-            domain=self.problem.domain,
-            description=self.problem.description,
-            title=self.problem.title,
-            variable_descriptions=variable_descriptions,
-            sub_questions=[
+        # Use v2 SQs if available, otherwise v1
+        if self._subquestions_v2:
+            sq_context = [
+                {
+                    "sq_id": sq.sq_id,
+                    "pattern": "free_text",
+                    "text_gloss": sq.text_gloss,
+                }
+                for sq in self._subquestions_v2
+            ]
+        else:
+            sq_context = [
                 {
                     "sq_id": sq.sq_id,
                     "pattern": sq.pattern,
                     "text_gloss": sq.text_gloss or sq.sq_id,
                 }
                 for sq in self._subquestions
-            ],
+            ]
+
+        return ExtractionContext(
+            research_brief=self.problem.research_question,
+            domain=self.problem.domain,
+            description=self.problem.description,
+            title=self.problem.title,
+            variable_descriptions=variable_descriptions,
+            sub_questions=sq_context,
         )
 
     @property
@@ -377,21 +393,33 @@ class OIEpisodeRunner:
 
         self._submitted = True
 
-        # --- Primary scoring: sub-questions (fast, no salience map) ---
-        if self._subquestions:
+        # --- Scoring path priority: v2 judge > v1 SQ > salience map ---
+
+        # Path 1: SQ v2 + LLM judge (new)
+        if self._subquestions_v2:
+            self._sq_score = self._score_with_judge(claims, compiled)
+            logger.info(
+                "SQ v2 judge score: total=%.3f correctness=%.3f "
+                "weighted_coverage=%.3f coverage=%.3f",
+                self._sq_score.total,
+                self._sq_score.correctness,
+                self._sq_score.weighted_coverage,
+                self._sq_score.coverage,
+            )
+
+        # Path 2: SQ v1 (legacy, fast, no salience map)
+        elif self._subquestions:
             self._sq_score = self._score_with_subquestions(compiled)
             logger.info(
-                "SQ score (primary): total=%.3f correctness=%.3f "
+                "SQ v1 score (primary): total=%.3f correctness=%.3f "
                 "coverage=%.3f",
                 self._sq_score.total,
                 self._sq_score.correctness,
                 self._sq_score.weighted_coverage,
             )
 
-        # --- Diagnostic scoring: v2 with salience map (slow, optional) ---
-        # Only computed when no sub-questions are set (legacy/curated worlds)
-        # or for explicit diagnostic runs. NOT in the E2E critical path.
-        if not self._subquestions:
+        # Path 3: salience map (legacy/curated worlds, slow)
+        else:
             solver = SCMSolver(self.world, n_mc=self.n_mc)
             salience = build_salience_map(
                 self.world, self.target, n_mc=self.n_mc, seed=self.seed
@@ -413,7 +441,7 @@ class OIEpisodeRunner:
             )
             self._score = score
             logger.info(
-                "v2 score (diagnostic): total=%.3f correctness=%.3f "
+                "Salience map score (diagnostic): total=%.3f correctness=%.3f "
                 "coverage=%.3f",
                 score.total,
                 score.correctness,
@@ -451,8 +479,212 @@ class OIEpisodeRunner:
     # -----------------------------------------------------------------
 
     def set_subquestions(self, sqs: list[SubQuestionIntent]) -> None:
-        """Set sub-questions for SQ scoring. Call before submit_claims."""
+        """Set sub-questions for SQ v1 scoring. Call before submit_claims."""
         self._subquestions = list(sqs)
+
+    def set_subquestions_v2(self, sqs: list[SubQuestionIntentV2]) -> None:
+        """Set pre-grounded SQ v2s for LLM judge scoring.
+
+        SQs must have verdicts already filled via ground_sq_answer_key().
+        Requires llm_call in __init__ (the judge needs an LLM).
+        """
+        for sq in sqs:
+            for vs in sq.verification_specs:
+                if vs.verdict is None:
+                    raise ValueError(
+                        f"SQ {sq.sq_id} spec {vs.spec.spec_id} has no verdict. "
+                        "SQs must be pre-grounded via ground_sq_answer_key()."
+                    )
+        self._subquestions_v2 = list(sqs)
+
+    def _score_with_judge(
+        self,
+        claims: list[ClaimCard],
+        compiled: list,
+    ) -> EpisodeSubQuestionScore:
+        """Score claims against SQ v2s using LLM relevance judge.
+
+        Steps:
+        1. Compute truth per claim (verify compiled specs against SCM)
+        2. Render answer keys from pre-grounded SQ verdicts
+        3. Run LLM judge: relevance per claim x SQ pair
+        4. Compute per-SQ satisfaction and episode-level scores
+        """
+        from sreg.tools.oi_compiler import CompilerOutput
+        from sreg.tools.oi_relevance_judge import judge_all_claims
+        from sreg.tools.oi_sq_compiler import render_answer_key
+        from sreg.tools.oi_verifier import verify_atom
+
+        if not self._llm_call:
+            raise RuntimeError(
+                "LLM judge scoring requires llm_call in OIEpisodeRunner.__init__"
+            )
+
+        # Adapt llm_call to judge protocol: (system, user) -> str
+        # Runner's llm_call may use messages format (1 arg) or (system, user) format
+        _raw_llm = self._llm_call
+
+        def judge_llm(system: str, user: str) -> str:
+            try:
+                # Try (system, user) protocol first
+                return _raw_llm(system, user)
+            except TypeError:
+                # Fall back to messages protocol
+                return _raw_llm([
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ])
+
+        solver = SCMSolver(self.world, n_mc=self.n_mc)
+
+        # -- 1. Truth per claim (conjunctive: all specs must hold) --
+        claim_truths: dict[str, float] = {}
+        for co in compiled:
+            if not isinstance(co, CompilerOutput):
+                continue
+            if not co.compiled:
+                claim_truths[co.claim_id] = 0.0
+                continue
+            all_hold = True
+            for unit in co.units:
+                if not unit.specs:
+                    all_hold = False
+                    break
+                for s in unit.specs:
+                    v = verify_atom(s, self.world, solver, self.n_mc, self.seed)
+                    if not v.solver_assertion_holds:
+                        all_hold = False
+                        break
+                if not all_hold:
+                    break
+            claim_truths[co.claim_id] = 1.0 if all_hold else 0.0
+
+        # -- 2. Build judge inputs from SQ v2s --
+        judge_sqs = []
+        for sq in self._subquestions_v2:
+            answer_keys = []
+            for vs in sq.verification_specs:
+                if vs.verdict:
+                    ak = render_answer_key(vs.verdict)
+                    ak["role"] = vs.role
+                    answer_keys.append(ak)
+            judge_sqs.append({
+                "sq_id": sq.sq_id,
+                "text_gloss": sq.text_gloss,
+                "focus_variables": list(sq.focus_variables),
+                "tier": sq.tier.value,
+                "answer_keys": answer_keys,
+            })
+
+        # Build judge claims from ClaimCards + compiled specs
+        judge_claims = []
+        for claim, co in zip(claims, compiled):
+            specs_summary = []
+            if isinstance(co, CompilerOutput) and co.compiled:
+                for unit in co.units:
+                    for s in unit.specs:
+                        # Extract ALL variables from spec for pre-filter
+                        spec_vars: set[str] = set()
+                        m = s.measurement
+                        if m:
+                            if m.target:
+                                targets = m.target if isinstance(m.target, tuple) else (m.target,)
+                                spec_vars.update(str(t) for t in targets)
+                            if m.lhs:
+                                spec_vars.add(m.lhs)
+                            if m.rhs:
+                                spec_vars.add(m.rhs)
+                            if m.treatment:
+                                spec_vars.add(m.treatment)
+                            if m.outcome:
+                                spec_vars.add(m.outcome)
+                            spec_vars.update(m.candidate_causes)
+                            spec_vars.update(m.cond_set)
+                        for arm in s.arms:
+                            if arm.treatment:
+                                spec_vars.add(arm.treatment)
+                            if arm.outcome:
+                                spec_vars.add(arm.outcome)
+                            spec_vars.update(arm.values.keys())
+                            spec_vars.update(arm.condition_on.keys())
+                            if arm.sweep_var:
+                                spec_vars.add(arm.sweep_var)
+                        specs_summary.append({
+                            "measurement_kind": m.kind.value if m else "?",
+                            "comparison_kind": s.comparison.kind.value if s.comparison else "?",
+                            "primary_vars": ", ".join(sorted(spec_vars)),
+                        })
+            judge_claims.append({
+                "claim_id": claim.claim_id,
+                "claim_text": claim.claim_text,
+                "specs_summary": specs_summary,
+            })
+
+        # -- 3. Run LLM judge --
+        relevance_results = judge_all_claims(
+            claims=judge_claims,
+            sqs=judge_sqs,
+            brief_text=self.problem.research_question,
+            llm_call=judge_llm,
+        )
+
+        # Index: (claim_id, sq_id) -> relevance
+        rel_map: dict[tuple[str, str], float] = {}
+        for r in relevance_results:
+            rel_map[(r["claim_id"], r["sq_id"])] = r["relevance"]
+
+        # -- 4. Compute per-SQ satisfaction and episode scores --
+        sq_scores = []
+        total_weight = 0.0
+        weighted_sat_sum = 0.0
+
+        for sq in self._subquestions_v2:
+            best_score = 0.0
+            best_claim_id = None
+
+            for claim in claims:
+                truth = claim_truths.get(claim.claim_id, 0.0)
+                rel = rel_map.get((claim.claim_id, sq.sq_id), 0.0)
+                score = truth * rel
+                if score > best_score:
+                    best_score = score
+                    best_claim_id = claim.claim_id
+
+            satisfaction = best_score
+            sq_scores.append(SubQuestionScore(
+                sq_id=sq.sq_id,
+                satisfaction=min(1.0, satisfaction),
+                best_claim_id=best_claim_id,
+                matched=best_score > 0.0,
+            ))
+
+            w = sq.weight
+            total_weight += w
+            weighted_sat_sum += w * satisfaction
+
+            logger.info(
+                "  SQ %s [%s w=%.1f]: sat=%.3f best=%s",
+                sq.sq_id, sq.tier.value, w, satisfaction,
+                best_claim_id or "(none)",
+            )
+
+        weighted_coverage = weighted_sat_sum / total_weight if total_weight > 0 else 0.0
+
+        # Correctness = mean truth of ALL claims (penalizes spam/hallucinations)
+        all_truths = [claim_truths.get(c.claim_id, 0.0) for c in claims]
+        correctness = sum(all_truths) / len(all_truths) if all_truths else 0.0
+
+        # Total = correctness × weighted_coverage (both must be high)
+        total = min(1.0, correctness * weighted_coverage)
+
+        return EpisodeSubQuestionScore(
+            sq_scores=sq_scores,
+            coverage=sum(1 for s in sq_scores if s.matched) / len(sq_scores) if sq_scores else 0.0,
+            weighted_coverage=weighted_coverage,
+            correctness=correctness,
+            novel_bonus=0.0,
+            total=total,
+        )
 
     def _score_with_subquestions(
         self, compiled: list,

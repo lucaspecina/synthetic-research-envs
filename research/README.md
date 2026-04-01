@@ -29,6 +29,7 @@ Documentos de sintesis activos:
 - `synthesis/oi_scoring_fundamentals.md`
 - `synthesis/oi_scoring_next_design.md`
 - `synthesis/scoring_relevance_design.md` — Verdad vs relevancia, opciones de matching, answer key
+- `synthesis/a27_answer_key_contract.md` — Contrato del answer key rico (verdict.detail), adaptador, futuro AtomResolution
 - `synthesis/scm_migration_rationale.md`
 - `synthesis/scientific_research_taxonomy.md`
 

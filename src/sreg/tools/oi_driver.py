@@ -27,7 +27,12 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from sreg.models.open_investigation import ClaimCard, EpisodeScore, EpisodeTrace
+from sreg.models.open_investigation import (
+    ClaimCard,
+    EpisodeScore,
+    EpisodeSubQuestionScore,
+    EpisodeTrace,
+)
 from sreg.tools.oi_prompts import (
     build_oi_briefing,
     build_oi_strategy_section,
@@ -116,7 +121,7 @@ OI_SOLVER_TOOLS = [
                                 "focus_variables": {
                                     "type": "array",
                                     "items": {"type": "string"},
-                                    "description": "Variables involved (1-8).",
+                                    "description": "Variables involved (1-12).",
                                 },
                                 "confidence": {
                                     "type": "number",
@@ -248,7 +253,7 @@ def _parse_claim_cards(claims_raw: list[dict]) -> list[ClaimCard]:
 class OIInvestigationResult:
     """Result of a complete OI investigation."""
 
-    score: EpisodeScore | None = None
+    score: EpisodeScore | EpisodeSubQuestionScore | None = None
     trace: EpisodeTrace = field(default_factory=EpisodeTrace)
     messages: list[dict] = field(default_factory=list)
     n_steps: int = 0
@@ -468,24 +473,41 @@ def run_oi_investigation(
         submit_only_tools = convert_tools_for_responses([submit_tool])
 
         messages.append({"role": "user", "content": _NUDGE_FORCE_SUBMIT})
+
+        # Build input: include pending tool outputs so the API chain is valid
+        force_input: list[dict[str, Any]] = []
+        if isinstance(pending_outputs, list):
+            force_input.extend(pending_outputs)
+        force_input.append({"role": "user", "content": _NUDGE_FORCE_SUBMIT})
+
         force_kwargs: dict[str, Any] = {
             "model": model,
             "tools": submit_only_tools,
             "previous_response_id": prev_response_id,
-            "input": _NUDGE_FORCE_SUBMIT,
+            "input": force_input,
         }
         force_resp = None
         try:
             force_resp = client.responses.create(**force_kwargs)
         except Exception as e:
             logger.warning("Force-submit with prev_id failed: %s — retrying standalone", e)
-            # Fallback: standalone call with conversation history for context
+            # Fallback: standalone call with summary context (no tool_calls)
+            # Extract solver reasoning from assistant text messages
+            solver_notes = []
+            for m in messages:
+                if m.get("role") == "assistant" and m.get("content"):
+                    solver_notes.append(m["content"])
+            summary = "\n---\n".join(solver_notes[-5:]) if solver_notes else "(no notes)"
+            standalone_input = (
+                f"You investigated a research case. Here are your recent notes:\n\n"
+                f"{summary}\n\n{_NUDGE_FORCE_SUBMIT}"
+            )
             try:
                 force_resp = client.responses.create(
                     model=model,
                     tools=submit_only_tools,
                     instructions=system_prompt,
-                    input=messages + [{"role": "user", "content": _NUDGE_FORCE_SUBMIT}],
+                    input=standalone_input,
                 )
             except Exception as e2:
                 logger.warning("Force-submit standalone also failed: %s", e2)
@@ -516,7 +538,7 @@ def run_oi_investigation(
                     })
 
     return OIInvestigationResult(
-        score=runner.get_score(),
+        score=runner.get_sq_score() or runner.get_score(),
         trace=runner.get_trace(),
         messages=messages,
         n_steps=runner._step["current"],
@@ -596,7 +618,7 @@ def run_oi_scripted(
             break
 
     return OIInvestigationResult(
-        score=runner.get_score(),
+        score=runner.get_sq_score() or runner.get_score(),
         trace=runner.get_trace(),
         messages=messages,
         n_steps=runner._step["current"],
