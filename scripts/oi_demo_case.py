@@ -569,8 +569,7 @@ def build_report(
             lines.append(f"| Correctness | {sq_score.correctness:.3f} |")
             lines.append(f"| Novel bonus | {sq_score.novel_bonus:.3f} |")
             lines.append("")
-            lines.append("Formula: `SQ_total = weighted_coverage * 0.70 "
-                         "+ correctness * 0.20 + novel_bonus * 0.10`")
+            lines.append("Formula: `SQ_total = min(1.0, correctness * weighted_coverage)`")
             lines.append("")
 
     # =========================================================
@@ -599,8 +598,7 @@ def build_report(
                      f"addressed **{n_hit}** ({n_hit}/{n_sq}).")
         lines.append("")
     lines.append("**Key:** All verification is exact (Monte Carlo simulation "
-                 "against the structural causal model). No LLM judges are used "
-                 "in scoring. The solver decides autonomously what to investigate, "
+                 "against the structural causal model). The solver decides autonomously what to investigate, "
                  "what analyses to run, and what to conclude.")
     lines.append("")
 
