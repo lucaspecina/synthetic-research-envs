@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-04-02 — E2E validation: v2 scoring pipeline validated
+
+**Validated:** Full v2 pipeline (juez LLM + answer keys + verifier with
+do-calculus + evidence_basis validation) tested with 7 worlds: 5 curated
+(v1 path) + 2 seeds: microbiome (14 nodes) and confounding_by_indication
+(12 nodes) through the complete v2 path with LLM judge scoring.
+
+**Results:** v2 coverage (0.65-0.79) >> v1 coverage (0.11-0.25). The LLM
+judge matches claims against SQs much better than structural salience map.
+Correctness discriminates: social_media got 0.500 (half claims false),
+microbiome/confounding 0.750, curated worlds mostly 1.0.
+
 ### 2026-04-02 — Fix: validate evidence_basis against actual artifact accesses
 
 **Fixed:** Solver could cite artifact_ids in `evidence_basis` that it never

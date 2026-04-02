@@ -760,6 +760,12 @@ analisis que la motiva.
 
 ### I0b. Fixes criticos encontrados en sesion 2026-04-01
 
+**E2E v1+v2 validado (2026-04-02):** 5 curated worlds (v1) + 3 seeds
+(microbiome, confounding, social_media — v2 con juez LLM). 0 crashes.
+Coverage v2 (0.65-0.79) >> v1 (0.11-0.25). Correctness discrimina:
+social_media 0.500, education 0.625, microbiome/confounding 0.750.
+Vaca_muerta falla por JSON truncado en orchestrator (bug pre-existente).
+
 **BUG 1 — auto-adjust multi-confounder (FIXED):**
 `_run_adjustment()` estratificaba confounders uno por uno (marginal) en vez
 de ajustar conjuntamente. Ademas, el verifier estimaba desde datos

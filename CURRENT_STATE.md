@@ -10,7 +10,7 @@
 > Para detalles tecnicos de bajo nivel: `ARCHITECTURE.md`.
 > Para la vision y los principios: `PROJECT.md`.
 >
-> Actualizado: 2026-03-30
+> Actualizado: 2026-04-02
 
 ---
 
@@ -30,8 +30,10 @@ parecido a una investigacion real:
 - y el sistema puntua si esas conclusiones eran verdaderas, relevantes y
   bien alineadas con el problema.
 
-Lo importante es que el score no viene de un juez humano ni de un LLM-as-judge.
-Viene de una verdad formal oculta: el **SCM**.
+Lo importante es que la **verdad** no viene de un juez humano ni de un LLM.
+Viene de una verdad formal oculta: el **SCM**. La **relevancia** (que tan
+alineada esta una claim con el objetivo de investigacion) si usa un LLM juez,
+pero es separable y reemplazable por feature-matching para RL.
 
 ---
 
@@ -480,48 +482,54 @@ Ese fue justamente el hallazgo nuevo de A23:
 
 ## Como se calcula hoy el score principal
 
-En los E2E actuales, el score principal es el de sub-questions.
+El path principal es **v2 con LLM judge** (`_score_with_judge` en oi_runner.py).
 
 Pipeline:
 
 ```text
-compiled claim units + resolved sub-questions
-  -> score_claim_vs_subquestion(...)
-  -> SubQuestionScore por SQ
+ClaimCards + compiled specs + SQs v2
+  -> 1. Truth per claim (conjunctive: all atoms must hold)
+  -> 1b. Evidence validation (cited artifacts must be in trace)
+  -> 2. Answer keys from pre-grounded SQ verdicts
+  -> 3. LLM judge: relevance per (claim, SQ) pair
+  -> 4. Per-SQ satisfaction = max(truth x relevance) across claims
   -> EpisodeSubQuestionScore final
 ```
 
-### Matching claim vs SQ
+### Paso 1: Truth (exacta, sin LLM)
 
-Para cada claim compilada y cada SQ resuelta, el sistema calcula que tan bien
-esa claim satisface esa SQ.
+Para cada claim compilada, el verifier ejecuta todos sus AtomicSpecs contra
+el SCM. Si **todos** los atoms sostienen la afirmacion = truth 1.0, si alguno
+falla = truth 0.0 (conjunctiva). Ademas, si el solver cita artifacts que
+nunca cargo ni creo, la claim cae a truth 0 (evidencia fabricada).
 
-Usa principalmente:
+### Paso 2-3: Relevance (LLM judge)
 
-- compatibilidad estructural entre roles/patterns;
-- compatibilidad de respuesta (`sign`, `existence`, `rank_order`, etc.);
-- y la verdad del claim verificada contra el SCM.
+El juez LLM recibe cada claim y cada SQ (con sus answer keys ricos: verdad
+resuelta contra el SCM, variables, direccion esperada) y decide que tan
+relevante es esa claim para esa SQ (0 a 1). No evalua verdad — solo
+alineacion semantica.
 
-### Componentes del score actual
+### Paso 4: Scoring
 
-El output principal es `EpisodeSubQuestionScore`, con:
+Para cada SQ: satisfaction = max(truth x relevance) entre todas las claims.
 
-- `coverage`: fraccion de SQs con alguna claim que las satisface
-- `weighted_coverage`: lo mismo, pero ponderado por `tier`
-- `correctness`: verdad promedio de las claims que matchearon alguna SQ
-- `novel_bonus`: bonus por hallazgos verdaderos que no encajaban en ninguna SQ
-- `total`: score final del episodio
+Componentes del score:
 
-La formula actual es:
+- `weighted_coverage`: media ponderada de satisfactions (weight por tier)
+- `correctness`: media de truth de TODAS las claims (penaliza claims falsas)
+- `total = correctness x weighted_coverage` (ambos deben ser altos)
 
-```text
-total = weighted_coverage * 0.70
-      + correctness * 0.20
-      + coverage * 0.10
-      + novel_bonus
-```
+### Resultados E2E validados (2026-04-02)
 
-con cap en `1.0`.
+| Seed | Nodes | SQs | Total | Correctness | Wt.Coverage |
+|------|-------|-----|-------|-------------|-------------|
+| microbiome | 14 | 5 | 0.555 | 0.750 | 0.740 |
+| confounding | 12 | 5 | 0.589 | 0.750 | 0.785 |
+| social_media | 13 | 5 | 0.326 | 0.500 | 0.652 |
+
+Coverage v2 (~0.76) >> coverage v1 (~0.17). El juez LLM matchea claims
+contra SQs mucho mejor que el salience map estructural.
 
 ### Algo importante: no todo el viejo scoring esta en el path principal
 
@@ -655,9 +663,18 @@ compiladas y verificadas contra un SCM de 8 nodos:
 - Causal y epistemologico: 100% TRUE
 - Los FALSE son assertions que no coinciden con el SCM — funcionamiento esperado
 
-### Estado actual
+### Estado actual: VALIDADO E2E (2026-04-02)
 
-El pipeline v2 ya esta integrado en el runner principal (OIEpisodeRunner). El scoring combina la verdad exacta del SCM (via AtomicSpecs) con la relevancia semantica evaluada por un LLM (oi_relevance_judge.py).
+El pipeline v2 es el **path principal de produccion**. Validado con 7 worlds
+(5 curated v1 + 2 seeds v2). El scoring combina:
+
+- **Verdad exacta** del SCM (via AtomicSpecs + verifier con do-calculus)
+- **Relevancia semantica** evaluada por un LLM juez (oi_relevance_judge.py)
+- **Validacion de evidencia** contra artifacts realmente accedidos (trace)
+
+El juez LLM recibe answer keys ricos (verdad pre-resuelta contra el SCM,
+variables, direccion esperada) para evaluar relevancia. Esto hace que el
+matching claim-SQ sea mucho mas preciso que el v1 estructural.
 
 ---
 
@@ -735,32 +752,35 @@ arquitecturales futuras (artefactos evaluables, interaccion con el entorno).
 
 ## Los bottlenecks actuales
 
-### 1. Las SQ v1 siguen sesgadas a causal simple
-
-Hallazgo S05: 10/10 experimentos generan los mismos SQ patterns sin importar
-el seed. Esto ya tiene solucion en el prototipo v2 (ver arriba), pero v2
-todavia no esta integrado al pipeline de produccion.
-
-### 2. La extraccion LLM de claims sigue fragil
+### 1. La extraccion LLM de claims sigue fragil
 
 El extractor mejoro con contexto (S03a), pero claims compuestas, rankings y
 conclusiones epistemologicas siguen siendo problematicas cuando pasan por el
-catalogo de 8 patterns.
+catalogo de 8 patterns. Mejorar la calidad del compiler es el proximo paso.
 
-### 3. Warrant no esta en el path principal
+### 2. El orchestrator no maneja JSON truncado
 
-La capa de evidencia/provenance existe pero no participa en el score de
-sub-questions. Integrarla es trabajo pendiente.
+Con mundos grandes (14+ nodos) el LLM a veces devuelve JSON truncado en
+`design_case`. El orchestrator no tiene retry — crashea. Vaca_muerta fallo
+2/2 intentos por esto.
+
+### 3. Calibracion del scoring v2
+
+El scoring v2 funciona pero hay decisiones de calibracion pendientes:
+- Coverage threshold: no hay piso minimo (decision de politica)
+- Spam de claims verdaderas-pero-irrelevantes: no se penaliza (gap conocido)
+- Gate para SQs high-tier: los tiers pesan distinto pero no hay gate explicito
+
+Estas son decisiones de diseno que necesitan mas datos E2E para informar.
 
 ---
 
 ## Direccion activa
 
-1. **Integrar SQ v2 al pipeline** — reemplazar v1 en el path de produccion.
-2. **Compilacion directa de claims** — mismo enfoque grammar-first para claims
-   (S04 ya lo valido, falta integrar).
-3. **Probar en E2E real** — generar casos diversos, correr solver, comparar
-   scoring v1 vs v2.
+1. **Mejorar calidad del compiler** (S03) — el bottleneck principal es la
+   extraccion LLM de claims a ClaimIntents.
+2. **Robustez del orchestrator** — manejar JSON truncado con retry.
+3. **Mas E2E diversos** — ampliar la validacion a mas seeds y dominios.
 
 ---
 
