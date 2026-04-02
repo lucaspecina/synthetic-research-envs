@@ -737,6 +737,30 @@ El solver usa pandas/numpy directamente. 93 tests pasan.
 Cosas que sabemos que queremos hacer o probar. Cada una referencia el
 analisis que la motiva.
 
+### I0b. Fixes criticos encontrados en sesion 2026-04-01
+
+**BUG 1 — auto-adjust multi-confounder (FIXED):**
+`_run_adjustment()` estratificaba confounders uno por uno (marginal) en vez
+de ajustar conjuntamente. Ademas, el verifier estimaba desde datos
+observacionales cuando tiene acceso al SCM. Fix: validar backdoor set +
+usar `do()` para verdad exacta. `_is_valid_backdoor_set()` agregado.
+
+**BUG 2 — coverage threshold demasiado bajo:** `required_fraction=0.5`
+aprueba investigaciones que ignoran la mitad de las SQs. Deberia ser 0.7+.
+
+**BUG 3 — required vs support SQs:** todas las SQs pesan igual. Un claim
+que responde una SQ de soporte pero ignora la principal deberia penalizarse.
+
+**BUG 4 — spam penalty debil:** `max_claims=5` pero el penalty por exceso
+es suave. Un solver puede submitir 5 claims vagos y cubrir todo.
+
+**BUG 5 — evidence_basis no se valida:** el campo `evidence_basis` del
+claim card se acepta sin verificar contra los artifacts realmente usados.
+
+**BUG 6 — conjunctive truth:** truth score usa average de atoms en vez de
+min. Si un claim tiene 3 atoms y uno es falso, el average puede dar 0.6
+cuando deberia ser ~0. Conjunctive (min) seria mas apropiado.
+
 ### I0. Fixes criticos encontrados en sesion 2026-03-17
 
 **Bug verifier: keys de distribucion no validadas en case mode.**

@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### 2026-04-01 — Fix: verifier auto-adjust uses do() instead of observational estimation
+
+**Fixed:** `_run_adjustment()` in `oi_verifier.py` was estimating E[Y|do(X)]
+from observational data via marginal stratification (one confounder at a time).
+This gave wrong results with multiple confounders. The verifier is the oracle —
+it should use exact do-calculus, not statistical estimation.
+
+**New:** `_is_valid_backdoor_set()` validates that a proposed adjustment set
+blocks all backdoor paths (no descendants of treatment + d-separation check).
+
+**Changed:** `_run_adjustment()` now: (1) validates the backdoor set, (2)
+computes exact truth via `solver.interventional_samples()`. Returns
+`kind="adjust_invalid"` (NaN) if the set is invalid. Removed ~50 lines of
+observational stratification code.
+
+**Why:** The verifier is God-mode — it has access to the true SCM. Estimating
+from observational data introduced numerical errors and the marginal
+stratification bug. Using do() gives exact causal truth.
+
 ### 2026-04-01 — L1: Eliminate warrant system and OI helpers
 
 **Removed:** entire warrant system (`oi_warrant.py`, `oi_helpers.py`) and all

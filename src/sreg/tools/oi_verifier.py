@@ -227,6 +227,35 @@ def _find_backdoor_set(
     return None
 
 
+def _is_valid_backdoor_set(
+    world: SCMWorld, treatment: str, outcome: str, adjust_set: tuple[str, ...],
+) -> bool:
+    """Check if a specific set of variables is a valid backdoor adjustment set.
+
+    A valid backdoor set Z must:
+    1. Not contain any descendants of the treatment.
+    2. Block all backdoor paths (non-causal paths) from treatment to outcome.
+    """
+    import networkx as nx
+
+    dag = world.dag
+    if treatment not in dag.nodes or outcome not in dag.nodes:
+        return False
+
+    # No descendants of treatment allowed in adjustment set
+    desc_treatment = nx.descendants(dag, treatment)
+    if set(adjust_set) & desc_treatment:
+        return False
+
+    # Check d-separation in the mutilated graph (remove outgoing edges of treatment)
+    mutilated = dag.copy()
+    mutilated.remove_edges_from(list(mutilated.out_edges(treatment)))
+    try:
+        return nx.is_d_separator(mutilated, {treatment}, {outcome}, set(adjust_set))
+    except Exception:
+        return False
+
+
 def _run_adjustment(
     arm: QueryArm,
     world: SCMWorld,
@@ -234,104 +263,72 @@ def _run_adjustment(
     n_mc: int,
     seed: int | None,
 ) -> dict[str, Any]:
-    """Backdoor adjustment: E[Y | do(X=x)] = sum_z P(Y|X=x,Z=z) P(Z=z).
+    """Backdoor adjustment: verify the adjustment set, then use do() for truth.
 
-    Uses OBSERVATIONAL data + stratification by adjust_set, NOT do().
-    This is the key distinction from INTERVENE: adjust estimates the causal
-    effect from observational data using the backdoor formula.
+    The verifier is NOT a data scientist estimating from observational data —
+    it is the oracle (God-mode). It validates that the adjustment strategy is
+    sound (valid backdoor set), then computes exact E[Y | do(X=x)] via the
+    SCM's interventional_samples().
 
     If adjust_set is empty, auto-computes a valid set from the DAG.
+    Returns kind="adjust_invalid" if no valid backdoor set exists.
     """
     if not arm.treatment or not arm.outcome:
         raise ValueError("adjust arm requires treatment and outcome")
 
-    # Auto-compute adjust_set if the compiler didn't provide one
+    x_val = float(arm.values.get(arm.treatment, 0.0))
+
+    # Step 1: Resolve and validate the adjustment set
     if arm.adjust_set:
-        adjust_vars = list(arm.adjust_set)
+        adjust_set = tuple(sorted(arm.adjust_set))
+        if not _is_valid_backdoor_set(world, arm.treatment, arm.outcome, adjust_set):
+            logger.warning(
+                "adjust %s->%s: provided set %s is NOT a valid backdoor set.",
+                arm.treatment, arm.outcome, adjust_set,
+            )
+            return {
+                "samples": np.array([]),
+                "kind": "adjust_invalid",
+                "treatment_val": x_val,
+                "adjust_set": list(adjust_set),
+                "reason": "provided adjustment set is not a valid backdoor set",
+            }
     else:
         auto_set = _find_backdoor_set(world, arm.treatment, arm.outcome)
         if auto_set is None:
-            raise ValueError(
-                f"adjust arm for {arm.treatment}->{arm.outcome}: no valid "
-                "backdoor adjustment set exists in the DAG"
-            )
-        if not auto_set:
-            # Root treatment, no confounders — fall back to interventional
-            logger.info(
-                "adjust %s->%s: treatment is root, using interventional.",
+            logger.warning(
+                "adjust %s->%s: no valid backdoor set exists in the DAG.",
                 arm.treatment, arm.outcome,
             )
-            x_val = float(arm.values.get(arm.treatment, 0.0))
-            samples = solver.interventional_samples(
-                arm.outcome, do={arm.treatment: x_val}, n=n_mc, seed=seed
+            return {
+                "samples": np.array([]),
+                "kind": "adjust_invalid",
+                "treatment_val": x_val,
+                "adjust_set": [],
+                "reason": "no valid backdoor adjustment set exists",
+            }
+        adjust_set = auto_set
+        if adjust_set:
+            logger.info(
+                "adjust %s->%s: auto-computed backdoor set from DAG: %s",
+                arm.treatment, arm.outcome, list(adjust_set),
             )
-            return {"samples": samples, "kind": "adjust_fallback", "treatment_val": x_val}
-        adjust_vars = list(auto_set)
-        logger.warning(
-            "adjust %s->%s: adjust_set was empty, auto-computed from DAG: %s",
-            arm.treatment, arm.outcome, adjust_vars,
-        )
+        else:
+            logger.info(
+                "adjust %s->%s: treatment is root, empty adjustment set is valid.",
+                arm.treatment, arm.outcome,
+            )
 
-    x_val = float(arm.values.get(arm.treatment, 0.0))
-    outcome = arm.outcome
-
-    # Sample observational data (NO interventions)
-    df = world.sample(n=n_mc, seed=seed)
-
-    # Filter to observations where X is near the desired value
-    df_x = _filter_condition(df, {arm.treatment: x_val})
-    if len(df_x) < 30:
-        logger.warning(
-            "Adjustment: only %d obs with %s~%.2f. Falling back to interventional.",
-            len(df_x),
-            arm.treatment,
-            x_val,
-        )
-        samples = solver.interventional_samples(
-            outcome, do={arm.treatment: x_val}, n=n_mc, seed=seed
-        )
-        return {"samples": samples, "kind": "adjust_fallback", "treatment_val": x_val}
-
-    # Stratified estimation: for each stratum of Z, compute E[Y|X=x, Z=z]
-    # then weight by P(Z=z) from the full population
-    n_strata = min(5, max(2, len(df_x) // 50))
-    adjusted_values = []
-
-    for z_var in adjust_vars:
-        if z_var not in df.columns:
-            continue
-        # Create strata based on quantiles of Z in the full population
-        quantiles = np.quantile(df[z_var].values, np.linspace(0, 1, n_strata + 1))
-        for i in range(n_strata):
-            z_lo, z_hi = quantiles[i], quantiles[i + 1]
-            # P(Z in stratum) from full population
-            mask_pop = (df[z_var] >= z_lo) & (df[z_var] <= z_hi)
-            p_stratum = mask_pop.mean()
-            if p_stratum < 0.01:
-                continue
-            # E[Y | X=x, Z in stratum] from filtered data
-            mask_x_z = (df_x[z_var] >= z_lo) & (df_x[z_var] <= z_hi)
-            stratum_y = df_x.loc[mask_x_z, outcome]
-            if len(stratum_y) < 5:
-                continue
-            adjusted_values.append(float(stratum_y.mean()) * p_stratum)
-
-    if not adjusted_values:
-        # Fallback to simple conditional mean
-        adjusted_mean = float(df_x[outcome].mean())
-    else:
-        adjusted_mean = (
-            sum(adjusted_values) / sum(1 for _ in adjusted_values) if adjusted_values else 0.0
-        )
-        # Renormalize by total weight
-        adjusted_mean = sum(adjusted_values)
+    # Step 2: Compute exact truth via SCM do-calculus
+    samples = solver.interventional_samples(
+        arm.outcome, do={arm.treatment: x_val}, n=n_mc, seed=seed
+    )
 
     return {
-        "samples": np.array([adjusted_mean]),
+        "samples": samples,
         "kind": "adjust",
         "treatment_val": x_val,
-        "n_strata": n_strata,
-        "n_obs": len(df_x),
+        "adjust_set": list(adjust_set),
     }
 
 
@@ -381,6 +378,10 @@ def _measure(
 
         if result.get("kind") == "sweep":
             values[label] = _measure_sweep(measurement, result)
+            continue
+
+        if result.get("kind") == "adjust_invalid":
+            values[label] = float("nan")
             continue
 
         if result.get("kind") in ("adjust", "adjust_fallback"):
