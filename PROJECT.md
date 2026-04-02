@@ -186,7 +186,7 @@ Todo lo que diseniemos tiene que acercar el entorno a una investigacion
 cientifica real, no a una mecanica de juego ni a un ejercicio abstracto
 disfrazado.
 
-> **LA PREGUNTA que guia todo el proyecto (doble filtro):**
+> **LA PREGUNTA (filtro diagnostico):**
 >
 > **1. ¿Por que esto todavia no es una investigacion real? ¿Que le falta?**
 >
@@ -196,7 +196,14 @@ disfrazado.
 > saber que es relevante para el objetivo y que no, saber que mirar y que
 > ignorar, saber cuando una conclusion es prematura vs bien fundada?
 >
-> Ambas preguntas deben estar presentes en cada decision, cada evaluacion,
+> **PRESIONES EVOLUTIVAS (criterio de diseno):**
+>
+> **3. ¿El scoring crea presion evolutiva para que el agente que investiga
+> bien rinda mas que el que no?** Para cada componente de SREG: un agente
+> SIN la propiedad X, obtiene en promedio un score mas bajo? Si no, hay que
+> redisenar. Lista completa en "Presiones evolutivas" mas abajo.
+>
+> Ambas herramientas deben estar presentes en cada decision, cada evaluacion,
 > cada linea de codigo. La respuesta evoluciona a medida que SREG mejora.
 > Las brechas conocidas estan en `research/synthesis/sreg_scientific_coverage.md`.
 
@@ -307,28 +314,75 @@ a lo que enfrenta un investigador real.
 El resultado buscado no es solo "mas tasks". Es un entorno donde investigar
 bien sea necesario, medible y transferible.
 
-### Lo que un modelo deberia aprender entrenando con SREG
+### Presiones evolutivas: que propiedades debe forzar SREG
 
-El objetivo ultimo es que un modelo entrenado con RL sobre entornos SREG
-desarrolle **buen juicio cientifico** — no solo la capacidad de ejecutar
-analisis, sino el criterio para saber:
+SREG no es un curriculum ni una lista de habilidades a ensenar. Es un
+**entorno con reward signal**. El objetivo es que las presiones evolutivas
+del entrenamiento (RL u otro) fuercen que los agentes bien puntuados tengan
+estas propiedades — porque no tenerlas produce, en promedio, scores mas bajos.
 
-- **Que investigar:** descomponer un problema abierto en preguntas concretas
-  y priorizarlas. Research taste.
-- **Que es relevante:** no toda pregunta ni todo dato importa. Saber que
-  analisis son relevantes para el objetivo, que mirar y que ignorar.
-- **Cuando pivotear:** si una linea de investigacion no lleva a nada,
-  cambiar de rumbo. Si un resultado contradice la hipotesis, replantear.
-  Tomar decisiones de investigacion, no solo ejecutar analisis.
-- **Cuando una conclusion es prematura:** resistir la tentacion de concluir
-  con evidencia insuficiente. Saber cuando hay que seguir investigando.
-- **Como planificar:** generar planes de investigacion que cubran el problema,
-  no solo ejecutar analisis sueltos.
-- **Como formular preguntas fine-grained:** no "que causa Y" sino "cual es
-  el efecto de X sobre Y controlando por Z, y cambia segun el nivel de W?"
+Esto es el criterio de diseno central: cada componente de SREG (el caso, los
+datos, las herramientas, el scoring) debe estar disenado para que el agente
+que investiga bien rinda mas que el que no. Si una propiedad no produce
+ventaja medible en el score, el sistema esta fallando en crearla.
 
-Si SREG no puede ensenar esto, no cumple su proposito. Cada decision de
-diseno debe evaluarse contra esta vara.
+**Planificacion y descomposicion:**
+- **Descomponer preguntas vagas en fine-grained** — y actualizarlas a medida
+  que aprende cosas nuevas. No "que causa Y" sino "cual es el efecto de X
+  sobre Y controlando por Z, y cambia segun el nivel de W?"
+- **Buena planificacion** — tener un plan de investigacion, no ir a ciegas.
+  No ejecutar analisis sueltos sin saber por que.
+- **Plan dinamico** — actualizar la estrategia cuando la evidencia lo
+  justifica. El plan no es un contrato, es un mapa vivo.
+
+**Ejecucion y proceso:**
+- **Workflow iterativo** — ciclo de razonar, hipotetizar, experimentar,
+  analizar, repetir. No un pipeline lineal de "cargo datos, corro regresion,
+  concluyo".
+- **Doble vision** — mantener la mirada macro del problema mientras se mete
+  en los detalles. No perderse en un arbol y olvidar el bosque.
+- **Eficiencia** — ir al resultado sin reinventar la rueda ni repetir lo que
+  ya hizo. No recalcular cosas, no hacer analisis redundantes.
+
+**Foco y toma de decisiones:**
+- **Relevancia** — no perder el foco, no rabbit holes, no enamorarse de
+  hallazgos que no importan para el objetivo.
+- **Pivotear** — soltar algo que no funciona, no seguir insistiendo sin
+  progreso. Cambiar de rumbo cuando la evidencia lo pide.
+- **Saber cuando parar** — no declarar mision cumplida prematuramente
+  cuando queda mas por descubrir, ni seguir indefinidamente cuando ya tiene
+  suficiente.
+
+**Rigor epistemico:**
+- **Anti-overexcitement** — no declarar eureka por algo menor, sin
+  significancia o artefacto estadistico. Un p-value de 0.04 con N=20 no
+  es un descubrimiento.
+- **Separar "me cierra" de "esta validado"** — que una explicacion suene
+  coherente no significa que sea verdad. Necesita evidencia, no solo
+  narrativa.
+- **Verificacion honesta** — cuando dice "confirme X", que realmente lo
+  haya chequeado con los datos, no superficialmente ni de memoria.
+- **Mantener multiples restricciones activas** — no olvidarse de condiciones
+  al chequear hipotesis. Si hay 3 confounders, controlar por los 3, no
+  por 1.
+
+**Independencia del caso vs priors:**
+- **No driftear a lo familiar** — no retroceder a metodos comodos que
+  invalidan la investigacion cuando algo se pone dificil. Si el caso
+  requiere un approach incomodo, hacerlo.
+- **Separar evidencia del caso vs priors del training** — investigar los
+  datos de este episodio, no responder de memoria con conocimiento general.
+- **Calibracion contextual** — saber si un R² de 0.3 es bueno o malo en
+  este dominio, si una diferencia de 2% es relevante o trivial. El contexto
+  del caso importa.
+
+**El test de diseno:** para cada componente de SREG, preguntarse: si un
+agente NO tiene la propiedad X, obtiene en promedio un score mas bajo?
+Si la respuesta es no, hay que redisenar el componente hasta que la
+respuesta sea si.
+
+Si SREG no puede crear estas presiones, no cumple su proposito. Cada
+decision de diseno debe evaluarse contra esta vara.
 
 ### Investigacion abierta (Open Investigation)
 

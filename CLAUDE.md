@@ -25,14 +25,26 @@ Este modo es para cuando el usuario te pide que investigues o implementes algo p
 
 **OBLIGATORIO PARA AMBOS MODOS.** Antes de escribir código, debes demostrar (en el chat o en tus logs de autoresearch) que el diseño propuesto respeta estos principios.
 
-### LA PREGUNTA (El filtro de todo)
+### LA PREGUNTA (El filtro diagnóstico)
 > **¿Por qué esto todavía no es una investigación real? ¿Qué le falta?**
 >
 > **¿Por qué un modelo entrenado con RL sobre SREG todavía no aprendería buen juicio científico?** Que le falta al sistema para enseñar: research taste, descomposición de problemas, generación de preguntas fine-grained, buen plan de investigación, saber qué es relevante para el objetivo y qué no, saber cuándo una conclusión es prematura vs bien fundada.
 
+### PRESIONES EVOLUTIVAS (El criterio de diseño)
+> **SREG debe estar diseñado para que las presiones evolutivas fuercen que
+> los agentes bien puntuados tengan buen juicio científico** — porque NO
+> tener estas habilidades produce en promedio scores más bajos.
+>
+> **Test de diseño:** para cada componente, ¿un agente SIN la propiedad X
+> obtiene en promedio un score más bajo? Si no, hay que rediseñar.
+>
+> Lista completa de propiedades en `PROJECT.md` sección "Presiones evolutivas".
+
+LA PREGUNTA y las presiones evolutivas son complementarias: LA PREGUNTA diagnostica ("¿qué falta?"), las presiones evolutivas son el criterio de diseño ("¿el scoring fuerza esto?").
+
 Cada decisión pasa por este TRIPLE filtro:
 1. ¿Se parece a investigación real? Si no, es un bug.
-2. ¿Entrenaría buen juicio científico (incluida relevancia)? Si no, rediseñar.
+2. ¿Crea presión evolutiva hacia buen juicio científico? Si no, rediseñar. (Ver lista en `PROJECT.md`)
 3. ¿Funciona para la MAYORÍA de los tipos de investigación? No solo "X causa Y" — system mapping, structure discovery, descriptivo, predictivo, epistemológico, optimización, multi-outcome, etc. Si solo funciona para causal simple, es un juguete. Repasar mentalmente los escenarios diversos ANTES de diseñar: `research/synthesis/investigation_scenarios_rubric.md`.
 
 ### El Checklist de Diseño (Responde estas 4 preguntas antes de codear):
