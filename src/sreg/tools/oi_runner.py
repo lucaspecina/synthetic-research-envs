@@ -195,6 +195,10 @@ class OIEpisodeRunner:
             parent_id = getattr(df, "_oi_artifact_id", None)
             parent_ids = [parent_id] if parent_id else []
             new_id = catalog.save_derived(df, label, parent_ids=parent_ids)
+            trace.accesses.append(
+                ArtifactAccess(artifact_id=new_id, step=step["current"],
+                               access_type="analyze")
+            )
             return new_id
 
         ns["load_artifact"] = load_artifact
@@ -501,6 +505,23 @@ class OIEpisodeRunner:
                 if not all_hold:
                     break
             claim_truths[co.claim_id] = 1.0 if all_hold else 0.0
+
+        # -- 1b. Validate evidence_basis against actual artifact accesses --
+        accessed = self.trace.accessed_artifact_ids()
+        claims_by_id = {c.claim_id: c for c in claims}
+        for claim_id in list(claim_truths.keys()):
+            claim = claims_by_id.get(claim_id)
+            if not claim or not claim.evidence_basis:
+                continue
+            cited = {ref.artifact_id for ref in claim.evidence_basis}
+            fabricated = cited - accessed
+            if fabricated:
+                logger.warning(
+                    "Claim %s cites artifacts never accessed: %s. "
+                    "Setting truth to 0.",
+                    claim_id, sorted(fabricated),
+                )
+                claim_truths[claim_id] = 0.0
 
         # -- 2. Build judge inputs from SQ v2s --
         judge_sqs = []

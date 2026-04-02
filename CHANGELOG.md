@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### 2026-04-02 — Fix: validate evidence_basis against actual artifact accesses
+
+**Fixed:** Solver could cite artifact_ids in `evidence_basis` that it never
+actually loaded or created. No validation existed — fabricated evidence was
+silently accepted.
+
+**New:** Step 1b in `_score_with_judge()` checks that all cited artifact_ids
+exist in `trace.accessed_artifact_ids()`. If any are fabricated, the claim's
+truth drops to 0.
+
+**Fixed:** `save_artifact()` now registers in `trace.accesses` (as
+`access_type="analyze"`), so derived artifacts the solver creates are valid
+evidence citations.
+
 ### 2026-04-01 — Fix: verifier auto-adjust uses do() instead of observational estimation
 
 **Fixed:** `_run_adjustment()` in `oi_verifier.py` was estimating E[Y|do(X)]

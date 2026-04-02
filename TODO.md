@@ -754,12 +754,12 @@ que responde una SQ de soporte pero ignora la principal deberia penalizarse.
 **BUG 4 — spam penalty debil:** `max_claims=5` pero el penalty por exceso
 es suave. Un solver puede submitir 5 claims vagos y cubrir todo.
 
-**BUG 5 — evidence_basis no se valida:** el campo `evidence_basis` del
-claim card se acepta sin verificar contra los artifacts realmente usados.
+**BUG 5 — evidence_basis no se valida (FIXED):** el campo `evidence_basis`
+del claim card ahora se valida contra `trace.accessed_artifact_ids()`.
+Citar artifacts no accedidos = truth 0. `save_artifact` registra en trace.
 
-**BUG 6 — conjunctive truth:** truth score usa average de atoms en vez de
-min. Si un claim tiene 3 atoms y uno es falso, el average puede dar 0.6
-cuando deberia ser ~0. Conjunctive (min) seria mas apropiado.
+**BUG 6 — conjunctive truth (YA RESUELTO):** v2 ya usa boolean conjunctive
+(`all(holds) else 0.0`). v1 usa `min(spec_truths)`. No requiere cambios.
 
 ### I0. Fixes criticos encontrados en sesion 2026-03-17
 
