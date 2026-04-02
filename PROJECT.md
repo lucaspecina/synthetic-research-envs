@@ -143,15 +143,55 @@ constraints, calibracion de probabilidades.
 Requiere: validator programs mas generales que AtomicSpec, capaces de
 evaluar artefactos del solver contra datos ocultos (horizonte A24).
 
-**2. Interaccion rica con el entorno investigativo**
+**2. De data analysis flat a investigacion secuencial (Sherlock-type)**
 
-El solver no solo analiza datos existentes -- propone experimentos,
-pide campanas de datos, gestiona budget, interactua con colaboradores
-simulados, elige instrumentos. Las acciones tienen costo y sus
-resultados informan las siguientes decisiones.
+Este es el salto mas importante. Hoy SREG es flat: el solver recibe todo
+(brief + datos + tools), corre analisis, y submittea. Aunque le pongas 15
+turnos y budget finito, si el caso se resuelve con "cargo el CSV, corro 3
+regresiones, submitteo", sigue siendo flat.
 
-Requiere: research actions como interfaz del entorno (no herramientas
-internas del solver), ciclo iterativo, budget como recurso del caso.
+Lo que hace que una investigacion real sea long-horizon no es que tenga
+muchos datos. Es que **la informacion esta en capas, y cada capa revela
+que hay que hacer en la siguiente**. No podes planificar todo de entrada
+porque no sabes lo que vas a encontrar.
+
+**El solver empieza con poco.** No recibe todos los datasets. Recibe un
+brief, un dataset inicial (observacional, ruidoso, parcial), y un catalogo
+de acciones disponibles: "pedir datos de calidad de agua", "pedir datos de
+temperatura por estacion", "pedir un experimento intervencional". Cada
+accion cuesta budget y devuelve datos nuevos del SCM.
+
+**Las acciones son queries contra el SCM.** Ya existe la infraestructura.
+El SCM sabe samplear, intervenir, condicionar. Cada accion del solver es
+un query al SCM que devuelve un nuevo DataAsset. "Quiero ver la distribucion
+de Y cuando fuerzo X a nivel alto" → el SCM genera esos datos → el solver
+los recibe como un dataset nuevo.
+
+**El caso tiene profundidad por diseno.** El orchestrator no solo genera un
+SCM y un brief. Disena una **estructura de revelacion**: que se ve de
+entrada, que se desbloquea con que accion, y donde estan las sorpresas. El
+mundo tiene 15 variables pero el solver inicialmente solo ve 5. Las otras
+10 son accesibles pero tiene que pedirlas. Y algunas son las que resuelven
+el caso.
+
+**Dead ends y honey traps son parte del diseno.** Algunas acciones llevan
+a informacion que parece util pero es un callejon sin salida — una variable
+que correlaciona fuerte con todo pero no causa nada, gasta budget sin
+avanzar. El solver que planifica bien los evita, el que va a ciegas los
+pisa.
+
+**El numero de pasos emerge de la complejidad.** Un mundo simple se resuelve
+en 5 acciones. Un mundo con 3 subsistemas interconectados, confounders
+ocultos e interacciones no-lineales necesita 20-30.
+
+Esto crea presion evolutiva directa para: workflow iterativo, plan dinamico,
+descomposicion de preguntas, saber cuando parar, y separar evidencia de
+priors. Porque el plan optimo cambia con lo que descubris, y hay que decidir
+activamente cuando seguir y cuando es suficiente.
+
+Requiere: research actions como interfaz del entorno (queries al SCM, no
+herramientas internas), estructura de revelacion disenada por el
+orchestrator, budget como recurso del caso, catalogo de acciones con costos.
 
 **3. Material teorico sintetico**
 

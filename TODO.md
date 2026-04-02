@@ -101,6 +101,27 @@ mismos datos, mismas preguntas. Solo cambian los nombres de variables.
 **Referencia:** `research/notes/semantic_modes_experiment_2026_03_17.md`
 **Implementar:** I2. Experimentos en `experiments/`.
 
+### A3b. De data analysis flat a investigacion secuencial (FUNDAMENTAL)
+
+SREG hoy es flat: el solver recibe todo, analiza, submittea. Aunque tenga
+turnos y budget, si se resuelve con "cargo CSV, corro 3 analisis, listo",
+sigue siendo flat. La investigacion real es long-horizon porque **la
+informacion esta en capas y cada capa revela que hacer en la siguiente**.
+
+El salto: convertir el caso de un paquete estatico a un entorno con
+informacion gated. El solver empieza con poco (brief + dataset parcial +
+catalogo de acciones), y cada accion (query al SCM) cuesta budget y
+devuelve datos nuevos. Dead ends y honey traps son parte del diseno.
+
+Esto crea presion evolutiva directa para las propiedades mas dificiles de
+forzar: workflow iterativo, plan dinamico, descomposicion de preguntas,
+saber cuando parar.
+
+**Referencia:** `PROJECT.md` Horizonte 2 (seccion completa).
+**Dependencias:** requiere research actions como interfaz, estructura de
+revelacion en el orchestrator, budget como recurso del caso.
+**Status:** [ ] Vision documentada, no implementada.
+
 ### A4. Solo data-driven u otros tipos de investigacion?
 
 SREG hoy es puro "descubrimiento desde datasets". La investigacion real
