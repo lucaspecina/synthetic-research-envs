@@ -675,6 +675,9 @@ class OIEpisodeRunner:
             if not isinstance(co, CompilerOutput) or not co.compiled:
                 continue
             for unit in co.units:
+                # Skip grammar-direct units in v1 path (no ClaimIntent)
+                if unit.intent is None:
+                    continue
                 # Per-unit truth: conjunctive (all atoms in unit must hold)
                 if unit.specs:
                     verdicts = [

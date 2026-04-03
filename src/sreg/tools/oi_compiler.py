@@ -223,14 +223,15 @@ class CompiledUnit(BaseModel):
     (the deterministic lowering to AtomicSpecs). A compound claim produces
     N CompiledUnits; a simple claim produces 1.
 
-    ClaimIntent is the current lowering backend. Future backends (direct
-    AtomicSpec DSL, structural, identifiability) can be added per-unit.
+    Backends:
+    - "claim_intent": v1 — LLM extracts ClaimIntent IR, deterministic lowering
+    - "grammar_direct": v2 — LLM produces AtomicSpecs directly from grammar
     """
 
     unit_id: str = Field(min_length=1)
-    intent: ClaimIntent
+    intent: ClaimIntent | None = None
     specs: list[AtomicSpec] = Field(default_factory=list)
-    backend: Literal["claim_intent"] = "claim_intent"
+    backend: Literal["claim_intent", "grammar_direct"] = "claim_intent"
 
 
 class CompilerOutput(BaseModel):

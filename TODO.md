@@ -523,13 +523,34 @@ de units con status `compiled`/`partial`/`abstention`.
 **Conecta con:** A21, scm_task_primitives, open_investigation_vision
 **Codex thread:** 019d3b67-eb81-7201-9151-9aa26e54ac24
 
-### S03. Compiler LLM extraction quality — NEXT BOTTLENECK
+### S03. Compiler LLM extraction quality — BOTTLENECK (parcial)
 
 **Descubierto durante S02 forensics de A22 (2026-03-29).**
+**Actualizado con forensics v2 E2E (2026-04-02).**
 
 Multi-unit resolvio abstention, pero la extraccion LLM sigue perdiendo
-informacion de claims complejos:
+informacion de claims complejos.
 
+**Forensics v2 (2026-04-02, 3 seeds, 12 claims):**
+De 4 claims FALSE en 3 seeds v2, solo 1-2 son fallas del compiler:
+- Confounding C4 ("no condicionar en mediadores"): claim metodologico que
+  el compiler no puede mapear a ninguno de los 8 PatternClass → truth=0.
+  El SQ que preguntaba esto (sq3) quedo con sat=0.36 porque la segunda
+  mejor claim era tangencial.
+- Social claim_3 (creation_ratio→wellbeing): posible falla compiler con
+  relaciones no lineales (SCM usa thresholds `max(0, x-3.5)`).
+Los otros 2 FALSE son errores del SOLVER (multicolinealidad, confundir
+asociacion con mecanismo directo) — un compiler perfecto no los salva.
+
+**Conclusion:** el compiler no es "el unico" bottleneck, pero SI es el que
+NOSOTROS controlamos. Solver errors son presion evolutiva valida. Compiler
+errors son bugs nuestros.
+
+**Resolucion:** S03 se resuelve migrando claims al approach grammar-direct
+de A23 (que ya funciona para SQs). Los items sueltos de abajo quedan
+obsoletos con la migracion.
+
+Items legacy (pre-A23):
 - [ ] **Chain claim extraction**: "A causes B causes C" debe extraer TODAS
   las relaciones pairwise (A->B, B->C, A->C), no solo la cadena narrativa
 - [ ] **Indirect/distal conclusion extraction**: conclusiones implicitas
@@ -541,9 +562,10 @@ informacion de claims complejos:
 - [ ] **effect_ranking from prose**: extraer rankings de magnitud de efecto
   desde texto libre del solver (extraccion, no matching)
 
-### A23. Compilacion directa a AtomicSpec — NEXT ARCHITECTURAL DIRECTION
+### A23. Compilacion directa a AtomicSpec — NEXT STEP
 
 **Descubierto S02/S03, validado empiricamente S04 (2026-03-30).**
+**Actualizado: forensics v2 E2E confirma necesidad (2026-04-02).**
 
 **Hipotesis validada:** cuanto menos dependamos del catalogo fijo (PatternClass),
 mejor preservamos la semantica de claims y SQs en casos diversos.
@@ -554,12 +576,18 @@ mejor preservamos la semantica de claims y SQs en casos diversos.
 - 2.3x mas verificaciones, 0 abstentions, mediciones mas ricas.
 - Caveats: 77% TRUE (vs ~100% catalogo); prueba capacidad, no arquitectura final.
 
-**Direccion:** compilacion directa claim → AtomicSpec(s), sin IR intermedia
-cerrada (PatternClass). El catalogo puede seguir como fast-path opcional.
+**Evidencia forensics v2 (2026-04-02):**
+- Claims metodologicos (ej: "no condicionar en mediadores") no compilables
+  con los 8 PatternClass fijos → truth=0 injustamente.
+- SQ compiler (`oi_sq_compiler.py`) ya usa grammar-direct exitosamente.
+- El claim compiler (`oi_compiler.py`) sigue en v1 con PatternClass.
+
+**Direccion:** migrar claim compiler al mismo approach grammar-direct que el
+SQ compiler. El catalogo PatternClass queda como fallback opcional.
 
 **Spec de diseno:** `research/synthesis/sq_v2_matching_spec.md` (CANONICO).
 
-**Pendiente:**
+**SQ compiler (DONE):**
 - [x] **Modelo v2:** SubQuestionIntentV2 + VerificationSpec (required/support)
 - [x] **Compile step:** `compile_sq_to_specs()` — LLM + grammar, sin pattern routing
 - [x] **Matching:** `spec_match()` exacto en estimand + bipartite 1-a-1, pooled
@@ -569,9 +597,18 @@ cerrada (PatternClass). El catalogo puede seguir como fast-path opcional.
   causal→intervene, direccion, variables, confounding, mediation, identifiability
 - [x] **Answer key:** verify_atom en compile step funciona. El answer key es el resultado rico del SCM, no una Assertion simplificada.
 - [x] **E2E real:** generar caso completo, correr solver, scoring v2
+- [x] **Integracion:** si funciona, reemplazar v1 en el pipeline del orchestrador
+
+**Claim compiler (NEXT — migrar a grammar-direct):**
+- [ ] **Compile function:** `compile_claim_to_specs(claim_text, summary, llm_call)`
+  usando misma GRAMMAR_REF que `oi_sq_compiler.py`
+- [ ] **Integrar en runner:** reemplazar `compile_claim()` v1 en `_score_with_judge()`
+- [ ] **Fallback:** si grammar-direct falla, intentar v1 PatternClass como backup
+- [ ] **Validar E2E:** re-correr 3 seeds v2 con nuevo compiler, comparar truths
+
+**Pendientes generales:**
 - [ ] **Comparacion v1 vs v2:** mismos episodios, comparar scores y cobertura
 - [ ] **Calibracion del directo:** reducir specs FALSE (prompting, ejemplos)
-- [x] **Integracion:** si funciona, reemplazar v1 en el pipeline del orchestrador
 
 **Research:** `research/notes/s04_epistemic_ir_gap_analysis.md`,
 `research/notes/a23_grammar_first_sq_and_compiler.md`,
@@ -787,6 +824,41 @@ Citar artifacts no accedidos = truth 0. `save_artifact` registra en trace.
 
 **BUG 6 — conjunctive truth (YA RESUELTO):** v2 ya usa boolean conjunctive
 (`all(holds) else 0.0`). v1 usa `min(spec_truths)`. No requiere cambios.
+
+**FORENSICS v2 (2026-04-02, 3 seeds):**
+
+Analisis claim-por-claim de microbiome, confounding, social_media:
+
+| Seed | Claims | TRUE | FALSE | Correctness | Causa FALSE |
+|------|--------|------|-------|-------------|-------------|
+| microbiome | 4 | 3 | 1 | 0.750 | c2: solver confunde multicolinealidad con no-efecto |
+| confounding | 4 | 3 | 1 | 0.750 | C4: compiler no puede compilar claim metodologico |
+| social_media | 4 | 2 | 2 | 0.500 | claim_3: compiler/nonlinear; claim_4: solver confunde asoc→mecanismo |
+
+**Patrones identificados:**
+1. **Solver: multicolinealidad → "no effect"** — OLS con variables colineales
+   anula coeficientes reales. Presion evolutiva valida, NO corregir.
+2. **Compiler: claims metodologicos/epistemologicos** — "no condicionar en X"
+   no cabe en 8 PatternClass. Resolver con A23 grammar-direct.
+3. **Solver: asociacion ≠ mecanismo** — reporta "X→Y" observacional como
+   si fuera arco directo. Presion evolutiva valida, NO corregir.
+4. **Correctness es el bottleneck, no coverage** — coverage=1.0 en los 3 seeds.
+5. **Brief→SQ alignment es correcto:** briefs vagos, SQs descubribles desde
+   datos, presion evolutiva funciona. NO tocar briefs ni SQs.
+
+**Decision:** migrar claim compiler a grammar-direct (A23). Correr mas E2E
+para validar con datos reales. Solver errors son presion, no bugs.
+
+### I0c. Batch E2E diverso — validacion con mas datos
+
+**Motivacion:** 3 seeds v2 no son suficientes para confirmar patrones.
+
+- [ ] Correr 10+ seeds diversas por el pipeline v2 completo
+- [ ] Seeds deben cubrir: system mapping, descriptivo puro, epistemologico,
+  multi-outcome, heterogeneidad, confounding, causal simple
+- [ ] Usar seeds existentes de `seeds/` + crear nuevas si faltan tipos
+- [ ] Reportar: per-claim truths, causa de FALSE, satisfaction distribution
+- [ ] Identificar patrones de falla del compiler que A23 resolveria
 
 ### I0. Fixes criticos encontrados en sesion 2026-03-17
 
