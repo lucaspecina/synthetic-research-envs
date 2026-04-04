@@ -169,6 +169,7 @@ class OIEpisodeRunner:
         # Submission state
         self._submitted = False
         self._score: EpisodeScore | None = None
+        self._last_compiled: list | None = None
 
     def _build_namespace(self) -> dict:
         """Build the solver's Python namespace with OI-specific tools.
@@ -339,6 +340,7 @@ class OIEpisodeRunner:
             )
 
         self._submitted = True
+        self._last_compiled = compiled
 
         # --- Scoring path priority: v2 judge > v1 SQ > salience map ---
 
@@ -396,6 +398,47 @@ class OIEpisodeRunner:
             )
 
         return self._sq_score or self._score
+
+    def compiler_stats(self) -> dict:
+        """Return compiler backend stats from last submission."""
+        from sreg.tools.oi_compiler import CompilerOutput
+
+        if not self._last_compiled:
+            return {"total_claims": 0}
+
+        stats = {
+            "total_claims": 0,
+            "grammar_direct": 0,
+            "v1_fallback": 0,
+            "abstention": 0,
+            "total_specs": 0,
+            "per_claim": [],
+        }
+        for co in self._last_compiled:
+            if not isinstance(co, CompilerOutput):
+                continue
+            stats["total_claims"] += 1
+            if co.status == "abstention":
+                stats["abstention"] += 1
+                stats["per_claim"].append({
+                    "claim_id": co.claim_id, "backend": "abstention",
+                    "n_specs": 0,
+                })
+                continue
+            # Check backend of units
+            claim_backend = "v1_fallback"
+            n_specs = 0
+            for u in co.units:
+                n_specs += len(u.specs)
+                if u.backend == "grammar_direct":
+                    claim_backend = "grammar_direct"
+            stats[claim_backend] += 1
+            stats["total_specs"] += n_specs
+            stats["per_claim"].append({
+                "claim_id": co.claim_id, "backend": claim_backend,
+                "n_specs": n_specs,
+            })
+        return stats
 
     @staticmethod
     def _validate_compiled_alignment(
@@ -484,7 +527,7 @@ class OIEpisodeRunner:
 
         solver = SCMSolver(self.world, n_mc=self.n_mc)
 
-        # -- 1. Truth per claim (conjunctive: all specs must hold) --
+        # -- 1. Truth per claim (proportional: M/N specs that hold) --
         claim_truths: dict[str, float] = {}
         for co in compiled:
             if not isinstance(co, CompilerOutput):
@@ -492,19 +535,17 @@ class OIEpisodeRunner:
             if not co.compiled:
                 claim_truths[co.claim_id] = 0.0
                 continue
-            all_hold = True
+            n_total = 0
+            n_hold = 0
             for unit in co.units:
                 if not unit.specs:
-                    all_hold = False
-                    break
+                    continue
                 for s in unit.specs:
+                    n_total += 1
                     v = verify_atom(s, self.world, solver, self.n_mc, self.seed)
-                    if not v.solver_assertion_holds:
-                        all_hold = False
-                        break
-                if not all_hold:
-                    break
-            claim_truths[co.claim_id] = 1.0 if all_hold else 0.0
+                    if v.solver_assertion_holds:
+                        n_hold += 1
+            claim_truths[co.claim_id] = n_hold / n_total if n_total > 0 else 0.0
 
         # -- 1b. Validate evidence_basis against actual artifact accesses --
         accessed = self.trace.accessed_artifact_ids()
@@ -678,13 +719,14 @@ class OIEpisodeRunner:
                 # Skip grammar-direct units in v1 path (no ClaimIntent)
                 if unit.intent is None:
                     continue
-                # Per-unit truth: conjunctive (all atoms in unit must hold)
+                # Per-unit truth: proportional (M/N atoms that hold)
                 if unit.specs:
                     verdicts = [
                         verify_atom(s, self.world, solver, self.n_mc, self.seed)
                         for s in unit.specs
                     ]
-                    truth = 1.0 if all(v.solver_assertion_holds for v in verdicts) else 0.0
+                    n_hold = sum(1 for v in verdicts if v.solver_assertion_holds)
+                    truth = n_hold / len(verdicts)
                 else:
                     truth = 0.0
                 claim_tuples.append((unit.intent, truth))

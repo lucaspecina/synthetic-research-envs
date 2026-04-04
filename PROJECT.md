@@ -43,7 +43,10 @@ Eso implica que, para resolver bien un caso, el solver deberia tener que:
 
 - interpretar evidencia parcial,
 - integrar datos con contexto y material teorico,
-- formular y comparar hipotesis rivales,
+- **generar** hipotesis propias (no solo elegir entre opciones dadas) y
+  compararlas como rivales genuinas,
+- inventar el analisis correcto para la pregunta — disenar procedimientos,
+  crear variables derivadas, estratificar por subgrupos, no elegir de un menu,
 - decidir que medir, que analizar o que experimento conviene hacer,
 - razonar bajo restricciones,
 - y responder con fundamento en la evidencia del caso, no en memoria o priors.
@@ -374,6 +377,34 @@ ventaja medible en el score, el sistema esta fallando en crearla.
   No ejecutar analisis sueltos sin saber por que.
 - **Plan dinamico** — actualizar la estrategia cuando la evidencia lo
   justifica. El plan no es un contrato, es un mapa vivo.
+
+**Generacion de hipotesis:**
+- **Generar hipotesis, no solo elegir** — dado lo que se hasta ahora, que
+  podria explicar esto? No es seleccionar entre opciones dadas — es producir
+  explicaciones candidatas. La habilidad mas importante de un investigador.
+- **Hipotesis rivales** — no casarse con la primera explicacion. Generar al
+  menos dos alternativas genuinamente competitivas antes de testear.
+- **Hipotesis testeables** — generar hipotesis que sean verificables con los
+  datos y herramientas disponibles, no especulaciones abstractas. "Si A es
+  verdad, deberia ver X en los datos; si B es verdad, deberia ver Y."
+- **Hipotesis que discriminen** — buscar predicciones que separen las hipotesis.
+  Si A y B predicen lo mismo, no sirven para elegir entre ellas.
+- **Refinamiento ante evidencia parcial** — cuando la evidencia no cierra
+  del todo, ajustar la hipotesis en vez de descartarla o forzarla. La
+  evidencia parcial es informacion, no fracaso.
+
+**Diseno experimental y creatividad analitica:**
+- **Inventar el analisis correcto** — no elegir de un menu de analisis. Dado
+  la pregunta y los datos, disenar el procedimiento que realmente discrimina.
+  Partir por subgrupos, crear variables derivadas, hacer permutation tests,
+  testear interacciones, analisis de sensibilidad — lo que haga falta.
+- **Creatividad analitica** — el solver tiene Python y los datos. Puede
+  inventar analisis que nadie le pidio. La capacidad de ver "hmm, si
+  estratifico por Z, puedo distinguir confounding de efecto directo" es
+  exactamente lo que separa un buen investigador de uno mediocre.
+- **Diseno de queries (H2)** — en la version secuencial, elegir que preguntarle
+  al entorno y por que. Cada query cuesta budget. Un buen investigador elige
+  queries que maximizan informacion, no las mas obvias.
 
 **Ejecucion y proceso:**
 - **Workflow iterativo** — ciclo de razonar, hipotetizar, experimentar,

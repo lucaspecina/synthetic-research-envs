@@ -822,8 +822,16 @@ es suave. Un solver puede submitir 5 claims vagos y cubrir todo.
 del claim card ahora se valida contra `trace.accessed_artifact_ids()`.
 Citar artifacts no accedidos = truth 0. `save_artifact` registra en trace.
 
-**BUG 6 — conjunctive truth (YA RESUELTO):** v2 ya usa boolean conjunctive
-(`all(holds) else 0.0`). v1 usa `min(spec_truths)`. No requiere cambios.
+**BUG 6 — conjunctive truth (FIXED — proportional truth):** la verdad
+all-or-nothing mataba claims con muchos specs (ej: 8 specs, si 1 falla = 0.0).
+Cambiado a truth proporcional: M/N (fraccion de specs que pasan).
+Corregido en 3 lugares: `_score_with_judge` (v2), `_score_with_subquestions` (v1),
+y `score_compiled_episode_v2` (salience path). Ej: claim con 6/8 specs = truth 0.75.
+
+**BUG 7 — orchestrator json.loads crash (FIXED):** `orchestrator.py:262`
+no tenia try/except en `json.loads(tc.arguments)`. Seeds grandes (19+ vars)
+pueden generar payloads truncados que crashean el batch entero.
+Fix: try/except retorna error al LLM para que reintente.
 
 **FORENSICS v2 (2026-04-02, 3 seeds):**
 

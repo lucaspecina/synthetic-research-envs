@@ -797,6 +797,7 @@ def main():
                 "n_steps": oi_result.n_steps,
                 "submitted": oi_result.submitted,
                 "score": oi_result.score.model_dump() if oi_result.score else None,
+                "compiler_stats": runner.compiler_stats(),
                 "solver_tool_calls": solver_tool_calls,
                 "conversation": oi_result.messages,
             }

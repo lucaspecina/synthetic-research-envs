@@ -966,8 +966,8 @@ def score_compiled_episode_v2(
             spec_truths.append(verdict.score)
             atom_verdicts.append(verdict)
 
-        # Per-claim truth: min (conjunction) for multi-spec claims
-        truth = min(spec_truths) if spec_truths else 0.0
+        # Per-claim truth: proportional (fraction of specs that hold)
+        truth = (sum(spec_truths) / len(spec_truths)) if spec_truths else 0.0
 
         # 2. Structural relevance (DAG-based)
         focus_vars = set()

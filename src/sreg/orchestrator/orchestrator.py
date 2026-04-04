@@ -259,7 +259,29 @@ class Orchestrator:
             self._pending_tool_outputs = []
             for tc in tool_calls:
                 fn_name = tc.name
-                fn_args = json.loads(tc.arguments)
+                try:
+                    fn_args = json.loads(tc.arguments)
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.error(
+                        "Failed to parse arguments for tool %s: %s "
+                        "(raw=%s)", fn_name, e, tc.arguments[:200]
+                    )
+                    # Return error to the LLM so it can retry
+                    self._pending_tool_outputs.append({
+                        "type": "function_call_output",
+                        "call_id": tc.call_id,
+                        "output": json.dumps({
+                            "error": f"Malformed arguments: {e}"
+                        }),
+                    })
+                    messages_log.append({
+                        "role": "tool",
+                        "tool_call_id": tc.call_id,
+                        "content": json.dumps({
+                            "error": f"Malformed arguments: {e}"
+                        }),
+                    })
+                    continue
                 logger.info(f"Tool call: {fn_name}({fn_args})")
 
                 tool_result = self._dispatch_tool(fn_name, fn_args, result)
