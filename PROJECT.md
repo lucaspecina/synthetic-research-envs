@@ -249,6 +249,8 @@ disfrazado.
 > Ambas herramientas deben estar presentes en cada decision, cada evaluacion,
 > cada linea de codigo. La respuesta evoluciona a medida que SREG mejora.
 > Las brechas conocidas estan en `research/synthesis/sreg_scientific_coverage.md`.
+>
+> **Marco canonico para evaluar paper/tesis:** `research/synthesis/thesis_evaluation_framework.md`.
 
 Litmus test operativo: "Un investigador real en este dominio haria esto?"
 

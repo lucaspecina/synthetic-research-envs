@@ -50,7 +50,19 @@ Each spec has 1+ arms. Each arm generates data from the SCM.
   "adjust" (observe but adjust for confounders), "sweep" (vary a variable)
 - label: unique name for this arm (e.g. "baseline", "treated", "control")
 - values: dict of variable=value for intervene/condition (e.g. {"X": 1.0})
-- condition_on: dict for condition kind
+- condition_on: dict mapping variable name to a condition predicate.
+  Available predicates:
+  * Point value (shorthand): just a number, e.g. {"X": 5.0}
+    Matches rows where X is approximately 5.0 (within 15% of std).
+  * range: {"kind": "range", "lo": <number>, "hi": <number>}
+    Matches rows where lo <= variable <= hi.
+    Example: near a cutoff: {"eligibility_gap": {"kind": "range", "lo": -1000, "hi": 1000}}
+  * quantile_range: {"kind": "quantile_range", "q_lo": <0-1>, "q_hi": <0-1>}
+    Matches rows in the given quantile range of the variable's distribution.
+    Example: bottom quartile: {"income": {"kind": "quantile_range", "q_lo": 0.0, "q_hi": 0.25}}
+  * in_set: {"kind": "in_set", "values": [<value>, ...]}
+    Matches rows where variable equals any listed value.
+    Example: categorical: {"region": {"kind": "in_set", "values": ["urban", "suburban"]}}
 - treatment/outcome: for adjust kind
 - adjust_set: tuple of variable names to adjust for (for adjust kind)
 
@@ -99,9 +111,14 @@ What should be true about the comparison result.
 
 IMPORTANT RULES:
 - ALL variable names must come from the provided Variables list.
+- Do NOT reference derived or constructed variables. Use predicates on existing
+  world variables instead. E.g., instead of a variable "eligible", use
+  {"eligibility_gap": {"kind": "range", "lo": -1000, "hi": 1000}}.
 - Each spec checks ONE atomic fact.
 - For partial_correlation with empty cond_set, it computes raw correlation.
 - "baseline" arms sample from the joint distribution (no intervention).
+- ONE condition predicate per variable in condition_on.
+- Do NOT condition on a variable already set in values (same arm).
 - Return a JSON array of spec objects.
 """
 

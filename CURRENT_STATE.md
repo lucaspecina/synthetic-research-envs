@@ -9,6 +9,7 @@
 >
 > Para detalles tecnicos de bajo nivel: `ARCHITECTURE.md`.
 > Para la vision y los principios: `PROJECT.md`.
+> Para el marco canonico de evaluacion paper/tesis: `research/synthesis/thesis_evaluation_framework.md`.
 >
 > Actualizado: 2026-04-06
 

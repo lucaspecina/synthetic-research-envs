@@ -187,6 +187,8 @@ SciDesignBench: arxiv 2603.12724
 reales (para disenar SRCs mas diversos). A6 es sobre como otros sistemas
 miden y entrenan razonamiento cientifico (para evaluar SREG mejor).
 
+**Marco canonico para paper/tesis y transferencia:** `research/synthesis/thesis_evaluation_framework.md`
+
 ### A7. Evaluaciones y validaciones existentes sin uso
 
 Se construyeron QualitySuite, DiagnosticRunner, baselines, pero parte

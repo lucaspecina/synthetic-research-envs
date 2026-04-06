@@ -32,6 +32,7 @@ Documentos de sintesis activos:
 - `synthesis/a27_answer_key_contract.md` — Contrato del answer key rico (verdict.detail), adaptador, futuro AtomResolution
 - `synthesis/scm_migration_rationale.md`
 - `synthesis/scientific_research_taxonomy.md`
+- `synthesis/thesis_evaluation_framework.md` — Claim defendible, metricas, benchmarks y protocolo para paper/tesis
 
 ### archive/
 Documentos viejos, superseded o referencias heredadas. Read-only.

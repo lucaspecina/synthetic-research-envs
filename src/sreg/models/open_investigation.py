@@ -14,9 +14,9 @@ Design principles:
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Discriminator, Field, Tag, field_validator, model_validator
 
 # ---------------------------------------------------------------------------
 # Piece 1: QueryContext — what "experiment" to run on the SCM
@@ -34,13 +34,72 @@ class QueryKind(StrEnum):
     SWEEP = "sweep"
 
 
+# ---------------------------------------------------------------------------
+# Condition predicates — subpopulation filters for condition_on (P1)
+# ---------------------------------------------------------------------------
+
+
+class ApproxEq(BaseModel):
+    """Match rows where variable is approximately equal to value (±tol_std * std)."""
+
+    kind: Literal["approx_eq"] = "approx_eq"
+    value: float | int
+    tol_std: float = Field(default=0.15, ge=0.0)
+
+
+class ConditionRange(BaseModel):
+    """Match rows where lo <= variable <= hi."""
+
+    kind: Literal["range"] = "range"
+    lo: float
+    hi: float
+
+    @model_validator(mode="after")
+    def _validate_order(self) -> "ConditionRange":
+        if self.lo > self.hi:
+            raise ValueError(f"range lo={self.lo} must be <= hi={self.hi}")
+        return self
+
+
+class QuantileRange(BaseModel):
+    """Match rows in the given quantile range of the variable's distribution."""
+
+    kind: Literal["quantile_range"] = "quantile_range"
+    q_lo: float = Field(ge=0.0, le=1.0)
+    q_hi: float = Field(ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def _validate_order(self) -> "QuantileRange":
+        if self.q_lo > self.q_hi:
+            raise ValueError(f"quantile_range q_lo={self.q_lo} must be <= q_hi={self.q_hi}")
+        return self
+
+
+class InSet(BaseModel):
+    """Match rows where variable equals any of the listed values."""
+
+    kind: Literal["in_set"] = "in_set"
+    values: list[float | int | str | bool] = Field(min_length=1)
+
+
+ConditionPredicate = Annotated[
+    Union[
+        Annotated[ApproxEq, Tag("approx_eq")],
+        Annotated[ConditionRange, Tag("range")],
+        Annotated[QuantileRange, Tag("quantile_range")],
+        Annotated[InSet, Tag("in_set")],
+    ],
+    Discriminator("kind"),
+]
+
+
 class QueryArm(BaseModel):
     """A single arm (scenario) in a verification spec."""
 
     label: str = Field(min_length=1)
     kind: QueryKind
     values: dict[str, float | int | str | bool] = Field(default_factory=dict)
-    condition_on: dict[str, float | int | str | bool] = Field(default_factory=dict)
+    condition_on: dict[str, ConditionPredicate] = Field(default_factory=dict)
     treatment: str | None = None
     outcome: str | None = None
     adjust_set: tuple[str, ...] = ()
@@ -48,6 +107,28 @@ class QueryArm(BaseModel):
     sweep_var: str | None = None
     sweep_values: tuple[float | int, ...] = ()
     sweep_base: QueryKind = QueryKind.INTERVENE
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_condition_on(cls, data: Any) -> Any:
+        """Auto-promote raw scalars in condition_on to predicate objects."""
+        if not isinstance(data, dict):
+            return data
+        co = data.get("condition_on")
+        if not isinstance(co, dict):
+            return data
+        promoted: dict[str, Any] = {}
+        for k, v in co.items():
+            if isinstance(v, dict) and "kind" in v:
+                promoted[k] = v  # already a predicate
+            elif isinstance(v, (int, float)) and not isinstance(v, bool):
+                promoted[k] = {"kind": "approx_eq", "value": v}
+            elif isinstance(v, (str, bool)):
+                promoted[k] = {"kind": "in_set", "values": [v]}
+            else:
+                promoted[k] = v  # let Pydantic validate/reject
+        data["condition_on"] = promoted
+        return data
 
 
 # ---------------------------------------------------------------------------
@@ -690,6 +771,11 @@ RELEVANCE_DESCENDANT: float = 0.40  # relevance for descendant-touching claims
 
 __all__ = [
     "QueryKind",
+    "ApproxEq",
+    "ConditionRange",
+    "QuantileRange",
+    "InSet",
+    "ConditionPredicate",
     "QueryArm",
     "MeasurementKind",
     "Measurement",

@@ -12,6 +12,7 @@ from sreg.models.open_investigation import (
     OVERCLAIM_MAX,
     SPEC_BASE,
     SPEC_BONUS_MAX,
+    ApproxEq,
     Assertion,
     AssertionKind,
     AtomicSpec,
@@ -21,12 +22,15 @@ from sreg.models.open_investigation import (
     ClaimVerdict,
     Comparison,
     ComparisonKind,
+    ConditionRange,
     EpisodeScore,
     EvidenceRef,
     FamilyAtom,
     FamilyKey,
+    InSet,
     Measurement,
     MeasurementKind,
+    QuantileRange,
     QueryArm,
     QueryKind,
     SalienceFamily,
@@ -87,7 +91,10 @@ class TestQueryArm:
 
     def test_condition(self):
         arm = QueryArm(label="strat", kind=QueryKind.CONDITION, condition_on={"region": "north"})
-        assert arm.condition_on["region"] == "north"
+        # String auto-promoted to InSet
+        pred = arm.condition_on["region"]
+        assert isinstance(pred, InSet)
+        assert pred.values == ["north"]
 
     def test_adjust(self):
         arm = QueryArm(label="adj", kind=QueryKind.ADJUST, adjust_set=("Z1", "Z2"))
@@ -101,6 +108,123 @@ class TestQueryArm:
             sweep_values=(0.1, 0.3, 0.5, 0.7, 0.9),
         )
         assert len(arm.sweep_values) == 5
+
+
+class TestConditionPredicates:
+    """Tests for P1 condition predicates (approx_eq, range, quantile_range, in_set)."""
+
+    # --- Auto-promotion from raw scalars ---
+
+    def test_float_promotes_to_approx_eq(self):
+        arm = QueryArm(label="a", kind=QueryKind.CONDITION, condition_on={"X": 5.0})
+        pred = arm.condition_on["X"]
+        assert isinstance(pred, ApproxEq)
+        assert pred.value == 5.0
+        assert pred.tol_std == 0.15
+
+    def test_int_promotes_to_approx_eq(self):
+        arm = QueryArm(label="a", kind=QueryKind.CONDITION, condition_on={"X": 3})
+        pred = arm.condition_on["X"]
+        assert isinstance(pred, ApproxEq)
+        assert pred.value == 3
+
+    def test_string_promotes_to_in_set(self):
+        arm = QueryArm(label="a", kind=QueryKind.CONDITION, condition_on={"R": "urban"})
+        pred = arm.condition_on["R"]
+        assert isinstance(pred, InSet)
+        assert pred.values == ["urban"]
+
+    def test_bool_promotes_to_in_set(self):
+        arm = QueryArm(label="a", kind=QueryKind.CONDITION, condition_on={"F": True})
+        pred = arm.condition_on["F"]
+        assert isinstance(pred, InSet)
+        assert pred.values == [True]
+
+    # --- Explicit predicate dicts ---
+
+    def test_explicit_range(self):
+        arm = QueryArm(
+            label="a", kind=QueryKind.CONDITION,
+            condition_on={"X": {"kind": "range", "lo": -1000, "hi": 1000}},
+        )
+        pred = arm.condition_on["X"]
+        assert isinstance(pred, ConditionRange)
+        assert pred.lo == -1000
+        assert pred.hi == 1000
+
+    def test_explicit_quantile_range(self):
+        arm = QueryArm(
+            label="a", kind=QueryKind.CONDITION,
+            condition_on={"income": {"kind": "quantile_range", "q_lo": 0.0, "q_hi": 0.25}},
+        )
+        pred = arm.condition_on["income"]
+        assert isinstance(pred, QuantileRange)
+        assert pred.q_lo == 0.0
+        assert pred.q_hi == 0.25
+
+    def test_explicit_in_set(self):
+        arm = QueryArm(
+            label="a", kind=QueryKind.CONDITION,
+            condition_on={"region": {"kind": "in_set", "values": ["urban", "suburban"]}},
+        )
+        pred = arm.condition_on["region"]
+        assert isinstance(pred, InSet)
+        assert pred.values == ["urban", "suburban"]
+
+    def test_explicit_approx_eq_custom_tol(self):
+        arm = QueryArm(
+            label="a", kind=QueryKind.CONDITION,
+            condition_on={"X": {"kind": "approx_eq", "value": 10.0, "tol_std": 0.3}},
+        )
+        pred = arm.condition_on["X"]
+        assert isinstance(pred, ApproxEq)
+        assert pred.tol_std == 0.3
+
+    # --- Validators ---
+
+    def test_range_invalid_order_raises(self):
+        with pytest.raises(ValueError, match="lo=.*must be <= hi"):
+            ConditionRange(lo=10, hi=0)
+
+    def test_quantile_range_invalid_order_raises(self):
+        with pytest.raises(ValueError, match="q_lo=.*must be <= q_hi"):
+            QuantileRange(q_lo=0.8, q_hi=0.2)
+
+    def test_quantile_range_out_of_bounds(self):
+        with pytest.raises(ValueError):
+            QuantileRange(q_lo=-0.1, q_hi=0.5)
+
+    def test_in_set_empty_raises(self):
+        with pytest.raises(ValueError):
+            InSet(values=[])
+
+    # --- JSON round-trip ---
+
+    def test_json_roundtrip(self):
+        arm = QueryArm(
+            label="a", kind=QueryKind.CONDITION,
+            condition_on={
+                "X": {"kind": "range", "lo": 0, "hi": 100},
+                "Y": 5.0,
+                "Z": {"kind": "in_set", "values": ["A", "B"]},
+            },
+        )
+        dumped = arm.model_dump(mode="json")
+        restored = QueryArm(**dumped)
+        assert isinstance(restored.condition_on["X"], ConditionRange)
+        assert isinstance(restored.condition_on["Y"], ApproxEq)
+        assert isinstance(restored.condition_on["Z"], InSet)
+        assert restored.condition_on["X"].hi == 100
+
+    def test_multiple_predicates_conjunction(self):
+        arm = QueryArm(
+            label="a", kind=QueryKind.CONDITION,
+            condition_on={
+                "income": {"kind": "quantile_range", "q_lo": 0.0, "q_hi": 0.5},
+                "region": {"kind": "in_set", "values": ["urban"]},
+            },
+        )
+        assert len(arm.condition_on) == 2
 
 
 # ---------------------------------------------------------------------------

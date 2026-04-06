@@ -158,17 +158,33 @@ def _run_single_arm(
 def _filter_condition(
     df: pd.DataFrame, conditions: dict[str, Any], tolerance: float = 0.15
 ) -> pd.DataFrame:
-    """Filter dataframe by approximate conditioning (for continuous vars)."""
+    """Filter dataframe by condition predicates (P1: supports range/quantile/in_set)."""
     mask = pd.Series(True, index=df.index)
-    for var, val in conditions.items():
+    for var, pred in conditions.items():
         if var not in df.columns:
             continue
-        if isinstance(val, (int, float)):
+        # Dispatch by predicate kind (ConditionPredicate objects)
+        kind = getattr(pred, "kind", None)
+        if kind == "approx_eq":
+            col_std = df[var].std()
+            tol = max(pred.tol_std * col_std, 0.01)
+            mask &= (df[var] - float(pred.value)).abs() <= tol
+        elif kind == "range":
+            mask &= (df[var] >= pred.lo) & (df[var] <= pred.hi)
+        elif kind == "quantile_range":
+            lo_val = df[var].quantile(pred.q_lo)
+            hi_val = df[var].quantile(pred.q_hi)
+            mask &= (df[var] >= lo_val) & (df[var] <= hi_val)
+        elif kind == "in_set":
+            mask &= df[var].isin(pred.values)
+        elif isinstance(pred, (int, float)):
+            # Legacy fallback: raw scalar (shouldn't happen after model_validator)
             col_std = df[var].std()
             tol = max(tolerance * col_std, 0.01)
-            mask &= (df[var] - float(val)).abs() <= tol
+            mask &= (df[var] - float(pred)).abs() <= tol
         else:
-            mask &= df[var] == val
+            # Legacy fallback: raw string/bool
+            mask &= df[var] == pred
     result = df[mask]
     if len(result) < 30:
         logger.warning(
