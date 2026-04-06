@@ -547,7 +547,8 @@ El modo principal de evaluacion. Separa la evaluacion en 3 capas:
    `CompilerOutput` tiene lista de units + status (`compiled`/`partial`/
    `abstention`). El compiler NO juzga calidad — solo traduce.
 3. **SCM Verifier** — ejecuta specs de cada unit contra el SCM (determinista,
-   sin LLM). Scoring se computa per-unit.
+   sin LLM). Truth se computa a nivel **claim** (promedio de specs).
+   Limitacion conocida: penaliza claims ambiciosas (ver TODO I0d P2).
 
 **Gramatica composable:**
 - ~24 piezas atomicas que se combinan en cientos de verificaciones posibles
@@ -564,10 +565,17 @@ El modo principal de evaluacion. Separa la evaluacion en 3 capas:
 SCM exacta DESPUES de compilacion. La compilacion tiene subjetividad
 encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
 
-**Bottleneck actual:** el multi-unit compiler (A22) resolvio la abstention rate
-descomponiendo claims compuestos en N CompiledUnits. El bottleneck ahora es la
-calidad de extraccion LLM — chain claims no extraen relaciones pairwise,
-conclusiones indirectas se pierden (S03).
+**Constraints (2026-04-06):**
+- `ref_arm` requerido para difference/ratio (BUG 9 fix). Formula:
+  `difference = other_arm - ref_arm`. Enforzado por `@model_validator`.
+- `evidence_basis` validada contra artifacts accedidos. Citas fabricadas
+  aplican penalidad proporcional, no zero (BUG 8 fix).
+- `condition_on` en QueryArm solo acepta valores puntuales — claims con
+  bandwidths/rangos quedan en abstention (gap conocido, ver TODO I0d P1).
+
+**Bottleneck actual:** grammar gap para metodologia quasi-experimental y
+credit-assignment a nivel claim (truth dilution). Ver TODO A28 para la
+taxonomia completa de failure modes del scoring.
 
 Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
 

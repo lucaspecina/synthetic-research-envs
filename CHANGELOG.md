@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### 2026-04-06 — Audit: E2E forensic audit, failure mode taxonomy, scoring roadmap
+
+**Audit E2E completo:** 12 seeds diversas, audit profundo de los 11 casos
+exitosos. Identificados 4 failure modes del scoring pipeline (ver TODO A28):
+
+1. **Grammar/representation gap** — claims quasi-experimentales (RDD,
+   bandwidths) inexpresables en AtomicSpec (poverty 0.003).
+2. **Scorer credit-assignment** — truth a nivel claim penaliza claims
+   ambiciosas, coverage inflada por threshold 0 (microbiome 0.196).
+3. **SQ decomposition/overlap** — SQs semanticamente solapadas.
+4. **Solver miss** — solver concluye mal; scoring justo (policy_equity,
+   coral_bleach).
+
+**Roadmap de scoring (TODO I0d):** 3 prioridades — rescore controlado (P0),
+predicados de subpoblacion (P1), unit-level truth (P2 en 3 pasos).
+
+**Cleanup:** target_states ya no se computan en OI mode (vestigial).
+Presiones evolutivas nuevas en PROJECT.md (4 failure modes de AI scientists).
+
+**Files:** `TODO.md`, `CURRENT_STATE.md`, `ARCHITECTURE.md`, `PROJECT.md`,
+`CHANGELOG.md`, `scm_problem_builder.py`, `orchestrator.py`.
+
 ### 2026-04-06 — Fix: evidence trap penalty + arm ordering enforcement (BUG 8, 9)
 
 **BUG 8 — Evidence Trap:** Solver citing `python_exec_N` as artifact IDs

@@ -10,7 +10,7 @@
 > Para detalles tecnicos de bajo nivel: `ARCHITECTURE.md`.
 > Para la vision y los principios: `PROJECT.md`.
 >
-> Actualizado: 2026-04-02
+> Actualizado: 2026-04-06
 
 ---
 
@@ -501,7 +501,15 @@ ClaimCards + compiled specs + SQs v2
 Para cada claim compilada, el verifier ejecuta todos sus AtomicSpecs contra
 el SCM. Si **todos** los atoms sostienen la afirmacion = truth 1.0, si alguno
 falla = truth 0.0 (conjunctiva). Ademas, si el solver cita artifacts que
-nunca cargo ni creo, la claim cae a truth 0 (evidencia fabricada).
+nunca cargo ni creo, se aplica una **penalidad proporcional** sobre el truth
+de esa claim (BUG 8 fix, 2026-04-06): si todas las citas son fabricadas
+→ truth × 0.1; si algunas son validas → truth × (validas / total).
+
+**Nota sobre credit-assignment (limitacion conocida, ver TODO A28):** el truth
+se calcula a nivel de **claim completa** (promedio de todos sus specs). Esto
+puede penalizar claims ambiciosas con muchos specs donde algunos fallan, y
+favorecer claims genericas con pocos specs. Es un design issue documentado
+que se planea resolver con unit-level scoring (TODO I0d P2).
 
 ### Paso 2-3: Relevance (LLM judge)
 
@@ -520,16 +528,30 @@ Componentes del score:
 - `correctness`: media de truth de TODAS las claims (penaliza claims falsas)
 - `total = correctness x weighted_coverage` (ambos deben ser altos)
 
-### Resultados E2E validados (2026-04-02)
+### Resultados E2E validados (2026-04-06)
 
-| Seed | Nodes | SQs | Total | Correctness | Wt.Coverage |
-|------|-------|-----|-------|-------------|-------------|
-| microbiome | 14 | 5 | 0.555 | 0.750 | 0.740 |
-| confounding | 12 | 5 | 0.589 | 0.750 | 0.785 |
-| social_media | 13 | 5 | 0.326 | 0.500 | 0.652 |
+Batch de 12 seeds diversas (post BUG 8+9 fix). 11/12 exitosos:
 
-Coverage v2 (~0.76) >> coverage v1 (~0.17). El juez LLM matchea claims
-contra SQs mucho mejor que el salience map estructural.
+| Seed | Type | Total | Correctness | Wt.Coverage |
+|------|------|-------|-------------|-------------|
+| missing_data | epistemological_method | 0.786 | 1.000 | 0.786 |
+| selection_bias | selection_bias | 0.719 | 0.875 | 0.821 |
+| identifiability | epistemological | 0.679 | 0.833 | 0.814 |
+| heterogeneity | heterogeneity | 0.632 | 0.917 | 0.689 |
+| chemical | optimization | 0.551 | 0.875 | 0.629 |
+| confounding | confounding | 0.422 | 0.700 | 0.602 |
+| coral_bleach | descriptive | 0.380 | 0.688 | 0.552 |
+| competing_mech | causal_mechanism | 0.363 | 0.525 | 0.692 |
+| microbiome | system_mapping | 0.196 | 0.506 | 0.387 |
+| policy_equity | policy_tradeoff | 0.142 | 0.467 | 0.303 |
+| poverty | causal_simple | 0.003 | 0.025 | 0.101 |
+| vaca_predict | prediction | FAIL | — | — |
+
+**Average (N=11): 0.443.** Audit profundo revelo 4 failure modes
+(ver TODO A28): grammar gap (poverty), credit-assignment (microbiome),
+solver miss (policy_equity, coral_bleach), y SQ overlap (secundario).
+
+Datos: `results/e2e_batch_bug8_9_fix/`
 
 ### Algo importante: no todo el viejo scoring esta en el path principal
 
@@ -752,35 +774,44 @@ arquitecturales futuras (artefactos evaluables, interaccion con el entorno).
 
 ## Los bottlenecks actuales
 
-### 1. La extraccion LLM de claims sigue fragil
+### 1. Grammar gap: claims sofisticadas inexpresables
 
-El extractor mejoro con contexto (S03a), pero claims compuestas, rankings y
-conclusiones epistemologicas siguen siendo problematicas cuando pasan por el
-catalogo de 8 patterns. Mejorar la calidad del compiler es el proximo paso.
+`QueryArm.condition_on` solo acepta valores puntuales. Claims que usan
+metodologia quasi-experimental (RDD, bandwidths, subgrupos) quedan en
+abstention. Caso emblematico: poverty (4/5 claims abstention, score 0.003).
+Esto viola la presion evolutiva — penaliza mejor metodologia.
+Solucion planificada: predicados de subpoblacion genericos (TODO I0d P1).
 
-### 2. El orchestrator no maneja JSON truncado
+### 2. Credit-assignment a nivel claim
+
+Truth se calcula promediando todos los specs de una claim. Claims ambiciosas
+con muchos specs (donde algunos fallan) pierden contra claims genericas con
+pocos specs. Ademas, `matched = best_score > 0` infla coverage.
+Caso emblematico: microbiome (claims correctas, score 0.196).
+Solucion planificada: unit-level scoring + threshold para matched (TODO I0d P2).
+
+### 3. El orchestrator no maneja JSON truncado
 
 Con mundos grandes (14+ nodos) el LLM a veces devuelve JSON truncado en
-`design_case`. El orchestrator no tiene retry — crashea. Vaca_muerta fallo
-2/2 intentos por esto.
+`design_case`. El orchestrator tiene crash guard (2026-04-06) pero no retry
+inteligente. vaca_predict fallo por esto.
 
-### 3. Calibracion del scoring v2
+### 4. Experimental-control drift
 
-El scoring v2 funciona pero hay decisiones de calibracion pendientes:
-- Coverage threshold: no hay piso minimo (decision de politica)
-- Spam de claims verdaderas-pero-irrelevantes: no se penaliza (gap conocido)
-- Gate para SQs high-tier: los tiers pesan distinto pero no hay gate explicito
-
-Estas son decisiones de diseno que necesitan mas datos E2E para informar.
+Comparar batches E2E regenerados no aisla el efecto de cambios de codigo
+vs varianza del worldgen/solver. Necesitamos rescore controlado sobre
+casos congelados (TODO I0d P0).
 
 ---
 
 ## Direccion activa
 
-1. **Mejorar calidad del compiler** (S03) — el bottleneck principal es la
-   extraccion LLM de claims a ClaimIntents.
-2. **Robustez del orchestrator** — manejar JSON truncado con retry.
-3. **Mas E2E diversos** — ampliar la validacion a mas seeds y dominios.
+1. **Rescore controlado** (I0d P0) — poder re-evaluar casos congelados
+   sin regenerar mundo/solver. Prerequisito metodologico.
+2. **Grammar gap: predicados de subpoblacion** (I0d P1) — techo arquitectonico.
+   Claims quasi-experimentales (RDD, subgrupos) hoy son inexpresables.
+3. **Credit-assignment: unit-level scoring** (I0d P2) — arreglar truth
+   dilution y coverage inflada. En 3 pasos incrementales.
 
 ---
 

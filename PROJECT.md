@@ -447,6 +447,28 @@ ventaja medible en el score, el sistema esta fallando en crearla.
   este dominio, si una diferencia de 2% es relevante o trivial. El contexto
   del caso importa.
 
+**Robustez ante trampas epistemicas:**
+- **No snowballear errores** — si llega a una conclusion incorrecta
+  temprano, no construir toda la investigacion encima de eso. Detectar
+  cuando un hallazgo intermedio es fragil antes de invertir 15 pasos mas
+  en esa direccion. El agente que propaga errores compuestos desperdicia
+  budget y entrega conclusiones falsas al final.
+- **No sobreexcitarse con resultados triviales** — ver una tendencia
+  menor (efecto real pero insignificante) y perseguirla como si fuera
+  el hallazgo principal. Un buen investigador sabe que algo puede ser
+  estadisticamente real pero cientificamente irrelevante.
+- **Detectar anomalias** — ver lo interesante en los propios resultados.
+  Si un subgrupo se comporta distinto, si hay un patron inesperado, si
+  un resultado contradice lo esperado, un buen investigador se detiene a
+  investigar eso. No seguir el script predeterminado cuando los datos
+  gritan algo diferente.
+- **Saltos creativos, no repeticion mecanica** — cuando un analisis no
+  da resultados, no repetir lo mismo con mas datos o hiperparametros
+  distintos. Un buen investigador cambia de enfoque: prueba otro
+  angulo, inventa una variable derivada, estratifica por algo inesperado.
+  La capacidad de hacer un salto creativo ante un callejon sin salida
+  es lo que separa investigacion real de fuerza bruta.
+
 **El test de diseno:** para cada componente de SREG, preguntarse: si un
 agente NO tiene la propiedad X, obtiene en promedio un score mas bajo?
 Si la respuesta es no, hay que redisenar el componente hasta que la

@@ -762,6 +762,64 @@ generar holdouts y evaluar.
 
 **Pensar despues de cerrar SQ v2 + limpieza.**
 
+### A28. Audit E2E 2026-04-06 — Taxonomia de failure modes del scoring
+
+**Status: DIAGNOSTICADO.** Batch de 12 seeds diversas (BUG 8+9 fix).
+Average 0.443, 11/12 exitosos. Audit profundo de todos los casos revelo
+4 failure modes + 1 transversal.
+
+**Taxonomia de failure modes:**
+
+1. **Grammar/representation gap** — el sistema no puede expresar la claim
+   en la IR actual. El solver hace buena ciencia y es penalizado.
+   - Caso: `poverty` (0.003). Solver hizo RDD con bandwidths, 4/5 claims
+     en abstention porque QueryArm no soporta rangos/ventanas.
+   - Viola presion evolutiva: claims sofisticadas → abstention, simples → ok.
+
+2. **Scorer credit-assignment** — el scoring asigna credito mal aunque
+   las piezas (claim, spec, verificacion) funcionen correctamente.
+   - Caso: `microbiome` (0.196). Claims correctas segun SCM, pero C3
+     (generica) gano 4/5 SQs sobre C1 (especifica y correcta para SQ1).
+   - Causa: truth se calcula a nivel claim (promedio de todos sus specs).
+     Una claim ambiciosa con specs mixtos pierde contra una generica.
+   - Agravante: `matched = best_score > 0` infla coverage artificialmente.
+
+3. **SQ decomposition/overlap** — SQs comparten demasiada semantica,
+   dificultando la asignacion correcta. Factor secundario en microbiome.
+
+4. **Solver miss / wrong science** — el solver concluye mal o no
+   investiga la variable clave. Scoring justo.
+   - `policy_equity` (0.142): solver testo interaccion equivocada
+     (tax × poverty_rate en vez de tax × price_sensitivity).
+   - `coral_bleach` (0.380): solver no detecto confounding latente
+     (thermal_tolerance). Correlaciones espurias reportadas como causales.
+   - `competing_mech` (0.363): un claim confunde correlacion con
+     confounding causal (sq5 = 0.056).
+
+5. *(transversal)* **Experimental-control drift** — comparar batches
+   regenerados no aisla efecto de cambios de codigo vs varianza del
+   worldgen/solver. Necesitamos rescore controlado sobre casos congelados.
+
+**Resultados del batch completo:**
+
+| Caso | Score | Failure mode |
+|------|-------|-------------|
+| missing_data | 0.786 | (ninguno — BUG 8 fix confirmado) |
+| selection_bias | 0.719 | (ninguno) |
+| identifiability | 0.679 | (ninguno) |
+| heterogeneity | 0.632 | (ninguno) |
+| chemical | 0.551 | (ninguno) |
+| confounding | 0.422 | solver miss parcial (delay mediator) |
+| coral_bleach | 0.380 | solver miss (latente no detectada) |
+| competing_mech | 0.363 | solver miss (causal framing error) |
+| microbiome | 0.196 | credit-assignment (truth dilution) |
+| policy_equity | 0.142 | solver miss (interaccion equivocada) |
+| poverty | 0.003 | grammar gap (RDD inexpresable) |
+| vaca_predict | FAIL | tipo predictivo no implementado (A25) |
+
+**Datos:** `results/e2e_batch_bug8_9_fix/`
+**Conecta con:** A23 (compiler), A26 (relevancia), A25 (prediccion)
+
 ### L0. Reescribir CURRENT_STATE.md — post cambios
 
 Cuando terminemos los cambios actuales (SQ v2 integrado, limpieza legacy),
@@ -857,16 +915,77 @@ Analisis claim-por-claim de microbiome, confounding, social_media:
 **Decision:** migrar claim compiler a grammar-direct (A23). Correr mas E2E
 para validar con datos reales. Solver errors son presion, no bugs.
 
-### I0c. Batch E2E diverso — validacion con mas datos
+### I0d. Scoring pipeline improvements — motivado por A28
 
-**Motivacion:** 3 seeds v2 no son suficientes para confirmar patrones.
+**Audit E2E 2026-04-06 revelo 3 mejoras necesarias en el scoring.**
 
-- [ ] Correr 10+ seeds diversas por el pipeline v2 completo
-- [ ] Seeds deben cubrir: system mapping, descriptivo puro, epistemologico,
-  multi-outcome, heterogeneidad, confounding, causal simple
-- [ ] Usar seeds existentes de `seeds/` + crear nuevas si faltan tipos
-- [ ] Reportar: per-claim truths, causa de FALSE, satisfaction distribution
-- [ ] Identificar patrones de falla del compiler que A23 resolveria
+**P0. Rescore controlado sobre casos congelados**
+
+Hoy los E2E regeneran mundo + solver + scorer. Imposible aislar efecto de
+cambios de codigo. Necesitamos poder re-evaluar `src.json` + claims fijos
+sin regenerar nada. `scripts/rescore.py` va en esa direccion.
+
+- [ ] Script de rescore que toma `src.json` + `oi_result.json` y re-ejecuta
+  solo compiler + verifier + scorer. Sin LLM solver, sin worldgen.
+- [ ] Validar que produce scores identicos al original (determinismo check).
+- [ ] Poder cambiar scorer params y re-evaluar (para comparar cambios).
+
+**P1. Predicados de subpoblacion en QueryArm — grammar gap**
+
+`QueryArm.condition_on` solo acepta valores puntuales (float/int con ±15%
+desvio). Claims quasi-experimentales (RDD, subgrupos, ventanas temporales)
+no pueden expresarse. poverty (0.003) es el caso emblematico: 4/5 claims
+en abstention por usar bandwidths.
+
+Diseñar predicados genericos, NO hotfixes para RDD:
+- [ ] Extender `condition_on` para soportar predicados de rango,
+  cuantiles, categorias, y ventanas temporales.
+- [ ] Actualizar `_filter_condition` en `oi_verifier.py` para procesarlos.
+- [ ] Actualizar GRAMMAR_REF para que el compiler sepa emitirlos.
+- [ ] Agregar PatternClass o equivalente en grammar-direct para
+  claims de local estimand / subpoblacion.
+- [ ] Validar con poverty rescoreado — abstention debe bajar de 80% a <20%.
+
+**P2. Credit-assignment: unit-level truth — scorer design**
+
+El scoring actual calcula truth a nivel claim (promedio de todos los specs
+de la claim). Esto penaliza claims ambiciosas con muchos specs donde algunos
+fallan, favoreciendo claims genericas con pocos specs. microbiome (0.196) es
+el caso emblematico: claims correctas pierden contra una claim generica.
+
+Secuencia de cambios (uno a la vez):
+
+- [ ] **Paso 1: Threshold para matched.** Hoy `best_score > 0` cuenta como
+  matched, inflando coverage. Definir threshold minimo (ej: 0.15) para
+  contar un SQ como genuinamente respondido.
+- [ ] **Paso 2: Unit-level truth × relevance.** Cambiar la unidad de scoring
+  de claim completa a CompiledUnit (ya existe en `oi_compiler.py:219`).
+  Cada unit tiene sus propios specs y su propio truth score.
+  **CUIDADO:** requiere representacion semantica por unit. Si se hereda
+  claim_text entero, se mete credito fantasmal. Pensar como generar
+  un resumen semantico por unit.
+- [ ] **Paso 3 (solo si necesario): Penalizacion suave por reuso.**
+  Si despues de paso 1+2 una claim generica sigue ganando N SQs
+  injustamente, agregar marginal gain decreciente por reuso.
+  NO hacer antes de paso 1+2 — puede castigar injustamente claims
+  que genuinamente cubren multiples SQs.
+
+**Conecta con:** A28 (taxonomia), A26 (relevancia), A23 (compiler)
+
+### I0c. Batch E2E diverso — validacion con mas datos — DONE (2026-04-06)
+
+**Completado.** 2 batches de 12 seeds diversas:
+- `results/e2e_batch_proportional_truth/` — baseline (pre BUG 8+9 fix)
+- `results/e2e_batch_bug8_9_fix/` — post fix
+
+11/12 exitosos. Average 0.443 (mejora sobre baseline 0.401).
+Audit profundo documentado en A28. Hallazgos derivaron en I0d.
+
+- [x] Correr 10+ seeds diversas por el pipeline v2 completo
+- [x] Seeds cubren: system mapping, descriptivo, epistemologico,
+  heterogeneidad, confounding, causal simple, optimization, etc.
+- [x] Reportar: per-claim truths, satisfaction distribution
+- [x] Identificar patrones de falla → A28 taxonomia de failure modes
 
 ### I0. Fixes criticos encontrados en sesion 2026-03-17
 
