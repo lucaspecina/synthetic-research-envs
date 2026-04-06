@@ -832,7 +832,7 @@ class Orchestrator:
         )
         result.problem = problem
 
-        return {
+        response = {
             "title": problem.title,
             "domain": problem.domain,
             "budget": problem.budget,
@@ -840,8 +840,11 @@ class Orchestrator:
             "num_data_assets": len(problem.data_assets),
             "num_actions": len(problem.available_actions),
             "target_node": problem.target_node,
-            "target_states": problem.target_states,
         }
+        # Only include target_states in non-OI mode (legacy)
+        if not self.oi_mode and problem.target_states:
+            response["target_states"] = problem.target_states
+        return response
 
 
 

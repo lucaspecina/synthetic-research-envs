@@ -85,8 +85,12 @@ class SCMProblemBuilder:
         # Build actions from observable variables
         actions = self._build_actions(world, target)
 
-        # Build target states (bin ranges from the first distribution task, or generic)
-        target_states = self._build_target_states(world, tasks, target, seed)
+        # Build target states — skip in OI mode (case_plan has research_brief)
+        # OI scoring uses text-based SQs, not numeric bins.
+        oi_mode = case_plan and case_plan.research_brief and not tasks
+        target_states = [] if oi_mode else self._build_target_states(
+            world, tasks, target, seed
+        )
 
         # Build research question
         question = self._build_question(world, target, target_states, case_plan)
