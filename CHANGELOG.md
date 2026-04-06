@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+### 2026-04-06 — Fix: evidence trap penalty + arm ordering enforcement (BUG 8, 9)
+
+**BUG 8 — Evidence Trap:** Solver citing `python_exec_N` as artifact IDs
+caused `truth=0` for all claims (root cause of `missing_data` scoring 0.000
+in E2E batch). Evidence validation now applies proportional penalty instead
+of zeroing: all fabricated → 0.1, partial → proportional. Solver prompt
+updated to explicitly prohibit citing python_exec steps.
+
+**BUG 9 — Arm Ordering Ambiguity:** Verifier difference sign depended on
+undocumented QueryArm array order. Correct causal claims could fail
+verification if LLM placed arms in natural [control, treatment] order.
+Fix: `ref_arm` required for difference/ratio comparisons (auto-filled with
+warning for backward compat), exactly 2 arms enforced via `@model_validator`.
+GRAMMAR_REF and claim compiler prompt updated: `difference = other - ref_arm`.
+
+**Files:** `oi_runner.py`, `oi_prompts.py`, `open_investigation.py`,
+`oi_sq_compiler.py`, `oi_extraction.py` (5 files, +50/-7 lines).
+
+**Discovered via:** 12-seed E2E diverse batch (proportional truth validation).
+Forensic audit with Codex + 2 Cursor instances.
+
 ### 2026-04-02 — E2E validation: v2 scoring pipeline validated
 
 **Validated:** Full v2 pipeline (juez LLM + answer keys + verifier with
