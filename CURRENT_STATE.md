@@ -798,16 +798,18 @@ inteligente. vaca_predict fallo por esto.
 
 ### 4. Experimental-control drift
 
-Comparar batches E2E regenerados no aisla el efecto de cambios de codigo
-vs varianza del worldgen/solver. Necesitamos rescore controlado sobre
-casos congelados (TODO I0d P0).
+**Rescore controlado (P0) — IMPLEMENTADO (2026-04-06).**
+`scripts/rescore.py` permite re-evaluar casos congelados sin regenerar
+mundo ni solver. Tres modos: `--reaggregate` (solo aritmetica, sin LLM),
+`--rejudge` (re-corre juez de relevancia), `--recompile` (full pipeline).
+Persistencia via `score_inputs_v2` en `oi_result.json` y `sub_questions_v2`
+en `src.json`. Skill: `/rescore`. Ver `.claude/skills/rescore/SKILL.md`.
 
 ---
 
 ## Direccion activa
 
-1. **Rescore controlado** (I0d P0) — poder re-evaluar casos congelados
-   sin regenerar mundo/solver. Prerequisito metodologico.
+1. ~~**Rescore controlado** (I0d P0)~~ — **DONE.** Skill `/rescore`.
 2. **Grammar gap: predicados de subpoblacion** (I0d P1) — techo arquitectonico.
    Claims quasi-experimentales (RDD, subgrupos) hoy son inexpresables.
 3. **Credit-assignment: unit-level scoring** (I0d P2) — arreglar truth

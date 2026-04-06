@@ -919,16 +919,27 @@ para validar con datos reales. Solver errors son presion, no bugs.
 
 **Audit E2E 2026-04-06 revelo 3 mejoras necesarias en el scoring.**
 
-**P0. Rescore controlado sobre casos congelados**
+**Secuencia decidida (2026-04-06, consenso Claude+Codex):**
+P0 → P1 → P2 → A3b. Razon: no apilar complejidad sobre incentivos rotos.
+P0 es prerequisito epistemologico (sin el, no podemos medir efecto de
+cambios). P1 es techo arquitectonico (expande lo que cuenta como
+investigacion). P2 calibra el reward. A3b (Sherlock-type) va DESPUES
+de que el reward sea confiable.
 
-Hoy los E2E regeneran mundo + solver + scorer. Imposible aislar efecto de
-cambios de codigo. Necesitamos poder re-evaluar `src.json` + claims fijos
-sin regenerar nada. `scripts/rescore.py` va en esa direccion.
+**>>> NEXT: P1 <<<**
 
-- [ ] Script de rescore que toma `src.json` + `oi_result.json` y re-ejecuta
+**P0. Rescore controlado sobre casos congelados — DONE (2026-04-06)**
+
+Implementado `scripts/rescore.py` con 3 modos: `--reaggregate` (solo
+aritmetica, sin LLM), `--rejudge` (re-corre juez de relevancia),
+`--recompile` (full re-compile + verify + judge). Persistencia de scoring
+internals en `oi_result.json` via `score_inputs_v2`. SQs v2 grounded
+persistidas en `src.json` via `sub_questions_v2`. Skill `/rescore`.
+
+- [x] Script de rescore que toma `src.json` + `oi_result.json` y re-ejecuta
   solo compiler + verifier + scorer. Sin LLM solver, sin worldgen.
-- [ ] Validar que produce scores identicos al original (determinismo check).
-- [ ] Poder cambiar scorer params y re-evaluar (para comparar cambios).
+- [x] Validar que produce scores identicos al original (determinismo check).
+- [x] Poder cambiar scorer params y re-evaluar (para comparar cambios).
 
 **P1. Predicados de subpoblacion en QueryArm — grammar gap**
 

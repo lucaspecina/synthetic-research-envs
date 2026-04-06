@@ -87,6 +87,7 @@ Cada decisión pasa por este TRIPLE filtro:
 |---|---|
 | `/run` | Generar un caso de investigacion con LLM |
 | `/eval` | Evaluar calidad de casos (L2, la que importa) |
+| `/rescore` | Re-evaluar casos congelados sin regenerar (P0) |
 | `/explain` | Presentar cambios al usuario antes de commit |
 | `/codex-collab` | Consultar Codex como segunda opinion |
 | `/plan` | Ver roadmap y estado del proyecto |

@@ -577,6 +577,16 @@ encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
 credit-assignment a nivel claim (truth dilution). Ver TODO A28 para la
 taxonomia completa de failure modes del scoring.
 
+**Persistencia de scoring (P0, 2026-04-06):**
+Los internals del scoring se persisten para permitir rescore controlado
+sin regenerar mundo/solver. Dos puntos de persistencia:
+- `src.json` → `sub_questions_v2`: SQs grounded con verdicts del SCM
+- `oi_result.json` → `score_inputs_v2`: claims, compiled specs, claim truths,
+  relevance results, judge claims, runner config, trace
+
+Rescore: `scripts/rescore.py` re-evalua casos congelados en 3 modos
+(reaggregate / rejudge / recompile). Skill: `/rescore`.
+
 Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
 
 SREG incluye como responsabilidad central:

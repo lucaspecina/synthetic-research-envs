@@ -171,6 +171,12 @@ class OIEpisodeRunner:
         self._score: EpisodeScore | None = None
         self._last_compiled: list | None = None
 
+        # Scoring internals (for rescore / P0 persistence)
+        self._claim_truths: dict[str, float] | None = None
+        self._relevance_results: list[dict] | None = None
+        self._judge_claims: list[dict] | None = None
+        self._last_claims: list[ClaimCard] | None = None
+
     def _build_namespace(self) -> dict:
         """Build the solver's Python namespace with OI-specific tools.
 
@@ -341,6 +347,7 @@ class OIEpisodeRunner:
 
         self._submitted = True
         self._last_compiled = compiled
+        self._last_claims = list(claims)
 
         # --- Scoring path priority: v2 judge > v1 SQ > salience map ---
 
@@ -641,6 +648,11 @@ class OIEpisodeRunner:
             llm_call=judge_llm,
         )
 
+        # Persist internals for rescore (P0)
+        self._claim_truths = dict(claim_truths)
+        self._relevance_results = list(relevance_results)
+        self._judge_claims = list(judge_claims)
+
         # Index: (claim_id, sq_id) -> relevance
         rel_map: dict[tuple[str, str], float] = {}
         for r in relevance_results:
@@ -756,6 +768,50 @@ class OIEpisodeRunner:
     def get_trace(self) -> EpisodeTrace:
         """Return the full episode trace."""
         return self.trace
+
+    def get_score_inputs(self) -> dict | None:
+        """Return scoring internals for P0 rescore persistence.
+
+        Returns None if scoring hasn't run yet. Otherwise returns a dict
+        with claims, trace, compiled_claims, claim_truths, relevance_results,
+        and runner_config — everything needed for controlled rescore.
+        """
+        if self._last_compiled is None:
+            return None
+        from sreg.tools.oi_compiler import CompilerOutput
+
+        compiled_dump = []
+        for co in self._last_compiled:
+            if isinstance(co, CompilerOutput):
+                compiled_dump.append({
+                    "claim_id": co.claim_id,
+                    "status": co.status,
+                    "units": [
+                        {
+                            "unit_id": u.unit_id,
+                            "backend": u.backend,
+                            "specs": [s.model_dump(mode="json") for s in u.specs],
+                        }
+                        for u in co.units
+                    ],
+                    "abstention_reason": co.abstention_reason,
+                    "uncompiled_fragments": co.uncompiled_fragments,
+                })
+
+        claims_dump = []
+        if hasattr(self, "_last_claims") and self._last_claims:
+            claims_dump = [c.model_dump(mode="json") for c in self._last_claims]
+
+        return {
+            "schema_version": 1,
+            "claims": claims_dump,
+            "trace": self.trace.model_dump(mode="json"),
+            "compiled_claims": compiled_dump,
+            "claim_truths": self._claim_truths or {},
+            "relevance_results": self._relevance_results or [],
+            "judge_claims": getattr(self, "_judge_claims", []),
+            "runner_config": {"seed": self.seed, "n_mc": self.n_mc},
+        }
 
     def get_solver_prompt_context(self) -> dict[str, Any]:
         """Return context needed to build the solver prompt.

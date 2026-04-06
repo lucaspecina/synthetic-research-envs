@@ -168,6 +168,12 @@ def export_json(result, steps, goal: str, model: str, output_dir: str) -> str:
             sq.model_dump(mode="json") for sq in result.sub_questions
         ]
 
+    # Persist grounded SQs v2 for controlled rescore (P0)
+    if getattr(result, "sub_questions_v2", None):
+        export["sub_questions_v2"] = [
+            sq.model_dump(mode="json") for sq in result.sub_questions_v2
+        ]
+
     path = os.path.join(output_dir, "src.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(export, f, indent=2, ensure_ascii=False, default=str)
@@ -801,8 +807,12 @@ def main():
                 "solver_tool_calls": solver_tool_calls,
                 "conversation": oi_result.messages,
             }
+            # Persist scoring internals for controlled rescore (P0)
+            score_inputs = runner.get_score_inputs()
+            if score_inputs:
+                oi_json["score_inputs_v2"] = score_inputs
             oi_path = os.path.join(args.output, "oi_result.json")
-            with open(oi_path, "w") as f:
+            with open(oi_path, "w", encoding="utf-8") as f:
                 json.dump(oi_json, f, indent=2)
             _print(f"  {_c(GRN, 'v')} {oi_path}")
 

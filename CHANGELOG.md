@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### 2026-04-06 — Feat: controlled rescore pipeline (P0)
+
+**Rescore controlado implementado.** Permite re-evaluar casos congelados
+(`src.json` + `oi_result.json`) sin regenerar mundo ni re-correr el solver.
+Aisla el efecto de cambios de codigo de la varianza del worldgen/solver.
+
+**3 modos:**
+- `--reaggregate` — solo re-computa aritmetica de scoring (sin LLM, instantaneo)
+- `--rejudge` — re-corre juez de relevancia LLM con specs/truths congelados
+- `--recompile` — full re-compile + re-verify + re-judge (default)
+
+**Persistencia (P0 prerequisito):**
+- `oi_result.json` ahora incluye `score_inputs_v2`: claims, compiled specs,
+  claim truths, relevance results, judge claims, runner config, trace
+- `src.json` ahora incluye `sub_questions_v2`: SQs grounded con verdicts
+
+**Nuevo:** `scripts/rescore.py`, skill `/rescore` (`.claude/skills/rescore/`).
+**Modificados:** `oi_runner.py` (persistence), `generate_src.py` (export),
+`CLAUDE.md` (skill table).
+
 ### 2026-04-06 — Audit: E2E forensic audit, failure mode taxonomy, scoring roadmap
 
 **Audit E2E completo:** 12 seeds diversas, audit profundo de los 11 casos
