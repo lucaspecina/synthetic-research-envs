@@ -68,11 +68,15 @@ What to compute from the sampled data.
 ## Comparison
 How to relate measurements across arms.
 - kind: "identity" (single arm, just check the value),
-  "difference" (arm1 - arm2), "ratio", "ranking" (rank multiple arms),
+  "difference", "ratio", "ranking" (rank multiple arms),
   "gap" (check minimum gap), "contrast_diff"
-- ref_arm: reference arm label for difference/ratio
+- ref_arm: REQUIRED for difference/ratio. The reference (baseline/control) arm.
+  Formula: difference = other_arm - ref_arm. ratio = other_arm / ref_arm.
+  Example: to test "treatment increases Y", set ref_arm to the control arm.
+  If other_arm > ref_arm, difference is positive.
 - order: tuple of arm labels for ranking
 - tolerance: float (default 0.05)
+- RULE: difference and ratio require EXACTLY 2 arms and ref_arm must be set.
 
 ## Assertion
 What should be true about the comparison result.

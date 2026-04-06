@@ -179,10 +179,35 @@ class AtomicSpec(BaseModel):
     assertion: Assertion
 
     @model_validator(mode="after")
-    def validate_arm_labels_unique(self) -> AtomicSpec:
+    def validate_arms(self) -> AtomicSpec:
         labels = [a.label for a in self.arms]
         if len(labels) != len(set(labels)):
             raise ValueError("arm labels must be unique")
+
+        # Difference/ratio require exactly 2 arms and explicit ref_arm
+        if self.comparison.kind in (ComparisonKind.DIFFERENCE, ComparisonKind.RATIO):
+            if len(self.arms) != 2:
+                raise ValueError(
+                    f"{self.comparison.kind} comparison requires exactly 2 arms, "
+                    f"got {len(self.arms)}"
+                )
+            if not self.comparison.ref_arm:
+                # Auto-fill ref_arm from second arm for backward compat.
+                # Log warning so compiler issues are visible.
+                import logging as _logging
+                _logging.getLogger(__name__).warning(
+                    "AtomicSpec %s: ref_arm missing for %s comparison, "
+                    "defaulting to '%s'. Fix the compiler prompt.",
+                    self.spec_id, self.comparison.kind, labels[1],
+                )
+                object.__setattr__(
+                    self.comparison, "ref_arm", labels[1]
+                )
+            elif self.comparison.ref_arm not in labels:
+                raise ValueError(
+                    f"ref_arm '{self.comparison.ref_arm}' not found in arm "
+                    f"labels: {labels}"
+                )
         return self
 
 

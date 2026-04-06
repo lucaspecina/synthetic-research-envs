@@ -548,6 +548,9 @@ class OIEpisodeRunner:
             claim_truths[co.claim_id] = n_hold / n_total if n_total > 0 else 0.0
 
         # -- 1b. Validate evidence_basis against actual artifact accesses --
+        # Penalty instead of zeroing: bad citations reduce truth but don't
+        # destroy it. This preserves RL signal when the solver cites
+        # python_exec steps or other non-artifact IDs.
         accessed = self.trace.accessed_artifact_ids()
         claims_by_id = {c.claim_id: c for c in claims}
         for claim_id in list(claim_truths.keys()):
@@ -557,12 +560,17 @@ class OIEpisodeRunner:
             cited = {ref.artifact_id for ref in claim.evidence_basis}
             fabricated = cited - accessed
             if fabricated:
+                valid_ratio = 1 - len(fabricated) / len(cited)
+                # All fabricated → harsh penalty; some valid → proportional
+                penalty = valid_ratio if valid_ratio > 0 else 0.1
                 logger.warning(
                     "Claim %s cites artifacts never accessed: %s. "
-                    "Setting truth to 0.",
-                    claim_id, sorted(fabricated),
+                    "Applying penalty %.2f (was %.3f -> %.3f).",
+                    claim_id, sorted(fabricated), penalty,
+                    claim_truths[claim_id],
+                    claim_truths[claim_id] * penalty,
                 )
-                claim_truths[claim_id] = 0.0
+                claim_truths[claim_id] *= penalty
 
         # -- 2. Build judge inputs from SQ v2s --
         judge_sqs = []

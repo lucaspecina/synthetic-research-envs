@@ -485,6 +485,9 @@ whether the claim is true according to a structural causal model (SCM).
   If X changes, it's downstream. Use "positive" or "negative" assertion.
 - "No effect" or "null association" claims should use near_zero assertion.
 - Direction: "increases" -> positive, "decreases" -> negative.
+- For difference/ratio comparisons: ref_arm is REQUIRED and must be the
+  control/baseline arm. Formula: difference = other_arm - ref_arm.
+  "X increases Y" -> ref_arm = control arm, assertion = positive.
 
 ## Output format
 Return a JSON array of AtomicSpec objects:
