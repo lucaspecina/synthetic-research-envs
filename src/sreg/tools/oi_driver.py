@@ -93,8 +93,9 @@ OI_SOLVER_TOOLS = [
         "function": {
             "name": "submit_claims",
             "description": (
-                "Submit your research findings as structured claim cards. "
-                "Call ONCE at the end of your investigation. 1-5 claims."
+                "Submit your research findings as atomic claim cards "
+                "(one assertion per claim). Call ONCE at the end of your "
+                "investigation. 1-15 claims."
             ),
             "parameters": {
                 "type": "object",
@@ -159,7 +160,7 @@ OI_SOLVER_TOOLS = [
                             ],
                         },
                         "minItems": 1,
-                        "maxItems": 5,
+                        "maxItems": 15,
                     }
                 },
                 "required": ["claims"],

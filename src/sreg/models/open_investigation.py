@@ -328,7 +328,7 @@ class ClaimCard(BaseModel):
 class ClaimSubmission(BaseModel):
     """The solver's final submission: 1..K claim cards."""
 
-    claims: list[ClaimCard] = Field(min_length=1, max_length=5)
+    claims: list[ClaimCard] = Field(min_length=1, max_length=15)
 
     @field_validator("claims")
     @classmethod
@@ -756,7 +756,7 @@ SPEC_BONUS_MAX: float = 0.50
 OVERCLAIM_MAX: float = 0.50
 FAMILY_HIT_THRESHOLD: float = 0.60
 EPISODE_PRECISION_GATE: float = 0.55
-MAX_CLAIMS: int = 5
+MAX_CLAIMS: int = 15
 MAX_FAMILIES: int = 30
 # v2 scoring constants — structural relevance
 NON_TARGET_CAP: float = 0.50  # max relevance when target not in focus

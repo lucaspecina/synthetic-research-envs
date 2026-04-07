@@ -23,6 +23,7 @@ from typing import Any
 import pandas as pd
 
 from sreg.models.open_investigation import (
+    MAX_CLAIMS,
     ArtifactAccess,
     ClaimCard,
     EpisodeScore,
@@ -40,7 +41,6 @@ logger = logging.getLogger(__name__)
 
 MAX_CODE_CHARS = 8000
 MAX_OUTPUT_CHARS = 12000
-MAX_CLAIMS = 5
 
 
 class ArtifactCatalog:
@@ -302,7 +302,7 @@ class OIEpisodeRunner:
         """Submit claims and compute the episode score.
 
         Args:
-            claims: The solver's ClaimCards (1-5 claims).
+            claims: The solver's ClaimCards (1-15 claims).
             compiled_claims: Pre-compiled CompilerOutputs aligned 1:1
                 with claims (same order, same claim_ids). If None,
                 auto-compiles via extraction pipeline.
