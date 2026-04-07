@@ -109,6 +109,32 @@ La vara conceptual es esta:
 
 ## Scope actual y horizontes futuros
 
+### Roadmap del producto: v0 → v1 → v2 → v3
+
+SREG evoluciona por **versiones de producto**. Cada version es un paradigma
+de investigacion distinto, no una iteracion menor. Esta seccion fija el
+vocabulario canonico:
+
+| Version | Paradigma | Estado |
+|---|---|---|
+| **SREG v0** | Bayes Net + preguntas especificas fijas | Eliminado (2026-03-29). Historico. |
+| **SREG v1** | Open Investigation sobre SCM: brief libre, sub-questions ocultas, claims en lenguaje natural, traduccion/compilacion a AtomicSpec, verificacion exacta contra el SCM, LLM juez para relevancia | **En cierre activo.** Es el foco de hoy. |
+| **SREG v2** | Sherlock-type: research actions con budget, capas de revelacion, teoria sintetica, nuevos task types (time-series, anomalias, optimizacion) | Futuro. Ver horizontes abajo. |
+| **SREG v3** | Sistemas complejos: mundos dinamicos, cellular automata, biologia real | Futuro lejano. |
+
+Las dos subsecciones siguientes detallan que cubre v1 ("Lo que SREG evalua
+HOY") y que corresponde a v2 y v3 ("Lo que queda FUERA del scope actual").
+
+Los criterios concretos para cerrar v1 viven en `TODO.md` seccion
+"SREG v1 — criterios de done". El detalle del pipeline end-to-end vive en
+`CURRENT_STATE.md`.
+
+> **Nota terminologica.** "SREG v1" refiere al **producto**. Dentro de
+> SREG v1 existen sub-pipelines internos con nombres propios ("SQ v1
+> pattern-based", "SQ v2 specs-based", "Suite v1"), que NO son versiones
+> del producto — son evoluciones internas del compiler y del matcher.
+> Ver `CURRENT_STATE.md` seccion "Sutileza terminologica".
+
 ### Lo que SREG evalua HOY
 
 **Ciencia que produce conocimiento.** El solver investiga un mundo,

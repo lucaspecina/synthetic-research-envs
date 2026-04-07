@@ -13,6 +13,11 @@
 > Para la config operativa de training/transfer: `research/synthesis/sreg_training_transfer_protocol.md`.
 > Para related work: `research/synthesis/related_work_sandmle.md`.
 >
+> **Este documento describe SREG v1** (Open Investigation sobre SCM). Para
+> el roadmap del producto (v0 → v1 → v2 → v3) ver `PROJECT.md` seccion
+> "Roadmap del producto". Para los criterios de cierre de v1 ver `TODO.md`
+> seccion "SREG v1 — criterios de done".
+>
 > Actualizado: 2026-04-07
 
 ---
@@ -647,6 +652,30 @@ Hoy existe un mecanismo de force-submit / ultimo turno restringido que mitiga
 ese problema.
 
 No es una solucion filosoficamente elegante, pero mejoro bastante el E2E.
+
+---
+
+## Sutileza terminologica: "SQ v1" y "SQ v2" NO son versiones del producto
+
+Este documento describe **SREG v1** (producto). Cuando las secciones
+siguientes hablan de "SQ v1 (pattern-based)" y "SQ v2 (specs-based)", se
+refieren a **dos sub-pipelines internos** del compiler y del matcher de
+sub-questions **dentro de SREG v1**. Son evoluciones internas, no versiones
+del producto.
+
+En terminos del roadmap del producto (`PROJECT.md` seccion "Roadmap del
+producto"):
+- **SREG v1** = el producto actual. Open Investigation. Todo lo que
+  describe este documento.
+- **SREG v2** = futuro. Sherlock-type, research actions con budget,
+  capas de revelacion, teoria sintetica.
+- **SREG v3** = futuro lejano. Sistemas complejos dinamicos.
+
+Los pipelines "SQ v1" y "SQ v2" viven AMBOS dentro de SREG v1. "SQ v2"
+(specs-based) es el path principal de produccion hoy (`oi_sq_compiler.py`,
+`oi_sq_matching.py`). "SQ v1" (pattern-based) coexiste como legacy.
+Analogamente, "Suite v1" refiere a la suite de evaluacion externa — no
+es el producto SREG v1.
 
 ---
 

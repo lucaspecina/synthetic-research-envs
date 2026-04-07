@@ -11,6 +11,57 @@
 
 ---
 
+## SREG v1 — criterios de done (2026-04-07)
+
+> SREG v1 es el producto actual (Open Investigation sobre SCM). Ver
+> `PROJECT.md` seccion "Roadmap del producto" para el contexto
+> v0/v1/v2/v3, y `CURRENT_STATE.md` para el detalle end-to-end del
+> pipeline.
+
+Cerrar SREG v1 significa que el paradigma — brief libre → investigacion
+libre → claims en lenguaje natural → compiler → verifier contra el SCM →
+scoring con LLM juez de relevancia — **funciona y es reproducible** sobre
+la suite de escenarios diversos de investigacion, no solo causal simple.
+
+Los 6 criterios de cierre:
+
+1. **Decision sobre bundling** — El experimento P06 (relaxar claim cap a
+   15 + atomic prompt) debe tener decision final (adoptar / descartar /
+   iterar) con evidencia del rerun de 12 casos post-Fix A. Ver task #26.
+
+2. **Canonical path estable** — SQ v2 (specs-based) es el path principal
+   y SQ v1 (pattern-based) es legacy. Decidir si SQ v1 se elimina o queda
+   como fallback documentado. Ver `CURRENT_STATE.md` seccion "SQ v2 —
+   Pipeline principal".
+
+3. **Bugs bloqueantes resueltos** — Tasks abiertos que bloquean el cierre
+   de v1:
+   - [ ] #10 P1.5: missing-column robustness + non-numeric guards (deuda P1)
+   - [ ] #24 Ticket: bug heterogeneity c1 compiler
+   - [ ] #25 Ticket: identifiability evidence_basis fabrication
+
+4. **Smoke validation suite estable** — El batch `p05_canonical_batch`
+   (12 casos diversos) debe correr end-to-end y producir scores
+   reproducibles con `/rescore --reaggregate` (delta 0.0000). Es el gate
+   minimo para afirmar que "el sistema esta estable".
+
+5. **Config v1 congelada** — Fijar el set de parametros que definen
+   "SREG v1": modelo LLM (orchestrator y solver), budget por episodio,
+   max claims, SQ pipeline (v1 o v2), scoring weights. Esto es el
+   contrato que usa la suite de tesis
+   (`research/synthesis/sreg_training_transfer_protocol.md`).
+
+6. **Build → use handoff** — SREG v1 es buildable por otros (otro dev
+   puede generar casos nuevos) Y usable por un solver externo sin tocar
+   el codigo del generator. Si el loop build → use requiere ediciones al
+   repo, v1 no esta cerrado.
+
+> **Nota.** Estos 6 criterios son el piso minimo. No implican que SREG v1
+> sea "perfecto" — implican que es **cerrado** y reproducible como producto,
+> listo para el trabajo de tesis y para empezar a pensar en v2.
+
+---
+
 ## Suite de tesis — bloques canonicos (2026-04-07)
 
 Suite externa final v1: `held-out SREG + CLadder + QRData + DiscoveryBench +

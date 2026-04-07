@@ -5,6 +5,50 @@
 
 ## [Unreleased]
 
+### 2026-04-07 — Docs: SREG v1 definition — roadmap + criterios de done
+
+**Vocabulario canonico para versiones del producto.** Antes de hoy "v1" era
+ambiguo: convivian "SREG v1" (producto), "SQ v1" (sub-pipeline interno del
+compiler/matcher) y "Suite v1" (suite externa de tesis). Esta entrada fija
+el roadmap del producto y separa versiones de producto de evoluciones
+internas.
+
+**Roadmap del producto (v0 → v1 → v2 → v3):**
+- **SREG v0**: Bayes Net + preguntas especificas fijas. Eliminado 2026-03-29.
+- **SREG v1**: Open Investigation sobre SCM — brief libre, sub-questions
+  ocultas, claims en lenguaje natural, traduccion/compilacion a AtomicSpec,
+  verificacion exacta contra el SCM, LLM juez de relevancia. **En cierre
+  activo.**
+- **SREG v2**: Sherlock-type — research actions con budget, capas de
+  revelacion, teoria sintetica, nuevos task types (time-series, anomalias,
+  optimizacion). Futuro.
+- **SREG v3**: Sistemas complejos dinamicos (cellular automata, biologia
+  real). Futuro lejano.
+
+**Cambios:**
+- `PROJECT.md` — nueva subseccion "Roadmap del producto: v0 → v1 → v2 → v3"
+  al inicio de "Scope actual y horizontes futuros". Define el vocabulario
+  canonico y la nota terminologica que separa SREG v1 (producto) de
+  SQ v1/v2 / Suite v1 (sub-pipelines y suite externa, no versiones del
+  producto).
+- `CURRENT_STATE.md` — top quote-block declara explicitamente "este
+  documento describe SREG v1". Nueva seccion "Sutileza terminologica"
+  antes de "SQ v2 — Pipeline principal" aclara que SQ v1/v2 son
+  sub-pipelines internos del compiler/matcher dentro de SREG v1.
+- `TODO.md` — nueva seccion "SREG v1 — criterios de done" al top con los
+  6 criterios concretos de cierre: (1) decision sobre bundling (P06
+  task #26), (2) canonical path estable (SQ v2 vs SQ v1), (3) bugs
+  bloqueantes resueltos (#10, #24, #25), (4) smoke validation suite
+  estable (`p05_canonical_batch` con `/rescore --reaggregate` delta
+  0.0000), (5) config v1 congelada (modelo, budget, pipeline, weights),
+  (6) build → use handoff (otros pueden generar y usar casos sin tocar
+  el repo).
+
+**Por que importa.** Sin este vocabulario, no se puede decir "SREG v1 esta
+cerrado" ni planificar v2 sin renegociar el significado de "v1" en cada
+conversacion. El cierre concreto del producto vive ahora como criterios
+accionables en `TODO.md`, no como folklore conversacional.
+
 ### 2026-04-07 — Docs: tesis canon — suite final v1, related work, indexacion
 
 **Cierre del bloque de research para tesis/paper.** Suite final v1 fijada,
