@@ -928,7 +928,7 @@ cambios). P1 es techo arquitectonico (expande lo que cuenta como
 investigacion). P2 calibra el reward. A3b (Sherlock-type) va DESPUES
 de que el reward sea confiable.
 
-**>>> NEXT: P1 <<<**
+**>>> NEXT: P1.5 (deuda P1) o P2 <<<**
 
 **P0. Rescore controlado sobre casos congelados — DONE (2026-04-06)**
 
@@ -943,21 +943,71 @@ persistidas en `src.json` via `sub_questions_v2`. Skill `/rescore`.
 - [x] Validar que produce scores identicos al original (determinismo check).
 - [x] Poder cambiar scorer params y re-evaluar (para comparar cambios).
 
-**P1. Predicados de subpoblacion en QueryArm — grammar gap**
+**P1. Predicados de subpoblacion en QueryArm — SMOKE-VALIDATED (2026-04-06)**
 
-`QueryArm.condition_on` solo acepta valores puntuales (float/int con ±15%
-desvio). Claims quasi-experimentales (RDD, subgrupos, ventanas temporales)
-no pueden expresarse. poverty (0.003) es el caso emblematico: 4/5 claims
-en abstention por usar bandwidths.
+4 predicados universales en `condition_on`: `approx_eq` (default,
+backward compat), `range`, `quantile_range`, `in_set`. Discriminated
+union pydantic + auto-promote de scalars. Verifier dispatch en
+`_filter_condition`. GRAMMAR_REF expandido con ejemplos y reglas
+explicitas anti-variables-derivadas.
 
-Diseñar predicados genericos, NO hotfixes para RDD:
-- [ ] Extender `condition_on` para soportar predicados de rango,
-  cuantiles, categorias, y ventanas temporales.
-- [ ] Actualizar `_filter_condition` en `oi_verifier.py` para procesarlos.
-- [ ] Actualizar GRAMMAR_REF para que el compiler sepa emitirlos.
-- [ ] Agregar PatternClass o equivalente en grammar-direct para
-  claims de local estimand / subpoblacion.
-- [ ] Validar con poverty rescoreado — abstention debe bajar de 80% a <20%.
+- [x] Extender `condition_on` para soportar predicados de rango,
+  cuantiles, y categorias sobre variables del world.
+- [x] Actualizar `_filter_condition` en `oi_verifier.py` para procesarlos.
+- [x] Actualizar GRAMMAR_REF para que el compiler sepa emitirlos.
+- [x] Validar con poverty rescoreado — recompile emite 8 `quantile_range`
+  donde antes no habia ninguno. NO se atribuye el salto de score
+  (0.003 → 0.449) a P1 causalmente: la varianza LLM en compiler es alta
+  y mezcla efectos de pipeline + emision de quantiles.
+
+**Fuera de scope (no resuelto por P1):**
+- Ventanas temporales generales (wave/site_id, panel data) — requiere
+  soporte de columnas que no estan en `world.variables` (ver P1.5).
+- Categoricos en SCM — requiere worldgen extension.
+
+**Smoke-validated, NO end-to-end validated.** Lo que SI esta probado:
+- Backward compat: rescore --reaggregate sobre 12 casos da delta exacto
+  0.0000 (zero score drift).
+- Capacidad de emision: recompile poverty con LLM real emite 8
+  `quantile_range` donde antes solo habia point values en abstention.
+- Adopcion organica: 6/12 batch usan `condition_on` con predicados
+  (5 quantile_range, 1 range).
+- Negative space: 5/12 cases sin `condition_on` analizados — todos
+  legitimamente no necesitan subpoblacion (TP=0, FN=0).
+- Unit tests: 14 tests en `test_oi_verifier.py::TestFilterCondition`
+  cubren los 4 predicados, conjunciones, backward compat, y 2 known_debt.
+
+**Lo que NO esta probado:**
+- Causalidad sobre score: NO afirmamos que P1 *cause* mejoras de score.
+  El delta de poverty (0.003 → 0.449) no es atribuible a P1 — variancia
+  LLM en compiler + cambios de pipeline lo confunden.
+- `in_set` E2E con LLM (todos los seeds del batch son numericos; SCM
+  no soporta categorical nodes — gap de worldgen, no de P1).
+- `approx_eq` con string/bool en datos reales (solo en unit tests).
+- N=12 es chico — no decimos "P1 mueve scoring promedio".
+
+**P1.5. Robustez del verifier — deuda tecnica de P1**
+
+Tests con sufijo `known_debt` documentan footguns del filtro actual:
+
+- [ ] **Silent skip de columnas faltantes.** `_filter_condition` hoy
+  ignora silenciosamente cualquier predicado sobre una columna ausente
+  (`oi_verifier.py:164-165`). Si el LLM alucina `eligible` el filtro
+  retorna el dataframe completo y el score parece OK. Decidir entre:
+  (a) WARN + skip explicito, (b) NaN forzado, o (c) raise. Tests:
+  `test_missing_column_silent_skip_known_debt`.
+- [ ] **Non-numeric crash en approx_eq.** Si `value` es string y la
+  columna es numerica (o viceversa), el filtro hoy crashea o retorna
+  vacio segun el caso. Necesita guard explicito + dispatch a InSet
+  cuando el valor es no-numerico. Tests:
+  `test_approx_eq_non_numeric_known_debt`.
+- [ ] **Panel data column hallucination.** Algunos seeds tienen
+  variables time-varying (X_t1, X_t2). Si el LLM emite condicion sobre
+  X (sin sufijo) el silent skip enmascara el bug. Misma raiz que (a).
+- [ ] **Sample starvation explicito.** Hoy <30 rows produce solo un
+  warning. Evaluar si insufficient_support → NaN tiene sentido (riesgo
+  de romper backward compat de scores existentes — se decidio diferir
+  a P1.5/P2).
 
 **P2. Credit-assignment: unit-level truth — scorer design**
 

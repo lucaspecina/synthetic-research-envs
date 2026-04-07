@@ -2,22 +2,31 @@
 
 from __future__ import annotations
 
+import numpy as np
+import pandas as pd
+import pytest
+
 from sreg.models.open_investigation import (
+    ApproxEq,
     Assertion,
     AssertionKind,
     AtomicSpec,
     Comparison,
     ComparisonKind,
+    ConditionRange,
     FamilyAtom,
     FamilyKey,
+    InSet,
     Measurement,
     MeasurementKind,
+    QuantileRange,
     QueryArm,
     QueryKind,
     SalienceFamily,
 )
 from sreg.solver.scm_solver import SCMSolver
 from sreg.tools.oi_verifier import (
+    _filter_condition,
     score_claim_against_family,
     score_episode,
     verify_atom,
@@ -495,3 +504,174 @@ class TestScoring:
         families = [self._make_family()]
         ep = score_episode([("f1", 0.9)], families, n_claims=7, claim_budget=5)
         assert ep.efficiency < 1.0
+
+
+# ---------------------------------------------------------------------------
+# _filter_condition tests (P1 condition predicates)
+# ---------------------------------------------------------------------------
+
+
+class TestFilterCondition:
+    """Tests for _filter_condition predicate dispatch (P1).
+
+    Coverage:
+    - 4 predicates: ApproxEq, ConditionRange, QuantileRange, InSet
+    - Edge cases: NaN, ties, degenerate ranges, inclusive bounds
+    - Conjunction (AND across columns)
+    - Backward compat: legacy raw scalar / string predicates
+    - Known-debt: missing column silent skip, non-numeric ApproxEq crash
+      (see TODO P1.5: missing-column robustness + non-numeric guards)
+    """
+
+    # --- ApproxEq -----------------------------------------------------------
+
+    def test_approx_eq_basic(self):
+        """ApproxEq filters rows within tol_std * std of value."""
+        df = pd.DataFrame({"x": [10.0, 10.5, 11.0, 20.0, 30.0]})
+        result = _filter_condition(df, {"x": ApproxEq(value=10.5, tol_std=0.15)})
+        # std ~= 8.65, tol ~= 1.30, so {10.0, 10.5, 11.0} match
+        assert set(result["x"].tolist()) == {10.0, 10.5, 11.0}
+
+    def test_approx_eq_non_numeric_known_debt(self):
+        """ApproxEq on a non-numeric column raises (KNOWN DEBT, P1.5).
+
+        _filter_condition does not guard against non-numeric columns
+        for ApproxEq. Today this crashes with a TypeError. P1.5 should
+        replace this with an explicit, informative error.
+        """
+        df = pd.DataFrame({"region": ["urban", "rural", "suburban"]})
+        with pytest.raises(Exception):
+            _filter_condition(df, {"region": ApproxEq(value=1.0)})
+
+    # --- ConditionRange -----------------------------------------------------
+
+    def test_range_basic_inclusive_bounds(self):
+        """Range filters with inclusive lo and hi (lo <= x <= hi)."""
+        df = pd.DataFrame({"x": [0, 5, 10, 15, 20]})
+        result = _filter_condition(df, {"x": ConditionRange(lo=5, hi=15)})
+        assert set(result["x"].tolist()) == {5, 10, 15}
+
+    def test_range_degenerate_lo_eq_hi(self):
+        """Range with lo == hi matches only that exact value."""
+        df = pd.DataFrame({"x": [4.99, 5.0, 5.0, 5.01, 6.0]})
+        result = _filter_condition(df, {"x": ConditionRange(lo=5.0, hi=5.0)})
+        assert len(result) == 2
+        assert (result["x"] == 5.0).all()
+
+    # --- QuantileRange ------------------------------------------------------
+
+    def test_quantile_range_basic(self):
+        """QuantileRange selects rows in the given quantile range."""
+        df = pd.DataFrame({"x": list(range(100))})  # 0..99
+        result = _filter_condition(
+            df, {"x": QuantileRange(q_lo=0.0, q_hi=0.25)}
+        )
+        # Bottom quartile: q[0]=0, q[0.25]~=24.75 -> rows with x in [0, 24]
+        assert result["x"].min() == 0
+        assert result["x"].max() <= 25
+
+    def test_quantile_range_with_nan(self):
+        """NaN values are excluded by the quantile filter mask."""
+        df = pd.DataFrame({"x": [1.0, 2.0, np.nan, 4.0, 5.0, np.nan, 7.0]})
+        result = _filter_condition(
+            df, {"x": QuantileRange(q_lo=0.0, q_hi=0.5)}
+        )
+        # quantile() ignores NaN; df[var] >= lo on NaN row returns False,
+        # so NaN rows are excluded from the result.
+        assert not result["x"].isna().any()
+
+    def test_quantile_range_ties(self):
+        """Repeated values are not lost when within quantile bounds."""
+        df = pd.DataFrame({"x": [1, 1, 1, 1, 1, 5, 5, 5, 5, 5]})
+        result = _filter_condition(
+            df, {"x": QuantileRange(q_lo=0.0, q_hi=0.5)}
+        )
+        # q[0]=1, q[0.5]=3 -> all five 1s should match
+        assert (result["x"] == 1).sum() == 5
+
+    # --- InSet --------------------------------------------------------------
+
+    def test_in_set_string_categorical(self):
+        """InSet filters rows where column value is in the listed set."""
+        df = pd.DataFrame(
+            {"region": ["urban", "rural", "suburban", "urban", "rural"]}
+        )
+        result = _filter_condition(
+            df, {"region": InSet(values=["urban", "suburban"])}
+        )
+        assert set(result["region"].tolist()) == {"urban", "suburban"}
+        assert len(result) == 3
+
+    def test_in_set_numeric(self):
+        """InSet works with numeric values."""
+        df = pd.DataFrame({"treatment": [0, 1, 2, 0, 1, 2, 0]})
+        result = _filter_condition(df, {"treatment": InSet(values=[1, 2])})
+        assert set(result["treatment"].tolist()) == {1, 2}
+        assert len(result) == 4
+
+    def test_in_set_bool(self):
+        """InSet works with boolean values."""
+        df = pd.DataFrame({"active": [True, False, True, True, False]})
+        result = _filter_condition(df, {"active": InSet(values=[True])})
+        assert result["active"].all()
+        assert len(result) == 3
+
+    # --- Conjunction --------------------------------------------------------
+
+    def test_conjunction_and(self):
+        """Multiple predicates conjoin with AND across different columns."""
+        df = pd.DataFrame({
+            "x": [1, 2, 3, 4, 5],
+            "region": ["a", "b", "a", "b", "a"],
+        })
+        result = _filter_condition(df, {
+            "x": ConditionRange(lo=2, hi=4),
+            "region": InSet(values=["a"]),
+        })
+        # x in [2, 4] AND region == "a" -> only x=3
+        assert len(result) == 1
+        assert result.iloc[0]["x"] == 3
+
+    # --- Missing column (KNOWN DEBT) ----------------------------------------
+
+    def test_missing_column_silent_skip_known_debt(self):
+        """Missing column is silently skipped (KNOWN DEBT, P1.5).
+
+        If the LLM hallucinates a column, _filter_condition currently
+        ignores the predicate and returns rows that match the OTHER
+        predicates (or all rows if it was the only predicate).
+
+        This is dangerous because it silently changes the question. P1.5
+        will replace this with a loud failure (raise / empty DataFrame).
+        Locking the contract here only until that fix lands.
+        """
+        df = pd.DataFrame({
+            "x": [1, 2, 3, 4, 5],
+            "region": ["a", "b", "a", "b", "a"],
+        })
+        # Predicate on missing column "fake" is silently dropped;
+        # only the region predicate is applied.
+        result = _filter_condition(df, {
+            "fake": InSet(values=["impossible"]),
+            "region": InSet(values=["a"]),
+        })
+        assert len(result) == 3
+        assert (result["region"] == "a").all()
+
+    # --- Backward compat (legacy shorthand) ---------------------------------
+
+    def test_legacy_raw_scalar_backward_compat(self):
+        """A raw int/float predicate (legacy shorthand) is treated as approx-equal."""
+        df = pd.DataFrame({"x": [10.0, 10.5, 11.0, 20.0, 30.0]})
+        result = _filter_condition(df, {"x": 10.5})
+        assert 10.5 in result["x"].tolist()
+        assert 30.0 not in result["x"].tolist()
+
+    def test_legacy_raw_string_backward_compat(self):
+        """A raw string predicate (legacy shorthand) is treated as exact-match."""
+        df = pd.DataFrame(
+            {"region": ["urban", "rural", "urban", "suburban"]}
+        )
+        result = _filter_condition(df, {"region": "urban"})
+        assert (result["region"] == "urban").all()
+        assert len(result) == 2

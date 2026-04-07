@@ -570,12 +570,20 @@ encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
   `difference = other_arm - ref_arm`. Enforzado por `@model_validator`.
 - `evidence_basis` validada contra artifacts accedidos. Citas fabricadas
   aplican penalidad proporcional, no zero (BUG 8 fix).
-- `condition_on` en QueryArm solo acepta valores puntuales — claims con
-  bandwidths/rangos quedan en abstention (gap conocido, ver TODO I0d P1).
+- `condition_on` en QueryArm acepta 4 predicados (P1, 2026-04-06):
+  - `approx_eq` (default, backward compat con scalars puntuales)
+  - `range`: `{"kind": "range", "lo": <num>, "hi": <num>}`
+  - `quantile_range`: `{"kind": "quantile_range", "q_lo": <0-1>, "q_hi": <0-1>}`
+  - `in_set`: `{"kind": "in_set", "values": [...]}`
+  Discriminated union pydantic con auto-promote. Verifier dispatch en
+  `_filter_condition` (`oi_verifier.py`). GRAMMAR_REF expandido en
+  `oi_sq_compiler.py` con ejemplos y reglas anti-variables-derivadas.
+  **Deuda P1.5:** silent skip de columnas faltantes (footgun) y
+  non-numeric guards en approx_eq. Tests con sufijo `known_debt`
+  documentan el comportamiento actual. Ver TODO I0d P1.5.
 
-**Bottleneck actual:** grammar gap para metodologia quasi-experimental y
-credit-assignment a nivel claim (truth dilution). Ver TODO A28 para la
-taxonomia completa de failure modes del scoring.
+**Bottleneck actual:** credit-assignment a nivel claim (truth dilution).
+Ver TODO A28 para la taxonomia completa de failure modes del scoring.
 
 **Persistencia de scoring (P0, 2026-04-06):**
 Los internals del scoring se persisten para permitir rescore controlado

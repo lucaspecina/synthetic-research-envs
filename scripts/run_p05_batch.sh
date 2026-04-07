@@ -1,7 +1,18 @@
 #!/bin/bash
 # P0.5 Canonical Batch — frozen baseline for rescore validation
-# Generates 12 diverse cases with score_inputs_v2 persistence
-# Expected runtime: ~1.5-2 hours
+# Generates 12 diverse cases with score_inputs_v2 persistence (P0).
+#
+# Purpose: provides a stable, frozen E2E baseline used for:
+#   - rescore --reaggregate (verify backward compat, delta 0.0000)
+#   - rescore --recompile / --rejudge (measure code change effects)
+#   - smoke-validation of grammar extensions (P1, P1.5, future)
+#
+# Seeds cover diverse research types per investigation_scenarios_rubric.md:
+# system_mapping, causal_simple, confounding, descriptive, epistemological,
+# heterogeneity, optimization, selection_bias, mechanism, multi_outcome,
+# policy_tradeoff, methodology.
+#
+# Expected runtime: ~1.5-2 hours (LLM-bound on Azure gpt-5.4 / gpt-5.2-codex).
 
 set -e
 

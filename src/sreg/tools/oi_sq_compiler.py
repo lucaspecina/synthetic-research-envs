@@ -838,11 +838,12 @@ def render_answer_key(verdict: AtomVerdict) -> dict[str, Any]:
 
     if "contrast_diff" in comparison:
         cd = comparison["contrast_diff"]
+        hl = f"contrast diff = {cd:+.4g}" if isinstance(cd, (int, float)) else "contrast diff = N/A"
         return {
             "result_type": "contrast",
             "value": cd,
             "arms": arms,
-            "headline": f"contrast diff = {cd:+.4g}",
+            "headline": hl,
             "meta": meta,
         }
 

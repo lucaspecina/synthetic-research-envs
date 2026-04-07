@@ -775,13 +775,36 @@ arquitecturales futuras (artefactos evaluables, interaccion con el entorno).
 
 ## Los bottlenecks actuales
 
-### 1. Grammar gap: claims sofisticadas inexpresables
+### 1. Grammar gap: claims sofisticadas inexpresables — MITIGADO P1 (2026-04-06)
 
-`QueryArm.condition_on` solo acepta valores puntuales. Claims que usan
-metodologia quasi-experimental (RDD, bandwidths, subgrupos) quedan en
-abstention. Caso emblematico: poverty (4/5 claims abstention, score 0.003).
-Esto viola la presion evolutiva — penaliza mejor metodologia.
-Solucion planificada: predicados de subpoblacion genericos (TODO I0d P1).
+**P1 — predicados de subpoblacion (smoke-validated).** `QueryArm.condition_on`
+ahora acepta 4 predicados: `approx_eq` (default, backward compat),
+`range`, `quantile_range`, `in_set`. Discriminated union + auto-promote
+de scalars. Verifier dispatch en `_filter_condition`.
+
+Lo que se puede expresar ahora y antes no:
+- RDD / bandwidths: `{"eligibility_gap": {"kind": "range", "lo": -1000, "hi": 1000}}`
+- Quartiles: `{"income": {"kind": "quantile_range", "q_lo": 0.0, "q_hi": 0.25}}`
+- Categorias: `{"region": {"kind": "in_set", "values": ["urban", "suburban"]}}`
+
+Evidencia smoke-validated:
+- rescore --reaggregate sobre 12 casos: delta 0.0000 (backward compat).
+- recompile poverty: emite 8 `quantile_range` donde antes solo habia
+  point values en abstention. NO se atribuye el salto de score
+  (0.003 → 0.449) a P1 — variancia LLM en compiler + cambios de
+  pipeline lo confunden.
+- 6/12 batch adoptan organicamente: 5 quantile_range + 1 range.
+- 5/12 sin condition_on: todos legitimamente no necesitan subpoblacion.
+
+**Caveats abiertos** (deuda P1.5, ver TODO):
+- `in_set` no probado E2E con LLM — todos los seeds son numericos
+  (gap de worldgen: SCM no soporta categorical nodes, no es gap de P1).
+- Ventanas temporales generales (wave/site_id, panel data) NO resueltas:
+  P1 cubre predicados sobre variables del world, no sobre columnas
+  fuera de `world.variables`.
+- `_filter_condition` hoy hace silent skip de columnas faltantes
+  (footgun: si el LLM alucina `eligible`, el filtro ignora silenciosamente).
+- N=12 es chico — no se afirma que P1 mueve scoring promedio del batch.
 
 ### 2. Credit-assignment a nivel claim
 
@@ -811,10 +834,13 @@ en `src.json`. Skill: `/rescore`. Ver `.claude/skills/rescore/SKILL.md`.
 ## Direccion activa
 
 1. ~~**Rescore controlado** (I0d P0)~~ — **DONE.** Skill `/rescore`.
-2. **Grammar gap: predicados de subpoblacion** (I0d P1) — techo arquitectonico.
-   Claims quasi-experimentales (RDD, subgrupos) hoy son inexpresables.
+2. ~~**Grammar gap: predicados de subpoblacion** (I0d P1)~~ — **SMOKE-VALIDATED.**
+   4 predicados (approx_eq, range, quantile_range, in_set) en `condition_on`.
+   Deuda en P1.5 (silent skip, non-numeric guards, in_set sin E2E).
 3. **Credit-assignment: unit-level scoring** (I0d P2) — arreglar truth
    dilution y coverage inflada. En 3 pasos incrementales.
+4. **P1.5 — Robustez del verifier** (deuda de P1) — silent skip de
+   columnas faltantes + non-numeric guards en approx_eq.
 
 ---
 

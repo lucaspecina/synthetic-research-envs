@@ -5,6 +5,71 @@
 
 ## [Unreleased]
 
+### 2026-04-06 — Feat: subpopulation predicates in condition_on (P1, smoke-validated)
+
+**P1 implementado.** El compiler-LLM ahora puede expresar subpoblaciones
+(rangos, cuartiles, categorias) en `QueryArm.condition_on`, no solo valores
+puntuales. Antes esto bloqueaba claims sobre "los pobres", "near the cutoff",
+"high vs low biomarker", "urban areas", etc. — el compiler abstainia o
+inventaba variables derivadas inexistentes.
+
+**4 predicados universales** (discriminated union via `kind` field):
+- `approx_eq` — match aproximado a un punto (legacy, default via shorthand)
+- `range` — `lo <= x <= hi`, para ventanas, near-cutoff, RDD bandwidths
+- `quantile_range` — `q_lo` a `q_hi` del distribution, para "high vs low"
+- `in_set` — match contra una lista de valores, para categoricos
+
+**Backward compat exacto:** raw scalars `{"x": 5.0}` y strings `{"region": "urban"}`
+se auto-promueven a `ApproxEq` y `InSet` via `@model_validator(mode="before")`.
+`rescore --reaggregate` sobre el batch p05 verifica delta 0.0000 en los 12 casos.
+
+**Smoke-validated en producción** (batch `p05_canonical_batch`, 12 seeds):
+- 6/12 casos usan los nuevos predicados (heterogeneity 36 quantile_range,
+  chemical 12, immunotherapy 6, policy_equity 4, selection_bias 2,
+  missing_data 2 range)
+- Adopcion semanticamente correcta (cuartiles para "high/low", range para
+  "near cutoff" como `retention_wave3 in [0.2, 0.36]`)
+- Recompile poverty: con MISMOS claims/mundo, el compiler emite 8
+  `quantile_range` donde antes solo habia point values
+- 14 unit tests del verifier (`TestFilterCondition`): 4 predicados + edge cases
+  (NaN, ties, degenerate ranges, inclusive bounds, AND conjunction, backward
+  compat scalars/strings)
+
+**Caveats explicitos** (NO declarado "validated", ver TODO P1.5):
+- NO se atribuye causalidad sobre score: el delta de poverty
+  (0.003 → 0.449) NO es atribuible a P1 — variancia LLM en compiler +
+  cambios de pipeline lo confunden. P1 da capability de emision, no
+  score lift demostrado.
+- `in_set` NO probado E2E porque el SCM no soporta nodos categoricos
+  (`world.variables` es 100% continuo). Cubierto solo por unit tests sobre
+  DataFrames sinteticos. Worldgen extension queda como ticket aparte.
+- Ventanas temporales generales (wave/site_id, panel data) NO resueltas:
+  P1 cubre predicados sobre variables del world, no sobre columnas
+  fuera de `world.variables`.
+- El score promedio del batch (0.417) NO mejora con P1 — es techo mas
+  profundo (claim quality, teacher gap, scoring metric).
+
+**Bug fix incidental** (`oi_sq_compiler.py:845`): `render_answer_key` crasheaba
+con `TypeError: unsupported format string` cuando `comparison["contrast_diff"]`
+era `None` (caso edge en arms con NaN/insufficient data). Fix minimo: chequear
+`isinstance(cd, (int, float))` antes de format. Pre-existente, expuesto por
+el rescore controlado de poverty.
+
+**Archivos nuevos / modificados:**
+- `src/sreg/models/open_investigation.py` (+predicate types, +auto-promotion)
+- `src/sreg/tools/oi_verifier.py` (`_filter_condition` dispatch por kind)
+- `src/sreg/tools/oi_sq_compiler.py` (GRAMMAR_REF + bug fix)
+- `tests/models/test_open_investigation.py` (+TestConditionPredicates, 14 tests)
+- `tests/tools/test_oi_verifier.py` (+TestFilterCondition, 14 tests)
+- `scripts/run_p05_batch.sh` (baseline canonico, 12 seeds diversos)
+
+**Conocido como deuda P1.5** (ver TODO):
+- `_filter_condition` hace silent skip cuando la columna no existe (footgun:
+  el LLM puede inventar columnas y la pregunta cambia silenciosamente).
+- `approx_eq` sobre columna no numerica crashea con `TypeError`.
+- Compiler inventa columnas panel (`site_id`, `wave`) que no estan en
+  `world.variables` — bloquea casos panel-data.
+
 ### 2026-04-06 — Feat: controlled rescore pipeline (P0)
 
 **Rescore controlado implementado.** Permite re-evaluar casos congelados
