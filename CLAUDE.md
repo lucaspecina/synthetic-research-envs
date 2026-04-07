@@ -74,7 +74,13 @@ Cada decisión pasa por este TRIPLE filtro:
 | Vision, principios, invariantes | `PROJECT.md` |
 | Que hacer / trabajo pendiente | `TODO.md` |
 | Historial de cambios | `CHANGELOG.md` |
-| Investigacion y hallazgos | `research/README.md` (indice) |
+| Indice de research (que doc es canon, cual no) | `research/README.md` |
+| **Tesis/paper: que hay que demostrar** | `research/synthesis/thesis_evaluation_framework.md` |
+| **Tesis/paper: config operativa (modelo, harness, suite)** | `research/synthesis/sreg_training_transfer_protocol.md` |
+| **Tesis/paper: related work (SandMLE)** | `research/synthesis/related_work_sandmle.md` |
+| **Tesis/paper: related work (SciGym)** | `research/synthesis/related_work_scigym.md` |
+| **Tesis/paper: related work (SciAgentGym)** | `research/synthesis/related_work_sciagentgym.md` |
+| **Tesis/paper: benchmarks externos, ejemplos y transfer** | `research/synthesis/external_benchmarks_transfer_analysis.md` |
 | 23 escenarios de validacion | `research/synthesis/investigation_scenarios_rubric.md` |
 | Vision de Open Investigation | `research/synthesis/open_investigation_vision.md` |
 | Scoring fundamentals | `research/synthesis/oi_scoring_fundamentals.md` |

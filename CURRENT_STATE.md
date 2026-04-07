@@ -10,8 +10,10 @@
 > Para detalles tecnicos de bajo nivel: `ARCHITECTURE.md`.
 > Para la vision y los principios: `PROJECT.md`.
 > Para el marco canonico de evaluacion paper/tesis: `research/synthesis/thesis_evaluation_framework.md`.
+> Para la config operativa de training/transfer: `research/synthesis/sreg_training_transfer_protocol.md`.
+> Para related work: `research/synthesis/related_work_sandmle.md`.
 >
-> Actualizado: 2026-04-06
+> Actualizado: 2026-04-07
 
 ---
 
@@ -554,22 +556,23 @@ solver miss (policy_equity, coral_bleach), y SQ overlap (secundario).
 
 Datos: `results/e2e_batch_bug8_9_fix/`
 
-### Algo importante: no todo el viejo scoring esta en el path principal
+### Algo importante: tres scorers existen, solo uno es canonico
 
-En el repo todavia existen conceptos como:
+Hay **tres rutas de scoring** en el codigo. Importa distinguirlas porque
+tienen formulas distintas y cualquier cambio sobre el scoring tiene que
+apuntar al canonico:
 
-- `EpisodeScore`
-- `ClaimVerdict`
-- `SalienceFamily`
-- `efficiency`
+| Path | Funcion | Formula | Estado | Quien lo usa |
+|---|---|---|---|---|
+| **canonico v2** | `oi_runner._score_with_judge` (`oi_runner.py:497`) | `total = correctness x weighted_coverage` (multiplicativo). Match score = `truth x relevance` (LLM judge). Correctness = mean de TODAS las truths. | **Path principal de produccion.** Lo que corre `generate_src.py` cuando hay `sub_questions_v2`. | E2E real, batches p05 |
+| legacy v1 SQ | `oi_subquestions.score_episode_with_subquestions` (`oi_subquestions.py:1022`) | `total = wcov*0.70 + corr*0.20 + novel + cov*0.10` (aditivo). Match score = `truth x compat x answer_score` (compatibility algebra, sin LLM). Correctness = mean truth de claims que matched. Tiene novel_bonus. | Fallback. Solo se usa si no hay `sub_questions_v2`. | Tests, `compiler_benchmark.py`, debug scripts |
+| salience map | `score_compiled_episode_v2` | Conceptos: `EpisodeScore`, `ClaimVerdict`, `SalienceFamily`, `efficiency`. | Diagnostico/legacy. Solo cuando no hay SQs en absoluto. | Mundos curated antiguos |
 
-pero hoy eso pertenece sobre todo al path de salience map (diagnostico).
-
-El **path principal** de los E2E usa:
-
-- `SubQuestionIntentV2` + `VerificationSpec`
-- `EpisodeSubQuestionScore`
-- LLM relevance judge (`oi_relevance_judge.py`)
+**Para cualquier cambio sobre scoring:** apuntar al canonico v2
+(`_score_with_judge`) y replicar en `scripts/rescore.py::_aggregate_score`
+(linea 325) que es el espejo offline. NO modificar
+`score_episode_with_subquestions` salvo que el cambio sea explicitamente
+para tests/benchmarks.
 
 **Nota:** el sistema de warrant (que intentaba medir si el solver habia
 investigado de verdad antes de submitir) fue eliminado (L1, 2026-04-01).

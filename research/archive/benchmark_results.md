@@ -1,8 +1,28 @@
 # Benchmark BEFORE Scores
 
+> **AVISO IMPORTANTE — NO VALIDO PARA TESIS**
+>
+> Estos numeros se corrieron con `gpt-5.2-chat`, NO con el modelo canonico
+> de tesis (`Qwen3-8B`). Por lo tanto **NO sirven como BEFORE para el
+> experimento de tesis**. Hay que re-correrlos con Qwen3-8B antes de
+> considerarlos baseline valido.
+>
+> Ademas:
+> - QRData se corrio text-only (sin code interpreter). El setup canonico
+>   del paper usa code execution. Decidir harness antes de re-correr.
+> - DiscoveryBench se corrio sin mitigacion documentada del LLM-judge
+>   (judge model, prompt, version, seeds, voting). Cerrar antes de re-run.
+>
+> Decisiones canonicas: ver `research/synthesis/sreg_training_transfer_protocol.md`
+> y `research/synthesis/thesis_evaluation_framework.md`.
+>
+> Este archivo queda como referencia historica de la primera pasada de
+> baselines, no como evidencia activa.
+
 > Raw note of baseline benchmark scores before training in SREG.
-> Use `research/synthesis/benchmark_analysis.md` for the active benchmark
-> selection rationale. Use this file for concrete baseline numbers.
+> Active benchmark selection rationale lives in
+> `research/synthesis/sreg_training_transfer_protocol.md`.
+> Background landscape de benchmarks: `research/archive/benchmark_analysis.md`.
 
 ## Modelo
 

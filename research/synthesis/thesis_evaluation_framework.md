@@ -225,20 +225,34 @@ Para tesis fuerte:
 
 ## Benchmarks externos: paquete recomendado
 
+> **Update 2026-04-06:** la seleccion y el protocolo operativo de training +
+> transfer quedaron fijados en
+> `research/synthesis/sreg_training_transfer_protocol.md`.
+> Este documento mantiene el marco de tesis; el otro fija la configuracion
+> concreta.
+>
+> **Update 2026-04-07:** el analisis detallado de cada benchmark externo
+> (que mide, ejemplos concretos, transferencia esperada de SREG, riesgos)
+> vive en `research/synthesis/external_benchmarks_transfer_analysis.md`.
+> Related work especifico: `related_work_sandmle.md` (entrenamiento) y
+> `related_work_scigym.md` (loop iterativo / dry lab biologico).
+
 ### Tier 1: esenciales
 
 | Benchmark | Que valida |
 |---|---|
-| `DiscoveryBench` | Hipothesis generation / discovery desde datos |
-| `CauSciBench` | Causal inference cientifica end-to-end |
-| `CausalReasoningBenchmark` | Separacion entre identificacion y estimacion |
+| `held-out SREG` | Mejora in-domain en casos no vistos |
+| `CLadder` | Razonamiento causal formal en lenguaje natural (rungs 1-3) |
+| `QRData` | Razonamiento estadistico y causal con datos tabulares reales |
+| `DiscoveryBench` | Hypothesis generation / discovery desde datos |
+| `CausalReasoningBenchmark` (CRB) | Identificacion vs estimacion sobre 173 queries en 138 datasets reales (arXiv:2602.20571). Baseline SOTA: 30.1% en spec completa |
+| `SciGym` | Unico publico que mide **ciclo iterativo completo** (proponer-observar-refinar). Scoring determinista por graph edit distance. El mas cercano al loop Sherlock-type que SREG aspira a entrenar |
 
 ### Tier 2: soporte fuerte
 
 | Benchmark | Que valida |
 |---|---|
-| `CLadder` | Razonamiento causal formal en lenguaje natural |
-| `QRData` | Razonamiento estadistico y causal con datos reales |
+| `CauSciBench` | Causal inference cientifica end-to-end |
 | `CaLM Lite` | Suite causal mas amplia y estandarizada |
 
 ### Tier 3: transferencia mas dura
@@ -247,7 +261,17 @@ Para tesis fuerte:
 |---|---|
 | `DiscoveryBench` | Debe quedarse tambien aca como comparacion longitudinal |
 | `ScienceAgentBench` | Agentes que hacen workflows cientificos con codigo |
-| `BixBench` o `SciGym` | Transferencia mas agentica / experimental |
+| `BixBench` | Transferencia agentica con tool-use real (bioinformatica) |
+
+### Por que SciGym esta en Tier 1
+
+El research previo (`archive/benchmark_analysis.md`) lo identifico como el
+unico benchmark publico que cierra el gap del loop iterativo. La suite
+canonica anterior lo habia descartado por costo operativo (Linux/Docker,
+SBML, series temporales). La decision se reabrio porque sin SciGym la suite
+mide razonamiento causal estatico y generacion single-shot, pero **no mide
+nada del loop iterativo Sherlock-type que SREG dice que entrena**. Mantener
+ese gap haria la claim del paper indefendible. Costo de integracion aceptado.
 
 ### Watchlist
 
@@ -275,6 +299,8 @@ Para tesis fuerte:
 ### Fase 2. Entrenamiento
 
 - entrenar una policy con SREG
+- usar `SFT + RL`, no solo SFT
+- comparar `base` vs `base + SFT` vs `base + SFT + RL`
 - evaluar en held-out SREG
 
 ### Fase 3. Transferencia externa
@@ -288,6 +314,24 @@ Para tesis fuerte:
 
 - comparar trayectorias buenas vs malas
 - documentar donde el scorer acierta y donde no
+
+---
+
+## Decisiones operativas ya cerradas
+
+Estas decisiones ya no estan en modo brainstorming.
+
+- **Modelo principal:** `Qwen3-8B`
+- **Framework de training:** `verifiers + prime-rl`
+- **Training de tesis:** `SFT + RL`
+- **Reward RL v1:** `score.total` terminal de SREG
+- **Suite final v1:** `held-out SREG + CLadder + QRData + DiscoveryBench + CausalReasoningBenchmark + SciGym`
+- **Comparaciones minimas:** `base`, `base + SFT`, `base + SFT + RL`
+- **Regla de evaluacion:** mismo harness del solver en BEFORE, TRAIN y AFTER
+
+La especificacion exacta de estas decisiones vive en:
+
+- `research/synthesis/sreg_training_transfer_protocol.md`
 
 ---
 
@@ -328,4 +372,3 @@ Si este framework cambia una decision operativa del proyecto:
 - resumir en `PROJECT.md`
 - bajar trabajo pendiente a `TODO.md`
 - registrar implementaciones en `CURRENT_STATE.md`
-

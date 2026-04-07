@@ -11,6 +11,64 @@
 
 ---
 
+## Suite de tesis — bloques canonicos (2026-04-07)
+
+Suite externa final v1: `held-out SREG + CLadder + QRData + DiscoveryBench +
+CausalReasoningBenchmark + SciGym`. Canon en
+`research/synthesis/sreg_training_transfer_protocol.md` y
+`research/synthesis/thesis_evaluation_framework.md`.
+
+### T1. BEFORE valido con Qwen3-8B — BLOQUEANTE
+- [ ] Re-correr CLadder, QRData y DiscoveryBench con `Qwen3-8B`. Los BEFORE
+  actuales (`archive/benchmark_results.md`) son `gpt-5.2-chat`, NO sirven
+  para el experimento de tesis.
+- [ ] Confirmar acceso a Qwen3-8B (modelo, endpoint, harness) antes de
+  cualquier otra cosa de la suite.
+
+### T2. Integrar CausalReasoningBenchmark
+- [ ] Adapter para CRB (HuggingFace, arXiv:2602.20571). 173 queries, 138
+  datasets reales.
+- [ ] Reportar identification accuracy (strategy, treatment, outcome,
+  controls) y full identification accuracy. Estimacion (point + SE) como
+  metrica secundaria.
+- [ ] Correr BEFORE con Qwen3-8B.
+
+### T3. Integrar SciGym — cierra el gap del loop iterativo
+- [ ] Standup de SciGym (Linux/Docker, SBML, repo h4duan/SciGym). Aceptado
+  el costo operativo porque es el unico publico que mide loop iterativo.
+- [ ] Adapter compatible con el harness del solver (mismo scaffold OI).
+- [ ] Reportar graph edit distance final, curva ged-vs-iterations, recovery rate.
+- [ ] Correr BEFORE con Qwen3-8B.
+
+### T4. QRData — decidir harness de code execution
+- [ ] BLOQUEANTE de comparabilidad: el setup canonico del paper usa code
+  interpreter (57.9%). Nosotros lo corrimos text-only (38%). Decidir si el
+  harness BEFORE/AFTER incluye code execution o si QRData sale del Tier 1.
+
+### T5. DiscoveryBench — mitigar no-determinismo del LLM judge
+- [ ] Fijar judge model, prompt, version, multiple seeds + voting. Sin esto
+  el HMS no es comparable BEFORE/AFTER.
+
+### T6. Held-out SREG — congelar split
+- [ ] Definir split exacto, seeds, temperatura, budget/max iterations.
+  Listado en `sreg_training_transfer_protocol.md` seccion "Lo que todavia
+  falta fijar".
+
+### T7. Decidir SFT+RL vs RL-from-base — REABIERTA por SandMLE
+- [ ] SandMLE muestra que SFT-only colapsa fuera del scaffold de
+  generacion (17.7% valid submission en MLE-Dojo) y que RL desde base
+  generaliza mucho mejor (83.9%). Riesgo asimetrico: si SFT memoriza
+  nuestro compiler/SQ/claim format, va a fallar en transfer.
+- [ ] Tres opciones: (a) mantener SFT+RL como v1, (b) RL-from-base como
+  v1 + SFT+RL como ablacion, (c) correr ambas en paralelo.
+- [ ] Recomendacion actual: opcion (c) si el costo lo permite, sino (b).
+- [ ] Decision pendiente. Ver `research/synthesis/related_work_sandmle.md`
+  seccion "Reabrir la decision SFT+RL vs RL-only" y
+  `research/synthesis/sreg_training_transfer_protocol.md` seccion
+  "Decisiones reabiertas".
+
+---
+
 ## Analisis y problemas abiertos
 
 Cosas que hay que pensar, entender o decidir antes de implementar.
@@ -1015,6 +1073,14 @@ El scoring actual calcula truth a nivel claim (promedio de todos los specs
 de la claim). Esto penaliza claims ambiciosas con muchos specs donde algunos
 fallan, favoreciendo claims genericas con pocos specs. microbiome (0.196) es
 el caso emblematico: claims correctas pierden contra una claim generica.
+
+**Path target (NO confundir):** todo cambio sobre scoring va al canonico v2:
+- `oi_runner._score_with_judge` (`src/sreg/tools/oi_runner.py:497`)
+- `scripts/rescore.py::_aggregate_score` (linea 325, espejo offline)
+
+**NO** modificar `score_episode_with_subquestions` (legacy v1 SQ, solo
+fallback/tests/benchmarks). Tiene formula aditiva distinta.
+Ver `CURRENT_STATE.md` seccion "Algo importante: tres scorers existen".
 
 Secuencia de cambios (uno a la vez):
 

@@ -5,6 +5,66 @@
 
 ## [Unreleased]
 
+### 2026-04-07 — Docs: tesis canon — suite final v1, related work, indexacion
+
+**Cierre del bloque de research para tesis/paper.** Suite final v1 fijada,
+related work cerrado en tres papers contemporaneos, indices de research
+reescritos, decisiones operativas reabiertas con evidencia externa.
+
+**Suite final v1 (6 benchmarks):**
+- in-domain: `held-out SREG`
+- external: `CLadder + QRData + DiscoveryBench + CausalReasoningBenchmark + SciGym`
+- SciGym promovido Tier 3 -> Tier 1: unico publico que mide loop iterativo
+  Sherlock-type (proponer-observar-refinar). Costo de integracion (Linux/
+  Docker/SBML) aceptado porque sin SciGym la suite no mide nada del loop
+  iterativo que SREG dice que entrena.
+
+**Decision reabierta — SFT+RL vs RL-from-base:**
+- SandMLE reporta empiricamente que SFT-only colapsa a 17.7% Valid Submission
+  en MLE-Dojo (vs 83.9% RL-from-base) en 30B. Convierte nuestra eleccion de
+  `SFT + RL` en hipotesis empirica, no decision cerrada.
+- Tres opciones abiertas: mantener SFT+RL, cambiar a RL-from-base, correr
+  ambas. Recomendacion: paralelo si el budget alcanza, sino RL-from-base.
+- Comparaciones canonicas ahora incluyen `base + RL` ademas de `base + SFT + RL`.
+- Ver `T7` en TODO.md.
+
+**Related work cerrado en tres papers (los tres convergen en el mismo gap):**
+- `related_work_sandmle.md` — SandMLE (Zhou et al. 2026): SFT brittle fuera
+  del scaffold de generacion. Validacion del approach SREG en dominio adyacente.
+- `related_work_scigym.md` — SciGym (Duan et al. 2025): frontier models lejos
+  del techo en loop iterativo (RMS F1 < 0.20 en biologia de sistemas).
+  Documenta por que SciGym NO compite con SREG (un task type vs 23+).
+- `related_work_sciagentgym.md` — SciAgentGym (Shen et al. 2026): frontier
+  models pierden 30-50% del exito al pasar de pasos cortos a largos
+  (Adaptation 32.9%, Loop Escape 35.7%). Diagnostico del long-horizon collapse.
+
+**Doc canonico nuevo — `external_benchmarks_transfer_analysis.md`:**
+- Para cada benchmark: ejemplo concreto, scoring, argumento estructural de
+  transferencia, prediccion de magnitud, riesgo principal.
+- Correccion central: SREG solver responde en prosa libre, NO en formato
+  estructurado. El compiler traduce. Esto es lo que permite argumentar
+  transferencia razonable a benchmarks externos.
+- Insight central: el delta in-domain vs out-of-domain es la metrica de tesis.
+
+**Indexacion reescrita:**
+- `research/README.md` reescrito con dos cortes: por status (CANON activo /
+  notes / archive) y por pregunta ("si necesito X, anda a Y"). Regla nueva:
+  si un doc no esta marcado CANON, no es fuente de verdad.
+- `CLAUDE.md` "Donde buscar que" actualizado con 6 nuevos pointers de tesis.
+- `archive/benchmark_results.md` con banner "NO VALIDO PARA TESIS" porque
+  los BEFORE scores fueron corridos con `gpt-5.2-chat`, no Qwen3-8B.
+
+**TODO actualizado** con bloque "Suite de tesis — bloques canonicos" T1-T7:
+- T1: BEFORE con Qwen3-8B (BLOQUEANTE)
+- T2: integrar CRB
+- T3: integrar SciGym (Linux/Docker/SBML)
+- T4: decidir QRData code execution (BLOQUEA comparabilidad)
+- T5: DiscoveryBench judge mitigation
+- T6: congelar held-out SREG split
+- T7: decidir SFT+RL vs RL-from-base (reabierto)
+
+**No incluye:** cambios en `src/` ni `scripts/`. Quedan para su propio commit.
+
 ### 2026-04-06 — Feat: subpopulation predicates in condition_on (P1, smoke-validated)
 
 **P1 implementado.** El compiler-LLM ahora puede expresar subpoblaciones
