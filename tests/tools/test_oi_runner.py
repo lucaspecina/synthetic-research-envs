@@ -620,3 +620,27 @@ class TestDerivedArtifactProvenance:
         assert len(derived_ids) == 1
         lineage = runner.catalog.get_lineage(derived_ids[0])
         assert lineage == ["dataset_bg"]
+
+    def test_save_artifact_prints_canonical_id_when_return_discarded(self):
+        """Contract: save_artifact must surface the canonical derived id in
+        python_exec output even when the solver discards the return value.
+
+        This is the contract that motivates the print() inside the
+        save_artifact wrapper. Without it, a solver that ends a code block
+        with a different expression (e.g. the saved DataFrame itself) never
+        sees the canonical 'derived_X_hash' id and ends up citing the
+        human-readable label or 'python_exec' in evidence_basis.
+        """
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world)
+
+        runner.run_code('df = load_artifact("dataset_bg")')
+        result = runner.run_code(
+            'save_artifact(df, "filtered")\n'
+            'df.shape  # last expression discards save_artifact return value'
+        )
+        assert result["ok"]
+        # The canonical id must appear in the output despite the return
+        # value being discarded by the trailing expression.
+        assert "[save_artifact] saved as derived_filtered_" in result["output"]

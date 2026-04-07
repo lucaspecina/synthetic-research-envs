@@ -50,8 +50,11 @@ OI_SOLVER_TOOLS = [
                 "Execute Python code in a persistent interpreter. Variables persist "
                 "between calls. Pre-loaded: numpy (np), pandas (pd), scipy, math, "
                 "statistics. Use load_artifact(id) to load datasets, "
-                "save_artifact(df, label) to save derived data. Instrumented helpers: "
-                "oi.corr, oi.regress, oi.stratify, oi.test_independence, oi.groupby_mean."
+                "save_artifact(df, label) to save derived data — it returns AND "
+                "prints the canonical id (e.g. 'derived_X_a1b2c3'); that exact id "
+                "is what you must cite in evidence_basis.artifact_id. Instrumented "
+                "helpers: oi.corr, oi.regress, oi.stratify, oi.test_independence, "
+                "oi.groupby_mean."
             ),
             "parameters": {
                 "type": "object",
@@ -126,7 +129,20 @@ OI_SOLVER_TOOLS = [
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "artifact_id": {"type": "string"},
+                                            "artifact_id": {
+                                                "type": "string",
+                                                "description": (
+                                                    "Canonical artifact id. MUST be "
+                                                    "either (a) a base dataset id "
+                                                    "you loaded (e.g. 'dataset_bg'), "
+                                                    "or (b) the 'derived_X_hash' id "
+                                                    "printed/returned by "
+                                                    "save_artifact. Do NOT cite "
+                                                    "'python_exec', the label slug "
+                                                    "you passed to save_artifact, or "
+                                                    "any made-up name."
+                                                ),
+                                            },
                                             "rationale": {"type": "string"},
                                         },
                                         "required": ["artifact_id", "rationale"],

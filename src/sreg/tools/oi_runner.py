@@ -206,6 +206,7 @@ class OIEpisodeRunner:
                 ArtifactAccess(artifact_id=new_id, step=step["current"],
                                access_type="analyze")
             )
+            print(f"[save_artifact] saved as {new_id}")
             return new_id
 
         ns["load_artifact"] = load_artifact
