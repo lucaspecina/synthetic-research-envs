@@ -195,21 +195,50 @@ def _build_user_prompt(
 # ---------------------------------------------------------------------------
 
 
-def _parse_specs_json(raw: str) -> list[dict]:
-    """Extract JSON array from LLM response."""
-    text = raw.strip()
+def _strip_json_fences(raw: str) -> str:
+    """Strip markdown code fences and return the inner JSON-like text.
 
-    # Remove markdown code fences
+    Mirrors the fence-stripping logic of `_parse_specs_json` so that
+    abstention detection looks at the same effective payload the parser
+    sees.
+    """
+    text = raw.strip()
     if "```" in text:
-        parts = text.split("```")
-        for p in parts:
+        for p in text.split("```"):
             p = p.strip()
             if p.startswith("json"):
                 p = p[4:].strip()
-            if p.startswith("["):
-                text = p
-                break
+            if p.startswith("[") or p.startswith("{"):
+                return p
+    return text
 
+
+def _is_explicit_abstention(raw: str) -> bool:
+    """Detect a deliberate empty JSON array as the LLM's abstention signal.
+
+    Returns True only when the LLM returned an explicit `[]` (after
+    stripping markdown fences). This is the contract surface area for
+    abstention as defined in the abstention exemplars block of the
+    system prompt: a model-dependent claim that the grammar cannot
+    verify is signalled by returning an empty array.
+
+    Distinguishes deliberate abstention from:
+    - empty raw response (LLM call returned ""), which is an error
+    - non-array text (the LLM ignored the format), which is an error
+    - parse failures inside a non-empty array, which are also errors
+    """
+    if not raw or not raw.strip():
+        return False
+    inner = _strip_json_fences(raw)
+    if not (inner.startswith("[") and inner.endswith("]")):
+        return False
+    middle = inner[1:-1].strip()
+    return middle == ""
+
+
+def _parse_specs_json(raw: str) -> list[dict]:
+    """Extract JSON array from LLM response."""
+    text = _strip_json_fences(raw)
     start = text.find("[")
     end = text.rfind("]")
     if start >= 0 and end > start:
@@ -285,17 +314,37 @@ def _validate_variables(spec_dict: dict, world_vars: set[str]) -> list[str]:
 
 
 class SQCompileResult:
-    """Result of compiling a raw SQ to SubQuestionIntentV2."""
+    """Result of compiling a raw SQ to SubQuestionIntentV2.
+
+    Three terminal states are explicit:
+    - success (sq is not None): the LLM produced at least one valid spec.
+    - abstained (abstained=True): the LLM signalled deliberate abstention by
+      returning an explicit empty array. The SQ is unanswerable by the
+      grammar (model-dependent quantity, etc.) and intentionally left blank.
+      Abstention is NOT a compile error — consumers should treat it as a
+      legitimate "no specs by design" signal.
+    - error (sq is None and not abstained): something went wrong (LLM call
+      failed, JSON unparseable, all candidate specs failed validation).
+      `errors` carries the details.
+
+    Note: this contract is intentionally minimal. It distinguishes
+    abstention from error and nothing else. Scoring, matching, and
+    required-fallback policies are unchanged.
+    """
 
     def __init__(
         self,
         sq: SubQuestionIntentV2 | None = None,
         errors: list[str] | None = None,
         raw_response: str = "",
+        abstained: bool = False,
+        abstain_reason: str | None = None,
     ):
         self.sq = sq
         self.errors = errors or []
         self.raw_response = raw_response
+        self.abstained = abstained
+        self.abstain_reason = abstain_reason
 
     @property
     def success(self) -> bool:
@@ -306,6 +355,8 @@ class SQCompileResult:
             n = len(self.sq.verification_specs)
             req = len(self.sq.required_specs)
             return f"SQCompileResult(ok, {n} specs, {req} required)"
+        if self.abstained:
+            return f"SQCompileResult(ABSTAINED, reason={self.abstain_reason!r})"
         return f"SQCompileResult(FAIL, errors={self.errors})"
 
 
@@ -359,6 +410,23 @@ def compile_sq_to_specs(
         return SQCompileResult(errors=[f"JSON parse failed: {e}"], raw_response=raw)
 
     if not items:
+        # Distinguish deliberate abstention (`[]`) from genuine compile error.
+        # The abstention exemplars in the system prompt invite the LLM to
+        # return an empty array when the SQ asks for a model-dependent
+        # quantity. That is NOT a compile error.
+        if _is_explicit_abstention(raw):
+            logger.info(
+                "SQ %s: compiler abstained (explicit empty-array signal)",
+                sq_id,
+            )
+            return SQCompileResult(
+                abstained=True,
+                abstain_reason=(
+                    "LLM returned an explicit empty array — deliberate "
+                    "abstention per the abstention contract."
+                ),
+                raw_response=raw,
+            )
         return SQCompileResult(
             errors=["LLM returned no specs"],
             raw_response=raw,

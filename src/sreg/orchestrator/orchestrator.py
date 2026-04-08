@@ -641,6 +641,14 @@ class Orchestrator:
                 n_specs = len(result.sq.verification_specs)
                 n_req = len(result.sq.required_specs)
                 logger.info("  -> OK: %d specs (%d required)", n_specs, n_req)
+            elif result.abstained:
+                # Abstention is a deliberate "no specs by design" signal,
+                # not a compile error. The SQ is dropped from the plan but
+                # NOT counted as an error. Scoring/matching policies are
+                # unchanged.
+                logger.info(
+                    "  -> ABSTAINED: %s", result.abstain_reason or "(no reason)"
+                )
             else:
                 errors.append(f"{sq_id}: {'; '.join(result.errors)}")
                 logger.warning("  -> FAIL: %s", result.errors)
