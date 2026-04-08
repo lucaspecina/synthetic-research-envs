@@ -731,6 +731,52 @@ El juez LLM recibe answer keys ricos (verdad pre-resuelta contra el SCM,
 variables, direccion esperada) para evaluar relevancia. Esto hace que el
 matching claim-SQ sea mucho mas preciso que el v1 estructural.
 
+### Contrato del compiler — 3 estados terminales (2026-04-08)
+
+El SQ compiler (`oi_sq_compiler.py::compile_sq_to_specs`) ahora distingue
+**tres estados terminales** en `SQCompileResult`:
+
+| Estado | Que significa | Como reacciona el orchestrator |
+|---|---|---|
+| `success` | El LLM emitio specs validas | Se compilan y se agregan al plan |
+| `abstained` | El LLM emitio `[]` deliberadamente | La SQ se descarta del plan, NO cuenta como error |
+| `error` | El LLM no devolvio JSON valido / fallo el parse | Se cuenta como compile error |
+
+La rama `abstained` cubre claims sobre cantidades que la gramatica del
+verifier no puede evaluar de forma exacta — por ejemplo coeficientes de
+regresion, betas estandarizados, AIC, R-cuadrado, componentes de varianza
+de modelos mixed-effects, o cualquier numero que dependa de un modelo
+ajustado por el solver y no de una propiedad del SCM. En lugar de inventar
+una spec inverificable, el compiler senala abstencion explicita.
+
+Scoring, matching y la politica de required-fallback quedan **sin
+cambios**: este es el contrato de superficie unicamente. El runner E2E
+no necesita cambios para consumir el nuevo contrato — el compile loop
+ya distingue las tres ramas.
+
+### Harness aislado de recompile (2026-04-08)
+
+`scripts/p06_recompile_only.py` reinvoca el compiler sobre los textos de
+SQs congeladas de un baseline y diffea las rutas de emision contra el
+baseline original. Es **diagnostico**, no un sustituto del runner E2E:
+
+- Mide cuanto del compiler emite rutas semanticamente validas sobre los
+  mismos textos sin volver a correr el solver, el matcher, ni el scoring.
+- Tres metricas por componente: `C1a` (resolved_rate, fraccion de SQs
+  cuyas required specs compilan), `C1b` (bad_replacement_rate, fraccion
+  donde la nueva compilacion rompe specs que antes funcionaban), `C1c`
+  (per-component reroute quality flags).
+- Gate `role=required` estricto en el classifier: las rutas que solo
+  aparecen como `support` no pueden inflar C1a.
+- Flag opcional `--ground-sanity` corre `verify_atom` sobre las required
+  specs reruteadas — los criterios de exito son `no_exception` /
+  `detail_nonempty` / `measurement_finite`, NO `solver_assertion_holds`
+  (el harness mide rutas de emision, no si el claim es verdadero).
+
+Default: 5 hard-fail cases (`competing_mech`, `coral_bleach`,
+`immunotherapy`, `microbiome`, `selection_bias`); `--all-cases` recompila
+la baseline completa.
+
 ---
 
 ## 15 tipos de investigacion — que puede hacer el sistema hoy

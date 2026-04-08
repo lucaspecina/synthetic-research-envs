@@ -16,10 +16,18 @@ during the G.1 design review:
   - A 1-arm `adjust + mean + identity` MUST NOT be classified as
     causal route — the strict shape requires 2 adjust arms +
     difference + ref_arm.
+
+  - Signatures that round-trip through JSON (i.e. are reloaded from
+    `recompile.json` by the --ground-sanity-only path) MUST still
+    classify correctly. `spec_signature` builds `arm_kinds` as a tuple,
+    but JSON has no tuple type so they come back as plain lists — any
+    route-shape predicate that compares against a tuple literal would
+    silently misclassify after the round trip.
 """
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -138,6 +146,37 @@ class TestRouteShapePredicates:
         assert M.is_adjust_pcor(sig) is True
         assert M.is_causal_route(sig) is False
         assert M.is_observational_route(sig) is False
+
+    def test_route_predicates_tolerate_json_roundtrip(self):
+        """Codex post-G.1 trap: ground-sanity-only reloads signatures
+        from recompile.json, and JSON has no tuple type — arm_kinds
+        comes back as a list. Every route-shape predicate must still
+        classify correctly after the round trip, otherwise the
+        diagnostic silently skips the causal reroutes (which is exactly
+        the bug the first G.1 run hit)."""
+        causal_sig = json.loads(json.dumps(M.spec_signature(_causal_route_spec())))
+        obs_sig = json.loads(json.dumps(M.spec_signature(_observational_route_spec())))
+        buggy_sig = json.loads(json.dumps(M.spec_signature(_adjust_pcor_buggy_spec())))
+        one_arm_sig = json.loads(
+            json.dumps(M.spec_signature(_one_arm_adjust_mean_identity_spec()))
+        )
+
+        # arm_kinds must be a list after JSON round-trip (sanity check
+        # that the test is actually exercising the failure mode).
+        assert isinstance(causal_sig["arm_kinds"], list)
+        assert isinstance(obs_sig["arm_kinds"], list)
+
+        assert M.is_causal_route(causal_sig) is True
+        assert M.is_observational_route(causal_sig) is False
+
+        assert M.is_observational_route(obs_sig) is True
+        assert M.is_causal_route(obs_sig) is False
+
+        assert M.is_adjust_pcor(buggy_sig) is True
+        assert M.is_causal_route(buggy_sig) is False
+        assert M.is_observational_route(buggy_sig) is False
+
+        assert M.is_causal_route(one_arm_sig) is False
 
 
 # ---------------------------------------------------------------------------

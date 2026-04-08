@@ -581,6 +581,16 @@ encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
   **Deuda P1.5:** silent skip de columnas faltantes (footgun) y
   non-numeric guards en approx_eq. Tests con sufijo `known_debt`
   documentan el comportamiento actual. Ver TODO I0d P1.5.
+- **Compiler — 3 estados terminales (P06 G.1, 2026-04-08).**
+  `compile_sq_to_specs` devuelve un `SQCompileResult` con tres ramas
+  mutuamente excluyentes: `success` (specs validas), `abstained` (LLM
+  emitio `[]` deliberadamente porque la claim no es verificable contra el
+  SCM — ej. coeficientes de regresion, AIC, R-cuadrado, varianzas de
+  mixed-effects), `error` (parse fallo o JSON invalido). El compile loop
+  del orchestrator descarta abstenciones silenciosamente — NO cuentan
+  como compile error y NO entran a las metricas C1a/C1b. Scoring,
+  matching y la politica de required-fallback no cambian: el contrato
+  es solo de superficie.
 
 **Bottleneck actual:** credit-assignment a nivel claim (truth dilution).
 Ver TODO A28 para la taxonomia completa de failure modes del scoring.

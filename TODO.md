@@ -62,6 +62,104 @@ Los 6 criterios de cierre:
 
 ---
 
+## P06 G.1 — landed (codigo + tests) — 2026-04-08
+
+> Cierre de la grieta semantica `adjust + partial_correlation` a nivel
+> prompt + harness aislado para medirlo sin correr el runner E2E.
+
+**Que landed (commits df5abf1 + 15d75ae):**
+- **Contrato de abstencion explicito.** `SQCompileResult` ahora distingue
+  3 estados terminales: `success` / `abstained` / `error`. El compiler
+  puede senalar abstencion deliberada devolviendo `[]`. El compile loop
+  del orchestrator descarta abstenciones silenciosamente en lugar de
+  contarlas como compile error.
+- **Prompt fix del compiler.** Bloque "Adjust arm semantics" + 2 exemplars
+  trabajados (causal: 2 adjust + mean + difference + ref_arm; observacional:
+  1 baseline + pcor + identity) + regla de desambiguacion sesgada hacia
+  observacional + bloque de exemplars de abstencion para cantidades
+  model-dependent (regression coefs, std betas, AIC, R2, mixed-effects
+  variance components).
+- **Harness aislado** `scripts/p06_recompile_only.py`. Reinvoca
+  `compile_sq_to_specs` sobre los textos de SQs congeladas y diffea las
+  rutas de emision. Metricas C1a (resolved_rate) / C1b (bad_replacement_rate)
+  / C1c (per-component reroute quality flags). Gate `role=required`
+  estricto para que rutas que solo aparecen como `support` no inflen C1a.
+  Default 5 hard-fail cases (`competing_mech`, `coral_bleach`,
+  `immunotherapy`, `microbiome`, `selection_bias`).
+
+**Corrida G.1 — hecho (2026-04-08):**
+- [x] Correr `p06_recompile_only.py --ground-sanity` sobre los 5 hard-fail.
+  Resultado: **C1a 100% (6/6)**, **C1b 0% (0/6)**, **C1c 100% (5/5
+  reroutes)**. La grieta `adjust + partial_correlation` NO aparece en
+  ninguna emision nueva del compiler. C2 abstention delta `+12pp`
+  (ALARM); adjudicacion manual del slice hard-fail muestra las 3
+  abstenciones como latent-variable legitimas. Calibracion general
+  sigue dependiendo de #37.
+- [x] Harness fix post-run: list-vs-tuple bug en `is_causal_route`
+  (`spec_signature` construye `arm_kinds` como tupla, JSON lo reloadea
+  como lista, el `==` literal fallaba en silencio). Fix con
+  `tuple(sig.get("arm_kinds") or ())` + test de round-trip JSON en
+  `tests/scripts/test_p06_recompile_classifier.py` + flag nuevo
+  `--ground-sanity-only` en `scripts/p06_recompile_only.py` para iterar
+  el diagnostico sin re-invocar al compiler LLM.
+- [x] Re-corrida `--ground-sanity-only`: 5/5 reroutes ejecutan sin
+  excepcion y con detail dict populado. Pero **3/5 (todos los
+  route_causal) devuelven `measurement_finite=0`** porque el LLM del
+  compiler eligio `adjust_set` que NO son backdoor sets validos para el
+  DAG del mundo. Ver hallazgo secundario + task #45 mas abajo.
+
+**Hallazgo secundario (no invalida G.1).** Clase de problema distinta
+a la grieta cerrada por G.1: G.1 era sobre formas estructuralmente
+imposibles (`adjust + partial_correlation`); esto es sobre formas
+estructuralmente validas con un `adjust_set` que no identifica
+causalmente. Root cause: `oi_sq_compiler.py::_build_variables_info`
+solo pasa `{nombre: mean/std/range}` al LLM — cero aristas, cero DAG.
+El LLM adivina confounders por semantica de dominio, lo cual funciona
+para papers reales pero no para SCMs sinteticos. Disparo el task #45.
+
+> **Importante.** Los artifacts en `results/p06_recompile/` quedan fuera
+> del commit (carpeta gitignored). El framing del closing note vive en
+> esta entrada + en el CHANGELOG + en el scope del task #45.
+
+### P06 — task nuevo disparado por G.1 (2026-04-08)
+
+- [ ] **#45 Flow B: derivar adjust_set desde SCM en vez de dejarlo al LLM.**
+  `oi_sq_compiler.py` hoy activamente le pide al LLM que rellene
+  `arm.adjust_set` en adjust arms (gramatica + exemplars trabajados),
+  dandole cero info estructural del DAG. El verifier ya tiene toda la
+  maquinaria determinística:
+  `oi_verifier.py::_run_adjustment` (linea 275) llama a
+  `_find_backdoor_set(world, T, Y)` cuando `arm.adjust_set` viene vacio,
+  y devuelve `adjust_invalid` limpio si no hay set identificable.
+
+  **Scope minimo (Flow B solo):** en `compile_sq_to_specs`, despues del
+  parseo del LLM y antes del `AtomicSpec(**spec_dict)`, strippear
+  `adjust_set` de cualquier arm con `kind == "adjust"`. El verifier
+  auto-computa. Son ~5 lineas. Zero cambios en Flow A
+  (`oi_compiler.py::lower_intent`) — ahi el solver sigue siendo
+  responsable de su propia causalidad, y rellenarle el backdoor set
+  rescataria su razonamiento y rompería la presion evolutiva sobre el
+  solver.
+
+  **Scope ampliado (opcional):** actualizar `GRAMMAR_REF` y los
+  exemplars de `oi_sq_compiler.py` para no mencionar `adjust_set` en
+  adjust arms, quitando la invitacion al LLM a guessearlo. El strip
+  programatico igual queda como defensa.
+
+  **Considerar:** el C1c de G.1 mide `full_controls_preserved_frac` y
+  `control_coverage_mean` comparando contra el frozen buggy spec.
+  Cuando el fix entre, esas metricas dejan de tener sentido para
+  adjust arms (el verifier elige el set, no el compiler). Decidir si
+  rehacer G.1 post-fix o reinterpretar C1c como N/A para rerouted
+  causal specs.
+
+  **Link (contexto, no jerarquia):** #24 (heterogeneity c1 compiler),
+  #25 (identifiability evidence_basis fabrication). Clase de defecto
+  distinta — aca es contrato SCM -> compiler, no solver-side claim
+  honesty. NO enterrar bajo esos tickets.
+
+---
+
 ## Suite de tesis — bloques canonicos (2026-04-07)
 
 Suite externa final v1: `held-out SREG + CLadder + QRData + DiscoveryBench +

@@ -5,6 +5,120 @@
 
 ## [Unreleased]
 
+### 2026-04-08 — P06 G.1: contrato de abstencion explicito + harness aislado
+
+**Cierra la grieta semantica `adjust + partial_correlation` a nivel prompt**
+y agrega un harness aislado de recompile para medir, sin volver a correr el
+runner completo, cuanto del compiler emite rutas validas vs invalidas.
+
+**Cambios (dos commits):**
+
+1. **`feat(P06): explicit abstention contract for SQ compiler` (df5abf1).**
+   El SQ compiler ahora puede senalar abstencion deliberada devolviendo un
+   array vacio explicito. `SQCompileResult` gana `abstained` y
+   `abstain_reason`; `compile_sq_to_specs` corta corto a esa rama cuando el
+   LLM devuelve `[]` (despues de quitar fences markdown). El orchestrator's
+   compile loop ahora distingue tres estados terminales —
+   `success` / `abstained` / `error` — y descarta SQs abstenidas
+   silenciosamente en lugar de contarlas como compile error. Scoring,
+   matching y la politica de required-fallback quedan intencionalmente
+   sin cambios: solo cambia el contrato de superficie.
+   - Tests: helper, los 3 estados terminales, end-to-end via stub LLMs,
+     y un test downstream del consumer en `_compile_oi_subquestions` para
+     que las ramas abstain/error queden distinguibles bajo refactors
+     futuros.
+
+2. **`feat(P06): G.1 — compiler prompt fix + isolated recompile harness` (15d75ae).**
+   Bloque "Adjust arm semantics" en el prompt del compiler que ensena que
+   las adjust arms emiten samples 1-D de `outcome` y son incompatibles con
+   `partial_correlation`. Dos exemplars trabajados:
+   - Ruta causal: 2 adjust arms + `mean` + `difference` + `ref_arm`.
+   - Ruta observacional: 1 baseline arm + `partial_correlation` + `identity`.
+
+   Regla de desambiguacion explicitamente sesgada hacia la ruta observacional
+   cuando el lenguaje es ambiguo (evita sobre-causalizacion). Bloque
+   adicional de exemplars de abstencion para cantidades model-dependent que
+   la gramatica no puede verificar (coeficientes de regresion, betas
+   estandarizados, AIC, R-cuadrado, componentes de varianza de
+   mixed-effects) — el compiler debe senalarlas via el contrato de
+   abstencion.
+
+   Harness aislado `scripts/p06_recompile_only.py` que reinvoca
+   `compile_sq_to_specs` sobre los textos de sub-questions congelados de
+   un baseline y diffea los `verification_specs` resultantes contra el
+   baseline congelado. Outcomes por-SQ alimentan tres metricas:
+   - **C1a** `resolved_rate` — fraccion de SQs cuyas required specs
+     compilan a una ruta valida.
+   - **C1b** `bad_replacement_rate` — fraccion de SQs donde la nueva
+     compilacion empeora la baseline (rompe specs que antes compilaban).
+   - **C1c** flags por-componente de reroute quality.
+
+   El classifier usa un gate estricto `role=required`: las route shapes
+   que solo aparecen como `support` NO pueden inflar C1a. Flag opcional
+   `--ground-sanity` corre `verify_atom` sobre las required specs reruteadas
+   como diagnostico — los criterios de exito son `no_exception` /
+   `detail_nonempty` / `measurement_finite`, NO `solver_assertion_holds`.
+
+   Defaults a 5 hard-fail cases (`competing_mech`, `coral_bleach`,
+   `immunotherapy`, `microbiome`, `selection_bias`); `--all-cases`
+   recompila la baseline completa.
+   - Tests: predicados estrictos de route shape, el trap de inflacion de
+     C1a (una route shape solo en `support` NO clasifica como `route_*`),
+     deteccion de role-flip, y extraccion de variables de spec.
+
+3. **`fix(P06): G.1 harness list-vs-tuple bug + --ground-sanity-only flag`
+   (commit 3).** Bug en el classifier del harness aislado:
+   `spec_signature` construye `arm_kinds` como tupla, pero JSON no tiene
+   tipo tupla y las firmas reloadeadas desde `recompile.json` (el path que
+   toma `--ground-sanity-only`) volvian como listas, haciendo que
+   `is_causal_route` comparara contra un tuple literal y fallara en
+   silencio — la primer corrida de `--ground-sanity` solo ejecutaba
+   `verify_atom` en 2 de los 5 reroutes (los route_obs).
+   `is_observational_route` ya era tolerante (`"adjust" in arm_kinds` +
+   `set(arm_kinds) & {...}`), por eso los observacionales ejecutaban bien.
+   Fix: normalizar a tupla con `tuple(sig.get("arm_kinds") or ())` dentro
+   de `is_causal_route`.
+   - Test de regresion JSON round-trip agregado en
+     `tests/scripts/test_p06_recompile_classifier.py`.
+   - Flag nuevo `--ground-sanity-only` permite iterar el diagnostico sin
+     re-invocar al compiler LLM: reloadea `case_summaries` desde el
+     `_recompile_summary.json` ya persistido y corre solo
+     `_run_ground_sanity`.
+
+**Por que importa.** El runner E2E es caro y mezcla muchas variables
+(LLM noise, costo, latencia). El harness aislado permite medir
+exclusivamente cuanto del compiler emite rutas semanticamente validas
+sobre los mismos textos de SQs, asi cualquier delta es atribuible al
+prompt y no a otras fuentes. La separacion `success` / `abstained` /
+`error` impide que abstenciones legitimas (cantidades no-verificables)
+queden mezcladas con errores reales del compiler en C1a/C1b.
+
+**Estado.** Codigo y tests landed (df5abf1 + 15d75ae + commit 3). La
+corrida G.1 sobre los 5 hard-fail se completo: **C1a 100% (6/6)**, **C1b
+0% (0/6)**, **C1c 100% (5/5 reroutes)**. La grieta
+`adjust + partial_correlation` no aparece en ninguna emision nueva del
+compiler. La alarma C2 `+12pp` en abstention delta fue adjudicada
+manualmente — las 3 abstenciones del slice hard-fail son
+latent-variable legitimas; la calibracion general sigue dependiendo de
+#37. Esto es evidencia sobre las rutas de emision del compiler, NO
+sobre el sistema E2E.
+
+**Hallazgo secundario (no invalida G.1).** La re-corrida del
+ground-sanity post-harness-fix ejecuta 5/5 reroutes sin excepcion, pero
+3/5 (todos route_causal) devuelven `measurement_finite=0` porque el
+compiler LLM elige `adjust_set` que NO son backdoor sets validos para el
+DAG del mundo. `verify_atom` loguea explicitamente el caso. Es una
+clase de problema distinta: G.1 cerro la grieta sobre formas
+estructuralmente imposibles; esto es sobre formas estructuralmente
+validas pero con un `adjust_set` que no identifica causalmente. Root
+cause: `oi_sq_compiler.py::_build_variables_info` solo pasa
+`{nombre: mean/std/range}` al LLM, cero aristas ni DAG — el LLM adivina
+confounders por semantica de dominio. Registrado como **task #45**
+(contrato SCM -> compiler, ver `TODO.md`). Se resuelve aparte, no bajo
+G.1. Los artifacts del run (`results/p06_recompile/`) quedan fuera del
+commit: la carpeta esta gitignored y el framing vive en este entry y en
+el scope del task #45.
+
 ### 2026-04-07 — Docs: SREG v1 definition — roadmap + criterios de done
 
 **Vocabulario canonico para versiones del producto.** Antes de hoy "v1" era

@@ -213,9 +213,18 @@ def is_causal_route(sig: dict[str, Any]) -> bool:
 
     A one-arm `adjust + mean + identity` would NOT count — that is a
     different verification shape (single E[Y|do(X=x)], not a contrast).
+
+    NOTE: ``spec_signature`` builds ``arm_kinds`` as a sorted tuple, but
+    JSON has no tuple type, so any signature round-tripped through
+    ``recompile.json`` (e.g. the path taken by ``--ground-sanity-only``)
+    comes back as a plain list. Normalizing to a tuple here keeps the
+    predicate tolerant regardless of how the signature was loaded, and
+    mirrors the ``in arm_kinds`` / ``set(arm_kinds)`` style already used
+    by :func:`is_observational_route`.
     """
+    arm_kinds = tuple(sig.get("arm_kinds") or ())
     return (
-        sig["arm_kinds"] == ("adjust", "adjust")
+        arm_kinds == ("adjust", "adjust")
         and sig["n_arms"] == 2
         and sig["measurement"] == "mean"
         and sig["comparison"] == "difference"
@@ -1226,6 +1235,15 @@ def main():
         ),
     )
     p.add_argument(
+        "--ground-sanity-only", action="store_true",
+        help=(
+            "Skip the compiler (no LLM calls) and re-run ground-sanity over "
+            "the already-persisted recompile.json files in --out. Useful for "
+            "iterating on the ground-sanity logic without burning tokens. "
+            "Requires a prior run with --persist-specs."
+        ),
+    )
+    p.add_argument(
         "--persist-specs", action="store_true",
         help=(
             "Persist full spec_dict in new_specs_meta on disk (required by "
@@ -1233,6 +1251,11 @@ def main():
         ),
     )
     args = p.parse_args()
+
+    if args.ground_sanity_only and not args.ground_sanity:
+        # --ground-sanity-only without --ground-sanity is a no-op; auto-enable
+        # ground-sanity so the block below runs.
+        args.ground_sanity = True
 
     if args.ground_sanity and not args.persist_specs:
         print(
@@ -1264,50 +1287,83 @@ def main():
                 f"{sorted(missing)}"
             )
 
-    base_url = os.environ.get("AZURE_FOUNDRY_BASE_URL", "")
-    api_key = os.environ.get("AZURE_INFERENCE_CREDENTIAL", "")
-    if not base_url or not api_key:
-        print("ERROR: Azure env vars not set (.env)")
-        sys.exit(1)
+    # --ground-sanity-only skips the LLM path entirely: we reload the
+    # existing case_summaries from the previous run and only re-run the
+    # ground-sanity block below. This keeps the flag cheap and side-effect
+    # free on the recompile artifacts (they are not rewritten).
+    if args.ground_sanity_only:
+        summary_path = out_dir / "_recompile_summary.json"
+        if not summary_path.exists():
+            print(
+                f"ERROR: --ground-sanity-only requires a prior run that "
+                f"produced {summary_path}. Run without --ground-sanity-only "
+                f"first (with --persist-specs)."
+            )
+            sys.exit(1)
+        with open(summary_path, "r", encoding="utf-8") as f:
+            case_summaries = json.load(f)
+        # Re-filter cases to those actually on disk, in the original order.
+        seen = {c.get("case") for c in case_summaries}
+        cases = [c for c in cases if c in seen]
+        compiler_model = args.compiler_model or os.environ.get("AZURE_MODEL", "gpt-5.4")
 
-    compiler_model = args.compiler_model or os.environ.get("AZURE_MODEL", "gpt-5.4")
+        print()
+        print("=" * 80)
+        print("  P06 G.1 — GROUND-SANITY-ONLY RERUN (no LLM)")
+        print("=" * 80)
+        print(f"  baseline:        {baseline_dir}")
+        print(f"  out:             {out_dir}")
+        print(f"  compiler_model:  {compiler_model} (not invoked)")
+        print(f"  cases:           {len(cases)} ({', '.join(cases)})")
+        print(f"  ground_sanity:   {args.ground_sanity}")
+        print(f"  persist_specs:   (prior run)")
+        print()
+    else:
+        base_url = os.environ.get("AZURE_FOUNDRY_BASE_URL", "")
+        api_key = os.environ.get("AZURE_INFERENCE_CREDENTIAL", "")
+        if not base_url or not api_key:
+            print("ERROR: Azure env vars not set (.env)")
+            sys.exit(1)
 
-    from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key=api_key)
-    llm_call = build_text_llm(client, compiler_model)
+        compiler_model = args.compiler_model or os.environ.get("AZURE_MODEL", "gpt-5.4")
 
-    # Stash flag on a module-level so recompile_one_sq can pick it up
-    # without changing every signature in the call chain.
-    global _PERSIST_SPECS
-    _PERSIST_SPECS = bool(args.persist_specs)
+        from openai import OpenAI
+        client = OpenAI(base_url=base_url, api_key=api_key)
+        llm_call = build_text_llm(client, compiler_model)
 
-    print()
-    print("=" * 80)
-    print("  P06 G.1 — ISOLATED COMPILER RECOMPILATION")
-    print("=" * 80)
-    print(f"  baseline:        {baseline_dir}")
-    print(f"  out:             {out_dir}")
-    print(f"  compiler_model:  {compiler_model}")
-    print(f"  cases:           {len(cases)} ({', '.join(cases)})")
-    print(f"  ground_sanity:   {args.ground_sanity}")
-    print(f"  persist_specs:   {args.persist_specs}")
-    print()
+        # Stash flag on a module-level so recompile_one_sq can pick it up
+        # without changing every signature in the call chain.
+        global _PERSIST_SPECS
+        _PERSIST_SPECS = bool(args.persist_specs)
 
-    case_summaries: list[dict] = []
-    for case in cases:
-        try:
-            summary = recompile_case(case, baseline_dir, out_dir, llm_call)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            summary = {"case": case, "ok": False, "error": str(e)}
-        case_summaries.append(summary)
+        print()
+        print("=" * 80)
+        print("  P06 G.1 — ISOLATED COMPILER RECOMPILATION")
+        print("=" * 80)
+        print(f"  baseline:        {baseline_dir}")
+        print(f"  out:             {out_dir}")
+        print(f"  compiler_model:  {compiler_model}")
+        print(f"  cases:           {len(cases)} ({', '.join(cases)})")
+        print(f"  ground_sanity:   {args.ground_sanity}")
+        print(f"  persist_specs:   {args.persist_specs}")
+        print()
 
-    summary_path = out_dir / "_recompile_summary.json"
-    with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump(case_summaries, f, indent=2)
+        case_summaries = []
+        for case in cases:
+            try:
+                summary = recompile_case(case, baseline_dir, out_dir, llm_call)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                summary = {"case": case, "ok": False, "error": str(e)}
+            case_summaries.append(summary)
 
-    write_batch_report(case_summaries, out_dir)
+        summary_path = out_dir / "_recompile_summary.json"
+        with open(summary_path, "w", encoding="utf-8") as f:
+            json.dump(case_summaries, f, indent=2)
+
+        write_batch_report(case_summaries, out_dir)
+
     report_path = out_dir / "_recompile_report.md"
 
     sanity_summaries: list[dict[str, Any]] = []
