@@ -291,6 +291,46 @@ class AtomicSpec(BaseModel):
                 )
         return self
 
+    @model_validator(mode="after")
+    def validate_arm_measurement_compatibility(self) -> AtomicSpec:
+        """Reject structurally incoherent arm/measurement combinations.
+
+        Discovered via P06 forensics on policy_equity: the verifier executor
+        for arm.kind=ADJUST returns 1-D samples of the OUTCOME variable only
+        (E[Y | do(X=x)]) — there is no treatment column, no conditioning
+        columns, no DataFrame at all. So measurements that need a multivariate
+        context cannot be computed from those samples and previously fell
+        through to a silent np.mean(samples) fallback in _measure_from_samples,
+        producing wrong truth values.
+
+        This validator enforces the contract at construction time so the
+        compiler must either re-emit a coherent spec or abstain.
+
+        NOTE: DISTRIBUTION is intentionally NOT included here. Its semantics
+        under the current executor are placeholder/incomplete; rejecting it
+        without confirmation could break otherwise-working specs. Reopen if
+        evidence shows DISTRIBUTION + ADJUST is also incoherent.
+        """
+        incompatible_with_adjust = {
+            MeasurementKind.CORRELATION,
+            MeasurementKind.PARTIAL_CORRELATION,
+        }
+        if self.measurement.kind in incompatible_with_adjust:
+            for arm in self.arms:
+                if arm.kind == QueryKind.ADJUST:
+                    raise ValueError(
+                        f"AtomicSpec {self.spec_id}: arm '{arm.label}' has "
+                        f"kind=ADJUST but measurement.kind="
+                        f"{self.measurement.kind.value}, which requires a "
+                        f"multivariate DataFrame. ADJUST returns 1-D outcome "
+                        f"samples only and cannot support correlation-style "
+                        f"measurements. Use kind=BASELINE for observational "
+                        f"correlation, or pick a measurement compatible with "
+                        f"ADJUST samples (mean, variance, quantile, "
+                        f"tail_prob, identifiability_check)."
+                    )
+        return self
+
 
 # ---------------------------------------------------------------------------
 # Claim Card — what the solver delivers
@@ -748,6 +788,144 @@ class EpisodeSubQuestionScore(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Robust loader for frozen SubQuestionIntentV2 artifacts (P06 Experiment R)
+# ---------------------------------------------------------------------------
+
+
+class DroppedSpecRecord(BaseModel):
+    """One verification_spec that was dropped during robust loading.
+
+    Used to surface, in the experiment output, exactly which specs were
+    invalid and why — instead of hard-failing the whole batch.
+    """
+
+    sq_id: str
+    spec_id: str | None = None
+    role: str = "required"  # "required" or "support"
+    reason: str
+
+
+class RobustLoadResult(BaseModel):
+    """Outcome of loading frozen SubQuestionIntentV2 list with spec-level fallback.
+
+    `loaded` is the list to feed to the runner. `abstained_sq_ids` are SQs
+    whose every `required` spec was dropped — per the p06 forensics
+    policy, the whole SQ is abstained and `support` specs are NOT promoted
+    to required. `dropped_specs` is a per-spec audit trail.
+    """
+
+    loaded: list[SubQuestionIntentV2] = Field(default_factory=list)
+    abstained_sq_ids: list[str] = Field(default_factory=list)
+    dropped_specs: list[DroppedSpecRecord] = Field(default_factory=list)
+
+
+def load_sub_questions_v2_robust(
+    raw_sqs: list[dict[str, Any]],
+) -> RobustLoadResult:
+    """Load `SubQuestionIntentV2` list from raw frozen JSON, gracefully.
+
+    Centralizes the JSON-to-pydantic step that was previously inlined in
+    `scripts/p06_paired_run.py` and `scripts/rescore.py` (the only two
+    historical-artifact loaders in the repo). Used by both — do not
+    re-inline this logic anywhere.
+
+    For each raw SQ:
+
+    1. Each `verification_spec` raw dict is validated **individually**.
+       Failing specs are dropped with the pydantic error captured in
+       `dropped_specs`. This catches `adjust + partial_correlation`-style
+       contract violations introduced upstream by an old compiler.
+    2. If at least one `required` spec survives, the SQ is rebuilt from
+       the survivors and appended to `loaded`.
+    3. If **every** `required` spec falls, the SQ as a whole is abstained:
+       its `sq_id` is added to `abstained_sq_ids` and it does NOT appear
+       in `loaded`. Surviving `support` specs are dropped on the floor —
+       the policy is "core gone => SQ unaddressed", we do not synthesize
+       cosmetic coverage by promoting supports. (Decision recorded in
+       research/notes/p06_phase_c_forensics.md, "Required-fallback
+       policy".)
+    4. If the outer `SubQuestionIntentV2` construction itself fails after
+       successful spec filtering (e.g. malformed `text_gloss`), the SQ is
+       abstained and the failure is recorded as a synthetic dropped spec
+       with `spec_id=None`.
+
+    The function never raises on a per-spec or per-SQ failure. The only
+    way it raises is on a malformed `raw_sqs` argument (wrong type).
+
+    Args:
+        raw_sqs: list of raw dicts loaded from `src.json["sub_questions_v2"]`.
+
+    Returns:
+        `RobustLoadResult` with `loaded`, `abstained_sq_ids`, `dropped_specs`.
+    """
+    from pydantic import ValidationError
+
+    if not isinstance(raw_sqs, list):
+        raise TypeError(
+            f"load_sub_questions_v2_robust expects list[dict], got {type(raw_sqs).__name__}"
+        )
+
+    result = RobustLoadResult()
+
+    for raw_sq in raw_sqs:
+        if not isinstance(raw_sq, dict):
+            continue
+        sq_id = str(raw_sq.get("sq_id") or "<unknown>")
+        raw_specs = raw_sq.get("verification_specs") or []
+
+        surviving_specs: list[dict[str, Any]] = []
+        for raw_spec in raw_specs:
+            if not isinstance(raw_spec, dict):
+                continue
+            inner = raw_spec.get("spec") or {}
+            spec_id = inner.get("spec_id") if isinstance(inner, dict) else None
+            role = raw_spec.get("role", "required")
+            try:
+                VerificationSpec.model_validate(raw_spec)
+            except ValidationError as e:
+                result.dropped_specs.append(
+                    DroppedSpecRecord(
+                        sq_id=sq_id,
+                        spec_id=spec_id,
+                        role=role,
+                        reason=str(e),
+                    )
+                )
+                continue
+            surviving_specs.append(raw_spec)
+
+        # Required-fallback policy: if no required survived, abstain whole SQ.
+        survivors_required = [
+            s for s in surviving_specs if s.get("role", "required") == "required"
+        ]
+        if not survivors_required:
+            result.abstained_sq_ids.append(sq_id)
+            continue
+
+        rebuilt_raw = dict(raw_sq)
+        rebuilt_raw["verification_specs"] = surviving_specs
+        try:
+            sq = SubQuestionIntentV2.model_validate(rebuilt_raw)
+        except ValidationError as e:
+            # Outer SQ construction failed even after spec filtering
+            # (malformed text_gloss, missing tier, etc.). Abstain the SQ.
+            result.abstained_sq_ids.append(sq_id)
+            result.dropped_specs.append(
+                DroppedSpecRecord(
+                    sq_id=sq_id,
+                    spec_id=None,
+                    role="sq_outer",
+                    reason=str(e),
+                )
+            )
+            continue
+
+        result.loaded.append(sq)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Scoring parameters
 # ---------------------------------------------------------------------------
 
@@ -807,6 +985,9 @@ __all__ = [
     "ResolvedSubQuestion",
     "VerificationSpec",
     "SubQuestionIntentV2",
+    "DroppedSpecRecord",
+    "RobustLoadResult",
+    "load_sub_questions_v2_robust",
     "SubQuestionScore",
     "EpisodeSubQuestionScore",
     "SPEC_BASE",

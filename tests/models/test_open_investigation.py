@@ -354,6 +354,102 @@ class TestAtomicSpec:
         )
         assert len(spec.arms[0].sweep_values) == 5
 
+    def test_adjust_with_partial_correlation_rejected(self):
+        """REGRESSION (P06 forensics, policy_equity): the compiler emitted
+        spec(arm.kind=ADJUST + measurement.kind=PARTIAL_CORRELATION) which
+        is structurally incoherent — ADJUST returns 1-D outcome samples and
+        cannot support multivariate measurements. The grammar must reject
+        this combination at construction time.
+        """
+        with pytest.raises(ValueError, match="kind=ADJUST"):
+            AtomicSpec(
+                spec_id="bad_adjust_pcor",
+                arms=(
+                    QueryArm(
+                        label="adjusted",
+                        kind=QueryKind.ADJUST,
+                        treatment="X",
+                        outcome="Y",
+                        adjust_set=("Z",),
+                    ),
+                ),
+                measurement=Measurement(
+                    kind=MeasurementKind.PARTIAL_CORRELATION,
+                    lhs="X",
+                    rhs="Y",
+                    cond_set=("Z",),
+                ),
+                comparison=Comparison(kind=ComparisonKind.IDENTITY),
+                assertion=Assertion(kind=AssertionKind.NEGATIVE),
+            )
+
+    def test_adjust_with_correlation_rejected(self):
+        """ADJUST + CORRELATION is also incoherent: correlation needs
+        lhs and rhs columns, but ADJUST samples are 1-D outcome only.
+        """
+        with pytest.raises(ValueError, match="kind=ADJUST"):
+            AtomicSpec(
+                spec_id="bad_adjust_cor",
+                arms=(
+                    QueryArm(
+                        label="adjusted",
+                        kind=QueryKind.ADJUST,
+                        treatment="X",
+                        outcome="Y",
+                        adjust_set=("Z",),
+                    ),
+                ),
+                measurement=Measurement(
+                    kind=MeasurementKind.CORRELATION,
+                    lhs="X",
+                    rhs="Y",
+                ),
+                comparison=Comparison(kind=ComparisonKind.IDENTITY),
+                assertion=Assertion(kind=AssertionKind.POSITIVE),
+            )
+
+    def test_adjust_with_mean_still_valid(self):
+        """ADJUST + MEAN is the canonical valid combination: compute
+        E[Y | do(X=x)] from interventional samples. Must NOT regress.
+        """
+        spec = AtomicSpec(
+            spec_id="ok_adjust_mean",
+            arms=(
+                QueryArm(
+                    label="adjusted",
+                    kind=QueryKind.ADJUST,
+                    treatment="X",
+                    outcome="Y",
+                    adjust_set=("Z",),
+                    values={"X": 1.0},
+                ),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
+        )
+        assert spec.arms[0].kind == QueryKind.ADJUST
+        assert spec.measurement.kind == MeasurementKind.MEAN
+
+    def test_baseline_with_partial_correlation_still_valid(self):
+        """BASELINE + PARTIAL_CORRELATION is the canonical valid form for
+        an observational partial correlation. Must NOT regress.
+        """
+        spec = AtomicSpec(
+            spec_id="ok_baseline_pcor",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(
+                kind=MeasurementKind.PARTIAL_CORRELATION,
+                lhs="X",
+                rhs="Y",
+                cond_set=("Z",),
+            ),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.NEGATIVE),
+        )
+        assert spec.arms[0].kind == QueryKind.BASELINE
+        assert spec.measurement.kind == MeasurementKind.PARTIAL_CORRELATION
+
 
 # ---------------------------------------------------------------------------
 # ClaimCard / Submission tests
@@ -630,4 +726,143 @@ class TestGrammarExpressiveness:
             ),
             comparison=Comparison(kind=ComparisonKind.IDENTITY),
             assertion=Assertion(kind=AssertionKind.NOT_DISTINGUISHABLE),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Robust loader tests (P06 Experiment R)
+# ---------------------------------------------------------------------------
+
+
+class TestRobustLoader:
+    """Tests for load_sub_questions_v2_robust — frozen artifact loader.
+
+    The loader has three contractually-locked behaviors:
+      1. Happy path: a valid raw SQ list round-trips into SubQuestionIntentV2.
+      2. Spec-level fallback: an invalid spec is dropped with a reason; the
+         SQ continues with the surviving specs.
+      3. SQ-level fallback: if EVERY required spec falls, the whole SQ is
+         abstained — surviving `support` specs are NOT promoted.
+    """
+
+    def _good_required_raw(self, spec_id: str = "good") -> dict:
+        """Raw verification_spec dict for a valid baseline+mean+positive spec."""
+        return {
+            "spec": _mean_contrast_spec("X", "Y", spec_id=spec_id).model_dump(mode="json"),
+            "role": "required",
+        }
+
+    def _bad_adjust_pcor_required_raw(self, spec_id: str = "bad") -> dict:
+        """Raw verification_spec dict for the policy_equity bug shape:
+        adjust + partial_correlation. The validator added in P06 must reject
+        this at AtomicSpec construction time, so the loader must drop it.
+        """
+        return {
+            "spec": {
+                "spec_id": spec_id,
+                "arms": [{
+                    "label": "adjusted",
+                    "kind": "adjust",
+                    "treatment": "X",
+                    "outcome": "Y",
+                    "adjust_set": ["Z"],
+                }],
+                "measurement": {
+                    "kind": "partial_correlation",
+                    "lhs": "X",
+                    "rhs": "Y",
+                    "cond_set": ["Z"],
+                },
+                "comparison": {"kind": "identity"},
+                "assertion": {"kind": "positive"},
+            },
+            "role": "required",
+        }
+
+    def _good_support_raw(self, spec_id: str = "supp") -> dict:
+        """Raw verification_spec dict marked as support (not required)."""
+        return {
+            "spec": _mean_contrast_spec("X", "Y", spec_id=spec_id).model_dump(mode="json"),
+            "role": "support",
+        }
+
+    def _wrap_sq(self, sq_id: str, specs: list[dict]) -> dict:
+        return {
+            "sq_id": sq_id,
+            "text_gloss": "Investigate the relationship between X and Y",
+            "tier": "high",
+            "verification_specs": specs,
+        }
+
+    def test_happy_path_no_drops(self):
+        """Valid raw SQ list loads cleanly with zero drops or abstentions."""
+        from sreg.models.open_investigation import (
+            SubQuestionIntentV2,
+            load_sub_questions_v2_robust,
+        )
+
+        raw = [self._wrap_sq("sq1", [self._good_required_raw()])]
+        result = load_sub_questions_v2_robust(raw)
+
+        assert len(result.loaded) == 1
+        assert isinstance(result.loaded[0], SubQuestionIntentV2)
+        assert result.loaded[0].sq_id == "sq1"
+        assert result.abstained_sq_ids == []
+        assert result.dropped_specs == []
+
+    def test_invalid_spec_dropped_sq_continues(self):
+        """An invalid spec is dropped, the SQ continues with the survivors.
+
+        SQ has [required-good, required-bad, support-good]. Loader drops the
+        bad one, retains 1 required + 1 support.
+        """
+        from sreg.models.open_investigation import load_sub_questions_v2_robust
+
+        raw = [self._wrap_sq("sq1", [
+            self._good_required_raw("ok_req"),
+            self._bad_adjust_pcor_required_raw("dropped_req"),
+            self._good_support_raw("ok_sup"),
+        ])]
+        result = load_sub_questions_v2_robust(raw)
+
+        assert len(result.loaded) == 1
+        sq = result.loaded[0]
+        assert sq.sq_id == "sq1"
+        # Bad spec is gone; the two valid specs remain (1 required + 1 support).
+        assert len(sq.verification_specs) == 2
+        assert {vs.spec.spec_id for vs in sq.verification_specs} == {"ok_req", "ok_sup"}
+        assert {vs.role for vs in sq.verification_specs} == {"required", "support"}
+        # Drop record is captured with the offending spec_id.
+        assert len(result.dropped_specs) == 1
+        dropped = result.dropped_specs[0]
+        assert dropped.sq_id == "sq1"
+        assert dropped.spec_id == "dropped_req"
+        assert dropped.role == "required"
+        assert "adjust" in dropped.reason.lower() or "partial" in dropped.reason.lower()
+        assert result.abstained_sq_ids == []
+
+    def test_all_required_drop_abstains_sq_supports_not_promoted(self):
+        """If every required spec falls, the SQ is abstained as a whole.
+
+        The surviving `support` spec is NOT promoted to required and the SQ
+        does NOT appear in `loaded`. This is the required-fallback policy
+        from research/notes/p06_phase_c_forensics.md.
+        """
+        from sreg.models.open_investigation import load_sub_questions_v2_robust
+
+        raw = [self._wrap_sq("sq_dead", [
+            self._bad_adjust_pcor_required_raw("dropped_req_only"),
+            self._good_support_raw("orphan_support"),
+        ])]
+        result = load_sub_questions_v2_robust(raw)
+
+        # SQ is NOT in loaded; it is in abstained_sq_ids.
+        assert result.loaded == []
+        assert result.abstained_sq_ids == ["sq_dead"]
+        # The bad required spec is recorded as dropped (the orphan support
+        # is not synthesized into the loaded list — it is silently discarded
+        # along with the abstained SQ).
+        assert any(
+            d.spec_id == "dropped_req_only" and d.role == "required"
+            for d in result.dropped_specs
         )

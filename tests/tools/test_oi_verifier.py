@@ -27,6 +27,7 @@ from sreg.models.open_investigation import (
 from sreg.solver.scm_solver import SCMSolver
 from sreg.tools.oi_verifier import (
     _filter_condition,
+    _measure_from_samples,
     score_claim_against_family,
     score_episode,
     verify_atom,
@@ -196,6 +197,58 @@ class TestVerifyAtom:
         )
         verdict = verify_atom(spec, world, solver, n_mc=50_000, seed=42)
         assert verdict.solver_assertion_holds is True
+
+    def test_adjust_with_partial_correlation_does_not_silently_return_mean(self):
+        """REGRESSION (P06 forensics, policy_equity): adjust+partial_correlation
+        was silently falling through _measure_from_samples() to np.mean(samples),
+        i.e. returning E[Y | do(treatment=0)] as if it were a partial correlation.
+        The assertion was then applied against that meaningless number, producing
+        wrong truth values for claims whose compiler picked arm.kind=ADJUST.
+
+        Defense layers after P06:
+          1. AtomicSpec.validate_arm_measurement_compatibility — first line of
+             defense, rejects this combination at construction time. Tested in
+             tests/models/test_open_investigation.py.
+          2. _measure_from_samples — second line of defense in the verifier.
+             If a spec ever bypasses validation (e.g. via model_construct or a
+             legacy frozen artifact loaded by a future code path that skips
+             validation), the verifier itself must NOT silently produce a
+             meaningful-looking number. It must return NaN.
+
+        This test targets the second layer directly, by feeding the function
+        a 1-D outcome sample array (the only thing the adjust executor ever
+        produces) plus a partial_correlation Measurement, and asserting NaN.
+        It does not need to construct an AtomicSpec or call verify_atom: the
+        bug being prevented lives entirely inside _measure_from_samples.
+        """
+        # Simulate the output of _run_adjustment: 1-D outcome samples
+        outcome_samples = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+
+        bad_measurement = Measurement(
+            kind=MeasurementKind.PARTIAL_CORRELATION,
+            lhs="A",
+            rhs="Y",
+            cond_set=("C",),
+        )
+
+        value = _measure_from_samples(bad_measurement, outcome_samples)
+
+        assert isinstance(value, float) and np.isnan(value), (
+            "Verifier silently returned a non-NaN value for adjust + "
+            "partial_correlation. This is the policy_equity P06 bug. "
+            f"Got value={value!r}."
+        )
+
+        # Sanity: the SAME function returns a real number for a compatible
+        # measurement (mean), so the NaN above is specifically due to the
+        # incompatibility, not a generic always-NaN bug.
+        ok_measurement = Measurement(kind=MeasurementKind.MEAN, target="Y")
+        ok_value = _measure_from_samples(ok_measurement, outcome_samples)
+        assert isinstance(ok_value, float) and not np.isnan(ok_value), (
+            f"Compatible mean measurement should return a real number, "
+            f"got {ok_value!r}"
+        )
+        assert ok_value == pytest.approx(3.0)
 
     def test_sweep_changepoint(self):
         """Verify sweep + changepoint detection."""

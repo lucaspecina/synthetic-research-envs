@@ -134,7 +134,7 @@ def run_one_case(
     from openai import OpenAI
 
     from sreg.models.research_problem import ResearchProblem
-    from sreg.models.open_investigation import SubQuestionIntentV2
+    from sreg.models.open_investigation import load_sub_questions_v2_robust
     from sreg.tools.oi_driver import run_oi_investigation
     from sreg.tools.oi_runner import OIEpisodeRunner
 
@@ -157,7 +157,26 @@ def run_one_case(
     sqs_v2_raw = src.get("sub_questions_v2", [])
     if not sqs_v2_raw:
         return {"case": case_name, "error": "no sub_questions_v2 in src.json"}
-    sqs_v2 = [SubQuestionIntentV2(**sq) for sq in sqs_v2_raw]
+
+    # Robust load: drops invalid specs, abstains SQ if all required fall.
+    # See research/notes/p06_phase_c_forensics.md "Required-fallback policy".
+    load_result = load_sub_questions_v2_robust(sqs_v2_raw)
+    sqs_v2 = load_result.loaded
+    if load_result.dropped_specs:
+        print(
+            f"  [{case_name}] loader dropped {len(load_result.dropped_specs)} "
+            f"invalid spec(s); abstained_sqs={len(load_result.abstained_sq_ids)}"
+        )
+    if not sqs_v2:
+        return {
+            "case": case_name,
+            "error": (
+                f"all SQs abstained by robust loader "
+                f"(dropped={len(load_result.dropped_specs)}, "
+                f"abstained={len(load_result.abstained_sq_ids)})"
+            ),
+            "loader_diagnostics": load_result.model_dump(mode="json"),
+        }
 
     # === Frozen runner config (from baseline oi_result.json) ===
     si = base_res.get("score_inputs_v2", {})
@@ -231,6 +250,7 @@ def run_one_case(
         "submitted": oi_result.submitted,
         "score": oi_result.score.model_dump() if oi_result.score else None,
         "compiler_stats": runner.compiler_stats(),
+        "loader_diagnostics": load_result.model_dump(mode="json"),
         "solver_tool_calls": solver_tool_calls,
         "conversation": oi_result.messages,
     }
@@ -255,6 +275,8 @@ def run_one_case(
         "total": round(getattr(sc, "total", 0.0), 3) if sc else None,
         "world_fingerprint": fp,
         "out_path": str(out_path),
+        "loader_dropped_specs": len(load_result.dropped_specs),
+        "loader_abstained_sqs": len(load_result.abstained_sq_ids),
     }
     print(f"  [{case_name}] done in {elapsed:.0f}s | "
           f"claims={summary['n_claims']} total={summary['total']}")

@@ -110,13 +110,25 @@ def load_claims(result: dict) -> list:
 
 
 def load_sqs_v2(src: dict, world):
-    """Load grounded SQs v2 from src.json."""
-    from sreg.models.open_investigation import SubQuestionIntentV2
+    """Load grounded SQs v2 from src.json via the centralized robust loader.
+
+    Drops invalid specs (e.g. legacy adjust+partial_correlation), abstains
+    SQs whose required specs all fall (per p06 forensics policy). Logs
+    diagnostics to stdout. See `load_sub_questions_v2_robust` in
+    sreg.models.open_investigation.
+    """
+    from sreg.models.open_investigation import load_sub_questions_v2_robust
 
     raw = src.get("sub_questions_v2", [])
     if not raw:
         return None
-    return [SubQuestionIntentV2(**sq) for sq in raw]
+    load_result = load_sub_questions_v2_robust(raw)
+    if load_result.dropped_specs:
+        print(
+            f"  [rescore] loader dropped {len(load_result.dropped_specs)} "
+            f"invalid spec(s); abstained_sqs={len(load_result.abstained_sq_ids)}"
+        )
+    return load_result.loaded or None
 
 
 def make_llm_call():

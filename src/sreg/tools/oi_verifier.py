@@ -443,7 +443,18 @@ def _measure(
 
 
 def _measure_from_samples(measurement: Measurement, samples: np.ndarray) -> float:
-    """Measure from raw numpy samples (for adjust arms)."""
+    """Measure from raw numpy samples (for adjust arms).
+
+    Adjust arms produce 1-D samples of the OUTCOME variable only
+    (E[Y | do(X=x)]). They do NOT carry the treatment, conditioning vars,
+    or any other column. So measurements that need a multivariate context
+    (correlation, partial_correlation, distribution comparisons) are NOT
+    computable from these samples and must signal incompatibility (NaN)
+    rather than silently fall back to mean(samples). The previous fallback
+    caused a silent failure mode in the policy_equity P06 forensics:
+    spec(adjust+partial_correlation) returned mean(Y_under_do(X=0)) and
+    the assertion was applied as if it were a partial correlation.
+    """
     if measurement.kind == MeasurementKind.MEAN:
         return float(np.mean(samples))
     if measurement.kind == MeasurementKind.VARIANCE:
@@ -452,7 +463,18 @@ def _measure_from_samples(measurement: Measurement, samples: np.ndarray) -> floa
         return float(np.quantile(samples, measurement.q))
     if measurement.kind == MeasurementKind.TAIL_PROB and measurement.threshold is not None:
         return float(np.mean(samples > measurement.threshold))
-    return float(np.mean(samples))
+
+    # Incompatible: measurement.kind needs a DataFrame (correlation,
+    # partial_correlation, distribution) or is missing a required field
+    # (QUANTILE without q, TAIL_PROB without threshold). Return NaN so the
+    # incoherent spec is surfaced via holds=False instead of a meaningless
+    # value masquerading as a real measurement.
+    logger.warning(
+        "Adjust arm samples are 1-D outcome only; measurement.kind=%s is not "
+        "computable from them. Returning NaN.",
+        measurement.kind,
+    )
+    return float("nan")
 
 
 def _measure_sweep(measurement: Measurement, result: dict) -> dict[float, float]:
