@@ -574,6 +574,20 @@ no son validos como resultados oficiales de v1 y el runner emite un
 | legacy: SQ v1 | `oi_subquestions.score_episode_with_subquestions` | `total = wcov*0.70 + corr*0.20 + novel + cov*0.10` (aditivo). Match score = `truth x compat x answer_score` (sin LLM). | Legacy fallback. Warning en logs. No es resultado oficial v1. |
 | legacy: salience map | `score_compiled_episode_v2` | `EpisodeScore`, `ClaimVerdict`, `SalienceFamily`, `efficiency`. | Legacy fallback. Warning en logs. No es resultado oficial v1. |
 
+### Claim cap: 15 (congelado para v1, 2026-04-09)
+
+El solver puede submitir entre 1 y **15** claims atomicas. Este valor
+(`MAX_CLAIMS = 15`) esta parametrizado como `claim_cap` a lo largo de
+todo el chain: `OIEpisodeRunner(claim_cap=...)` -> prompt dinamico
+(`"1-{claim_cap} atomic claims"`) -> tool schema (`maxItems`) ->
+enforcement en `submit_claims`.
+
+Decision basada en P06 cap decision (24 runs). Cap=5 fuerza bundling
+que reduce resolucion del instrumento. Cap=15 permite decomposicion
+atomica y amplifica la senal de calidad de juicio (el solver que
+especula sin verificar se penaliza mas). Ver
+`research/notes/p06_cap_decision_result.md`.
+
 **Para cualquier cambio sobre scoring:** apuntar al canonico
 (`_score_with_judge`) y replicar en `scripts/rescore.py::_aggregate_score`
 que es el espejo offline. NO modificar los paths legacy salvo que el

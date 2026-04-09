@@ -25,9 +25,13 @@ la suite de escenarios diversos de investigacion, no solo causal simple.
 
 Los 6 criterios de cierre:
 
-1. **Decision sobre bundling** — El experimento P06 (relaxar claim cap a
-   15 + atomic prompt) debe tener decision final (adoptar / descartar /
-   iterar) con evidencia del rerun de 12 casos post-Fix A. Ver task #26.
+1. **Decision sobre bundling** — **DECIDIDO (2026-04-09).** Cap=15
+   congelado para SREG v1. Experimento P06 (24 runs, 12 casos x 2
+   condiciones) demuestra que cap=5 fuerza bundling que reduce
+   resolucion del instrumento. Cap=15 permite decomposicion atomica y
+   amplifica senal de calidad de juicio. P1 delta medias PASS (+0.056),
+   P1 amplitud FAIL (6/12). Decision basada en argumento de instrumento,
+   no de solver performance. Ver `research/notes/p06_cap_decision_result.md`.
 
 2. **Canonical path estable** — **DECIDIDO (2026-04-09).** SQ v2
    (specs-based) + LLM judge es el unico path canonico de SREG v1.

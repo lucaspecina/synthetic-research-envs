@@ -30,6 +30,8 @@
 | `synthesis/Doc1_Taxonomia_El_Mapa.md` | **CANON mapa.** Mapa operativo para clasificar investigaciones |
 | `synthesis/oi_scoring_next_design.md` | **CANON diseno.** Sub-question scoring architecture |
 | `synthesis/sq_v2_matching_spec.md` | **CANON matching.** Spec de SQ matching v2 (compile + match + agg) |
+| `synthesis/eval_suite_framework.md` | **CANON evaluation.** 4 suites de evaluacion sistematica de SREG v1 |
+| `synthesis/eval_suite_science_coverage.md` | **CANON evaluation.** Suite 3: Science Coverage — corpus, mundos, harness |
 | `synthesis/scoring_relevance_design.md` | **CANON relevance.** Verdad vs relevancia, opciones de matching |
 | `synthesis/a27_answer_key_contract.md` | **CANON answer key.** Contrato del answer key rico |
 | `synthesis/scm_migration_rationale.md` | **CANON migracion.** Por que SCM y no BN |
@@ -44,6 +46,8 @@ empiricos. **NO es canonico** — son insumos para futuras decisiones.
 Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 
 - `notes/oi_pilot_analysis_batch1.md` — analisis de pilots OI
+- `notes/p06_cap_decision_result.md` — **P06 resultado: cap=15 congelado para v1**
+- `notes/p06_addendum_cap_decision.md` — P06 protocolo del experimento cap decision
 - `notes/oi_compiler_design.md` — debate de arquitectura del compiler
 - `notes/oi_investigation_gap.md` — investigation gap concept
 - `notes/scm_task_primitives.md` — primitivas composicionales propuestas
@@ -97,6 +101,8 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 | Cobertura cientifica (que cubre SREG y que no) | `synthesis/sreg_scientific_coverage.md` |
 | Taxonomia de investigacion | `synthesis/scientific_research_taxonomy.md` + `synthesis/Doc1_Taxonomia_El_Mapa.md` |
 | Escenarios diversos para validacion E2E | `synthesis/investigation_scenarios_rubric.md` |
+| **4 suites de evaluacion sistematica** | `synthesis/eval_suite_framework.md` |
+| **Science Coverage suite (diseño)** | `synthesis/eval_suite_science_coverage.md` |
 | Spec de SQ matching (compile + match + agg) | `synthesis/sq_v2_matching_spec.md` |
 | Diseno del answer key | `synthesis/a27_answer_key_contract.md` |
 | Por que SCM y no BN | `synthesis/scm_migration_rationale.md` |

@@ -5,6 +5,31 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — Criterio 1: cap=15 congelado para SREG v1
+
+**Experimento P06 cap decision completo.** 24 runs (12 casos x 2
+condiciones cap=5 vs cap=15), 0 errores. Resultado: cap=15 congelado
+como configuracion de SREG v1.
+
+Evidencia clave:
+- Delta mean(total): +0.071 (cap15 > cap5).
+- 8/12 casos saturan cap=5 (solver no puede expresar mas de 5 claims).
+- Cap=15 permite decomposicion atomica: claims bundled de 6-10 specs
+  se separan en claims focalizadas que compilan y verifican mejor.
+- Cap=15 tambien penaliza especulacion: solver que rellena slots con
+  claims falsas obtiene peor score. Buena presion evolutiva.
+- P1 delta medias PASS (+0.056), P1 amplitud FAIL (6/12). Decision
+  basada en argumento de instrumento, no de solver performance.
+
+Cambios:
+- `scripts/p06_cap_decision.py`: harness de experiment paired A/B.
+- `src/sreg/tools/oi_runner.py`: `claim_cap` como parametro explicito.
+- `src/sreg/tools/oi_driver.py`: `build_oi_solver_tools(claim_cap)`.
+- `src/sreg/tools/oi_prompts.py`: `claim_cap` en prompt dinamico.
+- `research/notes/p06_addendum_cap_decision.md`: protocolo.
+- `research/notes/p06_cap_decision_result.md`: resultado y decision.
+- Tests actualizados para claim_cap wiring.
+
 ### 2026-04-09 — Criterio 2: SQ v2 declarado path canonico de SREG v1
 
 **SQ v2 (specs-based) + LLM judge es el unico path canonico de SREG v1.**
