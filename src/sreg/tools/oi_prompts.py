@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sreg.models.open_investigation import MAX_CLAIMS
+
 
 def build_oi_system_prompt() -> str:
     """Build the system section of the OI solver prompt."""
@@ -38,7 +40,11 @@ def build_oi_system_prompt() -> str:
     )
 
 
-def build_oi_tools_section(artifact_catalog: list[dict[str, Any]]) -> str:
+def build_oi_tools_section(
+    artifact_catalog: list[dict[str, Any]],
+    *,
+    claim_cap: int = MAX_CLAIMS,
+) -> str:
     """Build the tools section listing available tools + artifact catalog."""
     catalog_lines = []
     for entry in artifact_catalog:
@@ -84,9 +90,9 @@ def build_oi_tools_section(artifact_catalog: list[dict[str, Any]]) -> str:
         "must test ONE assertion -- bundling multiple assertions into one "
         "claim reduces verifiability and makes evidence attribution "
         "ambiguous.\n\n"
-        "You can submit 1-15 atomic claims. Aim for as few as needed to "
-        "characterize the phenomenon -- typical investigations land at "
-        "6-10. Only submit assertions you can defend with evidence.\n\n"
+        f"You can submit 1-{claim_cap} atomic claims. Aim for as few as "
+        "needed to characterize the phenomenon. Only submit assertions "
+        "you can defend with evidence.\n\n"
         "Format example (abstract, not a topic hint):\n"
         "  Bundled (avoid): \"A is associated with higher B and lower C.\"\n"
         "  Atomic (preferred): (1) A-B association, (2) A-C association.\n\n"
@@ -159,6 +165,7 @@ def build_oi_solver_prompt(
     artifact_catalog: list[dict[str, Any]],
     title: str | None = None,
     domain: str | None = None,
+    claim_cap: int = MAX_CLAIMS,
 ) -> str:
     """Build the complete OI solver prompt.
 
@@ -170,6 +177,7 @@ def build_oi_solver_prompt(
         artifact_catalog: List of artifact metadata dicts.
         title: Optional investigation title.
         domain: Optional domain name.
+        claim_cap: Maximum number of claims the solver can submit.
     """
     parts = []
 
@@ -184,7 +192,9 @@ def build_oi_solver_prompt(
         parts.append(context)
 
     # Tools
-    parts.append("\n\n" + build_oi_tools_section(artifact_catalog))
+    parts.append("\n\n" + build_oi_tools_section(
+        artifact_catalog, claim_cap=claim_cap,
+    ))
 
     # Briefing
     parts.append("\n\n" + build_oi_briefing(research_brief, artifact_catalog))

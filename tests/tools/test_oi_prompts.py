@@ -64,8 +64,24 @@ class TestToolsSection:
         assert "load_artifact" in section
         assert "python_exec" in section
         assert "submit_claims" in section
-        assert "oi.corr" in section
-        assert "oi.regress" in section
+        # oi.corr/oi.regress live in the tool schema (oi_driver.py),
+        # not in the prompt text built here.
+        assert "save_artifact" in section
+        assert "evidence_basis" in section
+
+    def test_claim_cap_wiring(self):
+        """claim_cap parameter controls the prompt text."""
+        s5 = build_oi_tools_section([], claim_cap=5)
+        assert "1-5 atomic claims" in s5
+        assert "1-15" not in s5
+
+        s15 = build_oi_tools_section([], claim_cap=15)
+        assert "1-15 atomic claims" in s15
+        assert "1-5" not in s15
+
+        # Default uses MAX_CLAIMS (15)
+        s_default = build_oi_tools_section([])
+        assert "1-15 atomic claims" in s_default
 
 
 class TestBriefing:

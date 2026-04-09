@@ -182,12 +182,14 @@ class OIEpisodeRunner:
         seed: int = 42,
         n_mc: int = 50_000,
         llm_call: Any | None = None,
+        claim_cap: int = MAX_CLAIMS,
     ):
         self.problem = problem
         self.world = world
         self.seed = seed
         self.n_mc = n_mc
         self._llm_call = llm_call
+        self.claim_cap = claim_cap
 
         # Sub-questions for scoring (optional — v1 or v2, not both)
         self._subquestions: list[SubQuestionIntent] = []
@@ -340,7 +342,7 @@ class OIEpisodeRunner:
         """Submit claims and compute the episode score.
 
         Args:
-            claims: The solver's ClaimCards (1-15 claims).
+            claims: The solver's ClaimCards (1-claim_cap claims).
             compiled_claims: Pre-compiled CompilerOutputs aligned 1:1
                 with claims (same order, same claim_ids). If None,
                 auto-compiles via extraction pipeline.
@@ -353,8 +355,14 @@ class OIEpisodeRunner:
         if self._submitted:
             raise RuntimeError("Claims already submitted for this episode")
 
-        if len(claims) > MAX_CLAIMS:
-            raise ValueError(f"Too many claims: {len(claims)} > {MAX_CLAIMS}")
+        logger.info(
+            "submit_claims: claim_cap=%d, received=%d",
+            self.claim_cap, len(claims),
+        )
+        if len(claims) > self.claim_cap:
+            raise ValueError(
+                f"Too many claims: {len(claims)} > {self.claim_cap}"
+            )
 
         if len(claims) == 0:
             raise ValueError("Must submit at least 1 claim")
@@ -890,7 +898,11 @@ class OIEpisodeRunner:
             "claim_truths": self._claim_truths or {},
             "relevance_results": self._relevance_results or [],
             "judge_claims": getattr(self, "_judge_claims", []),
-            "runner_config": {"seed": self.seed, "n_mc": self.n_mc},
+            "runner_config": {
+                "seed": self.seed,
+                "n_mc": self.n_mc,
+                "claim_cap": self.claim_cap,
+            },
         }
 
     def get_solver_prompt_context(self) -> dict[str, Any]:

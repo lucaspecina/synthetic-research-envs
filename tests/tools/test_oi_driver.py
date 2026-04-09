@@ -14,6 +14,7 @@ from sreg.tools.oi_driver import (
     OIInvestigationResult,
     ScriptedAction,
     _parse_claim_cards,
+    build_oi_solver_tools,
     build_oi_tool_handler,
     run_oi_scripted,
 )
@@ -135,6 +136,21 @@ class TestToolDefinitions:
     def test_all_tools_have_description(self):
         for tool in OI_SOLVER_TOOLS:
             assert tool["function"]["description"]
+
+    def test_build_solver_tools_claim_cap_wiring(self):
+        """build_oi_solver_tools(cap) sets maxItems and description text."""
+        for cap in (5, 10, 15):
+            tools = build_oi_solver_tools(cap)
+            submit = next(
+                t for t in tools if t["function"]["name"] == "submit_claims"
+            )
+            schema = submit["function"]["parameters"]["properties"]["claims"]
+            assert schema["maxItems"] == cap, f"maxItems should be {cap}"
+            assert f"1-{cap} claims" in submit["function"]["description"]
+
+    def test_default_solver_tools_match_constant(self):
+        """OI_SOLVER_TOOLS (backward-compat alias) equals default build."""
+        assert OI_SOLVER_TOOLS == build_oi_solver_tools()
 
 
 # ---------------------------------------------------------------------------
@@ -513,11 +529,12 @@ class TestE2EScriptedFlow:
         assert result.n_steps == 3  # 3 python_exec calls
 
     def test_score_reflects_evidence(self):
-        """Claims with evidence should score higher than claims without load."""
+        """Claims with evidence produce a score; without evidence, #25
+        rejects the submission atomically (fabricated evidence_basis)."""
         runner_with = _make_runner()
         runner_without = _make_runner()
 
-        # With evidence: load data first
+        # With evidence: load data first -> submission accepted
         result_with = run_oi_scripted(runner_with, [
             ScriptedAction(
                 tool="python_exec",
@@ -532,21 +549,19 @@ class TestE2EScriptedFlow:
                 args={"claims": [_claim_dict()]},
             ),
         ])
+        assert result_with.submitted
+        assert result_with.score is not None
 
-        # Without evidence: submit without loading data
+        # Without evidence: submit without load_artifact -> rejected (#25)
         result_without = run_oi_scripted(runner_without, [
             ScriptedAction(
                 tool="submit_claims",
                 args={"claims": [_claim_dict()]},
             ),
         ])
-
-        # Both should produce scores (deterministic fallback)
-        assert result_with.score is not None
-        assert result_without.score is not None
-        # Score with evidence should be >= score without
-        # (warrant multiplier should make the difference)
-        assert result_with.score.total >= result_without.score.total
+        # Submission is rejected: solver never accessed the cited artifact
+        assert not result_without.submitted
+        assert result_without.score is None
 
 
 # ---------------------------------------------------------------------------

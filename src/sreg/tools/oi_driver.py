@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from sreg.models.open_investigation import (
+    MAX_CLAIMS,
     ClaimCard,
     EpisodeScore,
     EpisodeSubQuestionScore,
@@ -41,133 +42,144 @@ logger = logging.getLogger(__name__)
 # Tool definitions for Responses API
 # ---------------------------------------------------------------------------
 
-OI_SOLVER_TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "python_exec",
-            "description": (
-                "Execute Python code in a persistent interpreter. Variables persist "
-                "between calls. Pre-loaded: numpy (np), pandas (pd), scipy, math, "
-                "statistics. Use load_artifact(id) to load datasets, "
-                "save_artifact(df, label) to save derived data — it returns AND "
-                "prints the canonical id (e.g. 'derived_X_a1b2c3'); that exact id "
-                "is what you must cite in evidence_basis.artifact_id. Instrumented "
-                "helpers: oi.corr, oi.regress, oi.stratify, oi.test_independence, "
-                "oi.groupby_mean."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "code": {
-                        "type": "string",
-                        "description": "Python code to execute.",
-                    }
+def build_oi_solver_tools(claim_cap: int = MAX_CLAIMS) -> list[dict]:
+    """Build the OI solver tool definitions for Responses API.
+
+    Args:
+        claim_cap: Maximum number of claims in submit_claims schema.
+    """
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "python_exec",
+                "description": (
+                    "Execute Python code in a persistent interpreter. Variables persist "
+                    "between calls. Pre-loaded: numpy (np), pandas (pd), scipy, math, "
+                    "statistics. Use load_artifact(id) to load datasets, "
+                    "save_artifact(df, label) to save derived data — it returns AND "
+                    "prints the canonical id (e.g. 'derived_X_a1b2c3'); that exact id "
+                    "is what you must cite in evidence_basis.artifact_id. Instrumented "
+                    "helpers: oi.corr, oi.regress, oi.stratify, oi.test_independence, "
+                    "oi.groupby_mean."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "Python code to execute.",
+                        }
+                    },
+                    "required": ["code"],
                 },
-                "required": ["code"],
             },
         },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "think",
-            "description": (
-                "Think through your reasoning step by step. "
-                "Your reasoning will be recorded but has no side effects."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "reasoning": {
-                        "type": "string",
-                        "description": "Your step-by-step reasoning.",
-                    }
+        {
+            "type": "function",
+            "function": {
+                "name": "think",
+                "description": (
+                    "Think through your reasoning step by step. "
+                    "Your reasoning will be recorded but has no side effects."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "reasoning": {
+                            "type": "string",
+                            "description": "Your step-by-step reasoning.",
+                        }
+                    },
+                    "required": ["reasoning"],
                 },
-                "required": ["reasoning"],
             },
         },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "submit_claims",
-            "description": (
-                "Submit your research findings as atomic claim cards "
-                "(one assertion per claim). Call ONCE at the end of your "
-                "investigation. 1-15 claims."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "claims": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "claim_id": {
-                                    "type": "string",
-                                    "description": "Unique ID for this claim.",
-                                },
-                                "claim_text": {
-                                    "type": "string",
-                                    "description": (
-                                        "What you found, in natural language "
-                                        "(15-800 characters)."
-                                    ),
-                                },
-                                "focus_variables": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
-                                    "description": "Variables involved (1-12).",
-                                },
-                                "confidence": {
-                                    "type": "number",
-                                    "description": "Your confidence (0.0-1.0).",
-                                },
-                                "evidence_basis": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "artifact_id": {
-                                                "type": "string",
-                                                "description": (
-                                                    "Canonical artifact id. MUST be "
-                                                    "either (a) a base dataset id "
-                                                    "you loaded (e.g. 'dataset_bg'), "
-                                                    "or (b) the 'derived_X_hash' id "
-                                                    "printed/returned by "
-                                                    "save_artifact. Do NOT cite "
-                                                    "'python_exec', the label slug "
-                                                    "you passed to save_artifact, or "
-                                                    "any made-up name."
-                                                ),
-                                            },
-                                            "rationale": {"type": "string"},
-                                        },
-                                        "required": ["artifact_id", "rationale"],
+        {
+            "type": "function",
+            "function": {
+                "name": "submit_claims",
+                "description": (
+                    "Submit your research findings as atomic claim cards "
+                    "(one assertion per claim). Call ONCE at the end of your "
+                    f"investigation. 1-{claim_cap} claims."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "claims": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "claim_id": {
+                                        "type": "string",
+                                        "description": "Unique ID for this claim.",
                                     },
-                                    "description": "Evidence references (1-5).",
+                                    "claim_text": {
+                                        "type": "string",
+                                        "description": (
+                                            "What you found, in natural language "
+                                            "(15-800 characters)."
+                                        ),
+                                    },
+                                    "focus_variables": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "Variables involved (1-12).",
+                                    },
+                                    "confidence": {
+                                        "type": "number",
+                                        "description": "Your confidence (0.0-1.0).",
+                                    },
+                                    "evidence_basis": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "artifact_id": {
+                                                    "type": "string",
+                                                    "description": (
+                                                        "Canonical artifact id. MUST be "
+                                                        "either (a) a base dataset id "
+                                                        "you loaded (e.g. 'dataset_bg'), "
+                                                        "or (b) the 'derived_X_hash' id "
+                                                        "printed/returned by "
+                                                        "save_artifact. Do NOT cite "
+                                                        "'python_exec', the label slug "
+                                                        "you passed to save_artifact, or "
+                                                        "any made-up name."
+                                                    ),
+                                                },
+                                                "rationale": {"type": "string"},
+                                            },
+                                            "required": ["artifact_id", "rationale"],
+                                        },
+                                        "description": "Evidence references (1-5).",
+                                    },
                                 },
+                                "required": [
+                                    "claim_id",
+                                    "claim_text",
+                                    "focus_variables",
+                                    "confidence",
+                                    "evidence_basis",
+                                ],
                             },
-                            "required": [
-                                "claim_id",
-                                "claim_text",
-                                "focus_variables",
-                                "confidence",
-                                "evidence_basis",
-                            ],
-                        },
-                        "minItems": 1,
-                        "maxItems": 15,
-                    }
+                            "minItems": 1,
+                            "maxItems": claim_cap,
+                        }
+                    },
+                    "required": ["claims"],
                 },
-                "required": ["claims"],
             },
         },
-    },
-]
+    ]
+
+
+# Backward-compatible alias: default tools with MAX_CLAIMS.
+# Tests and existing code that import OI_SOLVER_TOOLS keep working.
+OI_SOLVER_TOOLS = build_oi_solver_tools()
 
 
 # ---------------------------------------------------------------------------
@@ -338,11 +350,13 @@ def run_oi_investigation(
     """
     from sreg.inference.responses_utils import convert_tools_for_responses
 
-    # Build prompt
+    # Build prompt + tools using runner's claim_cap
+    claim_cap = getattr(runner, "claim_cap", MAX_CLAIMS)
     ctx = runner.get_solver_prompt_context()
-    system_prompt = _build_system(ctx)
+    system_prompt = _build_system(ctx, claim_cap=claim_cap)
     user_prompt = _build_user(ctx)
-    resp_tools = convert_tools_for_responses(OI_SOLVER_TOOLS)
+    solver_tools = build_oi_solver_tools(claim_cap)
+    resp_tools = convert_tools_for_responses(solver_tools)
 
     handler = build_oi_tool_handler(runner)
 
@@ -480,7 +494,7 @@ def run_oi_investigation(
     # ------------------------------------------------------------------
     if not runner.is_submitted:
         logger.warning("Solver exhausted iterations without submitting — forcing submit round")
-        submit_tool = next(t for t in OI_SOLVER_TOOLS if t["function"]["name"] == "submit_claims")
+        submit_tool = next(t for t in solver_tools if t["function"]["name"] == "submit_claims")
         submit_only_tools = convert_tools_for_responses([submit_tool])
 
         messages.append({"role": "user", "content": _NUDGE_FORCE_SUBMIT})
@@ -641,7 +655,7 @@ def run_oi_scripted(
 # Prompt building helpers
 # ---------------------------------------------------------------------------
 
-def _build_system(ctx: dict) -> str:
+def _build_system(ctx: dict, *, claim_cap: int = MAX_CLAIMS) -> str:
     """Build system prompt from runner context."""
     parts = [build_oi_system_prompt()]
     if ctx.get("title"):
@@ -649,7 +663,9 @@ def _build_system(ctx: dict) -> str:
         if ctx.get("domain"):
             title_line += f" ({ctx['domain']})"
         parts.append(title_line)
-    parts.append("\n\n" + build_oi_tools_section(ctx["artifact_catalog"]))
+    parts.append("\n\n" + build_oi_tools_section(
+        ctx["artifact_catalog"], claim_cap=claim_cap,
+    ))
     return "".join(parts)
 
 
@@ -666,6 +682,7 @@ __all__ = [
     "OI_SOLVER_TOOLS",
     "OIInvestigationResult",
     "ScriptedAction",
+    "build_oi_solver_tools",
     "build_oi_tool_handler",
     "run_oi_investigation",
     "run_oi_scripted",
