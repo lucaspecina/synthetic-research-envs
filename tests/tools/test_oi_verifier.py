@@ -27,6 +27,7 @@ from sreg.models.open_investigation import (
 from sreg.solver.scm_solver import SCMSolver
 from sreg.tools.oi_verifier import (
     _filter_condition,
+    _find_backdoor_set,
     _measure_from_samples,
     score_claim_against_family,
     score_episode,
@@ -464,6 +465,70 @@ class TestVerifyAtom:
         verdict = verify_atom(spec, world, solver, n_mc=20_000, seed=42)
         # hi is positive mean, lo is negative mean -> ratio is negative -> < 0
         assert verdict.solver_assertion_holds is True
+
+
+# ---------------------------------------------------------------------------
+# _find_backdoor_set — empty-set edge case (task #46, follow-up to #45)
+# ---------------------------------------------------------------------------
+
+
+class TestFindBackdoorSet:
+    def test_root_treatment_returns_empty_set(self):
+        """A (root) -> Y: treatment has no parents, empty set is trivially valid."""
+        world = _simple_world()  # A -> Y
+        result = _find_backdoor_set(world, "A", "Y")
+        assert result == ()
+
+    def test_latent_parent_no_backdoor_path_returns_empty_set(self):
+        """U -> T -> Y, U is latent, no path from U to Y except through T.
+        Empty set is valid because no backdoor path exists. Before the fix,
+        _find_backdoor_set returned None here because T has parents.
+        """
+        world = SCMWorld(
+            id="test-latent-no-backdoor",
+            graph={"U": [], "T": ["U"], "Y": ["T"]},
+            equations={
+                "U": lambda p, rng: rng.normal(0, 1),
+                "T": lambda p, rng: p["U"] + rng.normal(0, 0.5),
+                "Y": lambda p, rng: 0.8 * p["T"] + rng.normal(0, 0.3),
+            },
+            latent_variables={"U"},
+        )
+        result = _find_backdoor_set(world, "T", "Y")
+        assert result is not None, (
+            "_find_backdoor_set returned None but empty set is valid "
+            "(no backdoor path from U to Y bypassing T)"
+        )
+        assert result == ()
+
+    def test_latent_confounder_with_backdoor_path_returns_none(self):
+        """U -> T, U -> Y, U is latent. Backdoor path exists via U but
+        U is not observable. No valid backdoor set -> must return None.
+        """
+        world = SCMWorld(
+            id="test-latent-confounder",
+            graph={"U": [], "T": ["U"], "Y": ["T", "U"]},
+            equations={
+                "U": lambda p, rng: rng.normal(0, 1),
+                "T": lambda p, rng: p["U"] + rng.normal(0, 0.5),
+                "Y": lambda p, rng: 0.5 * p["T"] + 0.3 * p["U"] + rng.normal(0, 0.3),
+            },
+            latent_variables={"U"},
+        )
+        result = _find_backdoor_set(world, "T", "Y")
+        assert result is None, (
+            "Latent confounder U opens backdoor path T<-U->Y, "
+            "no observable variable can block it"
+        )
+
+    def test_observable_parent_no_backdoor_returns_parents(self):
+        """C -> A -> Y, C -> Y. C is observable confounder.
+        Parents of A = {C}, which is a valid backdoor set.
+        """
+        world = _confounder_world()  # C -> A -> Y, C -> Y
+        result = _find_backdoor_set(world, "A", "Y")
+        assert result is not None
+        assert "C" in result
 
 
 class TestScoring:

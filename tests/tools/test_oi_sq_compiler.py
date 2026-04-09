@@ -333,3 +333,40 @@ class TestFlowBAdjustSetStrip:
         for arm in arms:
             assert arm.kind == "adjust"
             assert arm.adjust_set == ()
+
+    def test_strip_removes_invalid_variable_names_without_error(self):
+        """If the LLM hallucinates variable names in adjust_set, the
+        strip must remove them silently -- they must not reach
+        _validate_variables or AtomicSpec construction.
+        """
+        def fake_llm(system: str, user: str) -> str:
+            return (
+                '[{"spec": {'
+                '"spec_id": "test_bogus_vars",'
+                '"arms": ['
+                '{"label": "treated", "kind": "adjust", "treatment": "T",'
+                ' "outcome": "Y", "values": {"T": 1.0},'
+                ' "adjust_set": ["NOT_A_WORLD_VAR", "ALSO_FAKE"]},'
+                '{"label": "control", "kind": "adjust", "treatment": "T",'
+                ' "outcome": "Y", "values": {"T": 0.0},'
+                ' "adjust_set": ["NOT_A_WORLD_VAR"]}'
+                '],'
+                '"measurement": {"kind": "mean", "target": "Y"},'
+                '"comparison": {"kind": "difference", "ref_arm": "control"},'
+                '"assertion": {"kind": "positive"}'
+                '}, "role": "required"}]'
+            )
+
+        result = compile_sq_to_specs(
+            sq_id="sq_bogus",
+            text_gloss="Does T causally raise Y?",
+            focus_variables=("T", "Y"),
+            tier=SQTier.HIGH,
+            summary=_stub_summary(),
+            llm_call=fake_llm,
+        )
+        # Must succeed -- bogus names were stripped before validation.
+        assert result.sq is not None, f"expected success, got errors={result.errors}"
+        arms = result.sq.verification_specs[0].spec.arms
+        for arm in arms:
+            assert arm.adjust_set == ()

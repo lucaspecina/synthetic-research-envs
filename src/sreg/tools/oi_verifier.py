@@ -236,8 +236,11 @@ def _find_backdoor_set(
     if candidate and _is_valid(candidate):
         return tuple(sorted(candidate))
 
-    # No backdoor path (treatment is root → always identifiable, empty set)
-    if not list(dag.predecessors(treatment)):
+    # Empty set: no backdoor paths need blocking.  Covers the obvious
+    # case (treatment is a root node) AND the subtler case where treatment
+    # has parents that do not open any backdoor path to outcome (e.g. all
+    # confounders are latent and unobservable, or paths do not reach outcome).
+    if _is_valid(set()):
         return ()
 
     return None
@@ -331,7 +334,7 @@ def _run_adjustment(
             )
         else:
             logger.info(
-                "adjust %s->%s: treatment is root, empty adjustment set is valid.",
+                "adjust %s->%s: no backdoor paths, empty adjustment set is valid.",
                 arm.treatment, arm.outcome,
             )
 
