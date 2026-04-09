@@ -1,0 +1,301 @@
+{
+  "_meta": {
+    "description": "Calibration set for SQ compiler abstention contract (#37).",
+    "set_a": "should_not_abstain: SCM-verifiable claims the compiler must compile.",
+    "set_b": "should_abstain: model-dependent claims the compiler must refuse.",
+    "gates": {"false_abstention_rate": "< 0.15", "false_non_abstention_rate": "< 0.10"},
+    "world": "agriculture domain (8 observable vars), defined inline in script.",
+    "created": "2026-04-09"
+  },
+  "entries": [
+    {
+      "id": "A01",
+      "text_gloss": "Does increasing fertilizer_dose causally raise crop_yield?",
+      "expected": "compile",
+      "category": "causal_mean_diff",
+      "difficulty": "easy",
+      "notes": "Textbook causal claim. Two adjust arms + mean + difference."
+    },
+    {
+      "id": "A02",
+      "text_gloss": "There is a positive correlation between rainfall and crop_yield in the observed data.",
+      "expected": "compile",
+      "category": "obs_correlation",
+      "difficulty": "easy",
+      "notes": "Simple bivariate correlation, baseline arm."
+    },
+    {
+      "id": "A03",
+      "text_gloss": "Controlling for soil_nitrogen and temperature, is fertilizer_dose associated with crop_yield?",
+      "expected": "compile",
+      "category": "obs_partial_correlation",
+      "difficulty": "easy",
+      "notes": "Observational partial correlation with multi-var cond_set."
+    },
+    {
+      "id": "A04",
+      "text_gloss": "The average crop_yield when irrigation is set to 2.0 exceeds 50.",
+      "expected": "compile",
+      "category": "interventional_mean",
+      "difficulty": "easy",
+      "notes": "Single interventional mean, one adjust arm + mean + identity."
+    },
+    {
+      "id": "A05",
+      "text_gloss": "The variance of crop_yield is larger under high temperature than under moderate temperature.",
+      "expected": "compile",
+      "category": "variance_comparison",
+      "difficulty": "easy",
+      "notes": "Two adjust arms + variance + difference."
+    },
+    {
+      "id": "A06",
+      "text_gloss": "After adjusting for rainfall, temperature, and pest_damage, increasing fertilizer_dose from 0 to 2 raises crop_yield.",
+      "expected": "compile",
+      "category": "causal_mean_diff",
+      "difficulty": "medium",
+      "notes": "Causal with multiple confounders named. Verifier auto-computes backdoor set."
+    },
+    {
+      "id": "A07",
+      "text_gloss": "The probability that crop_yield exceeds 120 is at least 30% when fertilizer_dose is set to 3.0.",
+      "expected": "compile",
+      "category": "interventional_tail_prob",
+      "difficulty": "medium",
+      "notes": "Tail probability under intervention."
+    },
+    {
+      "id": "A08",
+      "text_gloss": "The median crop_yield under do(irrigation=3.0) is greater than under do(irrigation=0.5).",
+      "expected": "compile",
+      "category": "interventional_quantile",
+      "difficulty": "medium",
+      "notes": "Quantile comparison across two intervention levels."
+    },
+    {
+      "id": "A09",
+      "text_gloss": "Is the causal effect of fertilizer_dose on crop_yield identifiable from the observed variables?",
+      "expected": "compile",
+      "category": "identifiability",
+      "difficulty": "medium",
+      "notes": "Identifiability check."
+    },
+    {
+      "id": "A10",
+      "text_gloss": "Holding pest_damage, temperature, and soil_nitrogen constant, rainfall is positively correlated with crop_yield.",
+      "expected": "compile",
+      "category": "obs_partial_correlation",
+      "difficulty": "medium",
+      "notes": "Partial correlation with large conditioning set."
+    },
+    {
+      "id": "A11",
+      "text_gloss": "Crop yield varies more under extreme rainfall than under average rainfall.",
+      "expected": "compile",
+      "category": "variance_comparison",
+      "difficulty": "medium",
+      "notes": "Variance under two intervention levels, different phrasing."
+    },
+    {
+      "id": "A12",
+      "text_gloss": "Even after accounting for soil_nitrogen, a one-unit increase in fertilizer_dose still improves crop_yield on average.",
+      "expected": "compile",
+      "category": "causal_mean_diff",
+      "difficulty": "medium",
+      "notes": "Causal claim with 'accounting for' phrasing. Mentions soil_nitrogen but verifier auto-computes."
+    },
+    {
+      "id": "A13",
+      "text_gloss": "Holding rainfall and soil_nitrogen constant, fertilizer_dose is positively associated with crop_yield.",
+      "expected": "compile",
+      "category": "obs_partial_correlation",
+      "difficulty": "hard",
+      "notes": "Boundary positive: 'holding constant' phrasing leans observational, not causal. Valid as pcor."
+    },
+    {
+      "id": "A14",
+      "text_gloss": "The upper-tail risk of pest_damage is higher under do(temperature=high) than under do(temperature=low).",
+      "expected": "compile",
+      "category": "interventional_tail_prob",
+      "difficulty": "hard",
+      "notes": "Boundary positive: 'upper-tail risk' + do-calculus. Valid as tail_prob under intervention."
+    },
+    {
+      "id": "A15",
+      "text_gloss": "From observed variables alone, the effect of irrigation on crop_yield is not identifiable.",
+      "expected": "compile",
+      "category": "identifiability",
+      "difficulty": "hard",
+      "notes": "Boundary positive: negative identifiability assertion. Valid as identifiability_check + not_identifiable."
+    },
+    {
+      "id": "A16",
+      "text_gloss": "Even after adjusting for all observed confounders, increasing fertilizer_dose raises crop_yield.",
+      "expected": "compile",
+      "category": "causal_mean_diff",
+      "difficulty": "hard",
+      "notes": "Boundary positive: vague 'all observed confounders' — still a causal claim, verifier picks backdoor set."
+    },
+    {
+      "id": "A17",
+      "text_gloss": "The interventional mean of crop_yield under do(fertilizer_dose=3) is greater than under do(fertilizer_dose=0).",
+      "expected": "compile",
+      "category": "causal_mean_diff",
+      "difficulty": "easy",
+      "notes": "Explicit do-notation, unambiguous."
+    },
+    {
+      "id": "A18",
+      "text_gloss": "Among plots with high soil_nitrogen, does setting irrigation to 2.0 increase crop_yield compared to irrigation at 0.5?",
+      "expected": "compile",
+      "category": "causal_conditional",
+      "difficulty": "hard",
+      "notes": "Conditional causal: condition_on subpopulation + adjust arms. Tests grammar's condition_on + adjust combo."
+    },
+
+    {
+      "id": "B01",
+      "text_gloss": "The OLS regression coefficient of fertilizer_dose on crop_yield is 0.42.",
+      "expected": "abstain",
+      "category": "regression_coefficient",
+      "difficulty": "easy",
+      "notes": "OLS coefficient is model-dependent, not a property of the SCM."
+    },
+    {
+      "id": "B02",
+      "text_gloss": "The standardized beta of rainfall in a multivariate model predicting crop_yield is 0.18.",
+      "expected": "abstain",
+      "category": "standardized_beta",
+      "difficulty": "easy",
+      "notes": "Standardized beta depends on the regression model."
+    },
+    {
+      "id": "B03",
+      "text_gloss": "The R-squared for predicting crop_yield from all inputs is 0.65.",
+      "expected": "abstain",
+      "category": "r_squared",
+      "difficulty": "easy",
+      "notes": "R-squared is a model fit metric."
+    },
+    {
+      "id": "B04",
+      "text_gloss": "The AIC of the model including fertilizer_dose is lower than the model without it.",
+      "expected": "abstain",
+      "category": "aic_bic",
+      "difficulty": "easy",
+      "notes": "AIC depends on the fitted model."
+    },
+    {
+      "id": "B05",
+      "text_gloss": "In a mixed-effects model with random slopes for temperature across regions, the variance component for fertilizer_dose is small.",
+      "expected": "abstain",
+      "category": "mixed_effects",
+      "difficulty": "easy",
+      "notes": "Mixed-effects variance components are model-specific."
+    },
+    {
+      "id": "B06",
+      "text_gloss": "The logistic regression coefficient of pest_damage on whether crop_yield exceeds 100 is -0.3.",
+      "expected": "abstain",
+      "category": "regression_coefficient",
+      "difficulty": "medium",
+      "notes": "Logistic regression coefficient is model-dependent."
+    },
+    {
+      "id": "B07",
+      "text_gloss": "The cross-validated RMSE for predicting crop_yield from fertilizer_dose and rainfall is below 5.0.",
+      "expected": "abstain",
+      "category": "predictive_eval",
+      "difficulty": "medium",
+      "notes": "Cross-validated RMSE depends on the model and validation scheme."
+    },
+    {
+      "id": "B08",
+      "text_gloss": "The p-value for the fertilizer_dose coefficient is below 0.05.",
+      "expected": "abstain",
+      "category": "inferential_uncertainty",
+      "difficulty": "medium",
+      "notes": "p-values depend on the statistical test and model."
+    },
+    {
+      "id": "B09",
+      "text_gloss": "The bootstrap 95% confidence interval for the effect of irrigation on crop_yield excludes zero.",
+      "expected": "abstain",
+      "category": "inferential_uncertainty",
+      "difficulty": "medium",
+      "notes": "Bootstrap CI depends on the estimator."
+    },
+    {
+      "id": "B10",
+      "text_gloss": "The propensity-score-weighted mean of crop_yield under high fertilizer_dose is 85.",
+      "expected": "abstain",
+      "category": "propensity_score",
+      "difficulty": "medium",
+      "notes": "Propensity-score weighting depends on the propensity model."
+    },
+    {
+      "id": "B11",
+      "text_gloss": "The partial R-squared of soil_nitrogen in the full model with all covariates is 0.06.",
+      "expected": "abstain",
+      "category": "r_squared",
+      "difficulty": "medium",
+      "notes": "Partial R-squared is a model fit metric."
+    },
+    {
+      "id": "B12",
+      "text_gloss": "The posterior probability that the effect of fertilizer_dose on crop_yield is positive exceeds 0.9.",
+      "expected": "abstain",
+      "category": "bayesian_posterior",
+      "difficulty": "medium",
+      "notes": "Bayesian posteriors depend on the prior and likelihood model."
+    },
+    {
+      "id": "B13",
+      "text_gloss": "After controlling for rainfall and soil_nitrogen, the coefficient on fertilizer_dose remains positive.",
+      "expected": "abstain",
+      "category": "regression_coefficient",
+      "difficulty": "hard",
+      "notes": "Boundary: 'controlling for' sounds causal but 'the coefficient' is model-specific."
+    },
+    {
+      "id": "B14",
+      "text_gloss": "A one-standard-deviation increase in fertilizer_dose raises crop_yield by 0.3 SD after adjustment.",
+      "expected": "abstain",
+      "category": "standardized_beta",
+      "difficulty": "hard",
+      "notes": "Boundary: sounds like a causal effect size but 'SD units' implies standardized beta."
+    },
+    {
+      "id": "B15",
+      "text_gloss": "The treatment effect of fertilizer_dose remains significant at the 5% level with cluster-robust standard errors.",
+      "expected": "abstain",
+      "category": "inferential_uncertainty",
+      "difficulty": "hard",
+      "notes": "Boundary: 'treatment effect' sounds causal but 'significant at 5%' + 'cluster-robust SE' is model testing."
+    },
+    {
+      "id": "B16",
+      "text_gloss": "Adding soil_nitrogen to the regression raises the model R-squared from 0.31 to 0.39.",
+      "expected": "abstain",
+      "category": "r_squared",
+      "difficulty": "hard",
+      "notes": "Boundary: incremental R-squared. 'Adding to the regression' is clearly model-specific."
+    },
+    {
+      "id": "B17",
+      "text_gloss": "The doubly robust estimate of the average treatment effect of irrigation on crop_yield is positive.",
+      "expected": "abstain",
+      "category": "estimator_specific",
+      "difficulty": "hard",
+      "notes": "Boundary: 'average treatment effect' sounds like do-calculus but 'doubly robust estimate' is estimator-specific."
+    },
+    {
+      "id": "B18",
+      "text_gloss": "The IPW estimate of the causal effect of fertilizer_dose is 3.2 units of crop_yield.",
+      "expected": "abstain",
+      "category": "estimator_specific",
+      "difficulty": "hard",
+      "notes": "Boundary: 'causal effect' is correct concept but 'IPW estimate' is estimator-specific."
+    }
+  ]
+}
