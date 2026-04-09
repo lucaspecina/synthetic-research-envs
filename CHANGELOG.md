@@ -5,6 +5,33 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — P06 #25: rechazo atomico de evidence_basis fabricadas
+
+**`submit_claims` ahora rechaza la submission completa si cualquier claim
+cita un `artifact_id` que el solver nunca accedio via `load_artifact()` o
+`save_artifact()`.** Rechazo atomico: si un solo claim tiene refs invalidas,
+ninguno se registra. Cero mutacion de estado — el solver puede corregir y
+reenviar.
+
+**Cambios:**
+
+1. **`oi_runner.py` — `validate_evidence_refs()` + bloque de validacion.**
+   Helper module-level que clasifica refs invalidas en dos categorias:
+   `unknown_artifact_id` (el artifact no existe en el catalogo) y
+   `artifact_exists_but_not_accessed` (existe pero el solver nunca lo cargo).
+   El bloque de validacion va en `submit_claims()` ANTES de cualquier
+   mutacion de estado (`claim_steps`, `_submitted`), garantizando atomicidad.
+
+2. **Tests: `TestEvidenceBasisValidation`** (5 tests). Cubre: rechazo total
+   con zero side effects, rechazo atomico de batch mixto, submission valida
+   aceptada, resubmit corregido post-rechazo, distincion de las dos
+   categorias de error.
+
+3. **Tests existentes actualizados.** 8 tests que llamaban `submit_claims`
+   sin haber cargado artifacts ahora registran acceso via
+   `load_artifact()`. Adicionalmente, `test_submit_validates_claim_count`
+   corregido para usar `range(16)` (consistente con `MAX_CLAIMS=15`).
+
 ### 2026-04-09 — P06 #45: Flow B strip — adjust_set derivado del SCM
 
 **El LLM del SQ compiler ya no elige `adjust_set` en adjust arms.** El

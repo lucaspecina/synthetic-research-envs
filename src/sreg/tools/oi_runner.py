@@ -43,6 +43,44 @@ MAX_CODE_CHARS = 8000
 MAX_OUTPUT_CHARS = 12000
 
 
+# ---------------------------------------------------------------------------
+# Evidence-basis validation helper (#25)
+# ---------------------------------------------------------------------------
+
+def validate_evidence_refs(
+    claims: list[ClaimCard],
+    accessed_ids: set[str],
+    catalog_ids: set[str] | None = None,
+) -> dict[str, list[dict[str, str]]]:
+    """Check that every evidence_basis.artifact_id was actually accessed.
+
+    Returns a dict mapping claim_id -> list of error dicts for each invalid
+    ref. Empty dict means all refs are valid.
+
+    Each error dict has:
+      - artifact_id: the invalid id
+      - reason: "unknown_artifact_id" or "artifact_exists_but_not_accessed"
+    """
+    errors: dict[str, list[dict[str, str]]] = {}
+    for claim in claims:
+        if not claim.evidence_basis:
+            continue
+        claim_errors = []
+        for ref in claim.evidence_basis:
+            if ref.artifact_id not in accessed_ids:
+                if catalog_ids and ref.artifact_id in catalog_ids:
+                    reason = "artifact_exists_but_not_accessed"
+                else:
+                    reason = "unknown_artifact_id"
+                claim_errors.append({
+                    "artifact_id": ref.artifact_id,
+                    "reason": reason,
+                })
+        if claim_errors:
+            errors[claim.claim_id] = claim_errors
+    return errors
+
+
 class ArtifactCatalog:
     """Manages base + derived artifacts for an OI episode.
 
@@ -325,6 +363,33 @@ class OIEpisodeRunner:
         claim_ids = [c.claim_id for c in claims]
         if len(claim_ids) != len(set(claim_ids)):
             raise ValueError("Duplicate claim_ids in submission")
+
+        # Validate evidence_basis: atomic rejection of entire submission
+        # if ANY claim cites an artifact_id that was never accessed (#25).
+        # This must happen BEFORE any state mutation (claim_steps, _submitted).
+        accessed = self.trace.accessed_artifact_ids()
+        evidence_errors = validate_evidence_refs(
+            claims, accessed, catalog_ids=self.catalog.all_ids,
+        )
+        if evidence_errors:
+            detail_lines = []
+            for cid, errs in evidence_errors.items():
+                refs = ", ".join(
+                    f"{e['artifact_id']} ({e['reason']})" for e in errs
+                )
+                detail_lines.append(f"  claim {cid}: {refs}")
+            accessed_list = sorted(accessed) if accessed else ["(none)"]
+            raise ValueError(
+                "SUBMISSION REJECTED: fabricated evidence_basis references. "
+                "Every artifact_id in evidence_basis must be an id you "
+                "received from load_artifact() or save_artifact() during "
+                "this episode.\n"
+                "Invalid references:\n"
+                + "\n".join(detail_lines)
+                + "\n\nValid artifact IDs you accessed in this episode: "
+                + ", ".join(accessed_list)
+                + "\n\nFix the invalid references and resubmit."
+            )
 
         # Record claim steps in trace
         for claim in claims:

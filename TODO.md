@@ -38,7 +38,7 @@ Los 6 criterios de cierre:
    de v1:
    - [ ] #10 P1.5: missing-column robustness + non-numeric guards (deuda P1)
    - [ ] #24 Ticket: bug heterogeneity c1 compiler
-   - [ ] #25 Ticket: identifiability evidence_basis fabrication
+   - [x] #25 Ticket: identifiability evidence_basis fabrication
 
 4. **Smoke validation suite estable** — El batch `p05_canonical_batch`
    (12 casos diversos) debe correr end-to-end y producir scores

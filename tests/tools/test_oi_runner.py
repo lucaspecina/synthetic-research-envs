@@ -285,6 +285,7 @@ class TestRunnerSubmission:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world)
+        runner._namespace["load_artifact"]("dataset_bg")
 
         claims = [_make_claim()]
         runner.submit_claims(claims)
@@ -297,6 +298,7 @@ class TestRunnerSubmission:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world)
+        runner._namespace["load_artifact"]("dataset_bg")
         captured: dict[str, object] = {}
 
         def fake_compile_episode_claims(claims, summary, llm_call=None, context=None):
@@ -321,7 +323,7 @@ class TestRunnerSubmission:
         runner = OIEpisodeRunner(problem, world)
 
         with pytest.raises(ValueError, match="Too many"):
-            runner.submit_claims([_make_claim(f"c{i}") for i in range(10)])
+            runner.submit_claims([_make_claim(f"c{i}") for i in range(16)])
 
     def test_submit_validates_empty(self):
         problem = _make_problem()
@@ -335,6 +337,7 @@ class TestRunnerSubmission:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world)
+        runner._namespace["load_artifact"]("dataset_bg")
 
         runner.run_code("1 + 1")
         runner.run_code("2 + 2")
@@ -403,6 +406,7 @@ class TestRunnerSubmission:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner._namespace["load_artifact"]("dataset_bg")
 
         assert not runner.is_submitted
         runner.submit_claims([_make_claim()])
@@ -505,6 +509,7 @@ class TestCompiledClaimsValidation:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner._namespace["load_artifact"]("dataset_bg")
 
         claims = [_make_claim()]
         compiled = [
@@ -518,6 +523,7 @@ class TestCompiledClaimsValidation:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner._namespace["load_artifact"]("dataset_bg")
 
         claims = [_make_claim()]
         with pytest.raises(TypeError, match="CompilerOutput"):
@@ -529,6 +535,7 @@ class TestCompiledClaimsValidation:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner._namespace["load_artifact"]("dataset_bg")
 
         claims = [_make_claim(claim_id="c1")]
         compiled = [CompilerOutput(claim_id="wrong_id", status="abstention")]
@@ -644,3 +651,88 @@ class TestDerivedArtifactProvenance:
         # The canonical id must appear in the output despite the return
         # value being discarded by the trailing expression.
         assert "[save_artifact] saved as derived_filtered_" in result["output"]
+
+
+# ---------------------------------------------------------------------------
+# #25: hard rejection of fabricated evidence_basis references
+# ---------------------------------------------------------------------------
+
+
+class TestEvidenceBasisValidation:
+    """Atomic rejection: if ANY claim has invalid evidence refs, reject all."""
+
+    def test_all_invalid_refs_rejected_zero_side_effects(self):
+        """Submission with only fabricated refs is fully rejected,
+        with zero state mutation (_submitted, claim_steps)."""
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world)
+
+        claim = _make_claim(artifact_id="totally_fabricated")
+        with pytest.raises(ValueError, match="SUBMISSION REJECTED"):
+            runner.submit_claims([claim])
+
+        assert not runner.is_submitted
+        assert runner.trace.claim_steps == {}
+
+    def test_mixed_batch_atomic_rejection(self):
+        """One bad ref in a batch rejects the entire submission."""
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world)
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        valid_claim = _make_claim(claim_id="c_ok", artifact_id="dataset_bg")
+        bad_claim = _make_claim(claim_id="c_bad", artifact_id="fabricated_id")
+
+        with pytest.raises(ValueError, match="SUBMISSION REJECTED"):
+            runner.submit_claims([valid_claim, bad_claim])
+
+        # Atomic: neither claim registered.
+        assert not runner.is_submitted
+        assert runner.trace.claim_steps == {}
+
+    def test_valid_submission_accepted(self):
+        """Claims citing accessed artifacts pass evidence validation."""
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        score = runner.submit_claims([_make_claim(artifact_id="dataset_bg")])
+        assert runner.is_submitted
+        assert score is not None
+
+    def test_resubmit_after_rejection_succeeds(self):
+        """Solver can fix refs and resubmit after an initial rejection."""
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        # First attempt: fabricated ref -> rejected.
+        with pytest.raises(ValueError, match="SUBMISSION REJECTED"):
+            runner.submit_claims([_make_claim(artifact_id="nonexistent")])
+        assert not runner.is_submitted
+
+        # Second attempt: corrected ref -> accepted.
+        score = runner.submit_claims([_make_claim(artifact_id="dataset_bg")])
+        assert runner.is_submitted
+        assert score is not None
+
+    def test_exists_but_not_accessed_vs_unknown(self):
+        """Error message distinguishes 'exists but not accessed' from 'unknown'."""
+        problem = _make_problem()  # has dataset_bg + dataset_survey
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world)
+        runner._namespace["load_artifact"]("dataset_bg")  # only load one
+
+        not_accessed = _make_claim(claim_id="c1", artifact_id="dataset_survey")
+        unknown = _make_claim(claim_id="c2", artifact_id="total_fiction")
+
+        with pytest.raises(ValueError, match="SUBMISSION REJECTED") as exc_info:
+            runner.submit_claims([not_accessed, unknown])
+
+        msg = str(exc_info.value)
+        assert "artifact_exists_but_not_accessed" in msg
+        assert "unknown_artifact_id" in msg
