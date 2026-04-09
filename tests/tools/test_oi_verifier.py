@@ -273,6 +273,33 @@ class TestVerifyAtom:
         verdict = verify_atom(spec, world, solver, n_mc=10_000, seed=42)
         assert verdict.solver_assertion_holds is True
 
+    def test_missing_column_in_condition_yields_score_zero(self):
+        """Integration #10: verify_atom catches ValueError from
+        _filter_condition on a hallucinated column and returns score=0.0,
+        not an uncaught exception.
+        """
+        world = _simple_world()
+        solver = SCMSolver(world)
+        spec = AtomicSpec(
+            spec_id="hallucinated_col",
+            arms=(
+                QueryArm(
+                    label="hi",
+                    kind=QueryKind.INTERVENE,
+                    values={"A": 1.0},
+                    condition_on={"FAKE_COL": 5.0},
+                ),
+                QueryArm(label="lo", kind=QueryKind.INTERVENE, values={"A": -1.0}),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
+        )
+        verdict = verify_atom(spec, world, solver, n_mc=5_000, seed=42)
+        assert verdict.solver_assertion_holds is False
+        assert verdict.score == 0.0
+        assert verdict.detail.get("error") is not None
+
 
 # ---------------------------------------------------------------------------
 # Scoring tests
@@ -630,15 +657,14 @@ class TestScoring:
 
 
 class TestFilterCondition:
-    """Tests for _filter_condition predicate dispatch (P1).
+    """Tests for _filter_condition predicate dispatch (P1 + P1.5).
 
     Coverage:
     - 4 predicates: ApproxEq, ConditionRange, QuantileRange, InSet
     - Edge cases: NaN, ties, degenerate ranges, inclusive bounds
     - Conjunction (AND across columns)
     - Backward compat: legacy raw scalar / string predicates
-    - Known-debt: missing column silent skip, non-numeric ApproxEq crash
-      (see TODO P1.5: missing-column robustness + non-numeric guards)
+    - #10 P1.5: missing column raises ValueError, non-numeric guards
     """
 
     # --- ApproxEq -----------------------------------------------------------
