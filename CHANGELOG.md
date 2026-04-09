@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — P06 #24: hotfix heterogeneity ATE spec direction-agnostic
+
+**Spec 1 del compiler para claims de heterogeneidad ahora usa
+`GAP_MATERIAL` en vez de una assertion direccional.** Antes, el compiler
+mapeaba `intent.direction` (ambiguo: puede ser la direccion del ATE
+pooled o la del termino de interaccion) a `POSITIVE`/`NEGATIVE`/`NEAR_ZERO`
+en spec 1, causando que specs estructuralmente correctas fallaran en
+verificacion y deprimieran el truth score (e.g., 0.4 en vez de 1.0).
+
+Ahora spec 1 solo verifica que un ATE material existe (`|diff| > threshold`),
+sin imponer signo. Spec 2 (`SIGN_FLIP`) sigue siendo el guardrail principal
+para heterogeneidad.
+
+**Follow-up posible:** el teacher (salience) ya modela heterogeneity como
+un solo atomo `CONTRAST_DIFF → SIGN_FLIP`. A futuro podria eliminarse
+spec 1 completamente, pero eso es cambio de cardinalidad, no hotfix.
+
 ### 2026-04-09 — P06 #25: rechazo atomico de evidence_basis fabricadas
 
 **`submit_claims` ahora rechaza la submission completa si cualquier claim

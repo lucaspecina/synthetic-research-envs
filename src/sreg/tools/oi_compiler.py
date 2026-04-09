@@ -479,7 +479,11 @@ def _lower_heterogeneity(intent: ClaimIntent, summary: WorldSummary) -> list[Ato
         ),
         measurement=Measurement(kind=MeasurementKind.MEAN, target=y),
         comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
-        assertion=Assertion(kind=_DIRECTION_MAP[intent.direction]),
+        # #24 fix: direction-agnostic. For heterogeneity the point is
+        # "effect varies across strata", not "pooled ATE is positive".
+        # intent.direction is ambiguous (interaction vs pooled), so we
+        # only check that a material ATE exists.
+        assertion=Assertion(kind=AssertionKind.GAP_MATERIAL),
     )
 
     het_spec = AtomicSpec(

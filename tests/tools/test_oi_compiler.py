@@ -255,6 +255,36 @@ class TestLowering:
         assert het_spec.comparison.kind == ComparisonKind.CONTRAST_DIFF
         assert len(het_spec.arms) == 4
 
+    def test_heterogeneity_ate_spec_is_direction_agnostic(self):
+        """Regression #24: spec 1 must use GAP_MATERIAL, not a directional
+        assertion. intent.direction is ambiguous for heterogeneity (could
+        mean interaction direction or pooled ATE direction), so spec 1 only
+        checks that a material ATE exists, regardless of sign.
+
+        Before the fix, a solver correctly detecting heterogeneity would get
+        truth=0.4 because the directional ATE spec failed when the LLM
+        encoded the interaction direction rather than the pooled ATE sign.
+        """
+        world = _test_world()
+        summary = build_world_summary(world, "Y", seed=42)
+
+        # Try all three directions — spec 1 must always be GAP_MATERIAL.
+        for direction in (Direction.POSITIVE, Direction.NEGATIVE, Direction.NEAR_ZERO):
+            intent = ClaimIntent(
+                claim_id="c1",
+                pattern=PatternClass.HETEROGENEITY,
+                treatment="A",
+                outcome="Y",
+                modifier="Z",
+                direction=direction,
+            )
+            output = lower_intent(intent, summary)
+            ate_spec = output.specs[0]
+            assert ate_spec.assertion.kind == AssertionKind.GAP_MATERIAL, (
+                f"direction={direction}: expected GAP_MATERIAL, "
+                f"got {ate_spec.assertion.kind}"
+            )
+
     def test_tail_risk(self):
         world = _test_world()
         summary = build_world_summary(world, "Y", seed=42)
