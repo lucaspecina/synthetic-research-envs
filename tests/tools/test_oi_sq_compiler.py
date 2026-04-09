@@ -181,3 +181,155 @@ class TestCompileSQToSpecsAbstention:
         assert result.abstained is False
         assert result.success is False
         assert any("LLM call failed" in e for e in result.errors)
+
+
+# ---------------------------------------------------------------------------
+# Flow B contract: the LLM does NOT choose adjust_set (task #45)
+# ---------------------------------------------------------------------------
+#
+# The verifier auto-computes a valid backdoor set from the SCM DAG via
+# _find_backdoor_set when arm.adjust_set is empty. compile_sq_to_specs
+# must strip any adjust_set the LLM puts on an adjust arm before building
+# the AtomicSpec. Letting the LLM choose the adjust_set produced silently
+# broken ground truth (valid spec shape, invalid backdoor set for the
+# DAG, measurement_finite=0). See PROJECT.md invariante 8.
+
+
+class TestFlowBAdjustSetStrip:
+    def test_strips_adjust_set_from_both_adjust_arms(self):
+        """Example A pattern: two adjust arms, both carrying adjust_set.
+        After compile, both arms must have the default empty adjust_set
+        so the verifier's _find_backdoor_set takes over.
+        """
+        def fake_llm(system: str, user: str) -> str:
+            return (
+                '[{"spec": {'
+                '"spec_id": "test_strip_two_arms",'
+                '"arms": ['
+                '{"label": "treated", "kind": "adjust", "treatment": "T",'
+                ' "outcome": "Y", "values": {"T": 1.0}, "adjust_set": ["W"]},'
+                '{"label": "control", "kind": "adjust", "treatment": "T",'
+                ' "outcome": "Y", "values": {"T": 0.0}, "adjust_set": ["W"]}'
+                '],'
+                '"measurement": {"kind": "mean", "target": "Y"},'
+                '"comparison": {"kind": "difference", "ref_arm": "control"},'
+                '"assertion": {"kind": "positive"}'
+                '}, "role": "required"}]'
+            )
+
+        result = compile_sq_to_specs(
+            sq_id="sq_strip",
+            text_gloss="Does T causally raise Y after adjusting for W?",
+            focus_variables=("T", "Y"),
+            tier=SQTier.HIGH,
+            summary=_stub_summary(),
+            llm_call=fake_llm,
+        )
+        assert result.sq is not None, f"expected success, got errors={result.errors}"
+        assert len(result.sq.verification_specs) == 1
+        arms = result.sq.verification_specs[0].spec.arms
+        assert len(arms) == 2
+        for arm in arms:
+            assert arm.kind == "adjust"
+            # The key assertion: verifier will auto-compute.
+            assert arm.adjust_set == ()
+
+    def test_strip_is_noop_when_no_adjust_set_provided(self):
+        """If the LLM already omitted adjust_set (correct behavior),
+        the strip must not change anything and must not error.
+        """
+        def fake_llm(system: str, user: str) -> str:
+            return (
+                '[{"spec": {'
+                '"spec_id": "test_noop",'
+                '"arms": ['
+                '{"label": "treated", "kind": "adjust", "treatment": "T",'
+                ' "outcome": "Y", "values": {"T": 1.0}},'
+                '{"label": "control", "kind": "adjust", "treatment": "T",'
+                ' "outcome": "Y", "values": {"T": 0.0}}'
+                '],'
+                '"measurement": {"kind": "mean", "target": "Y"},'
+                '"comparison": {"kind": "difference", "ref_arm": "control"},'
+                '"assertion": {"kind": "positive"}'
+                '}, "role": "required"}]'
+            )
+
+        result = compile_sq_to_specs(
+            sq_id="sq_noop",
+            text_gloss="Does T causally raise Y?",
+            focus_variables=("T", "Y"),
+            tier=SQTier.HIGH,
+            summary=_stub_summary(),
+            llm_call=fake_llm,
+        )
+        assert result.sq is not None, f"expected success, got errors={result.errors}"
+        arms = result.sq.verification_specs[0].spec.arms
+        for arm in arms:
+            assert arm.kind == "adjust"
+            assert arm.adjust_set == ()
+
+    def test_strip_does_not_touch_baseline_arm(self):
+        """A baseline arm has no adjust_set field to begin with.
+        The strip loop must skip it cleanly (no error, no mutation)."""
+        def fake_llm(system: str, user: str) -> str:
+            return (
+                '[{"spec": {'
+                '"spec_id": "test_baseline_untouched",'
+                '"arms": ['
+                '{"label": "joint", "kind": "baseline"}'
+                '],'
+                '"measurement": {"kind": "partial_correlation",'
+                ' "lhs": "T", "rhs": "Y", "cond_set": ["W"]},'
+                '"comparison": {"kind": "identity"},'
+                '"assertion": {"kind": "positive"}'
+                '}, "role": "required"}]'
+            )
+
+        result = compile_sq_to_specs(
+            sq_id="sq_baseline",
+            text_gloss="Is T associated with Y controlling for W?",
+            focus_variables=("T", "Y"),
+            tier=SQTier.HIGH,
+            summary=_stub_summary(),
+            llm_call=fake_llm,
+        )
+        assert result.sq is not None, f"expected success, got errors={result.errors}"
+        arms = result.sq.verification_specs[0].spec.arms
+        assert len(arms) == 1
+        assert arms[0].kind == "baseline"
+        # baseline arm: adjust_set is the default empty tuple.
+        assert arms[0].adjust_set == ()
+
+    def test_strip_works_for_direct_atomic_format(self):
+        """Some callers send the spec directly, without the
+        {spec, role} wrapper. The strip must still apply.
+        """
+        def fake_llm(system: str, user: str) -> str:
+            return (
+                '[{'
+                '"spec_id": "test_direct_format",'
+                '"arms": ['
+                '{"label": "treated", "kind": "adjust", "treatment": "T",'
+                ' "outcome": "Y", "values": {"T": 1.0}, "adjust_set": ["W"]},'
+                '{"label": "control", "kind": "adjust", "treatment": "T",'
+                ' "outcome": "Y", "values": {"T": 0.0}, "adjust_set": ["W"]}'
+                '],'
+                '"measurement": {"kind": "mean", "target": "Y"},'
+                '"comparison": {"kind": "difference", "ref_arm": "control"},'
+                '"assertion": {"kind": "positive"}'
+                '}]'
+            )
+
+        result = compile_sq_to_specs(
+            sq_id="sq_direct",
+            text_gloss="Does T causally raise Y?",
+            focus_variables=("T", "Y"),
+            tier=SQTier.HIGH,
+            summary=_stub_summary(),
+            llm_call=fake_llm,
+        )
+        assert result.sq is not None, f"expected success, got errors={result.errors}"
+        arms = result.sq.verification_specs[0].spec.arms
+        for arm in arms:
+            assert arm.kind == "adjust"
+            assert arm.adjust_set == ()

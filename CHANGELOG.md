@@ -5,6 +5,35 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — P06 #45: Flow B strip — adjust_set derivado del SCM
+
+**El LLM del SQ compiler ya no elige `adjust_set` en adjust arms.** El
+verifier auto-computa un backdoor set valido desde el DAG del SCM via
+`_find_backdoor_set`. Elimina la clase de bug donde el LLM adivinaba
+confounders por semantica de dominio y producía `measurement_finite=0`
+en specs estructuralmente validas.
+
+**Cambios:**
+
+1. **`PROJECT.md` — invariante 8 (Flow A vs Flow B).** Explicita el
+   contrato de las dos fronteras del compiler: Flow A (`oi_compiler.py`)
+   debe seguir ciega al SCM (preserva presion evolutiva sobre el solver);
+   Flow B (`oi_sq_compiler.py`) debe derivar estructura del SCM
+   deterministicamente (protege integridad del ground truth).
+
+2. **`oi_sq_compiler.py` — GRAMMAR_REF + strip programatico.**
+   - GRAMMAR_REF: `adjust_set` cambia de "tuple of back-door covariates"
+     a "DO NOT specify". Semantics, common-phrasings y Example A
+     actualizados para no mencionar `adjust_set` como campo a llenar.
+   - Strip: en el loop de `compile_sq_to_specs`, antes de
+     `_validate_variables` y `AtomicSpec(**spec_dict)`, se hace
+     `arm.pop("adjust_set")` en cada arm con `kind=="adjust"`.
+     Log a nivel info. No-op silencioso si el LLM ya omitio el campo.
+   - Flow A (`oi_compiler.py::lower_intent`) intacto: zero cambios.
+
+3. **Tests: `TestFlowBAdjustSetStrip`** (4 tests via stub LLM). Verifica
+   strip de ambos arms, no-op, baseline untouched, formato directo.
+
 ### 2026-04-08 — P06 G.1: contrato de abstencion explicito + harness aislado
 
 **Cierra la grieta semantica `adjust + partial_correlation` a nivel prompt**

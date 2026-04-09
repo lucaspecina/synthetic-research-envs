@@ -123,40 +123,17 @@ para papers reales pero no para SCMs sinteticos. Disparo el task #45.
 
 ### P06 — task nuevo disparado por G.1 (2026-04-08)
 
-- [ ] **#45 Flow B: derivar adjust_set desde SCM en vez de dejarlo al LLM.**
-  `oi_sq_compiler.py` hoy activamente le pide al LLM que rellene
-  `arm.adjust_set` en adjust arms (gramatica + exemplars trabajados),
-  dandole cero info estructural del DAG. El verifier ya tiene toda la
-  maquinaria determinística:
-  `oi_verifier.py::_run_adjustment` (linea 275) llama a
-  `_find_backdoor_set(world, T, Y)` cuando `arm.adjust_set` viene vacio,
-  y devuelve `adjust_invalid` limpio si no hay set identificable.
+- [x] **#45 Flow B: derivar adjust_set desde SCM en vez de dejarlo al LLM.**
+  Landed: `compile_sq_to_specs` strippea `adjust_set` de arms `adjust`
+  antes de `AtomicSpec(**spec_dict)`; GRAMMAR_REF + exemplars actualizados
+  para no mencionar `adjust_set` como campo a llenar; `PROJECT.md`
+  invariante 8 (Flow A vs Flow B) explicita el contrato; 4 tests nuevos.
+  Flow A intacto (zero cambios en `oi_compiler.py::lower_intent`).
 
-  **Scope minimo (Flow B solo):** en `compile_sq_to_specs`, despues del
-  parseo del LLM y antes del `AtomicSpec(**spec_dict)`, strippear
-  `adjust_set` de cualquier arm con `kind == "adjust"`. El verifier
-  auto-computa. Son ~5 lineas. Zero cambios en Flow A
-  (`oi_compiler.py::lower_intent`) — ahi el solver sigue siendo
-  responsable de su propia causalidad, y rellenarle el backdoor set
-  rescataria su razonamiento y rompería la presion evolutiva sobre el
-  solver.
-
-  **Scope ampliado (opcional):** actualizar `GRAMMAR_REF` y los
-  exemplars de `oi_sq_compiler.py` para no mencionar `adjust_set` en
-  adjust arms, quitando la invitacion al LLM a guessearlo. El strip
-  programatico igual queda como defensa.
-
-  **Considerar:** el C1c de G.1 mide `full_controls_preserved_frac` y
-  `control_coverage_mean` comparando contra el frozen buggy spec.
-  Cuando el fix entre, esas metricas dejan de tener sentido para
-  adjust arms (el verifier elige el set, no el compiler). Decidir si
-  rehacer G.1 post-fix o reinterpretar C1c como N/A para rerouted
-  causal specs.
-
-  **Link (contexto, no jerarquia):** #24 (heterogeneity c1 compiler),
-  #25 (identifiability evidence_basis fabrication). Clase de defecto
-  distinta — aca es contrato SCM -> compiler, no solver-side claim
-  honesty. NO enterrar bajo esos tickets.
+  **Pendiente dentro del scope de #45:** las metricas C1c del harness G.1
+  (`full_controls_preserved`, `control_coverage`) ya no aplican para adjust
+  arms ahora que el verifier elige el backdoor set. Decidir si rehacer G.1
+  post-fix o reinterpretar C1c como N/A para rerouted causal specs.
 
 ---
 

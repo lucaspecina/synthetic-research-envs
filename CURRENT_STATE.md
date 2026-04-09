@@ -18,7 +18,7 @@
 > "Roadmap del producto". Para los criterios de cierre de v1 ver `TODO.md`
 > seccion "SREG v1 — criterios de done".
 >
-> Actualizado: 2026-04-07
+> Actualizado: 2026-04-09
 
 ---
 
@@ -753,6 +753,23 @@ Scoring, matching y la politica de required-fallback quedan **sin
 cambios**: este es el contrato de superficie unicamente. El runner E2E
 no necesita cambios para consumir el nuevo contrato — el compile loop
 ya distingue las tres ramas.
+
+### Flow B: adjust_set derivado del SCM (2026-04-09)
+
+El LLM del SQ compiler (`oi_sq_compiler.py`) **ya no elige `adjust_set`**
+en arms de tipo `adjust`. El `GRAMMAR_REF` le dice explicitamente "DO NOT
+specify" y el loop de `compile_sq_to_specs` strippea cualquier
+`adjust_set` que el LLM haya emitido antes de construir el `AtomicSpec`.
+
+El verifier (`oi_verifier.py::_run_adjustment`) auto-computa un backdoor
+set valido desde el DAG del SCM via `_find_backdoor_set(world, T, Y)`
+cuando `arm.adjust_set` es vacio, o devuelve `adjust_invalid` limpio
+si no existe set identificable. Esto ya existia — el cambio es que ahora
+`adjust_set` SIEMPRE llega vacio al verifier desde Flow B.
+
+**Flow A** (`oi_compiler.py::lower_intent`) queda intacto: el solver
+sigue siendo responsable de su propio razonamiento causal. Ver
+`PROJECT.md` invariante 8 (Flow A vs Flow B) para el contrato completo.
 
 ### Harness aislado de recompile (2026-04-08)
 

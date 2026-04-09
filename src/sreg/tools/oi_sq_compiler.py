@@ -47,9 +47,9 @@ You have a composable verification grammar with 4 pieces:
 Each spec has 1+ arms. Each arm generates data from the SCM.
 - kind: "baseline" (sample from joint), "intervene" (do-calculus, set values),
   "observe" (observe natural distribution), "condition" (condition on values),
-  "adjust" (do-calculus on `treatment` blocking back-door paths through
-  `adjust_set`; emits 1-D `outcome` samples — see "Adjust arm semantics"
-  below), "sweep" (vary a variable)
+  "adjust" (do-calculus on `treatment`; the verifier derives the backdoor
+  adjustment from the SCM DAG; emits 1-D `outcome` samples — see "Adjust
+  arm semantics" below), "sweep" (vary a variable)
 - label: unique name for this arm (e.g. "baseline", "treated", "control")
 - values: dict of variable=value for intervene/condition (e.g. {"X": 1.0})
 - condition_on: dict mapping variable name to a condition predicate.
@@ -67,14 +67,21 @@ Each spec has 1+ arms. Each arm generates data from the SCM.
     Example: categorical: {"region": {"kind": "in_set", "values": ["urban", "suburban"]}}
 - treatment: variable to intervene on (REQUIRED for adjust kind)
 - outcome: variable whose post-intervention distribution is sampled (REQUIRED for adjust kind)
-- adjust_set: tuple of back-door covariates blocked by the adjustment (for adjust kind)
+- adjust_set: DO NOT specify. The verifier auto-computes a valid
+  backdoor adjustment set from the SCM DAG whenever `adjust_set` is
+  omitted or empty. Your job for adjust arms is only to pick
+  `treatment`, `outcome`, the intervention `values`, and the arm count
+  (2 arms for causal differences). If no valid backdoor set exists in
+  the DAG for your chosen (`treatment`, `outcome`) pair, the verifier
+  reports that cleanly — you do not need to pre-check identifiability.
 
 ## Adjust arm semantics — read this carefully
 
 `adjust` is NOT observational regression with controls. It is do-calculus.
 The verifier asks the SCM oracle for the post-intervention distribution
-of `outcome` under `do(treatment=value)`, with `adjust_set` blocking the
-back-door paths. The arm emits a **1-D array of `outcome` samples only**.
+of `outcome` under `do(treatment=value)`. Back-door paths are blocked by
+a backdoor set that the verifier computes from the SCM DAG — you do not
+specify it. The arm emits a **1-D array of `outcome` samples only**.
 The joint distribution is collapsed to the marginal-under-intervention,
 so multivariate quantities cannot be recomputed from it.
 
@@ -88,9 +95,10 @@ What this means for measurements paired with an adjust arm:
 **Common phrasings that look like they need `adjust + partial_correlation`
 but actually do not:**
 - "the effect of T on Y after adjusting for W" → causal claim. Use TWO
-  adjust arms (e.g. `do(T=0)` and `do(T=1)`, both with `adjust_set=(W,)`)
-  + `measurement.kind=mean` on `outcome=Y` + `comparison.kind=difference`
-  with `ref_arm=` the control arm.
+  adjust arms (e.g. `do(T=0)` and `do(T=1)`) + `measurement.kind=mean`
+  on `outcome=Y` + `comparison.kind=difference` with `ref_arm=` the
+  control arm. Do NOT specify `adjust_set` — the verifier computes the
+  backdoor set from the SCM DAG.
 - "T is associated with Y controlling for W" → observational claim. Do
   NOT use `adjust`. Use a single `baseline` (or `observe`) arm +
   `measurement.kind=partial_correlation` with `lhs=T`, `rhs=Y`,
@@ -198,16 +206,14 @@ Spec:
           "kind": "adjust",
           "treatment": "T",
           "outcome": "Y",
-          "values": {"T": 1.0},
-          "adjust_set": ["W"]
+          "values": {"T": 1.0}
         },
         {
           "label": "control",
           "kind": "adjust",
           "treatment": "T",
           "outcome": "Y",
-          "values": {"T": 0.0},
-          "adjust_set": ["W"]
+          "values": {"T": 0.0}
         }
       ],
       "measurement": {"kind": "mean", "target": "Y"},
@@ -218,9 +224,10 @@ Spec:
   }
 ]
 
-Why this works: each adjust arm asks the SCM oracle for `E[Y | do(T=t)]`
-with W on the back-door. The means are scalars; the difference compares
-two scalars. The validator accepts `adjust + mean`.
+Why this works: each adjust arm asks the SCM oracle for `E[Y | do(T=t)]`.
+The verifier computes a valid backdoor adjustment set from the SCM DAG
+(W in this case) — you do not specify it. The means are scalars; the
+difference compares two scalars. The validator accepts `adjust + mean`.
 
 ### Example B — observational claim ("is T associated with Y controlling for W?")
 
@@ -673,6 +680,24 @@ def compile_sq_to_specs(
 
         if role not in ("required", "support"):
             role = "required"
+
+        # Flow B contract: the LLM does NOT choose adjust_set. The
+        # verifier auto-computes a valid backdoor set from the SCM DAG
+        # via _find_backdoor_set when arm.adjust_set is empty. Letting
+        # the LLM guess here produces silently-broken ground truth
+        # (valid shape, invalid backdoor set -> measurement_finite=0).
+        # See PROJECT.md invariante 8 (Flow A vs Flow B).
+        n_stripped = 0
+        for arm in spec_dict.get("arms", ()):
+            if isinstance(arm, dict) and arm.get("kind") == "adjust":
+                if arm.pop("adjust_set", None) is not None:
+                    n_stripped += 1
+        if n_stripped:
+            logger.info(
+                "SQ %s item %d: stripped %d LLM-chosen adjust_set(s) "
+                "from adjust arm(s); verifier will auto-compute.",
+                sq_id, i, n_stripped,
+            )
 
         # Validate variables
         var_errors = _validate_variables(spec_dict, world_vars)

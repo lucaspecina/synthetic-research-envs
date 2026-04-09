@@ -314,6 +314,41 @@ Costo, acceso a datos, imposibilidad de ciertas intervenciones, etica, ruido,
 sesgo y ambiguedad no son detalles accesorios. Son parte constitutiva de la
 investigacion.
 
+### 8. Flow A vs Flow B: fronteras del compiler
+
+SREG tiene dos caminos de compilacion con reglas OPUESTAS sobre cuanto del
+SCM pueden ver. Confundirlos es una fuente recurrente de bugs silenciosos
+que rompen o bien la presion evolutiva sobre el solver, o bien el ground
+truth del reward exacto.
+
+**Flow A** — `src/sreg/tools/oi_compiler.py::lower_intent`: traduce el
+claim del solver en un spec de verificacion. **Debe permanecer ciego al
+DAG del SCM.** Dar a Flow A acceso estructural rescataria el razonamiento
+causal del solver (auto-corregir un `adjust_set` invalido, canonicalizar
+un control set malo) y romperia la presion evolutiva — razonar mal
+deberia costarle puntos al solver, no ser reparado en silencio. El
+comportamiento correcto de Flow A sobre un claim con error estructural es
+validar referencias y abstenerse o fallar limpiamente, nunca repararlo.
+
+**Flow B** — `src/sreg/tools/oi_sq_compiler.py::compile_sq_to_specs`:
+compila sub-questions que genera el orquestador en verification specs
+que se convierten en **ground truth**. En este paso **no se evalua al
+solver** — el sistema esta fabricando la verdad contra la que despues va
+a calificarlo. Flow B **debe** derivar decisiones estructurales (backdoor
+sets, identifiability checks, etc.) del SCM en forma deterministica.
+Dejar que un LLM adivine estas decisiones produce ground truth
+silenciosamente roto. El comportamiento correcto de Flow B sobre una
+ruta causal es que el LLM elija `treatment`, `outcome` y el wording; el
+codigo rellena el backdoor set via
+`oi_verifier.py::_find_backdoor_set`.
+
+**Litmus test operativo:** ante cualquier cambio que toque contratos de
+compile/verify, preguntar primero a que flow pertenece. Si un cambio
+parece limpio en un flow pero rompe el otro, la regla correcta no es
+unificarlos — es reconocer que los dos flows necesitan logica distinta.
+La misma pregunta de superficie ("¿el compiler deberia ver el DAG?")
+tiene respuestas opuestas segun el flow.
+
 ---
 
 ## Jerarquia de decision
