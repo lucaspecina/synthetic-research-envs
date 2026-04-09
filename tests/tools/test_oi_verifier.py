@@ -650,15 +650,10 @@ class TestFilterCondition:
         # std ~= 8.65, tol ~= 1.30, so {10.0, 10.5, 11.0} match
         assert set(result["x"].tolist()) == {10.0, 10.5, 11.0}
 
-    def test_approx_eq_non_numeric_known_debt(self):
-        """ApproxEq on a non-numeric column raises (KNOWN DEBT, P1.5).
-
-        _filter_condition does not guard against non-numeric columns
-        for ApproxEq. Today this crashes with a TypeError. P1.5 should
-        replace this with an explicit, informative error.
-        """
+    def test_approx_eq_non_numeric_raises_valueerror(self):
+        """ApproxEq on a non-numeric column raises ValueError (#10 P1.5)."""
         df = pd.DataFrame({"region": ["urban", "rural", "suburban"]})
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="non-numeric column"):
             _filter_condition(df, {"region": ApproxEq(value=1.0)})
 
     # --- ConditionRange -----------------------------------------------------
@@ -750,31 +745,52 @@ class TestFilterCondition:
         assert len(result) == 1
         assert result.iloc[0]["x"] == 3
 
-    # --- Missing column (KNOWN DEBT) ----------------------------------------
+    # --- Missing column (#10 P1.5) -------------------------------------------
 
-    def test_missing_column_silent_skip_known_debt(self):
-        """Missing column is silently skipped (KNOWN DEBT, P1.5).
+    def test_missing_column_raises_valueerror(self):
+        """Missing column raises ValueError (#10 P1.5).
 
-        If the LLM hallucinates a column, _filter_condition currently
-        ignores the predicate and returns rows that match the OTHER
-        predicates (or all rows if it was the only predicate).
-
-        This is dangerous because it silently changes the question. P1.5
-        will replace this with a loud failure (raise / empty DataFrame).
-        Locking the contract here only until that fix lands.
+        If the LLM hallucinates a column, _filter_condition now raises
+        instead of silently dropping the predicate. verify_atom catches
+        the exception and converts it to score=0.0.
         """
         df = pd.DataFrame({
             "x": [1, 2, 3, 4, 5],
             "region": ["a", "b", "a", "b", "a"],
         })
-        # Predicate on missing column "fake" is silently dropped;
-        # only the region predicate is applied.
-        result = _filter_condition(df, {
-            "fake": InSet(values=["impossible"]),
-            "region": InSet(values=["a"]),
-        })
-        assert len(result) == 3
-        assert (result["region"] == "a").all()
+        with pytest.raises(ValueError, match="non-existent column"):
+            _filter_condition(df, {
+                "fake": InSet(values=["impossible"]),
+                "region": InSet(values=["a"]),
+            })
+
+    def test_missing_column_only_predicate_raises(self):
+        """Missing column as sole predicate also raises."""
+        df = pd.DataFrame({"x": [1, 2, 3]})
+        with pytest.raises(ValueError, match="non-existent column"):
+            _filter_condition(df, {"hallucinated": ApproxEq(value=5.0)})
+
+    def test_range_on_non_numeric_raises(self):
+        """Range predicate on a string column raises ValueError."""
+        df = pd.DataFrame({"region": ["urban", "rural", "suburban"]})
+        with pytest.raises(ValueError, match="non-numeric column"):
+            _filter_condition(df, {
+                "region": ConditionRange(lo=0, hi=10),
+            })
+
+    def test_quantile_range_on_non_numeric_raises(self):
+        """QuantileRange predicate on a string column raises ValueError."""
+        df = pd.DataFrame({"region": ["urban", "rural", "suburban"]})
+        with pytest.raises(ValueError, match="non-numeric column"):
+            _filter_condition(df, {
+                "region": QuantileRange(q_lo=0.0, q_hi=0.5),
+            })
+
+    def test_legacy_raw_scalar_on_non_numeric_raises(self):
+        """Legacy raw scalar on a string column raises ValueError."""
+        df = pd.DataFrame({"region": ["urban", "rural", "suburban"]})
+        with pytest.raises(ValueError, match="non-numeric column"):
+            _filter_condition(df, {"region": 5.0})
 
     # --- Backward compat (legacy shorthand) ---------------------------------
 

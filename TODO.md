@@ -36,7 +36,7 @@ Los 6 criterios de cierre:
 
 3. **Bugs bloqueantes resueltos** — Tasks abiertos que bloquean el cierre
    de v1:
-   - [ ] #10 P1.5: missing-column robustness + non-numeric guards (deuda P1)
+   - [x] #10 P1.5: missing-column robustness + non-numeric guards (deuda P1)
    - [x] #24 Ticket: bug heterogeneity c1 compiler
    - [x] #25 Ticket: identifiability evidence_basis fabrication
 

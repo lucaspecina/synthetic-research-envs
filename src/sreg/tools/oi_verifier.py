@@ -158,13 +158,37 @@ def _run_single_arm(
 def _filter_condition(
     df: pd.DataFrame, conditions: dict[str, Any], tolerance: float = 0.15
 ) -> pd.DataFrame:
-    """Filter dataframe by condition predicates (P1: supports range/quantile/in_set)."""
+    """Filter dataframe by condition predicates (P1: supports range/quantile/in_set).
+
+    Raises ValueError for missing columns or numeric predicates on
+    non-numeric columns (#10 P1.5). verify_atom catches the exception
+    and converts it to score=0.0.
+    """
     mask = pd.Series(True, index=df.index)
     for var, pred in conditions.items():
         if var not in df.columns:
-            continue
+            logger.warning(
+                "_filter_condition: column %r not in DataFrame "
+                "(available: %s). Spec references a non-existent variable.",
+                var, sorted(df.columns.tolist()),
+            )
+            raise ValueError(
+                f"Condition references non-existent column {var!r}. "
+                f"Available: {sorted(df.columns.tolist())}"
+            )
         # Dispatch by predicate kind (ConditionPredicate objects)
         kind = getattr(pred, "kind", None)
+        if kind in ("approx_eq", "range", "quantile_range"):
+            if not pd.api.types.is_numeric_dtype(df[var]):
+                logger.warning(
+                    "_filter_condition: numeric predicate %r on "
+                    "non-numeric column %r (dtype=%s).",
+                    kind, var, df[var].dtype,
+                )
+                raise ValueError(
+                    f"Numeric predicate {kind!r} on non-numeric "
+                    f"column {var!r} (dtype={df[var].dtype})"
+                )
         if kind == "approx_eq":
             col_std = df[var].std()
             tol = max(pred.tol_std * col_std, 0.01)
@@ -179,6 +203,11 @@ def _filter_condition(
             mask &= df[var].isin(pred.values)
         elif isinstance(pred, (int, float)):
             # Legacy fallback: raw scalar (shouldn't happen after model_validator)
+            if not pd.api.types.is_numeric_dtype(df[var]):
+                raise ValueError(
+                    f"Numeric predicate (raw scalar) on non-numeric "
+                    f"column {var!r} (dtype={df[var].dtype})"
+                )
             col_std = df[var].std()
             tol = max(tolerance * col_std, 0.01)
             mask &= (df[var] - float(pred)).abs() <= tol

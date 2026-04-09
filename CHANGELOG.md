@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — P1.5 #10: missing-column raises + non-numeric guards
+
+**`_filter_condition` ahora lanza `ValueError` en vez de fallar
+silenciosamente.** Cierra la deuda P1.5 documentada desde P1.
+
+1. **Columna faltante → raise.** Si un spec referencia una columna que no
+   existe en el DataFrame (e.g., columna alucinada por el LLM), la funcion
+   ahora lanza `ValueError` en vez de ignorar el predicado silenciosamente.
+   `verify_atom` atrapa la excepcion y la convierte en `score=0.0`.
+
+2. **Predicado numerico sobre columna no-numerica → raise.** `ApproxEq`,
+   `ConditionRange`, `QuantileRange` y el legacy raw scalar ahora validan
+   `is_numeric_dtype` antes de operar. Si la columna es string/categorical,
+   se lanza `ValueError` con mensaje informativo.
+
+3. **Sample starvation (<30 rows):** mantiene solo el warning actual (no
+   cambia comportamiento). Evaluacion de si deberia ser `NaN` queda como
+   deuda separada.
+
 ### 2026-04-09 — P06 #24: hotfix heterogeneity ATE spec direction-agnostic
 
 **Spec 1 del compiler para claims de heterogeneidad ahora usa

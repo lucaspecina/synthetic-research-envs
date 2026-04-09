@@ -578,9 +578,10 @@ encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
   Discriminated union pydantic con auto-promote. Verifier dispatch en
   `_filter_condition` (`oi_verifier.py`). GRAMMAR_REF expandido en
   `oi_sq_compiler.py` con ejemplos y reglas anti-variables-derivadas.
-  **Deuda P1.5:** silent skip de columnas faltantes (footgun) y
-  non-numeric guards en approx_eq. Tests con sufijo `known_debt`
-  documentan el comportamiento actual. Ver TODO I0d P1.5.
+  **P1.5 cerrada (#10):** columna faltante y predicado numerico sobre
+  columna no-numerica ahora lanzan `ValueError` (atrapado por
+  `verify_atom` → `score=0.0`). Sample starvation (<30 rows) mantiene
+  solo warning.
 - **Compiler — 3 estados terminales (P06 G.1, 2026-04-08).**
   `compile_sq_to_specs` devuelve un `SQCompileResult` con tres ramas
   mutuamente excluyentes: `success` (specs validas), `abstained` (LLM
