@@ -593,6 +593,12 @@ encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
   matching y la politica de required-fallback no cambian: el contrato
   es solo de superficie.
 
+**Scoring path canonico (2026-04-09):** SQ v2 (specs-based) + LLM judge
+es el unico path canonico de SREG v1. SQ v1 (pattern-based) y salience
+map quedan como legacy fallback en codigo pero NO son parte del scope
+canonico. El runner emite `logger.warning("LEGACY PATH: ...")` cuando se
+usan paths legacy. Ver `CURRENT_STATE.md` seccion "Tres rutas de scoring".
+
 **Bottleneck actual:** credit-assignment a nivel claim (truth dilution).
 Ver TODO A28 para la taxonomia completa de failure modes del scoring.
 

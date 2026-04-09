@@ -29,10 +29,12 @@ Los 6 criterios de cierre:
    15 + atomic prompt) debe tener decision final (adoptar / descartar /
    iterar) con evidencia del rerun de 12 casos post-Fix A. Ver task #26.
 
-2. **Canonical path estable** — SQ v2 (specs-based) es el path principal
-   y SQ v1 (pattern-based) es legacy. Decidir si SQ v1 se elimina o queda
-   como fallback documentado. Ver `CURRENT_STATE.md` seccion "SQ v2 —
-   Pipeline principal".
+2. **Canonical path estable** — **DECIDIDO (2026-04-09).** SQ v2
+   (specs-based) + LLM judge es el unico path canonico de SREG v1.
+   SQ v1 (pattern-based) y salience map quedan en codigo como legacy
+   fallback documentado, pero NO son parte del scope canonico de v1.
+   Scores producidos por paths legacy llevan warning visible en logs y
+   no son validos como resultados oficiales de v1.
 
 3. **Bugs bloqueantes resueltos** — Tasks abiertos que bloquean el cierre
    de v1:

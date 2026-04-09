@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — Criterio 2: SQ v2 declarado path canonico de SREG v1
+
+**SQ v2 (specs-based) + LLM judge es el unico path canonico de SREG v1.**
+SQ v1 (pattern-based) y salience map quedan en codigo como legacy fallback
+documentado, pero sus scores no son validos como resultados oficiales de v1.
+
+Cambios:
+- `oi_runner.py`: header comment declara path canonico. `logger.warning()`
+  emitido cuando se usa SQ v1 o salience map (visible en logs de produccion).
+- `CURRENT_STATE.md`: tabla de scoring paths actualizada. Seccion
+  terminologica clarifica que solo SQ v2 es canonico.
+- `ARCHITECTURE.md`: nota de scoring path canonico agregada.
+- `TODO.md`: criterio 2 marcado como decidido.
+
 ### 2026-04-09 — P1.5 #10: missing-column raises + non-numeric guards
 
 **`_filter_condition` ahora lanza `ValueError` en vez de fallar

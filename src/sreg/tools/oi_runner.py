@@ -415,13 +415,17 @@ class OIEpisodeRunner:
         self._last_compiled = compiled
         self._last_claims = list(claims)
 
-        # --- Scoring path priority: v2 judge > v1 SQ > salience map ---
+        # --- Scoring path ---
+        # CANONICAL (v1): SQ v2 + LLM judge.
+        # Legacy fallbacks (SQ v1, salience map) are kept for backward
+        # compat but are NOT part of the v1 canonical path. Scores
+        # produced by fallback paths must not be used as official v1
+        # results.
 
-        # Path 1: SQ v2 + LLM judge (new)
         if self._subquestions_v2:
             self._sq_score = self._score_with_judge(claims, compiled)
             logger.info(
-                "SQ v2 judge score: total=%.3f correctness=%.3f "
+                "SQ v2 judge score (canonical): total=%.3f correctness=%.3f "
                 "weighted_coverage=%.3f coverage=%.3f",
                 self._sq_score.total,
                 self._sq_score.correctness,
@@ -429,19 +433,29 @@ class OIEpisodeRunner:
                 self._sq_score.coverage,
             )
 
-        # Path 2: SQ v1 (legacy, fast, no salience map)
+        # Legacy fallback: SQ v1 (pattern-based, no LLM judge)
         elif self._subquestions:
+            logger.warning(
+                "LEGACY PATH: using SQ v1 scoring (not v1 canonical). "
+                "Scores from this path are not official v1 results. "
+                "To use the canonical path, provide sub_questions_v2."
+            )
             self._sq_score = self._score_with_subquestions(compiled)
             logger.info(
-                "SQ v1 score (primary): total=%.3f correctness=%.3f "
+                "SQ v1 score (legacy): total=%.3f correctness=%.3f "
                 "coverage=%.3f",
                 self._sq_score.total,
                 self._sq_score.correctness,
                 self._sq_score.weighted_coverage,
             )
 
-        # Path 3: salience map (legacy/curated worlds, slow)
+        # Legacy fallback: salience map (no SQs at all)
         else:
+            logger.warning(
+                "LEGACY PATH: using salience map scoring (not v1 canonical). "
+                "Scores from this path are not official v1 results. "
+                "To use the canonical path, provide sub_questions_v2."
+            )
             solver = SCMSolver(self.world, n_mc=self.n_mc)
             salience = build_salience_map(
                 self.world, self.target, n_mc=self.n_mc, seed=self.seed
@@ -463,7 +477,7 @@ class OIEpisodeRunner:
             )
             self._score = score
             logger.info(
-                "Salience map score (diagnostic): total=%.3f correctness=%.3f "
+                "Salience map score (legacy): total=%.3f correctness=%.3f "
                 "coverage=%.3f",
                 score.total,
                 score.correctness,

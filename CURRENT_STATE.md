@@ -563,21 +563,21 @@ Datos: `results/e2e_batch_bug8_9_fix/`
 
 ### Algo importante: tres scorers existen, solo uno es canonico
 
-Hay **tres rutas de scoring** en el codigo. Importa distinguirlas porque
-tienen formulas distintas y cualquier cambio sobre el scoring tiene que
-apuntar al canonico:
+Hay **tres rutas de scoring** en el codigo. **Solo la primera es canonica
+para SREG v1.** Las otras dos son legacy fallback documentado — sus scores
+no son validos como resultados oficiales de v1 y el runner emite un
+`logger.warning("LEGACY PATH: ...")` cuando se usan.
 
-| Path | Funcion | Formula | Estado | Quien lo usa |
-|---|---|---|---|---|
-| **canonico v2** | `oi_runner._score_with_judge` (`oi_runner.py:497`) | `total = correctness x weighted_coverage` (multiplicativo). Match score = `truth x relevance` (LLM judge). Correctness = mean de TODAS las truths. | **Path principal de produccion.** Lo que corre `generate_src.py` cuando hay `sub_questions_v2`. | E2E real, batches p05 |
-| legacy v1 SQ | `oi_subquestions.score_episode_with_subquestions` (`oi_subquestions.py:1022`) | `total = wcov*0.70 + corr*0.20 + novel + cov*0.10` (aditivo). Match score = `truth x compat x answer_score` (compatibility algebra, sin LLM). Correctness = mean truth de claims que matched. Tiene novel_bonus. | Fallback. Solo se usa si no hay `sub_questions_v2`. | Tests, `compiler_benchmark.py`, debug scripts |
-| salience map | `score_compiled_episode_v2` | Conceptos: `EpisodeScore`, `ClaimVerdict`, `SalienceFamily`, `efficiency`. | Diagnostico/legacy. Solo cuando no hay SQs en absoluto. | Mundos curated antiguos |
+| Path | Funcion | Formula | Estado |
+|---|---|---|---|
+| **CANONICO v1** | `oi_runner._score_with_judge` | `total = correctness x weighted_coverage` (multiplicativo). Match score = `truth x relevance` (LLM judge). Correctness = mean de TODAS las truths. | **Unico path canonico de SREG v1.** Requiere `sub_questions_v2`. |
+| legacy: SQ v1 | `oi_subquestions.score_episode_with_subquestions` | `total = wcov*0.70 + corr*0.20 + novel + cov*0.10` (aditivo). Match score = `truth x compat x answer_score` (sin LLM). | Legacy fallback. Warning en logs. No es resultado oficial v1. |
+| legacy: salience map | `score_compiled_episode_v2` | `EpisodeScore`, `ClaimVerdict`, `SalienceFamily`, `efficiency`. | Legacy fallback. Warning en logs. No es resultado oficial v1. |
 
-**Para cualquier cambio sobre scoring:** apuntar al canonico v2
+**Para cualquier cambio sobre scoring:** apuntar al canonico
 (`_score_with_judge`) y replicar en `scripts/rescore.py::_aggregate_score`
-(linea 325) que es el espejo offline. NO modificar
-`score_episode_with_subquestions` salvo que el cambio sea explicitamente
-para tests/benchmarks.
+que es el espejo offline. NO modificar los paths legacy salvo que el
+cambio sea explicitamente para tests/benchmarks.
 
 **Nota:** el sistema de warrant (que intentaba medir si el solver habia
 investigado de verdad antes de submitir) fue eliminado (L1, 2026-04-01).
@@ -671,11 +671,13 @@ producto"):
   capas de revelacion, teoria sintetica.
 - **SREG v3** = futuro lejano. Sistemas complejos dinamicos.
 
-Los pipelines "SQ v1" y "SQ v2" viven AMBOS dentro de SREG v1. "SQ v2"
-(specs-based) es el path principal de produccion hoy (`oi_sq_compiler.py`,
-`oi_sq_matching.py`). "SQ v1" (pattern-based) coexiste como legacy.
-Analogamente, "Suite v1" refiere a la suite de evaluacion externa — no
-es el producto SREG v1.
+Los pipelines "SQ v1" y "SQ v2" viven AMBOS dentro de SREG v1, pero
+**solo SQ v2 (specs-based) + LLM judge es el path canonico de SREG v1**
+(`oi_sq_compiler.py`, `oi_sq_matching.py`). SQ v1 (pattern-based) y
+salience map quedan como legacy fallback documentado — el runner emite
+warnings cuando se usan y sus scores no cuentan como resultados oficiales
+de v1. Analogamente, "Suite v1" refiere a la suite de evaluacion externa
+— no es el producto SREG v1.
 
 ---
 
