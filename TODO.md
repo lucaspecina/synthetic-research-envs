@@ -46,16 +46,18 @@ Los 6 criterios de cierre:
    - [x] #24 Ticket: bug heterogeneity c1 compiler
    - [x] #25 Ticket: identifiability evidence_basis fabrication
 
-4. **Smoke validation suite estable** — El batch `p05_canonical_batch`
-   (12 casos diversos) debe correr end-to-end y producir scores
-   reproducibles con `/rescore --reaggregate` (delta 0.0000). Es el gate
-   minimo para afirmar que "el sistema esta estable".
+4. **Smoke validation suite estable** — **CERRADO (2026-04-09).** Suite
+   canonica de 12 casos bajo config v1 frozen en
+   `results/v1_canonical_batch/`. Promovida de `p06_cap_decision/cap15`
+   (run E2E con config v1 final). `rescore --reaggregate` da delta
+   0.0000 en los 12 casos. Average total: 0.509. Ver
+   `results/v1_canonical_batch/MANIFEST.md`.
 
-5. **Config v1 congelada** — Fijar el set de parametros que definen
-   "SREG v1": modelo LLM (orchestrator y solver), budget por episodio,
-   max claims, SQ pipeline (v1 o v2), scoring weights. Esto es el
-   contrato que usa la suite de tesis
-   (`research/synthesis/sreg_training_transfer_protocol.md`).
+5. **Config v1 congelada** — **CERRADO (2026-04-09).** Config v1
+   documentada en `CURRENT_STATE.md` seccion "Config v1 congelada" y
+   en `results/v1_canonical_batch/MANIFEST.md`. Parametros: SQ v2 +
+   LLM judge, cap=15, gpt-5.2-codex solver, gpt-5.4 compiler/judge,
+   20 iterations, temp 0.0, seed 42, n_mc 20k, total = corr x wcov.
 
 6. **Build → use handoff** — SREG v1 es buildable por otros (otro dev
    puede generar casos nuevos) Y usable por un solver externo sin tocar

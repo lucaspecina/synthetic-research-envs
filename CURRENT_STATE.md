@@ -22,6 +22,30 @@
 
 ---
 
+## Config v1 congelada (2026-04-09)
+
+Estos son los parametros que definen "SREG v1". Cualquier cambio a
+estos valores es un cambio de version, no un bugfix.
+
+| Parametro | Valor | Donde vive |
+|-----------|-------|------------|
+| Scoring path | SQ v2 + LLM judge | `oi_runner._score_with_judge` |
+| Claim cap | 15 | `open_investigation.MAX_CLAIMS` / `OIEpisodeRunner(claim_cap=)` |
+| Solver model | gpt-5.2-codex | env `AZURE_SOLVER_MODEL` |
+| Compiler/judge model | gpt-5.4 | env `AZURE_MODEL` |
+| Max iterations | 20 | `run_oi_investigation(max_iterations=)` |
+| Temperature | 0.0 | `run_oi_investigation(temperature=)` |
+| Seed | 42 | `OIEpisodeRunner(seed=)` |
+| n_mc (Monte Carlo samples) | 20,000 | `OIEpisodeRunner(n_mc=)` |
+| Score formula | `total = correctness x weighted_coverage` | `_aggregate_score` |
+| Match formula | `satisfaction = max(truth x relevance)` | `_aggregate_score` |
+| Correctness | mean(truth) de TODAS las claims | `_aggregate_score` |
+
+**Baseline canonico:** `results/v1_canonical_batch/` (12 casos, average
+total 0.509, `rescore --reaggregate` delta 0.0000). Ver MANIFEST.md.
+
+---
+
 ## Que es SREG, en una frase
 
 SREG genera **entornos de investigacion sintetica** donde un agente recibe un

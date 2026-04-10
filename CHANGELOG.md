@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — Criterio 5: config v1 congelada
+
+**Config v1 documentada en `CURRENT_STATE.md` seccion "Config v1
+congelada".** Tabla con los 11 parametros que definen SREG v1 (scoring
+path, claim cap, modelos, iterations, temperature, seed, n_mc, formulas
+de score). Cualquier cambio a estos valores es cambio de version, no
+bugfix. Criterio 5 cerrado.
+
+### 2026-04-09 — Criterio 4: v1 canonical batch estable
+
+**Suite canonica de 12 casos promovida a `results/v1_canonical_batch/`.**
+Proviene de `results/p06_cap_decision/cap15/` (run E2E con config v1
+final). `rescore --reaggregate` da delta 0.0000 en los 12 casos.
+Average total: 0.509. MANIFEST.md documenta provenance, config, y
+gate de reproducibilidad. Criterio 4 cerrado.
+
 ### 2026-04-09 — Criterio 1: cap=15 congelado para SREG v1
 
 **Experimento P06 cap decision completo.** 24 runs (12 casos x 2
