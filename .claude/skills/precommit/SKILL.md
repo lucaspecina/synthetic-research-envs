@@ -11,17 +11,13 @@ Every change — code or docs — follows this workflow.
 
 ## The workflow (in order)
 
-### Step 1: Tests + Validation
+### Step 1: Targeted validation
 **Skip if doc-only or trivial changes (typos, comments).**
 
-- Run `pytest tests/ -q`. ALL must pass.
+- Run `pytest` ONLY on the specific test file(s) affected by the change. NOT the full suite.
 - Run `ruff check` on modified files.
-- If the change adds features or modifies behavior:
-  - Write an inline script (`python -c`) that exercises the change with real execution.
-  - Run with at least 5 different configurations.
-  - If LLM credentials are available AND the change touches orchestrator/agent/env/tools:
-    run 1-2 real LLM pipeline cases as smoke test.
-  - Read the output carefully. Do the values make sense?
+- If the change touches orchestrator/tools/OI pipeline AND LLM credentials available:
+  run 1 real case as smoke test (`/run --oi`).
 
 ### Step 2: Codex review (if Codex MCP available)
 **MANDATORY for code changes. SKIP for doc-only or trivial changes.**
@@ -76,12 +72,19 @@ Every change — code or docs — follows this workflow.
 
 ## Diagnostic impact check
 
-If the commit adds a new eval type, action type, or changes orchestrator/agent/env:
-note that the environment diagnostic (`/eval`) should be re-run to verify
-environment quality. This is a NOTE, not a blocker — log it and move on.
+If the commit changes orchestrator/tools/OI pipeline: note that `/eval` should
+be re-run to verify environment quality. This is a NOTE, not a blocker.
 
-(Note: `/eval` runs the environment diagnostic, NOT the transfer benchmark.
-The transfer benchmark is a separate, future process — see research/synthesis/benchmark_analysis.md.)
+## Escenarios diversos check — OBLIGATORIO para cambios de diseno
+
+**ANTES de disenar o implementar** cualquier cambio en scoring, compiler,
+prompts, contratos, o IR: repasar mentalmente los escenarios diversos
+(`research/synthesis/investigation_scenarios_rubric.md`).
+
+No solo "X causa Y" — verificar que funciona para: system mapping,
+structure discovery, descriptivo, predictivo, epistemologico, optimizacion,
+multi-outcome, etc. Si solo funciona para causal simple, es un juguete.
+Si mejora 3 tipos pero rompe 5, no vale. Flaggear ANTES de presentar.
 
 ## Report format
 

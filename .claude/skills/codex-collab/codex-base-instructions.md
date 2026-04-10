@@ -18,47 +18,49 @@ that do science via RL. Like OpenAI Gym for games — SREG for scientific reason
 
 ### Two-layer architecture (the core concept)
 
-- **Formal layer (hidden)**: Bayesian network (DAG + CPDs) = mathematical truth.
-  The policy never sees this. All reward computation is exact against this layer.
+- **Formal layer (hidden)**: SCM (Structural Causal Model) = equations + graph.
+  The policy never sees this. Reward computation is exact (Monte Carlo) against this.
 - **Semantic layer (visible)**: Narrative context, datasets, named variables,
-  research questions. What the policy sees — like what a real researcher receives.
+  research brief. What the policy sees — like what a real researcher receives.
 
-### Key design principle
+### Open Investigation (the active pipeline)
 
-Every task must feel like a real research question, not a DAG exercise.
-"What variables should you control for?" = good.
-"Find a valid backdoor set in this DAG" = bad.
+The solver receives an open brief and investigates freely. It submits claim
+cards with findings. A compiler translates claims to executable specs via a
+composable grammar (~24 atomic pieces). The SCM verifier executes them —
+deterministic, no LLM. Current bottleneck: compiler (LLM extraction).
+
+### LA PREGUNTA (double filter for every decision)
+
+1. Why isn't this real research yet? What's missing?
+2. Why wouldn't RL training on SREG teach good scientific judgment?
+   (research taste, problem decomposition, fine-grained questions,
+   knowing what to look at, knowing when a conclusion is premature)
 
 ### Key components
 
 - **SRC** = Synthetic Research Case = complete training environment
-- **Teacher** = optimal policy (exact Bayesian inference, upper bound on reward)
-- **Diagnostic agent** = zero-shot LLM policy (validates environments work)
-- **Orchestrator** = LLM that designs research cases (proposes structure + semantics)
-- **Tools** = programmatic validators (build and verify the math)
+- **SCMSolver** = teacher (Monte Carlo ground truth, upper bound on reward)
+- **OI solver** = diagnostic policy (LLM zero-shot, validates environments)
+- **Orchestrator** = LLM that designs SCM-based research cases
+- **Compiler** = translates solver claims to verifiable specs
 
 ### Document hierarchy for THIS project
 
 1. `CLAUDE.md` — START HERE. Conventions, workflow, doc map.
-2. `PROJECT.md` — Vision, principles, invariants, hierarchy of decision.
-3. `ARCHITECTURE.md` — System design, contracts, flows, extension points.
-4. `CURRENT_STATE.md` — What exists TODAY. 1107 tests, 9 eval types.
-5. `TODO.md` — Pending work, open problems, backlog.
+2. `PROJECT.md` — Vision, principles, invariants, LA PREGUNTA.
+3. `ARCHITECTURE.md` — System design, contracts, flows.
+4. `CURRENT_STATE.md` — What exists TODAY. SCM + OI only.
+5. `TODO.md` — Pending work, open problems.
 6. `CHANGELOG.md` — History.
-7. `research/` — Analysis, findings, synthesis (see research/README.md).
-
-### Three-level QA
-
-1. **Tests** (pre-commit): "Did I break something?"
-2. **Environment Diagnostic** (periodic): "Are environments good?" — real LLM, not mocks
-3. **Transfer Benchmark** (future): "Does training on SREG improve policies?" — THE real test
+7. `research/` — Analysis, findings, synthesis.
 
 ### When reviewing SREG code, check:
 
-- Does it align with PROJECT.md vision?
+- Does it align with PROJECT.md vision and LA PREGUNTA?
 - Does the task feel like science, not graph theory?
-- Are reward signals exact (from BN), not heuristic?
+- Are reward signals exact (from SCM), not heuristic?
 - Is the semantic layer realistic but fictional?
-- Does the change require doc updates? (see trigger table in CLAUDE.md)
+- Would this help train scientific judgment via RL?
 
 ---

@@ -302,56 +302,6 @@ class TestCasePlanIntegration:
         assert "Deliverables" not in problem.research_question
 
 
-    def test_brief_appears_in_solver_prompt(self):
-        """Verify the brief flows into the solver prompt correctly."""
-        from sreg.agent.prompts import build_case_system_prompt
-        from sreg.models.task import Task
-
-        world = _linear_chain()
-        plan = CasePlan(
-            title="Test plan",
-            research_context="Testing brief in solver prompt.",
-            research_brief=(
-                "Investigate the causal chain from weight to speed. "
-                "Determine whether direct manipulation of weight is the "
-                "most effective strategy."
-            ),
-            deliverables=[
-                "Identify causal drivers",
-                "Recommend interventions",
-            ],
-            questions=[
-                EvalQuestionPlan(
-                    question_text="What is the distribution of speed?",
-                    eval_type=TaskType.INFER_TARGET,
-                    target_node="C",
-                ),
-            ],
-            shared_budget=5,
-        )
-        builder = SCMProblemBuilder()
-        problem = builder.build(world, target="C", case_plan=plan, seed=42)
-
-        # Create a dummy task for the prompt
-        task = Task(
-            id="test-task",
-            type=TaskType.INFER_TARGET,
-            world_id="test",
-            question="What is the distribution of speed?",
-            target_node="C",
-            available_evidence=["A", "B"],
-            correct_answer={"[0, 5)": 0.3, "[5, 10)": 0.7},
-        )
-
-        prompt = build_case_system_prompt(problem, [task])
-
-        # Brief should appear in the prompt
-        assert "causal chain from weight to speed" in prompt
-        assert "Identify causal drivers" in prompt
-        # The prompt should contain the Research Brief section
-        assert "Research Brief" in prompt
-
-
 class TestFullPipeline:
     """Test the full pipeline: SCMWorld -> tasks -> problem."""
 

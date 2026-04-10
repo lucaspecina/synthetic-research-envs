@@ -33,12 +33,13 @@ abierto.
 La arquitectura actual apunta a **research cases estructurados y verificables**
 donde:
 
-- la verdad del caso vive en un sustrato formal discreto y exacto,
+- la verdad del caso vive en un SCM (modelo causal estructural con ecuaciones
+  y variables continuas),
 - el caso visible se presenta como un problema de investigacion con datos,
-  contexto, acciones y restricciones,
+  contexto y herramientas de analisis,
 - el orchestrator diseña el caso como conjunto,
-- el solver interactua dentro de un episodio con budget,
-- y la evaluacion se ancla a un teacher formal.
+- el solver investiga libre y entrega hallazgos (claim cards en OI),
+- y la evaluacion se ancla a verificacion formal contra el SCM.
 
 ### Debe soportar crecimiento hacia
 
@@ -55,6 +56,13 @@ sin romper el nucleo verificable del sistema.
 - training loops de RL,
 - simulacion cientifica totalmente abierta sin estructura formal,
 - evaluacion cuyo nucleo dependa solo de jueces humanos o LLM-as-judge,
+- **ciencia que produce artefactos evaluables** (predicciones scored por AUC,
+  policies, disenos) — el solver entrega claims sobre el mundo, no artefactos
+  ejecutables. Ver `PROJECT.md` "Scope actual y horizontes futuros",
+- **interaccion rica con el entorno** (proponer experimentos, pedir datos,
+  gestionar budget, colaboradores simulados) — el solver investiga con las
+  herramientas actuales (python_exec, load/save_artifact, helpers de analisis),
+- **material teorico sintetico** (papers ficticios, literatura inventada),
 - y un salto inmediato a cualquier idea futura del `PROJECT.md` sin pasar por
   contratos y flujos estables.
 
@@ -113,11 +121,10 @@ completo con dos capas coordinadas:
 Hoy el SRC es un artefacto compuesto, no una clase unica. Sus piezas centrales
 son:
 
-- `World`
+- `SCMWorld`
 - `CasePlan`
 - `ResearchProblem`
-- una o mas `Task`
-- `Episode`
+- una o mas `Task` (SRC mode) o `SubQuestionIntent` (OI mode)
 - scores, trayectorias y artefactos exportables
 
 Arquitectonicamente, el SRC debe tratarse como un producto coherente aunque se
@@ -127,23 +134,12 @@ represente con varios contratos.
 
 ## 5. Contratos centrales
 
-### `DAGSpec`
-
-Contrato universal para describir una estructura DAG arbitraria sin CPDs.
-
-Desacopla la fuente de estructura de la generacion del mundo. Cualquier origen
-de estructura deberia poder emitir un `DAGSpec`.
-
-### `World`
+### `SCMWorld`
 
 Contrato del mundo formal completo.
 
-Contiene nodos, edges y la verdad formal del caso. Dos implementaciones:
-
-- **`SCMWorld`** (principal): Structural Causal Model — grafo + ecuaciones
-  estructurales + ruido. Variables continuas. Ver seccion 6.1.
-- **`World`** (legacy): BN discreta — grafo + CPD tables. Variables discretas
-  (3 estados). Disponible pero no se usa en el pipeline principal.
+Structural Causal Model — grafo + ecuaciones estructurales + ruido. Variables
+continuas. Ver seccion 6.1.
 
 ### `CasePlan`
 
@@ -323,26 +319,15 @@ ordenes de magnitud menor que el del training.
 | should_condition | Solo del grafo |
 | do-calculus | Grafo + ecuaciones (simular) |
 
-**Que cambia respecto a la BN discreta:**
+**Caracteristicas del SCM:**
 
-| Aspecto | BN legacy | SCM |
-|---|---|---|
-| Variables | 3 estados discretos | Continuas, con unidades reales |
-| Relaciones | CPD tables (3^N entries) | Ecuaciones arbitrarias |
-| Escalabilidad | Exponencial con padres | Lineal |
-| Datos generados | `low/medium/high` | `38.48 C`, `6.28 intensidad` |
-| Expresividad | Solo tablas de probabilidad | Threshold, sigmoid, sqrt, etc |
-| Reward | Analitico exacto (pgmpy) | Monte Carlo preciso (~0.001) |
-
-**Referencia:** `research/synthesis/scm_migration_rationale.md` para los
-fundamentos completos de la migracion.
-
-#### BN discreta (legacy)
-
-La BN discreta (`World` + `ExactBayesSolver` + pgmpy) sigue disponible
-pero ya NO es el pipeline principal. El pipeline E2E (orchestrator →
-world gen → task gen → problem builder) usa SCMWorld exclusivamente.
-La BN se mantiene por backward compatibility y para tests historicos.
+| Aspecto | Detalle |
+|---|---|
+| Variables | Continuas, con unidades reales |
+| Relaciones | Ecuaciones arbitrarias (threshold, sigmoid, sqrt, etc.) |
+| Escalabilidad | Lineal con padres (no exponencial) |
+| Datos generados | `38.48 C`, `6.28 intensidad` |
+| Reward | Monte Carlo preciso (~0.001 con N=20K) |
 
 ### 6.2 Capa de diseno del caso
 
@@ -377,9 +362,10 @@ unico.
 
 ### 6.4 Capa de interaccion
 
-Convierte las acciones visibles del caso en una interfaz formalmente ejecutable.
+Convierte las acciones visibles del caso en una interfaz de investigacion.
 
-`Episode` y `EpisodeRunner` viven aca.
+En OI, el solver interactua via herramientas (python_exec, think, submit_claims)
+gestionadas por el OI driver. No hay EpisodeRunner ni budget de acciones.
 
 ### 6.5 Capa de evaluacion
 
@@ -397,14 +383,13 @@ El flujo canonico de generacion es:
 
 1. recibir un `goal`, seed o paper,
 2. proponer estructura y framing del caso,
-3. generar un `World` via templates o via `DAGSpec`,
+3. generar un `SCMWorld` con grafo + ecuaciones,
 4. validar el mundo,
 5. enriquecerlo semanticamente,
-6. disenar el `CasePlan`,
-7. generar `Task`s alineadas con ese plan,
+6. disenar el `CasePlan` con brief y sub-preguntas,
+7. generar datasets realistas,
 8. construir el `ResearchProblem`,
-9. generar el `Episode`,
-10. empaquetar todo como SRC.
+9. empaquetar todo como SRC.
 
 ### 7.2 Interaccion
 
@@ -421,6 +406,11 @@ Puede:
 El runner valida acciones y devuelve observaciones o resultados consistentes con
 la verdad formal del caso.
 
+Si el solver agota iteraciones sin llamar a `submit_claims`, un mecanismo de
+force-submit le da un turno extra con SOLO `submit_claims` disponible (sin
+`python_exec` ni `think`). Esto mitiga la "submission aversion" donde el solver
+prefiere seguir analizando en vez de entregar hallazgos.
+
 En este horizonte, la interfaz del solver separa dos cosas:
 
 - herramientas libres de razonamiento y analisis, como `python_exec` o `think`,
@@ -429,7 +419,7 @@ En este horizonte, la interfaz del solver separa dos cosas:
 
 ### 7.3 Evaluacion
 
-La evaluacion compara lo que hizo el solver contra lo que implica el `World`.
+La evaluacion compara lo que hizo el solver contra lo que implica el `SCMWorld`.
 
 Segun la task, esto puede involucrar:
 
@@ -466,13 +456,9 @@ Toda la codebase usa la **Responses API** de OpenAI (no Chat Completions).
 Esto soporta modelos de razonamiento (codex, o-series) ademas de modelos
 conversacionales clasicos.
 
-El orchestrator y el solver pueden usar **modelos distintos**:
-
-- `AZURE_MODEL` — modelo para orchestrator, reports, transformaciones
-- `AZURE_SOLVER_MODEL` — modelo para el solver diagnostico (default: AZURE_MODEL)
-
-Esto permite usar un modelo generalista para disenar casos y un modelo de
-razonamiento optimizado para investigar.
+El orchestrator y el solver usan `AZURE_MODEL` por defecto. Los scripts
+aceptan `AZURE_SOLVER_MODEL` como override para el solver, permitiendo
+usar un modelo de razonamiento optimizado para investigar.
 
 ---
 
@@ -516,8 +502,8 @@ La capa visible del caso no puede contradecir la capa formal.
 
 ### El caso se diseña como conjunto
 
-`World`, `CasePlan`, `ResearchProblem`, `Task`s y `Episode` deben construirse
-como partes coordinadas de un mismo SRC.
+`SCMWorld`, `CasePlan`, `ResearchProblem` y `Task`s/`SubQuestionIntent`s deben
+construirse como partes coordinadas de un mismo SRC.
 
 ### El reward central se ancla a la verdad formal
 
@@ -540,7 +526,7 @@ no solo del conocimiento general del dominio.
 
 La arquitectura debe permitir crecimiento en:
 
-- generadores estructurales nuevos que emitan `DAGSpec`,
+- generadores estructurales nuevos,
 - artefactos visibles mas ricos,
 - acciones de investigacion mas expresivas,
 - casos mas abiertos,
@@ -548,18 +534,83 @@ La arquitectura debe permitir crecimiento en:
 
 sin romper coherencia ni evaluabilidad fuerte.
 
-### Direccion futura: Open Investigation (2026-03-25)
+### Open Investigation — implementado (Alpha-0)
 
-La siguiente evolucion arquitectonica es separar la evaluacion en 3 capas:
+El modo principal de evaluacion. Separa la evaluacion en 3 capas:
 
-1. **Solver** — investiga libre, reporta hallazgos en lenguaje natural
-2. **LLM Translator** — compila hallazgos a queries formales contra el SCM
-   (analogo al orchestrator invertido; traduce, no juzga)
-3. **SCM Verifier** — computa verdad exacta para cada query (determinista)
+1. **Solver** — investiga libre, entrega claim cards (max 5).
+   Cada card tiene: texto, variables foco, confianza, evidencia.
+   El solver NO ve categorias de scoring ni patrones esperados.
+2. **Compiler** — traduce claim cards a specs ejecutables. Cada claim se
+   descompone en N `CompiledUnit`s (one per `ClaimIntent`). Usa una GRAMATICA
+   COMPOSABLE de 4 piezas (Simulacion + Medicion + Comparacion + Asercion).
+   `CompilerOutput` tiene lista de units + status (`compiled`/`partial`/
+   `abstention`). El compiler NO juzga calidad — solo traduce.
+3. **SCM Verifier** — ejecuta specs de cada unit contra el SCM (determinista,
+   sin LLM). Truth se computa a nivel **claim** (promedio de specs).
+   Limitacion conocida: penaliza claims ambiciosas (ver TODO I0d P2).
 
-Esto permite evaluar estrategia investigativa (que preguntar, por que,
-que es conducente) ademas de accuracy de respuestas. El reward sigue siendo
-exacto porque la verificacion es contra el SCM, no un LLM judge.
+**Gramatica composable:**
+- ~24 piezas atomicas que se combinan en cientos de verificaciones posibles
+- Simulacion: do, do+condicion, sweep, bundle, baseline
+- Medicion: mean, variance, quantile, tail_risk, correlation, distribution
+- Comparacion: difference, ratio, ranking, piecewise_fit, gap, proportion
+- Asercion: positive, negative, near_zero, A>B, changepoint, sign_flip
+
+**Modos de evaluacion:**
+- **Open** (principal, Alpha-0): brief abierto, claim cards, compilacion + verificacion SCM
+- **Full Open** (futuro): solo brief, sin ninguna guia
+
+**Honestidad sobre reward:** modo Guided = exacto. Modo Open = verificacion
+SCM exacta DESPUES de compilacion. La compilacion tiene subjetividad
+encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
+
+**Constraints (2026-04-06):**
+- `ref_arm` requerido para difference/ratio (BUG 9 fix). Formula:
+  `difference = other_arm - ref_arm`. Enforzado por `@model_validator`.
+- `evidence_basis` validada contra artifacts accedidos. Citas fabricadas
+  aplican penalidad proporcional, no zero (BUG 8 fix).
+- `condition_on` en QueryArm acepta 4 predicados (P1, 2026-04-06):
+  - `approx_eq` (default, backward compat con scalars puntuales)
+  - `range`: `{"kind": "range", "lo": <num>, "hi": <num>}`
+  - `quantile_range`: `{"kind": "quantile_range", "q_lo": <0-1>, "q_hi": <0-1>}`
+  - `in_set`: `{"kind": "in_set", "values": [...]}`
+  Discriminated union pydantic con auto-promote. Verifier dispatch en
+  `_filter_condition` (`oi_verifier.py`). GRAMMAR_REF expandido en
+  `oi_sq_compiler.py` con ejemplos y reglas anti-variables-derivadas.
+  **P1.5 cerrada (#10):** columna faltante y predicado numerico sobre
+  columna no-numerica ahora lanzan `ValueError` (atrapado por
+  `verify_atom` → `score=0.0`). Sample starvation (<30 rows) mantiene
+  solo warning.
+- **Compiler — 3 estados terminales (P06 G.1, 2026-04-08).**
+  `compile_sq_to_specs` devuelve un `SQCompileResult` con tres ramas
+  mutuamente excluyentes: `success` (specs validas), `abstained` (LLM
+  emitio `[]` deliberadamente porque la claim no es verificable contra el
+  SCM — ej. coeficientes de regresion, AIC, R-cuadrado, varianzas de
+  mixed-effects), `error` (parse fallo o JSON invalido). El compile loop
+  del orchestrator descarta abstenciones silenciosamente — NO cuentan
+  como compile error y NO entran a las metricas C1a/C1b. Scoring,
+  matching y la politica de required-fallback no cambian: el contrato
+  es solo de superficie.
+
+**Scoring path canonico (2026-04-09):** SQ v2 (specs-based) + LLM judge
+es el unico path canonico de SREG v1. SQ v1 (pattern-based) y salience
+map quedan como legacy fallback en codigo pero NO son parte del scope
+canonico. El runner emite `logger.warning("LEGACY PATH: ...")` cuando se
+usan paths legacy. Ver `CURRENT_STATE.md` seccion "Tres rutas de scoring".
+
+**Bottleneck actual:** credit-assignment a nivel claim (truth dilution).
+Ver TODO A28 para la taxonomia completa de failure modes del scoring.
+
+**Persistencia de scoring (P0, 2026-04-06):**
+Los internals del scoring se persisten para permitir rescore controlado
+sin regenerar mundo/solver. Dos puntos de persistencia:
+- `src.json` → `sub_questions_v2`: SQs grounded con verdicts del SCM
+- `oi_result.json` → `score_inputs_v2`: claims, compiled specs, claim truths,
+  relevance results, judge claims, runner config, trace
+
+Rescore: `scripts/rescore.py` re-evalua casos congelados en 3 modos
+(reaggregate / rejudge / recompile). Skill: `/rescore`.
 
 Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
 

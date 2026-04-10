@@ -1,12 +1,9 @@
 """SCMTaskGenTool: generates verifiable tasks from SCMWorld + SCMSolver.
 
-Mirrors TaskGenTool but works with continuous variables instead of discrete BN.
-
-Key differences from TaskGenTool:
+Generates tasks with continuous variables:
 - Distributions are represented as bin histograms (dict with bin-range keys).
-- Intervention values are floats (percentiles of marginal), not discrete states.
+- Intervention values are floats (percentiles of marginal).
 - Graph-based tasks (should_condition, adjustment_set) use SCMWorld.dag directly.
-- No dependency on pgmpy.
 """
 
 from __future__ import annotations
@@ -26,6 +23,20 @@ if TYPE_CHECKING:
     from sreg.models.case_plan import CasePlan, EvalQuestionPlan
 
 logger = logging.getLogger(__name__)
+
+
+def _kl_divergence(p: dict[str, float], q: dict[str, float]) -> float:
+    """KL(P || Q) using base-2 logarithm (bits)."""
+    eps = 1e-10
+    states = sorted(set(p.keys()) | set(q.keys()))
+    p_vals = np.array([p.get(s, eps) for s in states])
+    q_vals = np.array([q.get(s, eps) for s in states])
+    p_vals = np.clip(p_vals, eps, None)
+    q_vals = np.clip(q_vals, eps, None)
+    p_vals = p_vals / p_vals.sum()
+    q_vals = q_vals / q_vals.sum()
+    return float(np.sum(p_vals * np.log2(p_vals / q_vals)))
+
 
 # Number of bins for discretizing continuous distributions into histograms
 _N_BINS = 5
@@ -381,12 +392,9 @@ class SCMTaskGenTool:
                 pass  # correct hypothesis tracked via KL=0
 
         # Compute KL of each hypothesis from true posterior (for scoring)
-        from sreg.tools.verifier import VerifierTool
-
-        verifier = VerifierTool()
         kl_scores: dict[str, float] = {}
         for label, dist in shuffled_hypotheses.items():
-            kl = verifier.kl_divergence(dist, true_posterior)
+            kl = _kl_divergence(dist, true_posterior)
             kl_scores[label] = round(kl, 6)
 
         # Build question text
@@ -914,13 +922,28 @@ class SCMTaskGenTool:
         bins_desc = ", ".join(correct_answer.keys())
         evidence_desc = self._semantic_evidence_desc(world, given_evidence)
         latent_name = self._semantic_name(world, latent_node)
-        question = (
-            f"Based on the observed data ({evidence_desc}), estimate the "
-            f"distribution of {latent_name} across these ranges: {bins_desc}. "
-            f"This factor is not directly measured in the datasets -- you must "
-            f"infer it from the available evidence. "
-            f"Submit probabilities for each range (summing to 1.0)."
-        )
+        _ilc_templates = [
+            (
+                f"Based on the observed data ({evidence_desc}), estimate the "
+                f"distribution of {latent_name} across these ranges: {bins_desc}. "
+                f"This factor is not directly measured in the datasets -- you "
+                f"must infer it from the available evidence. "
+                f"Submit probabilities for each range (summing to 1.0)."
+            ),
+            (
+                f"Given that {evidence_desc}, what is the likely distribution "
+                f"of {latent_name}? This variable cannot be observed directly, "
+                f"but its effects are visible in the measured data. "
+                f"Estimate probabilities across: {bins_desc}."
+            ),
+            (
+                f"The variable {latent_name} is not directly measurable. "
+                f"Using the observed values ({evidence_desc}), estimate how "
+                f"{latent_name} is distributed across: {bins_desc}. "
+                f"Submit a probability distribution (summing to 1.0)."
+            ),
+        ]
+        question = _ilc_templates[int(rng.integers(len(_ilc_templates)))]
 
         return Task(
             id=f"task-{world.id}-{spec.type}",

@@ -6,7 +6,6 @@ import pytest
 
 from sreg.models.task import TaskSpec, TaskType
 from sreg.tools.scm_task_gen import SCMTaskGenTool
-from sreg.tools.verifier import VerifierTool
 from sreg.world.scm import SCMWorld, VariableMeta
 
 # ------------------------------------------------------------------
@@ -338,23 +337,6 @@ class TestCompareInterventions:
         assert task.scoring_method == "compare_interventions"
         assert len(task.correct_answer) == 2
 
-    def test_scoring_compatible(self):
-        """VerifierTool.score_compare_interventions should work."""
-        world = _confounder_world()
-        gen = SCMTaskGenTool()
-        spec = TaskSpec(type=TaskType.COMPARE_INTERVENTIONS, target_node="Y", max_budget=5)
-        task = gen.generate(world, spec, seed=42)
-
-        verifier = VerifierTool()
-        keys = list(task.correct_answer.keys())
-        effects = task.correct_answer
-
-        # Agent picks the better one
-        better = "A" if effects[keys[0]] >= effects[keys[1]] else "B"
-        score = verifier.score_compare_interventions(better, effects)
-        assert score == 1.0
-
-
 class TestShouldCondition:
     def test_generates_task(self):
         world = _confounder_world()
@@ -467,51 +449,6 @@ class TestGenerateAll:
         assert TaskType.INFER_TARGET in bundle.tasks
         assert TaskType.NEXT_BEST_OBSERVATION in bundle.tasks
         assert TaskType.HYPOTHESIS_SELECTION in bundle.tasks
-
-
-class TestScoringCompatibility:
-    """Verify generated tasks can be scored by VerifierTool."""
-
-    def test_kl_divergence_on_histogram(self):
-        """VerifierTool.kl_divergence works with bin-range keys."""
-        world = _linear_chain()
-        gen = SCMTaskGenTool()
-        spec = TaskSpec(type=TaskType.INFER_TARGET, target_node="C", max_budget=5)
-        task = gen.generate(world, spec, seed=42)
-
-        verifier = VerifierTool()
-        # Perfect answer = itself
-        kl = verifier.kl_divergence(task.correct_answer, task.correct_answer)
-        assert kl < 0.001
-
-        # Uniform answer should have higher KL
-        n_bins = len(task.correct_answer)
-        uniform = {k: 1.0 / n_bins for k in task.correct_answer}
-        kl_uniform = verifier.kl_divergence(uniform, task.correct_answer)
-        assert kl_uniform > 0.0
-
-    def test_nbo_scoring(self):
-        world = _linear_chain()
-        gen = SCMTaskGenTool()
-        spec = TaskSpec(type=TaskType.NEXT_BEST_OBSERVATION, target_node="C", max_budget=5)
-        task = gen.generate(world, spec, seed=42)
-
-        verifier = VerifierTool()
-        best_node = max(task.correct_answer, key=task.correct_answer.get)
-        score = verifier.score_nbo(best_node, task.correct_answer)
-        assert score == 1.0
-
-    def test_best_intervention_scoring(self):
-        world = _linear_chain()
-        gen = SCMTaskGenTool()
-        spec = TaskSpec(type=TaskType.BEST_INTERVENTION, target_node="C", max_budget=5)
-        task = gen.generate(world, spec, seed=42)
-
-        verifier = VerifierTool()
-        best_key = max(task.correct_answer, key=task.correct_answer.get)
-        node, state = best_key.split(":", 1)
-        score = verifier.score_best_intervention(node, state, task.correct_answer)
-        assert score == 1.0
 
 
 class TestCrossTaskConsistency:

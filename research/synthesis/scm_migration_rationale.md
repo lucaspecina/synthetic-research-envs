@@ -56,6 +56,7 @@ parecen a la realidad.
 ## Que es una BN y por que la usabamos
 
 Una Bayesian Network (Judea Pearl, 1988) es:
+
 - Un **grafo dirigido aciclico** (DAG) que dice que causa que
 - Una **CPD por variable** que dice cuanto y como
 
@@ -68,6 +69,7 @@ filtros de spam. Casos donde el modelo es relativamente chico y necesitas
 la probabilidad exacta.
 
 **Lo que la BN nos daba en SREG:**
+
 1. Reward exacto (analitico, cero error)
 2. Velocidad (inferencia instantanea para 10-12 nodos)
 3. Framework teorico probado (d-separation, do-calculus, backdoor criterion)
@@ -80,6 +82,7 @@ Un Structural Causal Model (tambien de Pearl) es la forma MAS GENERAL
 de modelar causalidad. La BN es un CASO PARTICULAR de un SCM.
 
 Un SCM es:
+
 - Un **grafo dirigido aciclico** (el mismo DAG)
 - Una **ecuacion por variable** (en vez de una CPD)
 - **Variables de ruido** (exogenas)
@@ -111,34 +114,40 @@ intervencion.
 
 ### Lo que perdemos
 
-| Propiedad | Con BN | Con SCM | Impacto |
-|---|---|---|---|
-| Exactitud analitica | 0.37284... exacto | 0.3731 +/- 0.002 (MC 100K) | **Bajo** — para RL el ruido de MC es menor que el ruido del training |
-| Velocidad de inferencia | Instantanea | ~1 seg por query (100K sims) | **Bajo** — aceptable |
-| pgmpy como engine | Si | No (networkx para el grafo) | **Neutral** — pgmpy no tenia inferencia continua de todas formas |
+
+| Propiedad               | Con BN            | Con SCM                      | Impacto                                                              |
+| ----------------------- | ----------------- | ---------------------------- | -------------------------------------------------------------------- |
+| Exactitud analitica     | 0.37284... exacto | 0.3731 +/- 0.002 (MC 100K)   | **Bajo** — para RL el ruido de MC es menor que el ruido del training |
+| Velocidad de inferencia | Instantanea       | ~1 seg por query (100K sims) | **Bajo** — aceptable                                                 |
+| pgmpy como engine       | Si                | No (networkx para el grafo)  | **Neutral** — pgmpy no tenia inferencia continua de todas formas     |
+
 
 ### Lo que ganamos
 
-| Propiedad | Con BN | Con SCM | Impacto |
-|---|---|---|---|
-| Variables | 3 estados discretos | Cualquier tipo (continuas, discretas, mixtas) | **Alto** |
-| Relaciones | Tablas de probabilidad | Ecuaciones arbitrarias (lineales, no lineales, umbrales, sigmoid) | **Alto** |
-| Escalabilidad | 3^N con N padres | Lineal (N coeficientes) | **Alto** |
-| Datos generados | Artificiales (low/med/high) | Realistas (37.8C, 52.3 mL/kg/min) | **Alto** |
-| Solver behavior | Crosstabs, conteo | Regresion, correlacion, scatterplots | **Alto** |
-| Riesgo de sesgo | Alto (limitado a CPDs) | Bajo (ecuaciones libres) | **Alto** |
+
+| Propiedad       | Con BN                      | Con SCM                                                           | Impacto  |
+| --------------- | --------------------------- | ----------------------------------------------------------------- | -------- |
+| Variables       | 3 estados discretos         | Cualquier tipo (continuas, discretas, mixtas)                     | **Alto** |
+| Relaciones      | Tablas de probabilidad      | Ecuaciones arbitrarias (lineales, no lineales, umbrales, sigmoid) | **Alto** |
+| Escalabilidad   | 3^N con N padres            | Lineal (N coeficientes)                                           | **Alto** |
+| Datos generados | Artificiales (low/med/high) | Realistas (37.8C, 52.3 mL/kg/min)                                 | **Alto** |
+| Solver behavior | Crosstabs, conteo           | Regresion, correlacion, scatterplots                              | **Alto** |
+| Riesgo de sesgo | Alto (limitado a CPDs)      | Bajo (ecuaciones libres)                                          | **Alto** |
+
 
 ### Lo que NO cambia
 
-| Propiedad | Status |
-|---|---|
-| Grafo causal (DAG) | Se mantiene — es la base de todo |
-| d-separation | Se mantiene — depende del grafo, no de las CPDs |
-| Identifiability | Se mantiene — depende del grafo |
-| do-calculus | Se mantiene — "cortar edges y simular" |
-| should_condition, adjustment_set | Se mantienen — usan d-separation del grafo |
-| Reward sin LLM judge | Se mantiene — MC es suficientemente preciso |
-| Teacher como upper bound | Se mantiene — el teacher simula con el SCM verdadero |
+
+| Propiedad                        | Status                                               |
+| -------------------------------- | ---------------------------------------------------- |
+| Grafo causal (DAG)               | Se mantiene — es la base de todo                     |
+| d-separation                     | Se mantiene — depende del grafo, no de las CPDs      |
+| Identifiability                  | Se mantiene — depende del grafo                      |
+| do-calculus                      | Se mantiene — "cortar edges y simular"               |
+| should_condition, adjustment_set | Se mantienen — usan d-separation del grafo           |
+| Reward sin LLM judge             | Se mantiene — MC es suficientemente preciso          |
+| Teacher como upper bound         | Se mantiene — el teacher simula con el SCM verdadero |
+
 
 ---
 
@@ -243,14 +252,16 @@ dentro de cada configuracion discreta. Subsumido por SCM general.
 
 ## Riesgos y mitigaciones
 
-| Riesgo | Mitigacion |
-|---|---|
-| MC lento para muchas queries | Paralelizar, cachear, batch |
-| Precision insuficiente para algun eval type | Subir N. Con N=1M ~0.0003 error |
-| El orchestrator no sabe disenar ecuaciones | El orchestrator propone la estructura, un generador crea ecuaciones parametricas |
-| Scoring para distribuciones continuas es mas complejo | Histograma + KL, o KDE, o Wasserstein. Investigar |
-| Eval types como should_condition/adjustment_set | Solo dependen del grafo (d-separation). No cambian |
-| Tests existentes (1103) se rompen | Mantener el engine discreto para tests legacy. SCM es paralelo |
+
+| Riesgo                                                | Mitigacion                                                                       |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------- |
+| MC lento para muchas queries                          | Paralelizar, cachear, batch                                                      |
+| Precision insuficiente para algun eval type           | Subir N. Con N=1M ~0.0003 error                                                  |
+| El orchestrator no sabe disenar ecuaciones            | El orchestrator propone la estructura, un generador crea ecuaciones parametricas |
+| Scoring para distribuciones continuas es mas complejo | Histograma + KL, o KDE, o Wasserstein. Investigar                                |
+| Eval types como should_condition/adjustment_set       | Solo dependen del grafo (d-separation). No cambian                               |
+| Tests existentes (1103) se rompen                     | Mantener el engine discreto para tests legacy. SCM es paralelo                   |
+
 
 ---
 
@@ -259,19 +270,22 @@ dentro de cada configuracion discreta. Subsumido por SCM general.
 Trabajar en branch `feature/scm-engine`. No tocar el engine actual.
 
 **Fase 1: Prototipo minimo**
-- [ ] `SCMWorld`: grafo + ecuaciones + sample() + interventional_distribution()
-- [ ] `SCMSolver` (teacher): usa el SCM para computar ground truth via MC
-- [ ] Scoring continuo: al menos un metodo (histograma + KL)
-- [ ] Test con un mundo de 5-6 nodos con ecuaciones no lineales
+
+- `SCMWorld`: grafo + ecuaciones + sample() + interventional_distribution()
+- `SCMSolver` (teacher): usa el SCM para computar ground truth via MC
+- Scoring continuo: al menos un metodo (histograma + KL)
+- Test con un mundo de 5-6 nodos con ecuaciones no lineales
 
 **Fase 2: Integracion con pipeline**
-- [ ] TaskGen que genere preguntas sobre un SCMWorld
-- [ ] Solver prompt adaptado para datos continuos
-- [ ] generate_src.py que soporte SCM worlds
+
+- TaskGen que genere preguntas sobre un SCMWorld
+- Solver prompt adaptado para datos continuos
+- generate_src.py que soporte SCM worlds
 
 **Fase 3: Orchestrator**
-- [ ] El orchestrator disenya la estructura del SCM (grafo + tipos de ecuaciones)
-- [ ] Generador parametrico de ecuaciones a partir de la especificacion
+
+- El orchestrator disenya la estructura del SCM (grafo + tipos de ecuaciones)
+- Generador parametrico de ecuaciones a partir de la especificacion
 
 **Criterio de merge a main:** el pipeline E2E funciona con un SCMWorld,
 genera datos realistas, el solver puede analizarlos, y el scoring es

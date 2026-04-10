@@ -291,7 +291,6 @@ structure with 8-12 continuous variables, meaningful equations, and at least \
 - Include proper units (celsius, mg/L, mmHg, hours/week, etc.)
 - Set realistic ranges based on the domain
 - Include 1+ latent variables (hidden causes the agent must reason about)
-- Exactly 1 target variable (the outcome to investigate)
 
 **Equation design — make relationships REALISTIC:**
 - Use domain-appropriate functional forms (not just linear)
@@ -423,11 +422,12 @@ TOOL_DEFINITIONS = [
                                 },
                                 "role": {
                                     "type": "string",
-                                    "enum": ["observable", "latent", "target"],
+                                    "enum": ["observable", "latent"],
                                     "description": (
                                         "observable: agent can see this variable's data. "
                                         "latent: hidden, never directly observed. "
-                                        "target: the outcome to predict (exactly 1)."
+                                        "The sub-questions define which variables are "
+                                        "outcomes of interest (there can be multiple)."
                                     ),
                                 },
                                 "unit": {
@@ -532,13 +532,10 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "apply_semantics",
             "description": (
-                "Apply semantic layer to a world: rename nodes to realistic "
-                "scientific variable names, and add scenario narrative, domain, "
-                "and theoretical context. "
-                "node_renames MUST include a mapping for EVERY node in the world. "
-                "If you used dag_construct with semantic names already, use "
-                "identity mappings (e.g., {'water_temp': 'water_temp'}). "
-                "Call this AFTER world_check passes and BEFORE design_case."
+                "Apply semantic layer to an SCM world: add scenario narrative, "
+                "domain, and theoretical context. "
+                "SCM variables already have semantic names from scm_construct. "
+                "Call this AFTER scm_construct and BEFORE design_case."
             ),
             "parameters": {
                 "type": "object",
@@ -581,13 +578,9 @@ TOOL_DEFINITIONS = [
                     "node_renames": {
                         "type": "object",
                         "description": (
-                            "REQUIRED: mapping from EVERY current node name to a "
-                            "semantic name. Must include ALL nodes. "
-                            "For dag_construct with semantic names, use identity "
-                            "mappings. For world_gen/dag_generate, rename from "
-                            "generic names. Example: {'hidden_cause': "
-                            "'soil_contamination', 'indicator_1': 'water_ph', "
-                            "'target_outcome': 'crop_yield'}."
+                            "Optional: mapping from current variable names to new "
+                            "names. Usually not needed for SCM worlds since "
+                            "variables already have semantic names."
                         ),
                         "additionalProperties": {"type": "string"},
                     },
@@ -809,6 +802,56 @@ TOOL_DEFINITIONS = [
                             "reasoning for the combination of eval types chosen."
                         ),
                     },
+                    "sub_questions": {
+                        "type": "array",
+                        "description": (
+                            "Hidden sub-questions for OI scoring (4-6 items). "
+                            "Each is a natural-language research question that "
+                            "the system will compile into formal verification specs. "
+                            "Write concrete, verifiable questions — not vague topics."
+                        ),
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "sq_id": {
+                                    "type": "string",
+                                    "description": "Unique ID, e.g. 'sq1'.",
+                                },
+                                "text_gloss": {
+                                    "type": "string",
+                                    "description": (
+                                        "The research question in natural language. "
+                                        "Must be concrete enough to imply a verifiable "
+                                        "relationship or estimand. E.g. 'Does industrial "
+                                        "pollution causally increase respiratory disease "
+                                        "incidence, or is the association confounded by "
+                                        "socioeconomic factors?'"
+                                    ),
+                                },
+                                "tier": {
+                                    "type": "string",
+                                    "enum": ["high", "medium", "low"],
+                                    "description": (
+                                        "Importance: high (1.0), medium (0.6), "
+                                        "low (0.4). Use 2-3 high, 1-2 medium."
+                                    ),
+                                },
+                                "focus_variables": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": (
+                                        "Variables central to this question (optional). "
+                                        "Helps ground the compilation step."
+                                    ),
+                                },
+                            },
+                            "required": [
+                                "sq_id",
+                                "text_gloss",
+                                "tier",
+                            ],
+                        },
+                    },
                 },
                 "required": [
                     "world_id",
@@ -816,7 +859,6 @@ TOOL_DEFINITIONS = [
                     "research_context",
                     "research_brief",
                     "deliverables",
-                    "questions",
                     "shared_budget",
                 ],
             },

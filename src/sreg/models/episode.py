@@ -18,7 +18,6 @@ class ActionDef(BaseModel):
     """Formal definition of an available action in the episode.
 
     Maps an action ID to its type, the nodes it reveals, and its cost.
-    Used by EpisodeRunner to process multi-node and typed actions.
     """
 
     id: str = Field(description="Unique action identifier, e.g. 'observe_water_temp'")

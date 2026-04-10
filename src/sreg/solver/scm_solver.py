@@ -1,17 +1,16 @@
 """Monte Carlo teacher solver for SCMWorld.
 
-Replaces ExactBayesSolver for continuous/SCM worlds. Uses sampling
-instead of exact pgmpy inference. Results are approximate but work
-with arbitrary equations (nonlinear, threshold, interaction, etc.).
+Uses sampling to compute ground truth from the SCM. Works with
+arbitrary equations (nonlinear, threshold, interaction, etc.).
 
-Key differences from ExactBayesSolver:
+Key design points:
 - Distributions are represented as sample arrays (np.ndarray), not dicts.
 - Posteriors given evidence use rejection sampling with adaptive tolerance.
 - Information gain is estimated via binned mutual information.
-- TeacherOutput.posterior is empty dict (continuous has no discrete states).
-- Entropy is in bits (log2), consistent with ExactBayesSolver.
+- TeacherOutput.posterior is empty dict (continuous, no discrete states).
+- Entropy is in bits (log2).
 
-Known limitations (to address when integrating with pipeline):
+Known limitations:
 - Rejection sampling scales poorly with many evidence variables (>5).
   Future: switch to importance weighting with ESS monitoring.
 - TeacherOutput.posterior is empty — callers needing distributions
@@ -37,8 +36,6 @@ class SCMSolver:
 
     Plays the role of teacher (optimal policy) -- computes posteriors,
     interventional distributions, and information gain via sampling.
-
-    Mirrors ExactBayesSolver's role but uses Monte Carlo estimation.
     """
 
     def __init__(self, world: SCMWorld, n_mc: int = 100_000):

@@ -5,6 +5,836 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — Criterio 6: build->use handoff
+
+**`scripts/run_oi.py` — entry point publico para correr el solver
+sobre un caso existente.** Completa el loop build->use->eval:
+`generate_src.py` (build) -> `run_oi.py` (use) -> `rescore.py` (eval).
+Smoke E2E verificado. Documentado en `CURRENT_STATE.md` seccion
+"Como usar SREG v1". Criterio 6 cerrado.
+
+### 2026-04-09 — Criterio 5: config v1 congelada
+
+**Config v1 documentada en `CURRENT_STATE.md` seccion "Config v1
+congelada".** Tabla con los 11 parametros que definen SREG v1 (scoring
+path, claim cap, modelos, iterations, temperature, seed, n_mc, formulas
+de score). Cualquier cambio a estos valores es cambio de version, no
+bugfix. Criterio 5 cerrado.
+
+### 2026-04-09 — Criterio 4: v1 canonical batch estable
+
+**Suite canonica de 12 casos promovida a `results/v1_canonical_batch/`.**
+Proviene de `results/p06_cap_decision/cap15/` (run E2E con config v1
+final). `rescore --reaggregate` da delta 0.0000 en los 12 casos.
+Average total: 0.509. MANIFEST.md documenta provenance, config, y
+gate de reproducibilidad. Criterio 4 cerrado.
+
+### 2026-04-09 — Criterio 1: cap=15 congelado para SREG v1
+
+**Experimento P06 cap decision completo.** 24 runs (12 casos x 2
+condiciones cap=5 vs cap=15), 0 errores. Resultado: cap=15 congelado
+como configuracion de SREG v1.
+
+Evidencia clave:
+- Delta mean(total): +0.071 (cap15 > cap5).
+- 8/12 casos saturan cap=5 (solver no puede expresar mas de 5 claims).
+- Cap=15 permite decomposicion atomica: claims bundled de 6-10 specs
+  se separan en claims focalizadas que compilan y verifican mejor.
+- Cap=15 tambien penaliza especulacion: solver que rellena slots con
+  claims falsas obtiene peor score. Buena presion evolutiva.
+- P1 delta medias PASS (+0.056), P1 amplitud FAIL (6/12). Decision
+  basada en argumento de instrumento, no de solver performance.
+
+Cambios:
+- `scripts/p06_cap_decision.py`: harness de experiment paired A/B.
+- `src/sreg/tools/oi_runner.py`: `claim_cap` como parametro explicito.
+- `src/sreg/tools/oi_driver.py`: `build_oi_solver_tools(claim_cap)`.
+- `src/sreg/tools/oi_prompts.py`: `claim_cap` en prompt dinamico.
+- `research/notes/p06_addendum_cap_decision.md`: protocolo.
+- `research/notes/p06_cap_decision_result.md`: resultado y decision.
+- Tests actualizados para claim_cap wiring.
+
+### 2026-04-09 — Criterio 2: SQ v2 declarado path canonico de SREG v1
+
+**SQ v2 (specs-based) + LLM judge es el unico path canonico de SREG v1.**
+SQ v1 (pattern-based) y salience map quedan en codigo como legacy fallback
+documentado, pero sus scores no son validos como resultados oficiales de v1.
+
+Cambios:
+- `oi_runner.py`: header comment declara path canonico. `logger.warning()`
+  emitido cuando se usa SQ v1 o salience map (visible en logs de produccion).
+- `CURRENT_STATE.md`: tabla de scoring paths actualizada. Seccion
+  terminologica clarifica que solo SQ v2 es canonico.
+- `ARCHITECTURE.md`: nota de scoring path canonico agregada.
+- `TODO.md`: criterio 2 marcado como decidido.
+
+### 2026-04-09 — P1.5 #10: missing-column raises + non-numeric guards
+
+**`_filter_condition` ahora lanza `ValueError` en vez de fallar
+silenciosamente.** Cierra la deuda P1.5 documentada desde P1.
+
+1. **Columna faltante → raise.** Si un spec referencia una columna que no
+   existe en el DataFrame (e.g., columna alucinada por el LLM), la funcion
+   ahora lanza `ValueError` en vez de ignorar el predicado silenciosamente.
+   `verify_atom` atrapa la excepcion y la convierte en `score=0.0`.
+
+2. **Predicado numerico sobre columna no-numerica → raise.** `ApproxEq`,
+   `ConditionRange`, `QuantileRange` y el legacy raw scalar ahora validan
+   `is_numeric_dtype` antes de operar. Si la columna es string/categorical,
+   se lanza `ValueError` con mensaje informativo.
+
+3. **Sample starvation (<30 rows):** mantiene solo el warning actual (no
+   cambia comportamiento). Evaluacion de si deberia ser `NaN` queda como
+   deuda separada.
+
+### 2026-04-09 — P06 #24: hotfix heterogeneity ATE spec direction-agnostic
+
+**Spec 1 del compiler para claims de heterogeneidad ahora usa
+`GAP_MATERIAL` en vez de una assertion direccional.** Antes, el compiler
+mapeaba `intent.direction` (ambiguo: puede ser la direccion del ATE
+pooled o la del termino de interaccion) a `POSITIVE`/`NEGATIVE`/`NEAR_ZERO`
+en spec 1, causando que specs estructuralmente correctas fallaran en
+verificacion y deprimieran el truth score (e.g., 0.4 en vez de 1.0).
+
+Ahora spec 1 solo verifica que un ATE material existe (`|diff| > threshold`),
+sin imponer signo. Spec 2 (`SIGN_FLIP`) sigue siendo el guardrail principal
+para heterogeneidad.
+
+**Follow-up posible:** el teacher (salience) ya modela heterogeneity como
+un solo atomo `CONTRAST_DIFF → SIGN_FLIP`. A futuro podria eliminarse
+spec 1 completamente, pero eso es cambio de cardinalidad, no hotfix.
+
+### 2026-04-09 — P06 #25: rechazo atomico de evidence_basis fabricadas
+
+**`submit_claims` ahora rechaza la submission completa si cualquier claim
+cita un `artifact_id` que el solver nunca accedio via `load_artifact()` o
+`save_artifact()`.** Rechazo atomico: si un solo claim tiene refs invalidas,
+ninguno se registra. Cero mutacion de estado — el solver puede corregir y
+reenviar.
+
+**Cambios:**
+
+1. **`oi_runner.py` — `validate_evidence_refs()` + bloque de validacion.**
+   Helper module-level que clasifica refs invalidas en dos categorias:
+   `unknown_artifact_id` (el artifact no existe en el catalogo) y
+   `artifact_exists_but_not_accessed` (existe pero el solver nunca lo cargo).
+   El bloque de validacion va en `submit_claims()` ANTES de cualquier
+   mutacion de estado (`claim_steps`, `_submitted`), garantizando atomicidad.
+
+2. **Tests: `TestEvidenceBasisValidation`** (5 tests). Cubre: rechazo total
+   con zero side effects, rechazo atomico de batch mixto, submission valida
+   aceptada, resubmit corregido post-rechazo, distincion de las dos
+   categorias de error.
+
+3. **Tests existentes actualizados.** 8 tests que llamaban `submit_claims`
+   sin haber cargado artifacts ahora registran acceso via
+   `load_artifact()`. Adicionalmente, `test_submit_validates_claim_count`
+   corregido para usar `range(16)` (consistente con `MAX_CLAIMS=15`).
+
+### 2026-04-09 — P06 #45: Flow B strip — adjust_set derivado del SCM
+
+**El LLM del SQ compiler ya no elige `adjust_set` en adjust arms.** El
+verifier auto-computa un backdoor set valido desde el DAG del SCM via
+`_find_backdoor_set`. Elimina la clase de bug donde el LLM adivinaba
+confounders por semantica de dominio y producía `measurement_finite=0`
+en specs estructuralmente validas.
+
+**Cambios:**
+
+1. **`PROJECT.md` — invariante 8 (Flow A vs Flow B).** Explicita el
+   contrato de las dos fronteras del compiler: Flow A (`oi_compiler.py`)
+   debe seguir ciega al SCM (preserva presion evolutiva sobre el solver);
+   Flow B (`oi_sq_compiler.py`) debe derivar estructura del SCM
+   deterministicamente (protege integridad del ground truth).
+
+2. **`oi_sq_compiler.py` — GRAMMAR_REF + strip programatico.**
+   - GRAMMAR_REF: `adjust_set` cambia de "tuple of back-door covariates"
+     a "DO NOT specify". Semantics, common-phrasings y Example A
+     actualizados para no mencionar `adjust_set` como campo a llenar.
+   - Strip: en el loop de `compile_sq_to_specs`, antes de
+     `_validate_variables` y `AtomicSpec(**spec_dict)`, se hace
+     `arm.pop("adjust_set")` en cada arm con `kind=="adjust"`.
+     Log a nivel info. No-op silencioso si el LLM ya omitio el campo.
+   - Flow A (`oi_compiler.py::lower_intent`) intacto: zero cambios.
+
+3. **Tests: `TestFlowBAdjustSetStrip`** (4 tests via stub LLM). Verifica
+   strip de ambos arms, no-op, baseline untouched, formato directo.
+
+### 2026-04-08 — P06 G.1: contrato de abstencion explicito + harness aislado
+
+**Cierra la grieta semantica `adjust + partial_correlation` a nivel prompt**
+y agrega un harness aislado de recompile para medir, sin volver a correr el
+runner completo, cuanto del compiler emite rutas validas vs invalidas.
+
+**Cambios (dos commits):**
+
+1. **`feat(P06): explicit abstention contract for SQ compiler` (df5abf1).**
+   El SQ compiler ahora puede senalar abstencion deliberada devolviendo un
+   array vacio explicito. `SQCompileResult` gana `abstained` y
+   `abstain_reason`; `compile_sq_to_specs` corta corto a esa rama cuando el
+   LLM devuelve `[]` (despues de quitar fences markdown). El orchestrator's
+   compile loop ahora distingue tres estados terminales —
+   `success` / `abstained` / `error` — y descarta SQs abstenidas
+   silenciosamente en lugar de contarlas como compile error. Scoring,
+   matching y la politica de required-fallback quedan intencionalmente
+   sin cambios: solo cambia el contrato de superficie.
+   - Tests: helper, los 3 estados terminales, end-to-end via stub LLMs,
+     y un test downstream del consumer en `_compile_oi_subquestions` para
+     que las ramas abstain/error queden distinguibles bajo refactors
+     futuros.
+
+2. **`feat(P06): G.1 — compiler prompt fix + isolated recompile harness` (15d75ae).**
+   Bloque "Adjust arm semantics" en el prompt del compiler que ensena que
+   las adjust arms emiten samples 1-D de `outcome` y son incompatibles con
+   `partial_correlation`. Dos exemplars trabajados:
+   - Ruta causal: 2 adjust arms + `mean` + `difference` + `ref_arm`.
+   - Ruta observacional: 1 baseline arm + `partial_correlation` + `identity`.
+
+   Regla de desambiguacion explicitamente sesgada hacia la ruta observacional
+   cuando el lenguaje es ambiguo (evita sobre-causalizacion). Bloque
+   adicional de exemplars de abstencion para cantidades model-dependent que
+   la gramatica no puede verificar (coeficientes de regresion, betas
+   estandarizados, AIC, R-cuadrado, componentes de varianza de
+   mixed-effects) — el compiler debe senalarlas via el contrato de
+   abstencion.
+
+   Harness aislado `scripts/p06_recompile_only.py` que reinvoca
+   `compile_sq_to_specs` sobre los textos de sub-questions congelados de
+   un baseline y diffea los `verification_specs` resultantes contra el
+   baseline congelado. Outcomes por-SQ alimentan tres metricas:
+   - **C1a** `resolved_rate` — fraccion de SQs cuyas required specs
+     compilan a una ruta valida.
+   - **C1b** `bad_replacement_rate` — fraccion de SQs donde la nueva
+     compilacion empeora la baseline (rompe specs que antes compilaban).
+   - **C1c** flags por-componente de reroute quality.
+
+   El classifier usa un gate estricto `role=required`: las route shapes
+   que solo aparecen como `support` NO pueden inflar C1a. Flag opcional
+   `--ground-sanity` corre `verify_atom` sobre las required specs reruteadas
+   como diagnostico — los criterios de exito son `no_exception` /
+   `detail_nonempty` / `measurement_finite`, NO `solver_assertion_holds`.
+
+   Defaults a 5 hard-fail cases (`competing_mech`, `coral_bleach`,
+   `immunotherapy`, `microbiome`, `selection_bias`); `--all-cases`
+   recompila la baseline completa.
+   - Tests: predicados estrictos de route shape, el trap de inflacion de
+     C1a (una route shape solo en `support` NO clasifica como `route_*`),
+     deteccion de role-flip, y extraccion de variables de spec.
+
+3. **`fix(P06): G.1 harness list-vs-tuple bug + --ground-sanity-only flag`
+   (commit 3).** Bug en el classifier del harness aislado:
+   `spec_signature` construye `arm_kinds` como tupla, pero JSON no tiene
+   tipo tupla y las firmas reloadeadas desde `recompile.json` (el path que
+   toma `--ground-sanity-only`) volvian como listas, haciendo que
+   `is_causal_route` comparara contra un tuple literal y fallara en
+   silencio — la primer corrida de `--ground-sanity` solo ejecutaba
+   `verify_atom` en 2 de los 5 reroutes (los route_obs).
+   `is_observational_route` ya era tolerante (`"adjust" in arm_kinds` +
+   `set(arm_kinds) & {...}`), por eso los observacionales ejecutaban bien.
+   Fix: normalizar a tupla con `tuple(sig.get("arm_kinds") or ())` dentro
+   de `is_causal_route`.
+   - Test de regresion JSON round-trip agregado en
+     `tests/scripts/test_p06_recompile_classifier.py`.
+   - Flag nuevo `--ground-sanity-only` permite iterar el diagnostico sin
+     re-invocar al compiler LLM: reloadea `case_summaries` desde el
+     `_recompile_summary.json` ya persistido y corre solo
+     `_run_ground_sanity`.
+
+**Por que importa.** El runner E2E es caro y mezcla muchas variables
+(LLM noise, costo, latencia). El harness aislado permite medir
+exclusivamente cuanto del compiler emite rutas semanticamente validas
+sobre los mismos textos de SQs, asi cualquier delta es atribuible al
+prompt y no a otras fuentes. La separacion `success` / `abstained` /
+`error` impide que abstenciones legitimas (cantidades no-verificables)
+queden mezcladas con errores reales del compiler en C1a/C1b.
+
+**Estado.** Codigo y tests landed (df5abf1 + 15d75ae + commit 3). La
+corrida G.1 sobre los 5 hard-fail se completo: **C1a 100% (6/6)**, **C1b
+0% (0/6)**, **C1c 100% (5/5 reroutes)**. La grieta
+`adjust + partial_correlation` no aparece en ninguna emision nueva del
+compiler. La alarma C2 `+12pp` en abstention delta fue adjudicada
+manualmente — las 3 abstenciones del slice hard-fail son
+latent-variable legitimas; la calibracion general sigue dependiendo de
+#37. Esto es evidencia sobre las rutas de emision del compiler, NO
+sobre el sistema E2E.
+
+**Hallazgo secundario (no invalida G.1).** La re-corrida del
+ground-sanity post-harness-fix ejecuta 5/5 reroutes sin excepcion, pero
+3/5 (todos route_causal) devuelven `measurement_finite=0` porque el
+compiler LLM elige `adjust_set` que NO son backdoor sets validos para el
+DAG del mundo. `verify_atom` loguea explicitamente el caso. Es una
+clase de problema distinta: G.1 cerro la grieta sobre formas
+estructuralmente imposibles; esto es sobre formas estructuralmente
+validas pero con un `adjust_set` que no identifica causalmente. Root
+cause: `oi_sq_compiler.py::_build_variables_info` solo pasa
+`{nombre: mean/std/range}` al LLM, cero aristas ni DAG — el LLM adivina
+confounders por semantica de dominio. Registrado como **task #45**
+(contrato SCM -> compiler, ver `TODO.md`). Se resuelve aparte, no bajo
+G.1. Los artifacts del run (`results/p06_recompile/`) quedan fuera del
+commit: la carpeta esta gitignored y el framing vive en este entry y en
+el scope del task #45.
+
+### 2026-04-07 — Docs: SREG v1 definition — roadmap + criterios de done
+
+**Vocabulario canonico para versiones del producto.** Antes de hoy "v1" era
+ambiguo: convivian "SREG v1" (producto), "SQ v1" (sub-pipeline interno del
+compiler/matcher) y "Suite v1" (suite externa de tesis). Esta entrada fija
+el roadmap del producto y separa versiones de producto de evoluciones
+internas.
+
+**Roadmap del producto (v0 → v1 → v2 → v3):**
+- **SREG v0**: Bayes Net + preguntas especificas fijas. Eliminado 2026-03-29.
+- **SREG v1**: Open Investigation sobre SCM — brief libre, sub-questions
+  ocultas, claims en lenguaje natural, traduccion/compilacion a AtomicSpec,
+  verificacion exacta contra el SCM, LLM juez de relevancia. **En cierre
+  activo.**
+- **SREG v2**: Sherlock-type — research actions con budget, capas de
+  revelacion, teoria sintetica, nuevos task types (time-series, anomalias,
+  optimizacion). Futuro.
+- **SREG v3**: Sistemas complejos dinamicos (cellular automata, biologia
+  real). Futuro lejano.
+
+**Cambios:**
+- `PROJECT.md` — nueva subseccion "Roadmap del producto: v0 → v1 → v2 → v3"
+  al inicio de "Scope actual y horizontes futuros". Define el vocabulario
+  canonico y la nota terminologica que separa SREG v1 (producto) de
+  SQ v1/v2 / Suite v1 (sub-pipelines y suite externa, no versiones del
+  producto).
+- `CURRENT_STATE.md` — top quote-block declara explicitamente "este
+  documento describe SREG v1". Nueva seccion "Sutileza terminologica"
+  antes de "SQ v2 — Pipeline principal" aclara que SQ v1/v2 son
+  sub-pipelines internos del compiler/matcher dentro de SREG v1.
+- `TODO.md` — nueva seccion "SREG v1 — criterios de done" al top con los
+  6 criterios concretos de cierre: (1) decision sobre bundling (P06
+  task #26), (2) canonical path estable (SQ v2 vs SQ v1), (3) bugs
+  bloqueantes resueltos (#10, #24, #25), (4) smoke validation suite
+  estable (`p05_canonical_batch` con `/rescore --reaggregate` delta
+  0.0000), (5) config v1 congelada (modelo, budget, pipeline, weights),
+  (6) build → use handoff (otros pueden generar y usar casos sin tocar
+  el repo).
+
+**Por que importa.** Sin este vocabulario, no se puede decir "SREG v1 esta
+cerrado" ni planificar v2 sin renegociar el significado de "v1" en cada
+conversacion. El cierre concreto del producto vive ahora como criterios
+accionables en `TODO.md`, no como folklore conversacional.
+
+### 2026-04-07 — Docs: tesis canon — suite final v1, related work, indexacion
+
+**Cierre del bloque de research para tesis/paper.** Suite final v1 fijada,
+related work cerrado en tres papers contemporaneos, indices de research
+reescritos, decisiones operativas reabiertas con evidencia externa.
+
+**Suite final v1 (6 benchmarks):**
+- in-domain: `held-out SREG`
+- external: `CLadder + QRData + DiscoveryBench + CausalReasoningBenchmark + SciGym`
+- SciGym promovido Tier 3 -> Tier 1: unico publico que mide loop iterativo
+  Sherlock-type (proponer-observar-refinar). Costo de integracion (Linux/
+  Docker/SBML) aceptado porque sin SciGym la suite no mide nada del loop
+  iterativo que SREG dice que entrena.
+
+**Decision reabierta — SFT+RL vs RL-from-base:**
+- SandMLE reporta empiricamente que SFT-only colapsa a 17.7% Valid Submission
+  en MLE-Dojo (vs 83.9% RL-from-base) en 30B. Convierte nuestra eleccion de
+  `SFT + RL` en hipotesis empirica, no decision cerrada.
+- Tres opciones abiertas: mantener SFT+RL, cambiar a RL-from-base, correr
+  ambas. Recomendacion: paralelo si el budget alcanza, sino RL-from-base.
+- Comparaciones canonicas ahora incluyen `base + RL` ademas de `base + SFT + RL`.
+- Ver `T7` en TODO.md.
+
+**Related work cerrado en tres papers (los tres convergen en el mismo gap):**
+- `related_work_sandmle.md` — SandMLE (Zhou et al. 2026): SFT brittle fuera
+  del scaffold de generacion. Validacion del approach SREG en dominio adyacente.
+- `related_work_scigym.md` — SciGym (Duan et al. 2025): frontier models lejos
+  del techo en loop iterativo (RMS F1 < 0.20 en biologia de sistemas).
+  Documenta por que SciGym NO compite con SREG (un task type vs 23+).
+- `related_work_sciagentgym.md` — SciAgentGym (Shen et al. 2026): frontier
+  models pierden 30-50% del exito al pasar de pasos cortos a largos
+  (Adaptation 32.9%, Loop Escape 35.7%). Diagnostico del long-horizon collapse.
+
+**Doc canonico nuevo — `external_benchmarks_transfer_analysis.md`:**
+- Para cada benchmark: ejemplo concreto, scoring, argumento estructural de
+  transferencia, prediccion de magnitud, riesgo principal.
+- Correccion central: SREG solver responde en prosa libre, NO en formato
+  estructurado. El compiler traduce. Esto es lo que permite argumentar
+  transferencia razonable a benchmarks externos.
+- Insight central: el delta in-domain vs out-of-domain es la metrica de tesis.
+
+**Indexacion reescrita:**
+- `research/README.md` reescrito con dos cortes: por status (CANON activo /
+  notes / archive) y por pregunta ("si necesito X, anda a Y"). Regla nueva:
+  si un doc no esta marcado CANON, no es fuente de verdad.
+- `CLAUDE.md` "Donde buscar que" actualizado con 6 nuevos pointers de tesis.
+- `archive/benchmark_results.md` con banner "NO VALIDO PARA TESIS" porque
+  los BEFORE scores fueron corridos con `gpt-5.2-chat`, no Qwen3-8B.
+
+**TODO actualizado** con bloque "Suite de tesis — bloques canonicos" T1-T7:
+- T1: BEFORE con Qwen3-8B (BLOQUEANTE)
+- T2: integrar CRB
+- T3: integrar SciGym (Linux/Docker/SBML)
+- T4: decidir QRData code execution (BLOQUEA comparabilidad)
+- T5: DiscoveryBench judge mitigation
+- T6: congelar held-out SREG split
+- T7: decidir SFT+RL vs RL-from-base (reabierto)
+
+**No incluye:** cambios en `src/` ni `scripts/`. Quedan para su propio commit.
+
+### 2026-04-06 — Feat: subpopulation predicates in condition_on (P1, smoke-validated)
+
+**P1 implementado.** El compiler-LLM ahora puede expresar subpoblaciones
+(rangos, cuartiles, categorias) en `QueryArm.condition_on`, no solo valores
+puntuales. Antes esto bloqueaba claims sobre "los pobres", "near the cutoff",
+"high vs low biomarker", "urban areas", etc. — el compiler abstainia o
+inventaba variables derivadas inexistentes.
+
+**4 predicados universales** (discriminated union via `kind` field):
+- `approx_eq` — match aproximado a un punto (legacy, default via shorthand)
+- `range` — `lo <= x <= hi`, para ventanas, near-cutoff, RDD bandwidths
+- `quantile_range` — `q_lo` a `q_hi` del distribution, para "high vs low"
+- `in_set` — match contra una lista de valores, para categoricos
+
+**Backward compat exacto:** raw scalars `{"x": 5.0}` y strings `{"region": "urban"}`
+se auto-promueven a `ApproxEq` y `InSet` via `@model_validator(mode="before")`.
+`rescore --reaggregate` sobre el batch p05 verifica delta 0.0000 en los 12 casos.
+
+**Smoke-validated en producción** (batch `p05_canonical_batch`, 12 seeds):
+- 6/12 casos usan los nuevos predicados (heterogeneity 36 quantile_range,
+  chemical 12, immunotherapy 6, policy_equity 4, selection_bias 2,
+  missing_data 2 range)
+- Adopcion semanticamente correcta (cuartiles para "high/low", range para
+  "near cutoff" como `retention_wave3 in [0.2, 0.36]`)
+- Recompile poverty: con MISMOS claims/mundo, el compiler emite 8
+  `quantile_range` donde antes solo habia point values
+- 14 unit tests del verifier (`TestFilterCondition`): 4 predicados + edge cases
+  (NaN, ties, degenerate ranges, inclusive bounds, AND conjunction, backward
+  compat scalars/strings)
+
+**Caveats explicitos** (NO declarado "validated", ver TODO P1.5):
+- NO se atribuye causalidad sobre score: el delta de poverty
+  (0.003 → 0.449) NO es atribuible a P1 — variancia LLM en compiler +
+  cambios de pipeline lo confunden. P1 da capability de emision, no
+  score lift demostrado.
+- `in_set` NO probado E2E porque el SCM no soporta nodos categoricos
+  (`world.variables` es 100% continuo). Cubierto solo por unit tests sobre
+  DataFrames sinteticos. Worldgen extension queda como ticket aparte.
+- Ventanas temporales generales (wave/site_id, panel data) NO resueltas:
+  P1 cubre predicados sobre variables del world, no sobre columnas
+  fuera de `world.variables`.
+- El score promedio del batch (0.417) NO mejora con P1 — es techo mas
+  profundo (claim quality, teacher gap, scoring metric).
+
+**Bug fix incidental** (`oi_sq_compiler.py:845`): `render_answer_key` crasheaba
+con `TypeError: unsupported format string` cuando `comparison["contrast_diff"]`
+era `None` (caso edge en arms con NaN/insufficient data). Fix minimo: chequear
+`isinstance(cd, (int, float))` antes de format. Pre-existente, expuesto por
+el rescore controlado de poverty.
+
+**Archivos nuevos / modificados:**
+- `src/sreg/models/open_investigation.py` (+predicate types, +auto-promotion)
+- `src/sreg/tools/oi_verifier.py` (`_filter_condition` dispatch por kind)
+- `src/sreg/tools/oi_sq_compiler.py` (GRAMMAR_REF + bug fix)
+- `tests/models/test_open_investigation.py` (+TestConditionPredicates, 14 tests)
+- `tests/tools/test_oi_verifier.py` (+TestFilterCondition, 14 tests)
+- `scripts/run_p05_batch.sh` (baseline canonico, 12 seeds diversos)
+
+**Conocido como deuda P1.5** (ver TODO):
+- `_filter_condition` hace silent skip cuando la columna no existe (footgun:
+  el LLM puede inventar columnas y la pregunta cambia silenciosamente).
+- `approx_eq` sobre columna no numerica crashea con `TypeError`.
+- Compiler inventa columnas panel (`site_id`, `wave`) que no estan en
+  `world.variables` — bloquea casos panel-data.
+
+### 2026-04-06 — Feat: controlled rescore pipeline (P0)
+
+**Rescore controlado implementado.** Permite re-evaluar casos congelados
+(`src.json` + `oi_result.json`) sin regenerar mundo ni re-correr el solver.
+Aisla el efecto de cambios de codigo de la varianza del worldgen/solver.
+
+**3 modos:**
+- `--reaggregate` — solo re-computa aritmetica de scoring (sin LLM, instantaneo)
+- `--rejudge` — re-corre juez de relevancia LLM con specs/truths congelados
+- `--recompile` — full re-compile + re-verify + re-judge (default)
+
+**Persistencia (P0 prerequisito):**
+- `oi_result.json` ahora incluye `score_inputs_v2`: claims, compiled specs,
+  claim truths, relevance results, judge claims, runner config, trace
+- `src.json` ahora incluye `sub_questions_v2`: SQs grounded con verdicts
+
+**Nuevo:** `scripts/rescore.py`, skill `/rescore` (`.claude/skills/rescore/`).
+**Modificados:** `oi_runner.py` (persistence), `generate_src.py` (export),
+`CLAUDE.md` (skill table).
+
+### 2026-04-06 — Audit: E2E forensic audit, failure mode taxonomy, scoring roadmap
+
+**Audit E2E completo:** 12 seeds diversas, audit profundo de los 11 casos
+exitosos. Identificados 4 failure modes del scoring pipeline (ver TODO A28):
+
+1. **Grammar/representation gap** — claims quasi-experimentales (RDD,
+   bandwidths) inexpresables en AtomicSpec (poverty 0.003).
+2. **Scorer credit-assignment** — truth a nivel claim penaliza claims
+   ambiciosas, coverage inflada por threshold 0 (microbiome 0.196).
+3. **SQ decomposition/overlap** — SQs semanticamente solapadas.
+4. **Solver miss** — solver concluye mal; scoring justo (policy_equity,
+   coral_bleach).
+
+**Roadmap de scoring (TODO I0d):** 3 prioridades — rescore controlado (P0),
+predicados de subpoblacion (P1), unit-level truth (P2 en 3 pasos).
+
+**Cleanup:** target_states ya no se computan en OI mode (vestigial).
+Presiones evolutivas nuevas en PROJECT.md (4 failure modes de AI scientists).
+
+**Files:** `TODO.md`, `CURRENT_STATE.md`, `ARCHITECTURE.md`, `PROJECT.md`,
+`CHANGELOG.md`, `scm_problem_builder.py`, `orchestrator.py`.
+
+### 2026-04-06 — Fix: evidence trap penalty + arm ordering enforcement (BUG 8, 9)
+
+**BUG 8 — Evidence Trap:** Solver citing `python_exec_N` as artifact IDs
+caused `truth=0` for all claims (root cause of `missing_data` scoring 0.000
+in E2E batch). Evidence validation now applies proportional penalty instead
+of zeroing: all fabricated → 0.1, partial → proportional. Solver prompt
+updated to explicitly prohibit citing python_exec steps.
+
+**BUG 9 — Arm Ordering Ambiguity:** Verifier difference sign depended on
+undocumented QueryArm array order. Correct causal claims could fail
+verification if LLM placed arms in natural [control, treatment] order.
+Fix: `ref_arm` required for difference/ratio comparisons (auto-filled with
+warning for backward compat), exactly 2 arms enforced via `@model_validator`.
+GRAMMAR_REF and claim compiler prompt updated: `difference = other - ref_arm`.
+
+**Files:** `oi_runner.py`, `oi_prompts.py`, `open_investigation.py`,
+`oi_sq_compiler.py`, `oi_extraction.py` (5 files, +50/-7 lines).
+
+**Discovered via:** 12-seed E2E diverse batch (proportional truth validation).
+Forensic audit with Codex + 2 Cursor instances.
+
+### 2026-04-02 — E2E validation: v2 scoring pipeline validated
+
+**Validated:** Full v2 pipeline (juez LLM + answer keys + verifier with
+do-calculus + evidence_basis validation) tested with 7 worlds: 5 curated
+(v1 path) + 2 seeds: microbiome (14 nodes) and confounding_by_indication
+(12 nodes) through the complete v2 path with LLM judge scoring.
+
+**Results:** v2 coverage (0.65-0.79) >> v1 coverage (0.11-0.25). The LLM
+judge matches claims against SQs much better than structural salience map.
+Correctness discriminates: social_media got 0.500 (half claims false),
+microbiome/confounding 0.750, curated worlds mostly 1.0.
+
+### 2026-04-02 — Fix: validate evidence_basis against actual artifact accesses
+
+**Fixed:** Solver could cite artifact_ids in `evidence_basis` that it never
+actually loaded or created. No validation existed — fabricated evidence was
+silently accepted.
+
+**New:** Step 1b in `_score_with_judge()` checks that all cited artifact_ids
+exist in `trace.accessed_artifact_ids()`. If any are fabricated, the claim's
+truth drops to 0.
+
+**Fixed:** `save_artifact()` now registers in `trace.accesses` (as
+`access_type="analyze"`), so derived artifacts the solver creates are valid
+evidence citations.
+
+### 2026-04-01 — Fix: verifier auto-adjust uses do() instead of observational estimation
+
+**Fixed:** `_run_adjustment()` in `oi_verifier.py` was estimating E[Y|do(X)]
+from observational data via marginal stratification (one confounder at a time).
+This gave wrong results with multiple confounders. The verifier is the oracle —
+it should use exact do-calculus, not statistical estimation.
+
+**New:** `_is_valid_backdoor_set()` validates that a proposed adjustment set
+blocks all backdoor paths (no descendants of treatment + d-separation check).
+
+**Changed:** `_run_adjustment()` now: (1) validates the backdoor set, (2)
+computes exact truth via `solver.interventional_samples()`. Returns
+`kind="adjust_invalid"` (NaN) if the set is invalid. Removed ~50 lines of
+observational stratification code.
+
+**Why:** The verifier is God-mode — it has access to the true SCM. Estimating
+from observational data introduced numerical errors and the marginal
+stratification bug. Using do() gives exact causal truth.
+
+### 2026-04-01 — L1: Eliminate warrant system and OI helpers
+
+**Removed:** entire warrant system (`oi_warrant.py`, `oi_helpers.py`) and all
+instrumented helpers (`oi.corr`, `oi.regress`, `oi.stratify`, etc). The solver
+now uses pandas/numpy directly via `python_exec`.
+
+**Removed from models:** `WarrantResult`, `AnalysisRecord`, warrant fields
+from `EpisodeScore` (`raw_correctness`, `avg_warrant`, `warrant_active`),
+`WARRANT_PRIOR_FLOOR` constant. `EpisodeTrace` simplified to accesses only.
+
+**Removed from scoring:** warrant multiplier in `oi_compiler.py` (both v1 and
+v2 paths) and `oi_verifier.py`. Score is now purely truth-based.
+
+**Why:** warrant never participated in the main SQ scoring path. It added
+complexity (~800 lines) without contributing to the reward signal. The solver
+can do the same analyses with raw pandas.
+
+**Tests:** 93 pass. All warrant-specific tests removed, remaining tests
+updated to use pandas instead of `oi.*` helpers.
+
+### 2026-04-01 — Paso B: LLM relevance judge + E2E scoring pipeline
+
+**New:** `oi_relevance_judge.py` — LLM judge scores claim × SQ relevance
+(0..1) with pre-filter by variable overlap. Scoring formula:
+`total = correctness × weighted_coverage`.
+
+**Fixes:** auto-compute adjust_set from DAG, force-submit sends pending
+tool outputs, focus_variables max 8→12, score wiring in driver.
+
+**E2E results (3 diverse seeds):**
+- identifiability_pollution (epistemological): 0.413
+- vaca_muerta (causal complex): 0.533
+- microbiome (system mapping): 0.889
+
+### 2026-03-30 — SQ v2 prototype: specs-based sub-questions
+
+**New models:** `SubQuestionIntentV2` + `VerificationSpec` in
+`open_investigation.py`. SQ = text_gloss + verification_specs (AtomicSpec
+bundle with required/support roles) + tier. No pattern, no roles enum.
+Coexists with v1.
+
+**New modules:**
+- `oi_sq_compiler.py` — LLM compile step: text_gloss → AtomicSpec bundle.
+  Uses composable grammar (same as S04 direct-to-atoms).
+- `oi_sq_matching.py` — spec_match (exact on estimand, fuzzy on assertion),
+  bipartite 1-to-1 matching, episode-level scoring. Pools all claim-specs
+  across claims (fix for per-claim penalty identified by Cursor review).
+
+**First test results (5 diverse SQs against 8-node SCM):**
+- 5/5 compiled, 18 specs total, 4 measurement kinds (vs ~2 with v1)
+- 0 validation errors, 13/18 TRUE (72%)
+- Causal + epistemological: 100% TRUE
+
+**Script:** `test_sq_v2_compile.py` — focused test without full E2E.
+
+**Spec:** `research/synthesis/sq_v2_matching_spec.md` (canonical design doc).
+
+### 2026-03-30 — S04 Direct-to-AtomicSpec: catalog vs direct compilation
+
+**Research finding:** the less we depend on the fixed catalog (PatternClass),
+the better we preserve claim/SQ semantics across diverse investigation types.
+
+**Evidence (S04):**
+- Traced e2e_03 epistemic claims through full pipeline: 2/4 ABSTENTION,
+  score 0.239. Hand-crafted AtomicSpecs verified correctly (partial_correlation
+  shrinks from 0.517 to 0.189).
+- Direct compilation prototype (LLM → AtomicSpec, no catalog):
+  - e2e_03: C2 ABSTENTION → 4 specs; C3 0/2 TRUE → 3/3 TRUE
+  - SQ brief: 1 compressed SQ → 10 specs (8/10 TRUE)
+- Systematic comparison on 5 NEW diverse cases (18 claims):
+  catalog 17/18 compiled (28 units), direct 18/18 (65 specs, 50 TRUE).
+
+**5 new seeds for diverse investigation types:**
+- selection_bias_police.md (scenario #11)
+- methodology_missing_data.md (scenario #17)
+- competing_mechanisms.md (scenario #22)
+- policy_equity_tradeoff.md (scenario #3)
+- value_of_information.md (scenario #23)
+
+**5 new experiments:** e2e_07 through e2e_11, all with submitted claims.
+
+**Scripts:** `direct_to_atoms.py`, `compare_compilers.py`, `test_c2_bundle.py`,
+`trace_e2e_03.py` — diagnostic and comparison tools.
+
+### 2026-03-30 — S02 Diverse E2E diagnostics + force-submit fix
+
+**Force-submit mechanism:**
+- After main solver loop, if not submitted, one extra LLM turn with ONLY
+  `submit_claims` as available tool (python_exec removed)
+- Fixed 2/3 cases where solver exhausted iterations without submitting
+
+**Diverse E2E results (3 seeds, 3 types):**
+- Vaca Muerta causal: 0.580 (2/5 SQs, correctness 1.0)
+- Vaca Muerta predictive: 0.548 (2/5 SQs, correctness 1.0)
+- Identifiability epistemic: 0.364 (1/4 SQs, correctness 1.0)
+
+**Diagnostics:** 14 SQs total → 5 HIT, 6 SOLVER_MISS, 3 COMPILER_MISS.
+Compiler misses: effect_ranking from prose, sign extraction from literal
+slopes, claim-to-SQ matching. See `research/autoresearch/s02_diverse_e2e_diagnostics.md`.
+
+**New seed:** `seeds/vaca_muerta_predictive.md` — predictive classification
+variant (AUC-focused, ~18% prevalence imbalanced).
+
+### 2026-03-29 — A22 multi-unit compiler: compound claims decomposed into N units
+
+**Multi-unit compiler pipeline:**
+- New `CompiledUnit` model: each unit has its own `ClaimIntent` + `AtomicSpecs`
+- `CompilerOutput` restructured with `units` list and status (`compiled` /
+  `partial` / `abstention`)
+- `compile_claim()` iterates N intents extracted from a single claim, creates
+  one `CompiledUnit` per intent
+- SQ scoring now per-unit instead of per-claim flat
+
+**E2E validation:**
+- Soil: 0.200 -> 0.980 (chain claim now decomposes into pairwise units)
+- Coral: 0.807 (compound claims fully compiled)
+- Logistics: +0.08 improvement
+- S02 forensics: compiler LLM extraction quality is the next bottleneck
+  (chain claims miss pairwise relationships, indirect conclusions lost)
+
+### 2026-03-29 — Deep cleanup round 2: remove last BN vestiges from active code
+
+**Code cleanup:**
+- Deleted `models/world.py` (legacy BN: Node, CPD, DifficultyProfile, World)
+- Deleted `tests/models/test_world.py`
+- `orchestrator.py`: removed World/NodeType imports, dead `_task_gen` branch,
+  BN polymorphic code paths. All type annotations now SCMWorld-only.
+- `generate_src.py`: removed BN code paths in export_json, export_dag_png,
+  OI mode check. Fixed "Ground truth BN" -> "Ground truth SCM" in docstring.
+- `research_problem.py`: `target_states` now optional (default_factory=list)
+- OI scripts: removed discrete `target_states=["low","medium","high"]`
+
+**Dependencies:**
+- `pyproject.toml`: removed pgmpy, added pandas
+- Deleted stale `src/sreg.egg-info/`
+
+**Documentation:**
+- `README.md`: full rewrite for SCM+OI (removed BN, --solve, deleted scripts, training, harness)
+- `TODO.md`: A8 (BN vs SCM) marked RESOLVED, removed stale sub-questions
+- `ARCHITECTURE.md`: World -> SCMWorld, removed BN comparison table, DAGSpec ref
+- `CLAUDE.md`: fixed stale test_world_gen.py reference
+
+### 2026-03-29 — Massive legacy cleanup: BN + guided mode removal (~27K lines)
+
+**Entire BN/guided mode pipeline removed:**
+- Deleted `training/` (10 files), `harness/` (8 files) — full packages
+- Deleted `agent/agent.py`, `agent/prompts.py`, `agent/transformers_backend.py` — guided solver
+- Deleted `env/episode.py` — EpisodeRunner
+- Deleted BN tools: `world_gen.py`, `task_gen.py`, `problem_builder.py`,
+  `data_sampler.py`, `episode_gen.py`, `verifier.py`, `world_check.py`
+- Deleted BN world: `cpd_gen.py`, `dag_generators.py`, `pgmpy_utils.py`, 4 templates
+- Deleted `solver/exact_bayes.py` — BN teacher
+- Deleted legacy models: `dag_spec.py`, `env_protocol.py`, `agent_tools.py`, `code_exec.py`
+- Deleted `display.py`
+- Deleted 5 legacy scripts, 30+ legacy test files
+- Cleaned `orchestrator.py`: removed all BN handlers, SCM-only now
+- Cleaned `generate_src.py`: removed --solve, --report, BN inspect
+- All `__init__.py` exports updated to reflect surviving code
+- 16 research docs archived
+- Updated CURRENT_STATE, ARCHITECTURE, research/README to reflect SCM+OI only
+
+**Result:** ~101 files changed, ~27,347 lines removed. Repo is now SCM+OI only.
+
+### 2026-03-29 — Documentation audit + A21 revert cleanup
+
+**A21 structured claims REVERTED (critical design violation):**
+- Structured claims gave solver an enum of relation_type values, directly
+  biasing investigation. Violated PROJECT.md principle "no construir juego
+  estructurado". Reverted in fb99d85.
+- Removed pattern_tags from solver-visible tool schema and prompt.
+- The ORIGINAL problem (compiler misinterprets claims) remains — fix the
+  compiler, not the solver.
+
+**Full documentation audit + repo cleanup:**
+- CLAUDE.md: 489 -> 153 lines. LA PREGUNTA + scoring principles + doc
+  maintenance rules + pre-commit checklist. Eliminated duplicated content.
+- CURRENT_STATE.md: rewritten as friendly end-to-end explanation with examples.
+  Readable by anyone, not a technical inventory.
+- ARCHITECTURE.md: OI section from "future" to "implemented (Alpha-0)".
+  Fixed horizonte ("SCM continuo", not "discreto"). Fixed AZURE_SOLVER_MODEL.
+- PROJECT.md: added scoring design principles. Cleaned OI to vision-level.
+- research/README.md: fixed broken refs, removed A21 ref, updated indices.
+- Deleted 13 BN-legacy test files (361 tests, ~4000 lines):
+  test_world_gen, test_task_gen, test_problem_builder, test_episode_gen,
+  test_verifier, test_exact_bayes, test_causal_chain, test_fork_collider,
+  test_data_sampler, test_dataset, test_episode_runner, test_env, test_trajectory.
+- Deleted 3 legacy scripts: demo.py, run_inspiration_reports.py, batch_sweep.py.
+- Deleted loose files: AGENTS.md, tmp-open-investigation-chatgpt.md,
+  research_seed.md, research_seed.example.md, scheduled_tasks.lock.
+- Moved 4 research docs to archive/: world_design_legacy, sreg_v2_design_findings,
+  solver_trajectory_findings, qualitative_eval_2026_03_24.
+
+### 2026-03-28 — Remove target_node + solver tooling + E2E qualitative analysis
+
+**Target node removal from OI pipeline (Session 12):**
+- Removed `target` role requirement from SCMSpec (OI uses sub-question roles)
+- Updated orchestrator: SCM tool schema, variable summary, OI_MODE_PROMPT
+- Updated prompt: "Exactly 1 target" -> role-neutral sub-question guidance
+- Legacy `target` role accepted for backward compat, treated as observable
+- 7 files changed, all tests pass (46 targeted, 182 model)
+
+**Solver tooling expansion (Session 12):**
+- Added statsmodels, linearmodels, sklearn to python_exec ALLOWED_IMPORTS
+- Updated solver prompt: "You can also import: statsmodels, linearmodels, sklearn"
+- Added linearmodels to pyproject.toml dependencies
+- RESULT: soil case used statsmodels successfully — zero tooling friction
+
+**Progressive deadline nudges (Session 12):**
+- Replaced one-shot 75% deadline with 3-phase system: 50% (operational), 75% (deadline), final (mandatory)
+- Added hard guard: reject non-submit tool calls on final iteration
+- Fixed temperature retry: disable unsupported params after first failure
+
+**E2E qualitative analysis (Session 12) — 4 cases:**
+- Poverty (dev econ): 0 claims, tooling friction (pre-fix)
+- Pollution (water eng): OI solver crashed, reliability issue
+- Soil (env health): 0 claims despite working statsmodels + 3 nudges (submission aversion)
+- Coral (marine eco): 5 claims submitted! But SQ matching scored 0/4 (claim compilation failure)
+- KEY FINDING: worlds + solver are research-capable; evaluation harness is the bottleneck
+- Analysis: `research/notes/e2e_qualitative_analysis_20260328.md`
+- Codex thread: 019d3654-fa2b-7b92-a457-627687961699
+
+### 2026-03-28 — Data-indexed worlds + investigation gap validation
+
+**Sub-question scoring pipeline (Session 9-10):**
+- SubQuestionIntent, ResolvedSubQuestion models + resolution + matching + scoring
+- Dual scoring (v2 + SQ) wired to OI runner
+- Orchestrator generates SubQuestionIntents via design_case (validate + repair loop)
+- E2E validated: 5 SQs generated by gpt-5.4, repair loop works (2 rejections -> fix)
+- Treatment world: SQ score 0.983 vs v2 score 0.400
+
+**No-data baseline probe (Session 10):**
+- New script `oi_nodata_baseline.py`: gives solver brief + variable names, NO data
+- CRITICAL FINDING: treatment (gap=-0.093) and education (gap=0.000) don't force
+  investigation. Only ecosystem forces data use (gap=+0.570).
+- Confirms A17: LLM priors answer correctly without data.
+
+**Simpson's paradox world (Session 10):**
+- `world_treatment_simpson()`: crude r(Treatment, Recovery) = -0.64, ATE = +0.4
+- Confounding fix: GAP_MATERIAL assertion (direction-agnostic) for sign-reversal
+- Subsumption table extended: confounding -> obs_assoc (0.40), confounding -> causal_effect (0.35)
+- Investigation gap: v2 +0.132, correctness 0.75 -> 1.00
+
+**Two new data-indexed worlds (Session 11):**
+- `world_productivity()`: suppressor effect. Training-Productivity crude r ~ 0 despite
+  ATE = 0.5. Team_size suppresses the relationship. Gap v2 = +0.488.
+- `world_screen_time()`: confounding reversal. Screen-Academic crude r ~ +0.56 despite
+  negative causal effect. Parental_income confounds. Gap v2 = +0.350.
+- Both worlds validated: solver discovers the phenomena from data.
+- 9 new tests (1849 total passing).
+
+**Orchestrator SQ generation (Session 10):**
+- CasePlan extended: oi_sub_questions, epistemic_regime, is_oi_mode
+- validate_sub_questions(): grounding, roles, epistemology, portfolio, duplicates
+- OI_MODE_PROMPT: SQ generation guidance for LLM
+- 11 new tests for validation
+
+**Research:** `research/notes/oi_investigation_gap.md` (concept + results + Codex debate)
+
+### 2026-03-27 — OI real-LLM pilots + demo case generation
+
+**OI pilot batch (6 runs, 3 curated worlds):**
+- Ran ecosystem, treatment, education worlds with gpt-5.2-codex (solver) +
+  gpt-5.4 (compiler). Warrant disabled for Alpha-0.
+- Avg total=0.622, correctness=0.772, coverage=0.197.
+- Solver genuinely investigates: regressions, confounding checks, mediation
+  analysis, stratification. Epistemological humility (says "associated" not "causes").
+- 6 systematic problems identified: P1 (confounding=0 credit), P2 (null findings),
+  P3 (coverage low), P4 (precision gate), P5 (tags mismatch), P6 (import errors).
+- Codex review: "solver is better than scorer, family match gates correctness."
+- Analysis: `research/notes/oi_pilot_analysis_batch1.md`
+
+**Scripts:**
+- `scripts/oi_pilot_batch.py`: batch runner for OI pilots, JSON output
+- `scripts/oi_demo_case.py`: generates `full_case_oi.md` report (5 parts)
+
+**Fix:** `generate_src.py --solve` now works with SCMWorlds (was crashing on
+ExactBayesSolver which only supports BN worlds). Added `_build_scm_dag_section()`.
+
+**Demo experiments generated:**
+- `experiments/oi_treatment/` — OI, score 0.769, correctness 1.0
+- `experiments/oi_ecosystem/` — OI, score 0.571
+- `experiments/air_pollution/` — task-based, orchestrator E2E
+- `experiments/coral_reef/` — task-based, orchestrator E2E
+
 ### 2026-03-26 — Paso 2: Substrate minimum viable gate (3 quality gates)
 
 **Code: quality gates en scm_task_gen.py**

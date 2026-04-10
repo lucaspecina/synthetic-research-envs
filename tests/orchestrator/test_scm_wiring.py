@@ -180,7 +180,8 @@ def test_scm_construct_epidemiology():
     # Check variable roles in response
     roles = {v["name"]: v["role"] for v in output["variables"]}
     assert roles["pollution_source"] == "latent"
-    assert roles["respiratory_disease"] == "target"
+    # target role removed: OI uses SQ roles instead. All non-latent are observable.
+    assert roles["respiratory_disease"] == "observable"
     assert roles["air_quality"] == "observable"
 
 
@@ -847,3 +848,61 @@ def test_e2e_scm_pipeline_actions():
     assert "pollution_source" not in action_nodes
     # Observable variables (minus target) should have actions
     assert "air_quality" in action_nodes
+
+
+# ---------------------------------------------------------------------------
+# SQ compile loop — abstention contract (P06 G.1 precursor)
+# ---------------------------------------------------------------------------
+
+
+def test_compile_loop_drops_abstention_silently(monkeypatch):
+    """The compile loop in `_compile_oi_subquestions` must distinguish
+    abstention from compile error: an abstained SQ is dropped silently
+    (NOT added to the errors list), while a compile error IS added.
+
+    This is the consumer-side contract for the explicit abstention
+    signal added to `SQCompileResult`. Without this test, the
+    contract has no downstream coverage — a future refactor of the
+    branch could silently treat abstention as error and nothing
+    would catch it.
+    """
+    from sreg.models.scm_spec import SCMSpec
+    from sreg.tools import oi_sq_compiler as sqc_mod
+    from sreg.tools.oi_sq_compiler import SQCompileResult
+    from sreg.tools.scm_world_gen import SCMWorldGenTool
+
+    # Tiny real world (so build_world_summary works without mocking).
+    # _minimal_spec_args emits edges as dicts; SCMSpec wants tuples,
+    # so we normalize the same way the scm_construct dispatcher does.
+    spec_args = _minimal_spec_args(seed=42)
+    spec_args["edges"] = [(e["from"], e["to"]) for e in spec_args["edges"]]
+    spec = SCMSpec(**spec_args)
+    world = SCMWorldGenTool().generate(spec, seed=42)
+
+    def fake_compile(*, sq_id, **_kwargs):
+        if sq_id == "abstain_sq":
+            return SQCompileResult(
+                abstained=True,
+                abstain_reason="model-dependent quantity",
+            )
+        return SQCompileResult(errors=[f"{sq_id} compile failed"])
+
+    # The consumer does `from sreg.tools.oi_sq_compiler import compile_sq_to_specs`
+    # inside the function; patching the module attribute is enough because
+    # Python re-resolves the name on every call.
+    monkeypatch.setattr(sqc_mod, "compile_sq_to_specs", fake_compile)
+
+    raw_sqs = [
+        {"sq_id": "abstain_sq", "text_gloss": "Abstain me", "tier": "high"},
+        {"sq_id": "fail_sq",    "text_gloss": "Fail me",    "tier": "high"},
+    ]
+    grounded, errors = _make_orch()._compile_oi_subquestions(
+        raw_sqs, world, world_seed=42,
+    )
+
+    # No success → no grounding phase → grounded is empty.
+    assert grounded == []
+    # The contract: only the genuine compile error appears in errors.
+    assert len(errors) == 1, f"errors={errors}"
+    assert "fail_sq" in errors[0]
+    assert not any("abstain_sq" in e for e in errors)

@@ -18,8 +18,10 @@ import traceback
 from dataclasses import dataclass
 
 # Allowed imports (agent can use these in python_exec)
+# Analytical libraries only — no I/O, networking, or system access.
 ALLOWED_IMPORTS = frozenset({
     "numpy", "pandas", "scipy", "math", "statistics",
+    "statsmodels", "linearmodels", "sklearn",
     "json", "collections", "itertools", "functools", "re",
 })
 

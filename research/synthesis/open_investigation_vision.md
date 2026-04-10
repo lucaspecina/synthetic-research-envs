@@ -1,8 +1,9 @@
-# Open Investigation: investigacion libre con reward exacto
+# Open Investigation: investigacion libre con verificacion SCM exacta
 
-> **Status:** VISION EN DESARROLLO. No implementar todavia — disenar y madurar.
-> **Fecha:** 2026-03-25 (actualizado 2026-03-26 con diseno Alpha + Codex)
-> **Participantes:** Usuario, Claude, Codex (gpt-5.4)
+> **Status:** VISION EN DESARROLLO. Debate activo, no implementar todavia.
+> **Fecha:** 2026-03-25 (actualizado 2026-03-26 con debate extendido)
+> **Participantes:** Usuario, Claude, Codex (gpt-5.4), ChatGPT (sesion paralela)
+> **Working doc:** `notes/open_investigation_case_analysis.md` (30 casos, debate)
 
 ## Explicacion simple (empieza por aca)
 
@@ -47,43 +48,60 @@ nosotros si. Entonces:
 Es como tener un profesor que lee la tesis del alumno, la descompone en
 afirmaciones verificables, y las checkea contra la realidad.
 
-### Preguntas clave resueltas (sesion 2026-03-26 con Codex)
+### Preguntas clave resueltas
 
-**"Una nota final o varias?"** — Varias. El solver entrega 1 hallazgo
-principal + hasta 4 de soporte. Cada uno se verifica por separado.
+**"Una nota final o varias?"** — Varias. El solver entrega hasta K=5
+claim cards semi-estructuradas. Cada una se verifica por separado.
+Un claim complejo se descompone en N atomos verificables.
 
-**"Y si hace mil afirmaciones a ver si alguna pega?"** — Cap de 5 claims
-maximo. Y si tira muchas cosas incorrectas, la nota baja aunque acierte
-algunas (precision gate sobre coverage).
+**"Y si hace mil afirmaciones a ver si alguna pega?"** — Cap de K=5
+claims. Precision gate: si precision < umbral, coverage no paga.
+Novel claims = bucket de auditoria en Alpha, no reward online.
 
-**"Y si llega al resultado correcto pero sin investigar?"** — Para eso
-esta "warrant" (fundamentacion). No alcanza con acertar — tenes que
-mostrar que usaste los datos para llegar ahi. Un solver que responde
-desde la intuicion sin mirar los datos saca mala nota en warrant.
+**"Y si llega al resultado correcto pero sin investigar?"** — Warrant
+via log check: observo las variables relevantes antes de afirmar?
+Sin LLM judge, suficiente para Alpha.
 
-**"Y el traductor? Si traduce mal?"** — Si no esta seguro de como
-traducir algo, lo marca como "no puntuable" en vez de adivinar. Y el
-solver puede ver como se tradujo y corregir antes de la entrega final.
+**"Y el traductor? Si traduce mal?"** — Compile-preview loop: el
+compilador muestra una parafrasis canonica ("entendi que X causa Y en
+contexto Z, es asi?"). El solver corrige en lenguaje natural, NUNCA
+edita specs formales. Maximo 2 rondas. Si no se aclara → unscorable.
 
-### Orden de construccion (consenso Claude + Codex)
+**"Solo podemos verificar un catalogo fijo?"** — NO. Gramatica
+composable de 4 piezas: Simulacion + Medicion + Comparacion + Asercion.
+Cualquier combinacion valida es verificable. Los "operadores" son macros
+(shortcuts frecuentes), no limites. Ver detalle abajo.
 
-No construir todo junto. Ir de a pasos:
+### Honestidad sobre "exact reward"
 
-1. **Definir que es un "hallazgo"** formalmente (Claim, CompiledQuery,
-   ClaimFamily)
-2. **Construir el corrector sin traductor** — probar que el scoring
-   funciona cuando los hallazgos ya vienen en formato perfecto
-3. **Probar el traductor por separado** — darle textos y ver si traduce
-   bien (benchmark offline)
-4. **Recien ahi** juntar todo con un solver real (modo scaffolded, no
-   fully open)
+El reward NO es exact end-to-end en modo Open. Lo honesto:
+- **Modo Guided:** reward exacto (como hoy, sin cambio)
+- **Modo Open:** verificacion SCM exacta DESPUES de compilacion.
+  La compilacion tiene subjetividad encapsulada (claim cards la reducen,
+  preview loop la audita, abstention la acota)
+- **Lo que decimos:** "exact SCM-grounded verification core"
+- **Lo que NO decimos:** "exact reward" sin calificar
+
+### Orden de construccion
+
+1. **Gramatica de verificacion**: definir las 4 piezas composables +
+   macros frecuentes como DSL ejecutable
+2. **Truth map algoritmico**: dado un SCM, enumerar verdades canonicas
+   agrupadas en familias. Sin LLM.
+3. **Claim card contract**: Pydantic models para ClaimCard, AtomicSpec,
+   CoverageFamily
+4. **Verifier scoring**: dado un set de claims formales perfectos,
+   computar correctness + coverage. Sin traductor, sin LLM.
+5. **Compiler benchmark offline**: 200+ claims, 15+ mundos, >90%
+   precision, >95% harmful-error control
+6. **Piloto scaffolded**: solver real + compiler + scoring
 
 ### Criterios de exito del Alpha
 
 - El no-data baseline puntua claramente peor que un solver que investiga
-- El shotgun (tirar muchos claims a ver si pegan) no puede explotar el
-  coverage
-- El score es estable ante variaciones del traductor
+- El shotgun (tirar muchos claims) no puede explotar el coverage
+- El compilador tiene >90% precision en benchmark offline
+- El score es estable ante variaciones del compilador
 - Un solver mejor realmente supera a uno peor por margen interpretable
 
 ---
@@ -353,97 +371,217 @@ no fases limpias secuenciales.
 - Es la siguiente evolucion natural despues de completar el pipeline
   orchestrator -> SCM.
 
-## Diseno del Alpha (sesion 2026-03-26 con Codex)
+## Diseno del Alpha (evolucionado con debate extendido 2026-03-26)
 
-### Modo: Scaffolded Open (no fully open)
+### Modo: Scaffolded Open
 
-El Alpha NO es prosa totalmente libre. Es un modo intermedio:
 - Brief abierto con pregunta primaria y target claro
-- Solver investiga libre con las tools actuales (python_exec, etc.)
-- Entrega final estructurada: 1 main finding + hasta 4 supporting findings
-- Cada finding con: confianza y base de evidencia
-- Translator compila cada finding a 0 o 1 query formal
+- Solver investiga libre con python_exec + think + submit
+  (budget y observe NO corren hoy, son mejora futura)
+- Entrega: hasta K=5 claim cards semi-estructuradas
+- Compiler traduce cada card a 1..N atomic specs verificables
 - Verifier scorea contra el SCM
 
-### Primitivas del Alpha (minimas)
+### Gramatica composable de verificacion (reemplaza primitivas fijas)
 
-Solo 4 para empezar (consenso Codex):
-- `rank_effect(X1 vs X2, Y)` — cual importa mas
-- `ate(X, Y)` o `effect_direction(X, Y)` — efecto causal
-- `mediation(X, M, Y)` — fraccion mediada
-- `interaction(X, Z, Y)` — el efecto depende del contexto
+**ANTES:** 4 primitivas fijas (ate, mediation, interaction, rank_effect).
+**AHORA:** gramatica de 4 piezas composables.
 
-**NO en Alpha:** confounding (es mas de metodologia que de hallazgo).
-**SI agregar:** `null/no-material-effect` como resultado posible.
+Toda verificacion = Simulacion + Medicion + Comparacion + Asercion.
 
-### Scoring Alpha (propuesta Codex, discutida)
+**Simulacion** (que experimento correr):
+- `do(X=valor)`, `do(X=valor) | Z=estrato`, `sweep(X, rango)`,
+  `do(X=a, Y=b)` (bundle), `baseline`
+
+**Medicion** (que medir):
+- `mean(Y)`, `variance(Y)`, `quantile(Y, q)`, `P(Y > umbral)`,
+  `correlation(A, B)`, `distribution_shape(Y)`
+
+**Comparacion** (como comparar):
+- `difference`, `ratio`, `ranking`, `piecewise_fit`, `gap`, `proportion`
+
+**Asercion** (que debe ser verdad):
+- `positive`, `negative`, `near_zero`, `A > B`, `changepoint_exists`,
+  `sign_changes_by_stratum`, `gap_material`
+
+Operadores nombrados = macros (shortcuts frecuentes):
+- `mean_contrast` = do(X=a) vs do(X=b) + mean(Y) + difference + sign
+- `tail_risk_contrast` = do vs baseline + P(Y>p90) + difference + positive
+- `regime_change_scan` = sweep(X) + mean(Y)/level + piecewise_fit + exists
+- `policy_rank` = do(A) vs do(B) + mean(Y) + ranking + A>B
+- `mediation_decomp` = do(X) directo vs via M + mean(Y) + proportion + >0
+- `interaction_contrast` = do(X)|Z=hi vs Z=lo + mean(Y) + difference + sign
+- `measurement_gap` = baseline + obs vs latente + gap + material
+
+Agregar tipo de verificacion nuevo = combinar piezas o agregar pieza
+atomica nueva. NO requiere cambiar la arquitectura.
+
+### Claim card del solver
+
+El solver no escribe prosa libre ni specs formales. Escribe claim cards:
+
+```yaml
+claim_text: >
+  La puntualidad del pago importa mas que el monto para reducir
+  inseguridad alimentaria.
+focus_variables: ["puntualidad", "monto", "inseguridad_alimentaria"]
+outcome_aspect: "media de inseguridad alimentaria"
+comparison_text: "puntualidad vs monto"
+scope_text: "global"
+pattern_tags: ["ranking", "effect_comparison"]
+confidence: 0.8
+evidence_basis:
+  - artifact_id: transfer_panel
+    rationale: "Regresion muestra coef de puntualidad 3x mayor que monto"
+```
+
+Slots minimos: claim_text, focus_variables, confidence, evidence_basis.
+Los demas son opcionales pero mejoran la compilacion.
+
+### Compile-preview loop
+
+1. Solver entrega claim cards
+2. Compiler genera parafrasis canonica: "Entendi que la puntualidad tiene
+   mayor efecto que el monto sobre inseguridad alimentaria. Confirmas?"
+3. Solver corrige en lenguaje natural si hace falta (max 2 rondas)
+4. Compiler genera atomic specs ejecutables
+5. Verifier ejecuta contra SCM
+
+**Regla dura:** el solver NUNCA edita specs formales, solo claim cards.
+El preview es clarificacion semantica, no formulario tecnico.
+
+Para eval formal: loop completo. Para RL training: claim cards explicitas
++ compilador local, sin preview (costo).
+
+### Truth map algoritmico
+
+Antes del solver, enumerar verdades canonicas del SCM sin LLM:
+1. Todos los ATEs pairwise
+2. Todas las mediaciones por path
+3. Todas las interacciones por par × target
+4. Heterogeneidad por estrato
+5. Quantile effects
+6. Regime changes / thresholds
+7. D-separations no obvias
+8. Policy comparisons simples
+
+Filtrar por effect size > threshold. Clusterar en familias.
+Family key = (brief_target, focus_signature, pattern_class, scope_class).
+
+Para relevance/salience: necesita "intent metadata" del generador del caso
+(target primario, variables manipulables, tipo de investigacion).
+
+### Scoring Alpha
 
 | Dimension | Peso | Que mide |
 |-----------|------|----------|
-| Correctness | 40% | Cada claim traducido se verifica contra el SCM |
-| Warrant | 25% | Fundamentacion: uso la evidencia o adivino? |
-| Weighted coverage | 20% | Encontro los hallazgos importantes descubribles? |
-| Efficiency | 10% | No gasto budget en exploracion irrelevante? |
-| Calibration | 5% | La confianza reportada matchea la realidad? |
+| Correctness | 60% | Cada atomo verificado contra SCM |
+| Coverage | 30% | Familias canonicas descubiertas (con precision gate) |
+| Efficiency | 10% | No shotguneo, claims relevantes al brief |
 
-**Gate critico:** coverage se multiplica por precision. Si tira muchos
-claims falsos, no gana coverage por los correctos.
+**Simplificaciones vs diseño original:**
+- Sin calibration en Alpha (muy pocos claims por episodio)
+- Sin warrant formal (solo log check basico como proxy)
+- Sin relevance contract rico (solo proximity al target)
+- Novel claims = bucket de auditoria, no reward
 
-### Anti-shotgun
+**Gates:**
+- K <= 5 claims
+- Precision gate sobre coverage (si precision < umbral, coverage = 0)
+- Deduplicacion por familia
 
-- Cap duro: maximo K=5 claims finales
-- Deduplicacion por "familias de claims" (variantes del mismo hallazgo)
-- Coverage solo paga si precision supera umbral
-- Penalidad por claims no compilables o falsos
-- Requerir evidence basis por claim
+### Stress test: 30 casos evaluados
 
-### Agenda oculta auto-generada
+De 30 respuestas diversas en 10 dominios:
+- 12 FUNCIONA (40%): efectos causales, mediacion, heterogeneidad, policies
+- 13 PARCIAL (43%): rescatables con operadores o metadata extra
+- 5 NO FUNCIONA (17%): taxonomias, subidentificacion, evidencia comparada
 
-En vez de answer key manual, auto-generar claims verdaderos significativos
-del SCM:
+Los que rompen son claims EPISTEMICOS, no causales complejos.
+Ver `notes/open_investigation_case_analysis.md` para detalle completo.
 
-1. Enumerar primitivas sobre pares/tripletas de variables observables
-2. Computar ground truth para cada una
-3. Filtrar por: significancia (effect size > threshold) + descubribilidad
-   (dado el budget y evidencia visible)
-4. Clusterar en familias de claims equivalentes
-5. Coverage = fraccion de familias descubiertas por el solver
+## Estado de implementacion (actualizado 2026-03-27)
 
-### Translator: sound but incomplete
+### Pipeline completo (103 tests, solo falta LLM extraction)
 
-- Compilacion por bullet (no por reporte entero)
-- Salida tipada: status, primitive, args, span, confidence
-- Si duda: "unscorable" (nunca adivina)
-- Compile-preview loop: solver ve la compilacion y corrige antes de submit
-- Reliability medida OFFLINE antes de meter en el loop
+```
+Solver → ClaimCard (NL)
+  → [LLM + exemplars] → ClaimIntent (symbolic IR)    ← FALTA ESTE PASO
+  → [validate_intent] → preview check
+  → [lower_intent] → AtomicSpec(s) con canonical anchors
+  → [match_specs_to_families] → family matches
+  → [verify_atom vs SCM] → verdicts
+  → [score_compiled_episode] → EpisodeScore
+```
 
-### Orden de construccion
+1. **[DONE] DSL grammar** — `src/sreg/models/open_investigation.py`
+   42 tests. QueryContext (6 kinds incl observe/adjust), Measurement (9),
+   Comparison (8), Assertion (13). ClaimCard, SalienceMap, scoring models.
 
-1. **Claim contract**: definir Claim, CompiledQuery, ClaimFamily como
-   modelos formales
-2. **Agenda generator + verifier**: probar scoring con claims formales
-   perfectos (sin LLM, sin translator)
-3. **Translator benchmark offline**: medir compile rate, precision,
-   abstention rate, estabilidad entre reruns
-4. **Piloto scaffolded**: solver real + translator + scoring, modo
-   scaffolded (no fully open)
+2. **[DONE] Salience map generator** — `src/sreg/tools/oi_salience.py`
+   9 tests. 7 pattern types (causal, mediation, heterogeneity, tail,
+   variance, observational, ranking), multi-atom families with qualifiers.
 
-## Proximos pasos de investigacion (actualizado 2026-03-26)
+3. **[DONE] Verifier + scoring** — `src/sreg/tools/oi_verifier.py`
+   22 tests. verify_atom pipeline, _extract_scalar for any comparison,
+   mediation via 4-arm CDE, identifiability via backdoor criterion,
+   specificity bonus + overclaim penalty, precision gate.
 
-1. **Definir claim contract** (Claim, CompiledQuery, ClaimFamily) como
-   modelos Pydantic. Esto es el paso 1 del orden de construccion.
+4. **[DONE] Pilot E2E** — `tests/tools/test_oi_pilot.py`
+   4 tests. Oracle(0.775) > No-data(0.550) > Shotgun(0.340).
 
-2. **Implementar agenda generator**: dado un SCM, enumerar todos los
-   claims verdaderos significativos agrupados en familias.
+5. **[DONE] Compiler (deterministic)** — `src/sreg/tools/oi_compiler.py`
+   26 tests. ClaimIntent IR + WorldSummary anchors + lowering (7 patterns)
+   + preview validator + matching to families + full episode scorer.
+   Multi-part claims (mediation, heterogeneity) → 2 specs per Codex design.
 
-3. **Implementar verifier scoring**: dado un set de claims formales
-   (sin translator), computar correctness + coverage + los demas scores.
+6. **[DONE] Exemplar bank** — `src/sreg/tools/oi_exemplars.py`
+   14 positive (all 7 patterns) + 5 negative (abstention). Hand-crafted.
 
-4. **Prototype translator offline**: dado un hallazgo en NL, compilarlo
-   a query formal. Benchmark de reliability.
+### Pendiente (requiere LLM)
 
-5. **Piloto E2E**: solver investiga, entrega reporte, translator compila,
-   verifier scorea.
+7. **LLM extraction**: ClaimCard → ClaimIntent via few-shot prompting.
+   El unico paso que necesita LLM en todo el pipeline.
+
+8. **Compiler benchmark offline**: 200+ claims, 15+ mundos, >90%
+   precision, >95% harmful-error control.
+
+9. **Piloto scaffolded**: solver real + compiler + scoring.
+
+### Issues conocidos (Codex review 2026-03-27)
+
+- ADJUST: FIXED — ahora usa stratificacion observacional, no do()
+- Multi-atom families: FIXED — causal effects tienen 1-3 atomos
+- Salience map patterns: FIXED — 7 tipos incluyendo observacionales + ranking
+- Identifiability check: FIXED — usa backdoor criterion con mutilated graph
+  (dirigido), no dag.to_undirected(). Verifica candidate_adjust_set,
+  parents de treatment, y non-descendant ancestors como fallback.
+  Incluye check de observabilidad: candidate_adjust_set con variables
+  latentes es rechazado.
+- Estimand mismatch: FIXED — mediacion ahora usa 4-arm contrast-diff spec
+  (total_hi, total_lo, direct_hi, direct_lo). Indirect = total - controlled_direct.
+  Antes usaba PROPORTION (ratio de medias) que no verificaba mediacion.
+  **Limitacion conocida (Codex review #2):** CDE-at-mean != natural indirect
+  effect para modelos con X*M interaccion. El gate usa mediation_analysis()
+  (natural-effect-style) pero el spec verifica CDE. Para SCMs lineales/aditivos
+  (la mayoria en SREG) coinciden. Para nonlinear, pueden divergir.
+  Direccion de mediacion ahora viene del sign de fraction_mediated (soporta
+  suppressor mediation, no solo positive).
+- _extract_scalar: FIXED — assertions funcionan con cualquier ComparisonKind,
+  no solo DIFFERENCE.
+- evidence_basis: FIXED — warrant system implemented. EpisodeTrace tracks
+  solver accesses/analyses, warrant_score multiplies correctness + coverage.
+  4 levels (exists → accessed → relevant analysis → substantive op_type).
+  prior_floor=0.15: right from priors = 15% credit, full evidence = 100%.
+  Design: `research/notes/oi_warrant_design.md`. Code: `oi_warrant.py`.
+- DISTRIBUTION measurement es placeholder
+
+### Lineas de exploracion abiertas
+
+- Multi-outcome trade-offs (rescata 1/5 NO FUNCIONA del stress test)
+- Coherence-lite via support graph (bonus 5-10%)
+- Intent metadata del generador para relevance algoritmico
+- Compilador local para reducir costo en RL
 
 ## Origen de esta idea
 

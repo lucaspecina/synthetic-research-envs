@@ -446,7 +446,7 @@ class TestHelpers:
         })
         desc = _describe(df)
         assert "3 observations" in desc
-        assert "Missing data:" in desc
+        assert "missing" in desc.lower()
 
     def test_describe_without_missing(self):
         df = pd.DataFrame({

@@ -7,7 +7,7 @@ Usage:
     python scripts/generate_src.py --goal "marine ecology, 8 nodes" --output experiments/reef/
     python scripts/generate_src.py --seed-file research_seed.md --output experiments/case1/
     python scripts/generate_src.py --seed-file seeds/paper.pdf --output experiments/from_paper/
-    python scripts/generate_src.py --goal "football analytics" --output experiments/football/ --inspect
+    python scripts/generate_src.py --goal "football analytics" -o experiments/football/ --inspect
 
 Outputs (always):
     <output>/src.json        Full SRC (world, problem, tasks, metadata)
@@ -15,7 +15,7 @@ Outputs (always):
 Outputs (with --inspect):
     <output>/briefing.md     What the agent sees (narrative + questions)
     <output>/dataset.csv     Full dataset
-    <output>/answer_key.md   Ground truth BN + quick guide + correct answers
+    <output>/answer_key.md   Ground truth SCM + quick guide + correct answers
     <output>/dag.png         Causal DAG visualization
 """
 
@@ -71,17 +71,22 @@ def _print(text: str = "") -> None:
 # 1. Generate: run orchestrator
 # ---------------------------------------------------------------------------
 
-def generate(goal: str, model: str | None = None, verbose: bool = False):
+def generate(
+    goal: str, model: str | None = None, verbose: bool = False, oi_mode: bool = False
+):
     """Run the orchestrator and return the result."""
     from sreg.orchestrator.orchestrator import Orchestrator
 
-    _print(_c(B + BLU, "=== Generating SRC ==="))
+    mode_label = "OI" if oi_mode else "SRC"
+    _print(_c(B + BLU, f"=== Generating {mode_label} ==="))
     _print(f"  {_c(DIM, 'Model:')} {model or os.environ.get('AZURE_MODEL', 'gpt-4o')}")
     goal_preview = goal[:120] + "..." if len(goal) > 120 else goal
     _print(f"  {_c(DIM, 'Goal:')} {goal_preview}")
+    if oi_mode:
+        _print(f"  {_c(DIM, 'Mode:')} Open Investigation (no predefined questions)")
     _print()
 
-    o = Orchestrator(model=model) if model else Orchestrator()
+    o = Orchestrator(model=model, oi_mode=oi_mode) if model else Orchestrator(oi_mode=oi_mode)
 
     # Intercept tool calls for display
     original_dispatch = o._dispatch_tool
@@ -108,13 +113,8 @@ def generate(goal: str, model: str | None = None, verbose: bool = False):
 
     _print()
     if result.world and result.problem:
-        from sreg.world.scm import SCMWorld
-        if isinstance(result.world, SCMWorld):
-            n_nodes = len(result.world.variables)
-            title = result.problem.title or result.world.id
-        else:
-            n_nodes = len(result.world.nodes)
-            title = getattr(result.world, "scenario_title", None) or "?"
+        n_nodes = len(result.world.variables)
+        title = result.problem.title or result.world.id
         n_tasks = len(result.task) if isinstance(result.task, list) else 0
         _print(f"  {_c(GRN, 'OK')} {_c(B, _safe(title))}")
         _print(f"  {n_nodes} nodes, {n_tasks} tasks, {len(steps)} tool calls")
@@ -130,8 +130,6 @@ def generate(goal: str, model: str | None = None, verbose: bool = False):
 
 def export_json(result, steps, goal: str, model: str, output_dir: str) -> str:
     """Export the full SRC as JSON. Returns the path."""
-    from sreg.models.world import World
-
     export: dict = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
@@ -147,28 +145,34 @@ def export_json(result, steps, goal: str, model: str, output_dir: str) -> str:
     }
 
     if result.world:
-        from sreg.world.scm import SCMWorld
-        if isinstance(result.world, SCMWorld):
-            from dataclasses import asdict
-            export["world"] = {
-                "type": "scm",
-                "id": result.world.id,
-                "variables": result.world.variables,
-                "graph": result.world.graph,
-                "latent_variables": list(result.world.latent_variables),
-                "variable_meta": {
-                    k: {"unit": v.unit, "range": list(v.range), "description": v.description}
-                    for k, v in result.world.variable_meta.items()
-                },
-            }
-        else:
-            export["world"] = result.world.model_dump(mode="json")
+        export["world"] = {
+            "type": "scm",
+            "id": result.world.id,
+            "variables": result.world.variables,
+            "graph": result.world.graph,
+            "latent_variables": list(result.world.latent_variables),
+            "variable_meta": {
+                k: {"unit": v.unit, "range": list(v.range), "description": v.description}
+                for k, v in result.world.variable_meta.items()
+            },
+        }
 
     if result.task and isinstance(result.task, list):
         export["tasks"] = [t.model_dump(mode="json") for t in result.task]
 
     if result.problem:
         export["problem"] = result.problem.model_dump(mode="json")
+
+    if result.sub_questions:
+        export["sub_questions"] = [
+            sq.model_dump(mode="json") for sq in result.sub_questions
+        ]
+
+    # Persist grounded SQs v2 for controlled rescore (P0)
+    if getattr(result, "sub_questions_v2", None):
+        export["sub_questions_v2"] = [
+            sq.model_dump(mode="json") for sq in result.sub_questions_v2
+        ]
 
     path = os.path.join(output_dir, "src.json")
     with open(path, "w", encoding="utf-8") as f:
@@ -257,96 +261,57 @@ def export_briefing(result, output_dir: str) -> str | None:
     return path
 
 
-def build_dag_section(world, tasks=None) -> list[str]:
-    """Build mermaid DAG + variable importance + baseline as markdown lines.
-
-    Reusable for full_case.md and answer_key.md.
-    """
-    from sreg.solver.exact_bayes import ExactBayesSolver
-
-    import networkx as nx
-
-    solver = ExactBayesSolver(world)
-    target = next(n for n in world.nodes if n.type == "target")
-    latents = [n for n in world.nodes if n.type == "latent"]
-
-    dag = nx.DiGraph()
-    for n in world.nodes:
-        dag.add_node(n.name)
-    for e in world.edges:
-        dag.add_edge(e.from_node, e.to_node)
-
+def _build_scm_dag_section(world, tasks=None) -> list[str]:
+    """Build mermaid DAG section for SCMWorld (no ExactBayesSolver needed)."""
     lines = []
-
-    # Mermaid diagram
     lines.append("## Causal DAG (ground truth)")
     lines.append("")
     lines.append("```mermaid")
     lines.append("graph TD")
-    for n in world.nodes:
-        label = n.name.replace("_", " ")
-        if n.type == "latent":
-            lines.append(f'    {n.name}(["{label}"]):::latent')
-        elif n.type == "target":
-            lines.append(f'    {n.name}{{{{"{label}"}}}}:::target')
+    for var in world.variables:
+        label = var.replace("_", " ")
+        if var in world.latent_variables:
+            lines.append(f'    {var}(["{label}"]):::latent')
         else:
-            lines.append(f'    {n.name}["{label}"]:::observable')
+            lines.append(f'    {var}["{label}"]:::observable')
     lines.append("")
-    for e in world.edges:
-        lines.append(f"    {e.from_node} --> {e.to_node}")
+    for child, parents in world.graph.items():
+        for parent in parents:
+            lines.append(f"    {parent} --> {child}")
     lines.append("")
     lines.append("    classDef latent fill:#FF6B6B,stroke:#333,color:#000,stroke-width:2px")
     lines.append("    classDef observable fill:#51CF66,stroke:#333,color:#000")
-    lines.append("    classDef target fill:#FFD43B,stroke:#333,color:#000,stroke-width:3px")
     lines.append("```")
     lines.append("")
 
-    # Hidden variables
-    tname = target.name.replace("_", " ")
-    if latents:
-        for n in latents:
-            children = list(dag.successors(n.name))
-            cstr = ", ".join(c.replace("_", " ") for c in children)
-            lines.append(
-                f"**Latent:** {n.name.replace('_', ' ')} ({', '.join(n.states)})"
-                f" -- affects: {cstr}"
-            )
+    # Variable metadata
+    lines.append("## Variables")
+    lines.append("")
+    for var in world.variables:
+        meta = world.variable_meta.get(var)
+        role = "LATENT" if var in world.latent_variables else "observable"
+        unit = meta.unit if meta else ""
+        desc = meta.description if meta else ""
+        eq_fn = world.equations.get(var)
+        eq_str = eq_fn.__doc__ if eq_fn and eq_fn.__doc__ else "(structural equation)"
+        lines.append(f"- **{var}** [{role}] ({unit}): {desc}")
+        lines.append(f"  Equation: `{eq_str}`")
+    lines.append("")
+
+    # Tasks summary
+    if tasks:
+        lines.append("## Scoring Agenda (hidden from investigator)")
         lines.append("")
-
-    # Variable importance
-    lines.append(f"### Variable importance for {tname}")
-    lines.append("")
-    ig_scores = {}
-    for n in world.nodes:
-        if n.type == "latent" or n.name == target.name:
-            continue
-        try:
-            ig = solver.information_gain(target.name, {}, n.name)
-            ig_scores[n.name] = ig
-        except Exception:
-            ig_scores[n.name] = 0.0
-
-    sorted_ig = sorted(ig_scores.items(), key=lambda x: -x[1])
-    max_ig = max(ig_scores.values()) if ig_scores else 1
-
-    for rank, (name, ig) in enumerate(sorted_ig, 1):
-        label = name.replace("_", " ")
-        bars = int((ig / max_ig) * 20) if max_ig > 0 else 0
-        bar_str = "#" * bars + "." * (20 - bars)
-        if ig > max_ig * 0.6:
-            strength = "STRONG"
-        elif ig > max_ig * 0.2:
-            strength = "moderate"
-        else:
-            strength = "weak"
-        lines.append(f"{rank}. **{label}**: {ig:.4f} bits [{bar_str}] -- {strength}")
-    lines.append("")
-
-    # Baseline
-    prior = solver.posterior(target.name, {})
-    lines.append(f"**Baseline** (no evidence): "
-                 + ", ".join(f"{s}={prior[s]:.1%}" for s in target.states))
-    lines.append("")
+        for i, t in enumerate(tasks, 1):
+            q_short = t.question[:120] + "..." if len(t.question) > 120 else t.question
+            lines.append(f"**Q{i}** [{t.type}]: {q_short}")
+            if t.correct_answer:
+                for k, v in t.correct_answer.items():
+                    if isinstance(v, float):
+                        lines.append(f"  - {k}: {v:.4f}")
+                    else:
+                        lines.append(f"  - {k}: {v}")
+            lines.append("")
 
     return lines
 
@@ -422,187 +387,10 @@ def _export_scm_answer_key(result, output_dir: str) -> str | None:
 
 
 def export_answer_key(result, output_dir: str) -> str | None:
-    """Export BN truth + quick guide + correct answers."""
+    """Export answer key (delegates to SCM version)."""
     if not result.world or not result.problem:
         return None
-
-    from sreg.world.scm import SCMWorld
-    if isinstance(result.world, SCMWorld):
-        # SCM answer key: simplified version (no ExactBayesSolver)
-        return _export_scm_answer_key(result, output_dir)
-
-    from sreg.solver.exact_bayes import ExactBayesSolver
-
-    import networkx as nx
-
-    world = result.world
-    tasks = result.task if isinstance(result.task, list) else []
-    solver = ExactBayesSolver(world)
-
-    target = next(n for n in world.nodes if n.type == "target")
-    latents = [n for n in world.nodes if n.type == "latent"]
-
-    dag = nx.DiGraph()
-    for n in world.nodes:
-        dag.add_node(n.name)
-    for e in world.edges:
-        dag.add_edge(e.from_node, e.to_node)
-
-    lines = []
-
-    # --- Header ---
-    _ak_title = getattr(world, "scenario_title", None) or world.id
-    lines.append(f"# Answer Key: {_ak_title}")
-    lines.append("")
-
-    # --- Mermaid diagram ---
-    lines.append("## Causal DAG")
-    lines.append("")
-    lines.append("```mermaid")
-    lines.append("graph TD")
-    for n in world.nodes:
-        label = n.name.replace("_", " ")
-        if n.type == "latent":
-            lines.append(f'    {n.name}(["{label}"]):::latent')
-        elif n.type == "target":
-            lines.append(f'    {n.name}{{{{"{label}"}}}}:::target')
-        else:
-            lines.append(f'    {n.name}["{label}"]:::observable')
-    lines.append("")
-    for e in world.edges:
-        lines.append(f"    {e.from_node} --> {e.to_node}")
-    lines.append("")
-    lines.append("    classDef latent fill:#FF6B6B,stroke:#333,color:#000,stroke-width:2px")
-    lines.append("    classDef observable fill:#51CF66,stroke:#333,color:#000")
-    lines.append("    classDef target fill:#FFD43B,stroke:#333,color:#000,stroke-width:3px")
-    lines.append("```")
-    lines.append("")
-
-    # --- Quick guide ---
-    tname = target.name.replace("_", " ")
-    lines.append("## Quick Guide")
-    lines.append("")
-    lines.append(f"Predicting **{tname}** ({', '.join(target.states)}).")
-    lines.append("")
-
-    # Hidden variables
-    if latents:
-        lines.append("### Hidden (latent) variables")
-        lines.append("")
-        for n in latents:
-            children = list(dag.successors(n.name))
-            cstr = ", ".join(c.replace("_", " ") for c in children)
-            lines.append(
-                f"- **{n.name.replace('_', ' ')}** ({', '.join(n.states)})"
-                f" -- cannot be measured. Affects: {cstr}"
-            )
-        lines.append("")
-
-    # Information gain ranking
-    lines.append("### Variable importance for predicting " + tname)
-    lines.append("")
-    ig_scores = {}
-    for n in world.nodes:
-        if n.type == "latent" or n.name == target.name:
-            continue
-        try:
-            ig = solver.information_gain(target.name, {}, n.name)
-            ig_scores[n.name] = ig
-        except Exception:
-            ig_scores[n.name] = 0.0
-
-    sorted_ig = sorted(ig_scores.items(), key=lambda x: -x[1])
-    max_ig = max(ig_scores.values()) if ig_scores else 1
-
-    for rank, (name, ig) in enumerate(sorted_ig, 1):
-        label = name.replace("_", " ")
-        bars = int((ig / max_ig) * 20) if max_ig > 0 else 0
-        bar_str = "#" * bars + "." * (20 - bars)
-        if ig > max_ig * 0.6:
-            strength = "STRONG"
-        elif ig > max_ig * 0.2:
-            strength = "moderate"
-        else:
-            strength = "weak"
-        lines.append(f"{rank}. **{label}**: {ig:.4f} bits [{bar_str}] -- {strength}")
-    lines.append("")
-
-    # Causal relationships (strength + direction only)
-    lines.append("### Causal relationships")
-    lines.append("")
-    for e in world.edges:
-        pn, cn = e.from_node, e.to_node
-        pl = pn.replace("_", " ")
-        cl = cn.replace("_", " ")
-        pnode = next(n for n in world.nodes if n.name == pn)
-        cnode = next(n for n in world.nodes if n.name == cn)
-
-        effects = []
-        for state in pnode.states:
-            try:
-                post = solver.posterior(cn, {pn: state})
-                effects.append((state, post))
-            except Exception:
-                pass
-
-        if len(effects) < 2:
-            lines.append(f"- {pl} --> {cl}")
-            continue
-
-        max_shift = 0
-        for cs in cnode.states:
-            vals = [d.get(cs, 0) for _, d in effects]
-            diff = max(vals) - min(vals)
-            if diff > max_shift:
-                max_shift = diff
-
-        if max_shift > 0.3:
-            sw = "STRONG"
-        elif max_shift > 0.1:
-            sw = "Moderate"
-        else:
-            sw = "Weak"
-
-        mech = f" ({e.mechanism})" if e.mechanism else ""
-        lines.append(f"- {pl} --> {cl}: **{sw}** ({max_shift:.0%}){mech}")
-    lines.append("")
-
-    # Baseline
-    prior = solver.posterior(target.name, {})
-    lines.append("### Baseline (no evidence)")
-    lines.append("")
-    for s in target.states:
-        lines.append(f"- {s}: {prior[s]:.1%}")
-    lines.append("")
-
-    # --- Correct answers ---
-    if tasks:
-        lines.append("## Correct Answers")
-        lines.append("")
-        for i, t in enumerate(tasks, 1):
-            lines.append(f"### Question {i}: {t.type}")
-            lines.append("")
-            lines.append(f"**Question:** {t.question}")
-            lines.append("")
-            lines.append(f"**Target:** {t.target_node}")
-            lines.append("")
-
-            if isinstance(t.correct_answer, dict):
-                lines.append("**Correct answer:**")
-                lines.append("")
-                for k, v in sorted(t.correct_answer.items()):
-                    if isinstance(v, float):
-                        lines.append(f"- {k}: {v:.6f}")
-                    else:
-                        lines.append(f"- {k}: {v}")
-            else:
-                lines.append(f"**Correct answer:** {t.correct_answer}")
-            lines.append("")
-
-    path = os.path.join(output_dir, "answer_key.md")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
-    return path
+    return _export_scm_answer_key(result, output_dir)
 
 
 def export_dag_png(result, output_dir: str) -> str | None:
@@ -613,39 +401,27 @@ def export_dag_png(result, output_dir: str) -> str | None:
     try:
         import matplotlib
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
         import matplotlib.patches as mpatches
+        import matplotlib.pyplot as plt
         import networkx as nx
     except ImportError:
         return None
 
-    from sreg.world.scm import SCMWorld as _SCMWorld
     world = result.world
 
     G = nx.DiGraph()
     node_types = {}
     node_states = {}
-    if isinstance(world, _SCMWorld):
-        for var in world.variables:
-            G.add_node(var)
-            if var in world.latent_variables:
-                node_types[var] = "latent"
-            else:
-                node_types[var] = "observable"
-            node_states[var] = []
-        # Guess target from the last variable in topo order
-        if world.variables:
-            node_types[world.variables[-1]] = "target"
-        for child, parents in world.graph.items():
-            for parent in parents:
-                G.add_edge(parent, child)
-    else:
-        for n in world.nodes:
-            G.add_node(n.name)
-            node_types[n.name] = str(n.type)
-            node_states[n.name] = n.states
-        for e in world.edges:
-            G.add_edge(e.from_node, e.to_node)
+    for var in world.variables:
+        G.add_node(var)
+        if var in world.latent_variables:
+            node_types[var] = "latent"
+        else:
+            node_types[var] = "observable"
+        node_states[var] = []
+    for child, parents in world.graph.items():
+        for parent in parents:
+            G.add_edge(parent, child)
 
     # Layered layout via topological sort
     layers = {}
@@ -736,298 +512,6 @@ def export_dag_png(result, output_dir: str) -> str | None:
     return path
 
 
-# ---------------------------------------------------------------------------
-# 3. Solve: run agent + teacher on each task
-# ---------------------------------------------------------------------------
-
-def solve_tasks(
-    result,
-    output_dir: str,
-    seed: int = 42,
-    solver_model: str | None = None,
-    solver_base_url: str | None = None,
-    solver_api_key: str | None = None,
-) -> str | None:
-    """Run agent on the full case (all tasks together). Export full_case.md + solve_result.json."""
-    if not result.world or not result.problem:
-        return None
-
-    from openai import OpenAI
-
-    from sreg.agent.agent import AgentSolver
-    from sreg.models.task import TaskType
-
-    world = result.world
-    problem = result.problem
-    tasks = result.task if isinstance(result.task, list) else []
-    if not tasks:
-        _print(f"  {_c(YLW, '!')} No tasks to solve")
-        return None
-
-    _print(f"  Solving {len(tasks)} tasks in a single episode...")
-
-    # Build solver client — configurable backend (Azure, vLLM, etc.)
-    base_url = solver_base_url or os.environ.get("AZURE_FOUNDRY_BASE_URL", "")
-    api_key = solver_api_key or os.environ.get("AZURE_INFERENCE_CREDENTIAL", "")
-    if api_key.lower() == "none":
-        api_key = "not-needed"
-    client = OpenAI(base_url=base_url, api_key=api_key)
-
-    model = solver_model or os.environ.get(
-        "AZURE_SOLVER_MODEL", os.environ.get("AZURE_MODEL", "gpt-4o")
-    )
-    agent = AgentSolver(model=model, max_iterations=40, client=client)
-
-    if solver_base_url:
-        _print(f"  Backend: {solver_base_url} | Model: {model}")
-    case_result = agent.solve_case(world, problem, tasks, seed=seed)
-
-    # Build task_details for full_case.md and solve_result.json
-
-    task_details = []
-    for i, task in enumerate(tasks, 1):
-        tr = case_result.task_results.get(i)
-        if tr is None or tr.submitted_answer is None:
-            task_details.append((i, task, tr, "NO SUBMIT", "-"))
-            continue
-
-        score = tr.score
-        if score is None:
-            verdict, score_str = "NO SCORE", "-"
-        else:
-            sv = score.functional_score
-            score_str = f"{sv:.4f}"
-            # Choice/non-distribution types: 1.0=correct, 0.0=wrong (higher=better)
-            # Distribution types (KL): 0.0=perfect, higher=worse (lower=better)
-            tt = task.type
-            higher_is_better = tt not in (
-                TaskType.INFER_TARGET, TaskType.CAUSAL_EFFECT,
-                TaskType.INFER_LATENT_CAUSE,
-            )
-            if higher_is_better:
-                verdict = "GOOD" if sv > 0.9 else "OK" if sv > 0.5 else "POOR"
-            else:
-                verdict = "GOOD" if sv < 0.1 else "OK" if sv < 0.5 else "POOR"
-
-        task_details.append((i, task, tr, verdict, score_str))
-
-    # Build full_case.md — everything in one place
-    full_lines = []
-    _fc_title = getattr(world, "scenario_title", None) or world.id
-    full_lines.append(f"# Full Case Report: {_fc_title}")
-    full_lines.append("")
-    full_lines.append(f"Seed: {seed}")
-    full_lines.append(f"Tools: python_exec + think + submit")
-    full_lines.append(f"Tasks: {len(tasks)}")
-    full_lines.append("")
-
-    # Part 0: Ground truth (hidden from solver)
-    full_lines.append("---")
-    full_lines.append("")
-    full_lines.append("# Part 0: Ground truth (hidden from solver)")
-    full_lines.append("")
-    full_lines.extend(build_dag_section(world, tasks))
-
-    # Part 1: What the solver received
-    full_lines.append("---")
-    full_lines.append("")
-    full_lines.append("# Part 1: What the solver received")
-    full_lines.append("")
-
-    # Dataset summary (system prompt details in briefing.md)
-    full_lines.append("## Datasets (see briefing.md for full problem statement)")
-    full_lines.append("")
-    for idx, asset in enumerate(problem.data_assets):
-        if asset.format == "tabular" and asset.data:
-            headers = [k for k in asset.data[0].keys() if k != "sample_id"]
-            df_name = "df" if idx == 0 else f"df_{idx}"
-            full_lines.append(
-                f"- **{df_name}**: {len(asset.data)} rows, "
-                f"{len(headers)} vars ({', '.join(headers[:5])}...)"
-            )
-    full_lines.append("")
-    full_lines.append(f"Questions: {len(tasks)}")
-    for i, t in enumerate(tasks, 1):
-        full_lines.append(f"  {i}. ({t.type}) {t.question[:80]}...")
-    full_lines.append("")
-
-    # Part 2: What the solver did
-    full_lines.append("---")
-    full_lines.append("")
-    full_lines.append("# Part 2: What the solver did")
-    full_lines.append("")
-
-    for msg in case_result.messages:
-        role = msg.get("role", "?")
-
-        if role == "system":
-            full_lines.append("> *(system prompt — shown above)*")
-            full_lines.append("")
-
-        elif role == "user":
-            content = msg.get("content", "")
-            full_lines.append(f"> **[USER]** {content}")
-            full_lines.append("")
-
-        elif role == "assistant":
-            content = msg.get("content")
-            tool_calls = msg.get("tool_calls", [])
-
-            if content:
-                full_lines.append("**[SOLVER THINKS]**")
-                full_lines.append("")
-                full_lines.append(content)
-                full_lines.append("")
-
-            for tc in tool_calls:
-                fn = tc.get("function", {})
-                fn_name = fn.get("name", "?")
-                fn_args_raw = fn.get("arguments", "{}")
-                try:
-                    fn_args = json.loads(fn_args_raw)
-                except (json.JSONDecodeError, TypeError):
-                    fn_args = {"raw": fn_args_raw}
-
-                if fn_name == "think":
-                    reasoning = fn_args.get("reasoning", "")
-                    full_lines.append("**[SOLVER REASONS]**")
-                    full_lines.append("")
-                    full_lines.append(f"> {reasoning}")
-                elif fn_name == "python_exec" and "code" in fn_args:
-                    full_lines.append("**[SOLVER RUNS CODE]**")
-                    full_lines.append("```python")
-                    full_lines.append(fn_args["code"])
-                    full_lines.append("```")
-                elif fn_name == "submit":
-                    full_lines.append("**[SOLVER SUBMITS]**")
-                    full_lines.append("```json")
-                    full_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
-                    full_lines.append("```")
-                elif fn_name == "research_action":
-                    action_id = fn_args.get("action_id", "?")
-                    full_lines.append(f"**[SOLVER MEASURES]** `{action_id}`")
-                else:
-                    full_lines.append(f"**[SOLVER CALLS]** `{fn_name}`")
-                    full_lines.append("```json")
-                    full_lines.append(json.dumps(fn_args, indent=2, ensure_ascii=False))
-                    full_lines.append("```")
-                full_lines.append("")
-
-        elif role == "tool":
-            content_raw = msg.get("content", "{}")
-            try:
-                content = json.loads(content_raw)
-            except (json.JSONDecodeError, TypeError):
-                content = {"raw": content_raw}
-
-            if isinstance(content, dict) and content.get("status") == "noted":
-                pass  # think tool response — reasoning already shown above
-            elif isinstance(content, dict) and "output" in content and len(content) == 1:
-                output = content["output"]
-                if len(output) > 1200:
-                    output = output[:1200] + "\n... (truncated)"
-                full_lines.append("**[CODE OUTPUT]**")
-                full_lines.append("```")
-                full_lines.append(output)
-                full_lines.append("```")
-            elif isinstance(content, dict) and "findings" in content:
-                findings = content["findings"]
-                full_lines.append(f"**[FINDING]** {findings}")
-            elif isinstance(content, dict) and content.get("status") == "submitted":
-                q = content.get("question", "?")
-                msg_text = content.get("message", "")
-                full_lines.append(f"**[RECORDED Q{q}]** {msg_text}")
-            elif isinstance(content, dict) and "error" in content:
-                full_lines.append(f"**[ERROR]** {content['error']}")
-            else:
-                content_str = json.dumps(content, indent=2, ensure_ascii=False)
-                if len(content_str) > 500:
-                    content_str = content_str[:500] + "\n... (truncated)"
-                full_lines.append("```json")
-                full_lines.append(content_str)
-                full_lines.append("```")
-            full_lines.append("")
-
-    # Part 3: Evaluation
-    full_lines.append("---")
-    full_lines.append("")
-    full_lines.append("# Part 3: How the solver did (evaluation)")
-    full_lines.append("")
-
-    full_lines.append("| # | Type | Score | Verdict | Agent Answer | Correct Answer |")
-    full_lines.append("| --- | --- | --- | --- | --- | --- |")
-
-    for i, task, tr, verdict, score_str in task_details:
-        ans = tr.submitted_answer if tr else None
-        ans_str = str(ans)[:40] if ans else "-"
-        correct_str = str(task.correct_answer)[:40]
-        full_lines.append(f"| {i} | {task.type} | {score_str} | {verdict} | {ans_str} | {correct_str} |")
-    full_lines.append("")
-
-    for i, task, tr, verdict, score_str in task_details:
-        full_lines.append(f"### Question {i}: {task.type} — {verdict}")
-        full_lines.append("")
-        q = task.question
-        if len(q) > 300:
-            q = q[:300] + "..."
-        full_lines.append(f"**Question:** {q}")
-        full_lines.append("")
-
-        full_lines.append("**Correct answer:**")
-        correct = task.correct_answer
-        if isinstance(correct, dict):
-            for k, v in sorted(correct.items()):
-                full_lines.append(f"- {k}: {v:.4f}" if isinstance(v, float) else f"- {k}: {v}")
-        else:
-            full_lines.append(f"- {correct}")
-        full_lines.append("")
-
-        full_lines.append("**Solver answer:**")
-        ans = tr.submitted_answer if tr else None
-        if isinstance(ans, dict):
-            for k, v in sorted(ans.items()):
-                full_lines.append(f"- {k}: {v:.4f}" if isinstance(v, float) else f"- {k}: {v}")
-        elif ans is not None:
-            full_lines.append(f"- {ans}")
-        else:
-            full_lines.append("- *(no answer)*")
-        full_lines.append("")
-
-        if tr and tr.reasoning:
-            full_lines.append(f"**Solver reasoning:** {tr.reasoning}")
-            full_lines.append("")
-
-    full_path = os.path.join(output_dir, "full_case.md")
-    with open(full_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(full_lines))
-
-    # Save solve_result.json (structured summary)
-    results_list = []
-    for i, task, tr, verdict, score_str in task_details:
-        entry = {"type": str(task.type.value if hasattr(task.type, "value") else task.type)}
-        if tr and tr.submitted_answer is not None and tr.score is not None:
-            entry["score"] = tr.score.functional_score
-            entry["verdict"] = verdict
-            entry["answer"] = str(tr.submitted_answer)[:100]
-        else:
-            entry["score"] = 0.0
-            entry["verdict"] = verdict
-        results_list.append(entry)
-
-    avg_score = sum(r["score"] for r in results_list) / max(len(results_list), 1)
-    solve_output = {
-        "model": solver_model or os.environ.get(
-            "AZURE_SOLVER_MODEL", os.environ.get("AZURE_MODEL", "unknown")),
-        "title": getattr(world, "scenario_title", None) or world.id,
-        "avg_score": avg_score,
-        "tasks": results_list,
-    }
-    result_path = os.path.join(output_dir, "solve_result.json")
-    with open(result_path, "w", encoding="utf-8") as f:
-        json.dump(solve_output, f, indent=2, ensure_ascii=False)
-
-    return full_path
-
 
 # ---------------------------------------------------------------------------
 # Main
@@ -1096,18 +580,14 @@ def main():
         help="Generate full analysis package (briefing, CSV, answer key, DAG)",
     )
     parser.add_argument(
-        "--solve", action="store_true",
-        help="Run agent solver on each task (implies --inspect). Generates full_case.md",
-    )
-    parser.add_argument(
-        "--report", action="store_true",
-        help="Generate Inspiration Report comparing seed vs SRC (requires --seed-file)",
+        "--oi", action="store_true",
+        help="Open Investigation mode: vague brief, free-form investigation, claim-based scoring",
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true",
         help="Show detailed orchestrator output",
     )
-    # Solver backend (for --solve): defaults to same as orchestrator (Azure)
+    # Solver backend (for --oi): defaults to same as orchestrator (Azure)
     parser.add_argument(
         "--solver-model", type=str, default=None,
         help="Model for the solver (default: same as --model)",
@@ -1183,14 +663,13 @@ def main():
     model = args.model or os.environ.get("AZURE_MODEL", "gpt-4o")
 
     # Generate
-    result, steps = generate(goal, model=model, verbose=args.verbose)
+    result, steps = generate(goal, model=model, verbose=args.verbose, oi_mode=args.oi)
 
     if not result.world or not result.problem:
         _print(f"\n{_c(RED + B, 'Generation failed. Aborting.')}")
         sys.exit(1)
 
-    # --solve implies --inspect
-    do_inspect = args.inspect or args.solve
+    do_inspect = args.inspect
 
     # Export
     os.makedirs(args.output, exist_ok=True)
@@ -1219,56 +698,156 @@ def main():
         if dag_path:
             _print(f"  {_c(GRN, 'v')} {dag_path}")
 
-    # Inspiration Report
-    if args.report and seed_content:
+    # OI mode: run Open Investigation with LLM solver
+    if args.oi:
         _print()
-        _print(_c(B + BLU, "=== Inspiration Report ==="))
+        _print(_c(B + BLU, "=== Open Investigation ==="))
 
-        from sreg.harness.inspiration_report import generate_report
+        if not result.problem:
+            _print(f"  {_c(RED, 'x')} No problem generated")
+        else:
+            from openai import OpenAI  # noqa: E402
 
-        tasks = result.task if isinstance(result.task, list) else []
-        manifest = result.inspiration_manifest
-        report = generate_report(seed_content, result.world, tasks, manifest=manifest)
+            from sreg.tools.oi_driver import run_oi_investigation
+            from sreg.tools.oi_runner import OIEpisodeRunner
 
-        # Export manifest if available
-        if manifest:
-            import json as _json
-            manifest_path = os.path.join(args.output, "inspiration_manifest.json")
-            with open(manifest_path, "w", encoding="utf-8") as f:
-                _json.dump(manifest, f, indent=2, ensure_ascii=False)
-            _print(f"  {_c(GRN, 'v')} {manifest_path}")
+            solver_model = args.solver_model or os.environ.get(
+                "AZURE_SOLVER_MODEL", os.environ.get("AZURE_MODEL", "gpt-5.2-codex")
+            )
+            compiler_model = os.environ.get("AZURE_MODEL", "gpt-5.4")
 
-        report_path = os.path.join(args.output, "inspiration_report.md")
-        with open(report_path, "w", encoding="utf-8") as f:
-            f.write(report.to_markdown())
-        _print(f"  {_c(GRN, 'v')} {report_path}")
+            solver_client = OpenAI(
+                base_url=args.solver_base_url or os.environ.get("AZURE_FOUNDRY_BASE_URL", ""),
+                api_key=args.solver_api_key or os.environ.get("AZURE_INFERENCE_CREDENTIAL", ""),
+            )
 
-        _print(f"  Report generated (see {report_path})")
-    elif args.report and not seed_content:
-        _print(f"  {_c(YLW, '!')} --report requires --seed-file")
+            # Build LLM compiler callable
+            compiler_client = OpenAI(
+                base_url=os.environ.get("AZURE_FOUNDRY_BASE_URL", ""),
+                api_key=os.environ.get("AZURE_INFERENCE_CREDENTIAL", ""),
+            )
 
-    if args.solve:
-        _print()
-        _print(_c(B + BLU, "=== Solving tasks ==="))
+            def llm_compiler(messages: list[dict[str, str]]) -> str:
+                instructions = messages[0]["content"] if messages else ""
+                # Pass full conversation (few-shot exemplars + actual claim)
+                input_items = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in messages[1:]
+                ]
+                resp = compiler_client.responses.create(
+                    model=compiler_model,
+                    instructions=instructions,
+                    input=input_items,
+                )
+                for item in resp.output:
+                    if item.type == "message":
+                        for part in item.content:
+                            if hasattr(part, "text"):
+                                return part.text
+                return ""
 
-        solve_seed = args.seed if args.seed is not None else 42
-        solver_kwargs = {}
-        if args.solver_model:
-            solver_kwargs["solver_model"] = args.solver_model
-        if args.solver_base_url:
-            solver_kwargs["solver_base_url"] = args.solver_base_url
-        if args.solver_api_key:
-            solver_kwargs["solver_api_key"] = args.solver_api_key
-        solve_result = solve_tasks(result, args.output, seed=solve_seed, **solver_kwargs)
-        if solve_result:
-            _print(f"  {_c(GRN, 'v')} {solve_result} (complete report)")
+            _print(f"  Solver: {solver_model}")
+            _print(f"  Compiler: {compiler_model}")
+
+            oi_seed = args.seed if args.seed is not None else 42
+            runner = OIEpisodeRunner(
+                result.problem, result.world,
+                seed=oi_seed, n_mc=20_000, llm_call=llm_compiler,
+            )
+
+            # Wire orchestrator-generated sub-questions if available
+            # Prefer v2 (specs-based, LLM judge scoring) over v1
+            if getattr(result, "sub_questions_v2", None):
+                runner.set_subquestions_v2(result.sub_questions_v2)
+                _print(f"  SQs v2: {len(result.sub_questions_v2)} from orchestrator (judge scoring)")
+            elif result.sub_questions:
+                runner.set_subquestions(result.sub_questions)
+                _print(f"  SQs v1: {len(result.sub_questions)} from orchestrator")
+
+            import time as _time
+            t0 = _time.time()
+            oi_result = run_oi_investigation(
+                runner, solver_client, solver_model, max_iterations=20,
+            )
+            elapsed = _time.time() - t0
+
+            _print(f"  Steps: {oi_result.n_steps} | Time: {elapsed:.0f}s")
+            _print(f"  Submitted: {oi_result.submitted}")
+            if oi_result.score:
+                s = oi_result.score
+                cov = getattr(s, "weighted_coverage", None) or getattr(s, "coverage", 0.0)
+                _print(f"  Score: total={s.total:.3f} correct={s.correctness:.3f} "
+                       f"coverage={cov:.3f}")
+
+            # Save results (include conversation for debugging)
+            # Extract solver tool calls for analysis
+            solver_tool_calls = []
+            for msg in oi_result.messages:
+                if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                    for tc in msg["tool_calls"]:
+                        fn = tc.get("function", {})
+                        entry = {"name": fn.get("name", ""), "step": len(solver_tool_calls)}
+                        # For submit_claims, include the claims
+                        if fn.get("name") == "submit_claims":
+                            try:
+                                entry["args"] = json.loads(fn.get("arguments", "{}"))
+                            except json.JSONDecodeError:
+                                entry["args"] = fn.get("arguments", "")
+                        solver_tool_calls.append(entry)
+
+            oi_json = {
+                "world": result.world.id,
+                "solver_model": solver_model,
+                "compiler_model": compiler_model,
+                "elapsed": elapsed,
+                "n_steps": oi_result.n_steps,
+                "submitted": oi_result.submitted,
+                "score": oi_result.score.model_dump() if oi_result.score else None,
+                "compiler_stats": runner.compiler_stats(),
+                "solver_tool_calls": solver_tool_calls,
+                "conversation": oi_result.messages,
+            }
+            # Persist scoring internals for controlled rescore (P0)
+            score_inputs = runner.get_score_inputs()
+            if score_inputs:
+                oi_json["score_inputs_v2"] = score_inputs
+            oi_path = os.path.join(args.output, "oi_result.json")
+            with open(oi_path, "w", encoding="utf-8") as f:
+                json.dump(oi_json, f, indent=2)
+            _print(f"  {_c(GRN, 'v')} {oi_path}")
+
+            # Generate full_case_oi.md report
+            # NOTE: No salience map in E2E — SQ scoring is the primary
+            # evaluation. Salience map is available for periodic diagnostics
+            # via oi_demo_case.py standalone (not in the critical path).
+            try:
+                import sys as _sys
+                _sys.path.insert(0, os.path.join(
+                    os.path.dirname(__file__), "..", "tests", "tools"))
+                _sys.path.insert(0, os.path.dirname(__file__))
+                from oi_demo_case import build_report
+                report = build_report(
+                    oi_result, result.world, result.problem,
+                    elapsed=elapsed,
+                    solver_model=solver_model,
+                    compiler_model=compiler_model,
+                    runner=runner,
+                    sub_questions=result.sub_questions,
+                )
+                report_path = os.path.join(args.output, "full_case_oi.md")
+                with open(report_path, "w", encoding="utf-8") as f:
+                    f.write(report)
+                _print(f"  {_c(GRN, 'v')} {report_path}")
+            except Exception as e:
+                import traceback
+                _print(f"  {_c(YLW, '!')} Report generation failed: {e}")
+                traceback.print_exc()
 
     _print()
     title = getattr(result.world, "scenario_title", None) or result.world.id
     n_tasks = len(result.task) if isinstance(result.task, list) else 0
     _print(f"  {_c(B, _safe(title))}")
-    from sreg.world.scm import SCMWorld as _SW
-    n_vars = len(result.world.variables) if isinstance(result.world, _SW) else len(result.world.nodes)
+    n_vars = len(result.world.variables)
     _print(f"  {n_vars} nodes, {n_tasks} tasks")
     _print()
 

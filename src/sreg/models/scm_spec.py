@@ -29,7 +29,8 @@ class SCMVariableSpec(BaseModel):
     role: Literal["observable", "latent", "target"] = Field(
         default="observable",
         description=(
-            "observable = agent can see, latent = hidden, target = what to predict"
+            "observable = agent can see, latent = hidden. "
+            "'target' accepted for backward compat but treated as observable."
         ),
     )
     unit: str = Field(default="", description="Physical unit, e.g. 'celsius', 'mg/kg'")
@@ -107,11 +108,8 @@ class SCMSpec(BaseModel):
             raise ValueError("Graph contains cycles")
         return self
 
-    @model_validator(mode="after")
-    def validate_has_target(self) -> SCMSpec:
-        if not any(v.role == "target" for v in self.variables):
-            raise ValueError("SCMSpec must have at least one target variable")
-        return self
+    # validate_has_target removed: OI uses sub-question roles, not a single target.
+    # validate_has_observable (below) ensures there are non-latent variables.
 
     @model_validator(mode="after")
     def validate_no_duplicate_edges(self) -> SCMSpec:
@@ -125,7 +123,8 @@ class SCMSpec(BaseModel):
 
     @model_validator(mode="after")
     def validate_has_observable(self) -> SCMSpec:
-        if not any(v.role == "observable" for v in self.variables):
+        # "target" treated as observable for backward compat
+        if not any(v.role in ("observable", "target") for v in self.variables):
             raise ValueError("SCMSpec must have at least one observable variable")
         return self
 

@@ -1,185 +1,145 @@
-# research/ — Analisis, hallazgos y sintesis del proyecto
+# research/ — Indice canonico
 
 > Este directorio contiene el trabajo de investigacion que alimenta las
-> decisiones del proyecto. No es canonico — las decisiones viven en
-> `PROJECT.md` y `ARCHITECTURE.md`. Research las informa.
+> decisiones del proyecto. Algunos docs son **canonicos** (fuente de verdad
+> activa). Otros son **notas** (working docs). Otros son **archive**
+> (historico, no tocar).
+>
+> **Regla de oro:** si un doc no esta marcado CANON, no es fuente de
+> verdad. Para saber el estado actual del proyecto, mira los CANON.
 
-## Estructura
+---
 
-### notes/
-Material crudo o semi-crudo: debates, exploraciones, analisis largos,
-hallazgos empiricos, working docs. No es canonico.
+## Corte 1 — Por status (que es cada doc)
 
-Pregunta que responde: **"Que estamos explorando o analizando?"**
+### Canonicos activos (synthesis/)
 
-### synthesis/
-Conclusiones consolidadas con evidencia. Resumenes de lo que aprendimos
-sobre un tema, listos para informar decisiones.
+| Doc | Rol |
+|---|---|
+| `synthesis/thesis_evaluation_framework.md` | **CANON tesis.** Que hay que demostrar, metricas, suite, protocolo paper |
+| `synthesis/sreg_training_transfer_protocol.md` | **CANON operativo.** Modelo, harness, suite final, BEFORE/TRAIN/AFTER |
+| `synthesis/related_work_sandmle.md` | **CANON related work.** Comparacion con SandMLE (Zhou et al. 2026) |
+| `synthesis/related_work_scigym.md` | **CANON related work.** Comparacion con SciGym (Duan et al. 2025) |
+| `synthesis/related_work_sciagentgym.md` | **CANON related work.** Comparacion con SciAgentGym (Shen et al. 2026) — long-horizon tool-use |
+| `synthesis/external_benchmarks_transfer_analysis.md` | **CANON suite.** Que mide cada benchmark, ejemplos, transferencia esperada de SREG |
+| `synthesis/open_investigation_vision.md` | **CANON producto.** Vision de Open Investigation |
+| `synthesis/oi_scoring_fundamentals.md` | **CANON scoring.** Salience map = piso, no techo. Verdad vs relevancia vs cobertura |
+| `synthesis/sreg_scientific_coverage.md` | **CANON cobertura.** Que ciencia puede representar SREG hoy |
+| `synthesis/investigation_scenarios_rubric.md` | **CANON escenarios.** Rubrica de validacion para diversidad de tipos |
+| `synthesis/scientific_research_taxonomy.md` | **CANON taxonomia.** Framework general de tipos de investigacion |
+| `synthesis/Doc1_Taxonomia_El_Mapa.md` | **CANON mapa.** Mapa operativo para clasificar investigaciones |
+| `synthesis/oi_scoring_next_design.md` | **CANON diseno.** Sub-question scoring architecture |
+| `synthesis/sq_v2_matching_spec.md` | **CANON matching.** Spec de SQ matching v2 (compile + match + agg) |
+| `synthesis/eval_suite_framework.md` | **CANON evaluation.** 4 suites de evaluacion sistematica de SREG v1 |
+| `synthesis/eval_suite_science_coverage.md` | **CANON evaluation.** Suite 3: Science Coverage — corpus, mundos, harness |
+| `synthesis/scoring_relevance_design.md` | **CANON relevance.** Verdad vs relevancia, opciones de matching |
+| `synthesis/a27_answer_key_contract.md` | **CANON answer key.** Contrato del answer key rico |
+| `synthesis/scm_migration_rationale.md` | **CANON migracion.** Por que SCM y no BN |
+| `synthesis/research_case_design.md` | **CANON disenio.** Como diseniar SRCs que se sientan como investigacion real |
+| `synthesis/real_papers_patterns.md` | **CANON patrones.** Patrones consistentes en papers reales |
 
-Pregunta que responde: **"Que concluimos hasta ahora?"**
+### Notas activas (notes/)
 
-Documentos de sintesis activos:
+Material crudo o semi-crudo: debates, exploraciones, working docs, hallazgos
+empiricos. **NO es canonico** — son insumos para futuras decisiones.
 
-- `synthesis/research_case_design.md`
-- `synthesis/real_papers_patterns.md`
-- `synthesis/eval_types_analysis.md`
-- `synthesis/eval_strategy.md`
-- `synthesis/qualitative_eval_rubric.md`
-- `synthesis/benchmark_analysis.md`
-- `synthesis/sreg_scientific_coverage.md`
-- `synthesis/open_investigation_vision.md`
+Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 
-### archive/
-Documentos viejos, superseded o referencias heredadas. Read-only.
-Se guardan por si hacen falta, no como referencia activa.
+- `notes/oi_pilot_analysis_batch1.md` — analisis de pilots OI
+- `notes/p06_cap_decision_result.md` — **P06 resultado: cap=15 congelado para v1**
+- `notes/p06_addendum_cap_decision.md` — P06 protocolo del experimento cap decision
+- `notes/oi_compiler_design.md` — debate de arquitectura del compiler
+- `notes/oi_investigation_gap.md` — investigation gap concept
+- `notes/scm_task_primitives.md` — primitivas composicionales propuestas
+- `notes/a21_compiler_ontology_investigation.md` — bug ontologia compiler
+- `notes/a22_compiler_direct_to_atomicspec.md` — propuesta de compilacion directa
+- `notes/a23_grammar_first_sq_and_compiler.md` — grammar-first para SQ
+- `notes/s04_epistemic_ir_gap_analysis.md` — gap epistemologico evidencia empirica
+- `notes/s03_extraction_diagnosis.md` — A/B test extraccion compiler
+- `notes/brief_vs_eval_separation.md` — separacion brief vs eval
+- `notes/indirect_measurement_design.md` — instrumentos como nodos del SCM
+- `notes/oi_compiler_case_analysis.md` — 10 dominios analizados
+
+### Archive (historico, read-only)
+
+| Doc | Por que esta en archive |
+|---|---|
+| `archive/benchmark_analysis.md` | Research landscape denso de benchmarks (Claude+GPT consolidado). Background util para paper, NO canon operativo. Las decisiones canonicas viven en `synthesis/sreg_training_transfer_protocol.md` |
+| `archive/benchmark_results.md` | BEFORE scores corridos con `gpt-5.2-chat`, NO con Qwen3-8B. **No valido para tesis** — re-correr antes de usar como baseline. Ver banner del archivo |
+| `archive/scientific_benchmarks_policy_claude.md` | Research exploratorio original consolidado en `benchmark_analysis.md` |
+| `archive/scientific_benchmarks_policy_gpt.md` | Research exploratorio original consolidado en `benchmark_analysis.md` |
+| `archive/eval_strategy.md` | Estrategia de eval anterior, superseded por `synthesis/thesis_evaluation_framework.md` |
+| `archive/eval_design_notes.md` | Notas de diseno de eval anteriores, superseded |
+| `archive/world_design_legacy.md` | Disenio de mundos legacy (BN era), superseded por SCM |
+| `archive/sreg_v2_design_findings.md` | Findings de la era v2, superseded |
+| `archive/s06_*` | Investigacion S06 archivada |
+
+---
+
+## Corte 2 — Por pregunta (si necesitas X, anda a Y)
+
+### Tesis y paper
+
+| Necesito... | Doc canonico |
+|---|---|
+| Que hay que demostrar para defender la tesis | `synthesis/thesis_evaluation_framework.md` |
+| Modelo, harness, suite, training config | `synthesis/sreg_training_transfer_protocol.md` |
+| Related work / SandMLE / RL-only vs SFT+RL | `synthesis/related_work_sandmle.md` |
+| Related work / SciGym / loop iterativo en biologia | `synthesis/related_work_scigym.md` |
+| Related work / SciAgentGym / long-horizon tool-use | `synthesis/related_work_sciagentgym.md` |
+| Que mide cada benchmark + ejemplos + transfer esperado | `synthesis/external_benchmarks_transfer_analysis.md` |
+| Por que SciGym esta en Tier 1 ahora | `synthesis/thesis_evaluation_framework.md` (seccion "Por que SciGym esta en Tier 1") |
+| Background denso de benchmarks (para writing) | `archive/benchmark_analysis.md` (background, no canon) |
+| BEFORE scores viejos (no validos hoy) | `archive/benchmark_results.md` (con banner) |
+
+### Producto y scoring
+
+| Necesito... | Doc canonico |
+|---|---|
+| Vision de Open Investigation | `synthesis/open_investigation_vision.md` |
+| Principios de scoring (verdad/relevancia/cobertura) | `synthesis/oi_scoring_fundamentals.md` |
+| Cobertura cientifica (que cubre SREG y que no) | `synthesis/sreg_scientific_coverage.md` |
+| Taxonomia de investigacion | `synthesis/scientific_research_taxonomy.md` + `synthesis/Doc1_Taxonomia_El_Mapa.md` |
+| Escenarios diversos para validacion E2E | `synthesis/investigation_scenarios_rubric.md` |
+| **4 suites de evaluacion sistematica** | `synthesis/eval_suite_framework.md` |
+| **Science Coverage suite (diseño)** | `synthesis/eval_suite_science_coverage.md` |
+| Spec de SQ matching (compile + match + agg) | `synthesis/sq_v2_matching_spec.md` |
+| Diseno del answer key | `synthesis/a27_answer_key_contract.md` |
+| Por que SCM y no BN | `synthesis/scm_migration_rationale.md` |
+
+### Casos y diseno
+
+| Necesito... | Doc canonico |
+|---|---|
+| Como diseniar SRCs que parezcan investigacion real | `synthesis/research_case_design.md` |
+| Patrones que aparecen en papers reales | `synthesis/real_papers_patterns.md` |
+
+### Investigaciones empiricas activas (notes/)
+
+Para findings empiricos en curso (compiler bugs, modos semanticos, A21/A22/A23,
+S03/S04, etc.) ver `notes/`. Estos no son canon — son insumo.
+
+---
 
 ## Regla de promocion
 
-1. Idea nueva, debate, exploracion → `notes/`
-2. Se investiga y consolida → `synthesis/`
-3. Si se vuelve decision del proyecto → se promueve a `PROJECT.md` o
+1. Idea nueva, debate, exploracion -> `notes/`
+2. Se investiga y consolida -> `synthesis/`
+3. Si se vuelve decision del proyecto -> se promueve a `PROJECT.md` o
    `ARCHITECTURE.md`
-4. Si implica trabajo pendiente → `TODO.md`
-5. Si se implementa → `CURRENT_STATE.md` + `CHANGELOG.md`
+4. Si implica trabajo pendiente -> `TODO.md`
+5. Si se implementa -> `CURRENT_STATE.md` + `CHANGELOG.md`
 
-El archivo de research queda como registro historico — no se borra,
-pero deja de ser la fuente de verdad para esa decision.
+El archivo de research queda como registro historico — no se borra, pero
+deja de ser la fuente de verdad para esa decision.
 
-## Nota sobre docs heredados
+---
 
-Algunos archivos en `notes/` siguen siendo megadocs heredados o notas de
-sesion. Se conservan como insumo, pero la referencia activa deberia ir
-desplazandose hacia `synthesis/`.
+## Que NO hacer
 
-## Lineas de investigacion activas
-
-### Research case design
-- **Pregunta:** como diseniar SRCs que se sientan como investigacion real sin
-  perder evaluabilidad fuerte.
-- **Empezar por:** `synthesis/research_case_design.md`
-- **Notas de apoyo:** `notes/world_design_legacy.md`,
-  `notes/sreg_v2_design_findings.md`
-
-### Patrones de papers reales
-- **Pregunta:** que rasgos aparecen de forma consistente en investigaciones
-  reales y que implican para SREG.
-- **Empezar por:** `synthesis/real_papers_patterns.md`
-- **Notas de apoyo:** `notes/real_investigations_analysis.md`
-
-### Eval types y taxonomia cientifica
-- **Pregunta:** que tipos de preguntas fuerzan investigacion real y cuales se
-  pueden resolver por shortcut, prior o estructura generica.
-- **Empezar por:** `synthesis/eval_types_analysis.md`
-- **Notas de apoyo:** `notes/scientific_taxonomy.md`,
-  `notes/scientific_taxonomy_deep_research.md` (deep research: como se hace
-  ciencia hoy, taxonomy explicita/implicita, curriculum RL propuesto),
-  `synthesis/scientific_research_taxonomy.md` (framework completo de
-  clasificacion con objectives, axes, workflows, scoring, ejemplos),
-  `notes/solver_trajectory_findings.md`,
-  `notes/sreg_v2_design_findings.md`
-
-### Estrategia de evaluacion
-- **Pregunta:** como evaluar SREG sin reducirlo a un benchmark disfrazado.
-- **Empezar por:** `synthesis/eval_strategy.md`
-- **Rubrica cualitativa:** `synthesis/qualitative_eval_rubric.md` — 7
-  dimensiones + 6 critical failures + no-data baseline probe. Formaliza la
-  evaluacion cualitativa que antes era ad-hoc.
-- **Segunda evaluacion formal:** `synthesis/qualitative_eval_2026_03_25.md` —
-  3 SRCs post-I10 (football, coral, asthma). 6 problemas nuevos encontrados.
-  Mejora significativa en capa visible; problemas actuales son mas profundos.
-- **Notas de apoyo:** `notes/eval_design_notes.md`
-
-### Benchmarks externos
-- **Pregunta:** con que benchmarks conviene medir alineacion y transferencia
-  fuera de SREG.
-- **Empezar por:** `synthesis/benchmark_analysis.md`
-- **Notas de apoyo:** `notes/benchmark_results.md`
-
-### Modos semanticos (realistic vs fictional vs abstract)
-- **Pregunta:** que modo semantico fuerza mas investigacion genuina y minimiza
-  contaminacion por priors de pretraining.
-- **Empezar por:** `notes/semantic_modes_experiment_2026_03_17.md`
-- **Conecta con:** A3 y I2 en `TODO.md`
-- **Status:** dos experimentos (Vaca Muerta + Football). Ver notas para
-  hallazgos consolidados.
-
-### Cobertura cientifica de SREG
-- **Pregunta:** que tipos de ciencia puede representar SREG y cuales no.
-- **Empezar por:** `synthesis/sreg_scientific_coverage.md`
-- **Framework de referencia:** `synthesis/scientific_research_taxonomy.md`
-- **Conecta con:** A2, A4, A5, A8 en `TODO.md`
-
-### Por que SREG todavia no es investigacion real (debate)
-- **Pregunta:** que brechas fundamentales separan a SREG de la investigacion real,
-  mas alla de las conocidas (variables continuas, teoria inventada).
-- **Empezar por:** `notes/why_not_real_research_debate.md`
-- **Participantes:** Claude, Codex (gpt-5.2), usuario
-- **Hallazgos clave:** el solver no sabe que es una BN, pero los templates de
-  preguntas filtran el framework (do-operation, backdoor paths). Fix aplicado:
-  preguntas naturalizadas.
-- **Conecta con:** A1, A3 en `TODO.md`
-
-### Mediciones indirectas — senales proxy en el SCM
-- **Pregunta:** como hacer que el solver no vea variables causales directamente
-  sino senales instrumentales proxy, como en investigacion real.
-- **Empezar por:** `notes/indirect_measurement_design.md`
-- **Conclusion:** no requiere capa nueva — son nodos adicionales en el grafo
-  cuyas ecuaciones simulan la respuesta del instrumento. El orchestrator decide
-  que nodos son latentes y cuales observables al diseñar el SCM.
-- **Conecta con:** Fase 3 (orchestrator diseña SCMs), LA PREGUNTA
-- **Status:** DOCUMENTADO. Implementar cuando orchestrator diseñe SCMs.
-
-### P2: Naturalizacion de preguntas
-- **Pregunta:** como eliminar node_ids como codigo y framing de do-calculus
-  de las preguntas visibles al investigador.
-- **Empezar por:** `notes/p2_semantic_question_naturalization.md`
-- **Conecta con:** I10 Fase 2c en `TODO.md`, hallazgos H1/H2/CF4 de evaluacion
-  cualitativa (`synthesis/qualitative_eval_2026_03_24.md`)
-- **Status:** IMPLEMENTADO. Pendiente: E2E con 3 SRCs nuevos.
-
-### Brief vs eval separation — preguntas reales vs scoring oculto
-- **Pregunta:** como hacer que el investigador reciba un encargo de
-  investigacion real en vez de preguntas tipo benchmark.
-- **Empezar por:** `notes/brief_vs_eval_separation.md`
-- **Hallazgo clave:** el sistema confunde tres capas: brief (visible),
-  eval agenda (scoring plan), query formal (ground truth). Hoy las tres
-  estan colapsadas en CasePlan.questions.
-- **Solucion implementada:** `CasePlan.research_brief` + `deliverables`.
-  `SCMProblemBuilder` prioriza brief. Orchestrator requiere brief para SCM.
-  Prompt del solver muestra "Research Brief" como seccion visible.
-- **Conecta con:** task primitives, LA PREGUNTA
-- **Status:** IMPLEMENTADO (Fase 5). Pendiente: task questions individuales
-  siguen semi-mecanicas (futuro: task primitives).
-
-### Task primitives composicionales — expandir evaluacion SCM
-- **Pregunta:** como expandir los 9 task types fijos a una arquitectura mas
-  expresiva que cubra ciencia real, sin perder reward exacto.
-- **Empezar por:** `notes/scm_task_primitives.md`
-- **Decision clave:** "free-form wording, closed-form semantics" — el LLM
-  escribe preguntas en NL pero compila a primitivas formales con ground truth
-  computable. Preguntas realmente libres descartadas (caen en LLM-judge).
-- **Primitivas propuestas:** marginal, interventional, ate, mediation,
-  interaction, d_separation, adjustment_set, nonlinearity, threshold,
-  dose_response, compare_interventions, etc.
-- **Conecta con:** Fase 4 (orchestrator wiring), LA PREGUNTA
-- **Status:** PROPUESTA EN DISCUSION. No implementar antes de Fase 4.
-
-### Open Investigation — investigacion libre con reward exacto
-- **Pregunta:** como dejar que el solver investigue libremente sin perder
-  reward exacto contra el SCM.
-- **Empezar por:** `synthesis/open_investigation_vision.md`
-- **Insight clave:** usar un LLM translator (analogo al orchestrator pero
-  invertido) que compile hallazgos en NL a queries formales. El LLM traduce,
-  no juzga. El reward siempre es contra el SCM.
-- **Conecta con:** brief_vs_eval_separation, scm_task_primitives, LA PREGUNTA
-- **Status:** VISION EN DESARROLLO. No implementar — disenar y madurar.
-
-### Migracion a SCM — de BN a grafo + ecuaciones + simulacion
-- **Decision:** migrar de BN discreta (CPD tables) a SCM (Structural Causal
-  Model) con ecuaciones arbitrarias y reward via Monte Carlo.
-- **Empezar por:** `synthesis/scm_migration_rationale.md` (fundamentos completos)
-- **Evidencia de apoyo:** `notes/gaussian_bn_prototype_findings.md` (prototipo Gaussian)
-- **Que se mantiene:** grafo causal, d-separation, do-calculus, reward sin LLM judge
-- **Que cambia:** CPD tables -> ecuaciones Python, inferencia analitica -> Monte Carlo
-- **Status:** DECIDIDO. Implementacion en branch `feature/scm-engine`
-- **Conecta con:** A8 en `TODO.md`
+- **No citar `archive/` como fuente de verdad activa.** Es background.
+- **No promover docs viejos a `synthesis/` sin actualizarlos.** Si hace
+  falta material de archive en el paper, **extraer** lo vigente al canon
+  en lugar de mover el archivo entero.
+- **No agregar docs nuevos a `synthesis/` sin actualizar este indice.**
+  Si rompes esto, este README deja de ser util.

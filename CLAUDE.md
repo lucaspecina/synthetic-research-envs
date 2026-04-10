@@ -1,320 +1,214 @@
 # SREG — Claude Code Project Configuration
 
-## Documentacion del proyecto — donde buscar cada cosa
+## 🚨 MODO DE TRABAJO ACTUAL: COLABORATIVO 🚨
+*(Cambiar a "AUTORESEARCH" cuando se requiera trabajo autónomo sin frenar)*
 
+Existen **DOS modos de trabajo completamente distintos**.
 
-| Documento            | Responde                                               | Leer                                  |
-| -------------------- | ------------------------------------------------------ | ------------------------------------- |
-| `PROJECT.md`         | Por que existe SREG, que principios no pueden violarse | Siempre antes de decisiones de diseno |
-| `ARCHITECTURE.md`    | Como esta organizado el sistema objetivo               | Antes de implementar algo nuevo       |
-| `CURRENT_STATE.md`   | Que parte de la arquitectura existe hoy                | Para saber que hay y que falta        |
-| `TODO.md`            | Que trabajo esta pendiente, que problemas hay, inbox de ideas | Para saber que hacer                  |
-| `CHANGELOG.md`       | Historia de cambios                                    | Cuando necesites contexto historico   |
-| `research/`          | Analisis, hallazgos, sintesis                          | Cuando investigues o explores         |
-| `research/README.md` | Reglas + indice de que investiga cada archivo           | Para saber que research existe        |
+### MODO 1: COLABORATIVO (Con el usuario)
+Este es el flujo de siempre. Es pausado, interactivo y requiere aprobación humana.
+- **Ir contando lo que haces** paso a paso, amigablemente, en español.
+- **Consultar antes de avanzar** — no hacer 3 pasos seguidos sin preguntar.
+- **Explicar decisiones** — por qué elegiste este approach, qué alternativas descartaste.
+- **Debatir con Codex** — buscar una segunda opinión técnica antes de implementar cambios grandes.
+- **Esperar feedback** entre pasos significativos. No commitear sin OK explícito.
 
+### MODO 2: AUTORESEARCH (Autónomo)
+Este modo es para cuando el usuario te pide que investigues o implementes algo por tu cuenta, sin frenar.
+- **NO frenar a menos que el usuario interrumpa.**
+- **Registrar todo** a modo de logs y documentos en `research/`.
+- **Ciclo Iterativo Autónomo:** PENSAR (hipótesis) -> PROBAR (scripts/experimentos) -> ANALIZAR (documentar resultados) -> PENSAR...
 
-## Mantener la documentacion actualizada — CRITICO
+---
 
-**Esta es la regla mas importante de todo el archivo.** Si la documentacion
-se desactualiza, todo lo demas deja de funcionar. Los otros docs se vuelven
-mentira y las decisiones se toman sin informacion.
+## 🚨 PRINCIPIOS RECTORES Y CHECKLIST DE DISEÑO 🚨
 
-### Regla de promocion (TODO inbox → research → docs canonicos)
+**OBLIGATORIO PARA AMBOS MODOS.** Antes de escribir código, debes demostrar (en el chat o en tus logs de autoresearch) que el diseño propuesto respeta estos principios.
 
-0. Idea cruda, problema, pregunta abierta → seccion "Inbox" de `TODO.md`
-1. Se procesa en sesion → `research/notes/` (si necesita investigacion)
-   o directamente a la seccion de analisis/implementacion de `TODO.md`
-2. Se consolida con evidencia → `research/synthesis/`
-3. Se vuelve decision → se promueve a `PROJECT.md` o `ARCHITECTURE.md`
-4. Se implementa → `CURRENT_STATE.md` + `CHANGELOG.md`
+### LA PREGUNTA (El filtro diagnóstico)
+> **¿Por qué esto todavía no es una investigación real? ¿Qué le falta?**
+>
+> **¿Por qué un modelo entrenado con RL sobre SREG todavía no aprendería buen juicio científico?** Que le falta al sistema para enseñar: research taste, descomposición de problemas, generación de preguntas fine-grained, buen plan de investigación, saber qué es relevante para el objetivo y qué no, saber cuándo una conclusión es prematura vs bien fundada.
 
-### Como leer y mantener `research/`
+### PRESIONES EVOLUTIVAS (El criterio de diseño)
+> **SREG debe estar diseñado para que las presiones evolutivas fuercen que
+> los agentes bien puntuados tengan buen juicio científico** — porque NO
+> tener estas habilidades produce en promedio scores más bajos.
+>
+> **Test de diseño:** para cada componente, ¿un agente SIN la propiedad X
+> obtiene en promedio un score más bajo? Si no, hay que rediseñar.
+>
+> Lista completa de propiedades en `PROJECT.md` sección "Presiones evolutivas".
 
-1. Empezar siempre por `research/README.md`
-2. Leer `research/synthesis/` antes que `research/notes/`
-3. Usar `research/notes/` para detalle, debate, legado o evidencia de apoyo
-4. Si creas o mueves un doc de research, actualizar el indice en
-   `research/README.md` en el mismo cambio
-5. Si un note deja de ser referencia activa, agregar una nota corta arriba
-   apuntando a la sintesis o al doc canonico que corresponda
+LA PREGUNTA y las presiones evolutivas son complementarias: LA PREGUNTA diagnostica ("¿qué falta?"), las presiones evolutivas son el criterio de diseño ("¿el scoring fuerza esto?").
 
-### Que actualizar despues de cada cambio
+Cada decisión pasa por este TRIPLE filtro:
+1. ¿Se parece a investigación real? Si no, es un bug.
+2. ¿Crea presión evolutiva hacia buen juicio científico? Si no, rediseñar. (Ver lista en `PROJECT.md`)
+3. ¿Funciona para la MAYORÍA de los tipos de investigación? No solo "X causa Y" — system mapping, structure discovery, descriptivo, predictivo, epistemológico, optimización, multi-outcome, etc. Si solo funciona para causal simple, es un juguete. Repasar mentalmente los escenarios diversos ANTES de diseñar: `research/synthesis/investigation_scenarios_rubric.md`.
 
+### El Checklist de Diseño (Responde estas 4 preguntas antes de codear):
+1. **¿Estoy creando un parche hardcodeado o una regla universal?**
+   *(Si escribes `if tipo == X` para manejar un caso borde, estás fallando. Busca la propiedad matemática subyacente. Ej: la verdad canónica es el output del SCM, no una aserción forzada).*
+2. **¿Esto mete un LLM en el loop de scoring de VERDAD?**
+   *(Prohibido. La Verdad es matemática contra el SCM. La Relevancia puede usar LLM hoy, pero debe ser reemplazable por feature-matching para RL).*
+3. **¿Esto fuerza al sistema a un tipo de investigación específico?**
+   *(Debe soportar causal simple, system mapping, descriptivo, epistemológico, etc).*
+4. **¿El Solver podría hackear esto sin investigar los datos?**
+   *(Si el Solver gana puntos adivinando o usando fuerza bruta textual, el reward es débil).*
 
-| Que cambio                         | Actualizar                                                            |
-| ---------------------------------- | --------------------------------------------------------------------- |
-| Completaste una tarea              | `TODO.md` + `CHANGELOG.md` + `CURRENT_STATE.md` si cambia capacidades |
-| Agregaste/moviste archivo o modulo | `CLAUDE.md` si cambia el mapa del repo + `CURRENT_STATE.md` si cambia capacidades |
-| Agregaste/moviste research doc     | `research/README.md` + referencias cruzadas o nota de status si hace falta |
-| Cambiaste vision o principios      | `PROJECT.md` primero, propagar a `ARCHITECTURE.md` y `TODO.md`        |
-| Nuevo hallazgo de research         | `research/notes/` o `research/synthesis/` + actualizar indice en `research/README.md` |
-| Nuevo eval type o task type        | `CURRENT_STATE.md` + `ARCHITECTURE.md` si cambia la superficie        |
-| Cambiaste orchestrator/agent/env   | Re-correr diagnostico para verificar que no degradaron los entornos   |
-| Cambiaste dependencia              | `pyproject.toml` + tech stack de este archivo                         |
-| Cambiaste convencion               | Este archivo, inmediatamente                                          |
+### Principios de Scoring — NO NEGOCIABLES
+1. **UN solo método para todo** — sin scoring profiles por tipo de investigación.
+2. **El sistema se adapta a los casos** — el scoring no fuerza una forma.
+3. **El brief es libre** — una pregunta, varias, vagos, mixtos: todo válido.
+4. **No construir un juego** — si necesita "roles", "slots", "pattern_weights" para funcionar, es un juego, no evaluación de investigación.
+5. **Verificación es el core** — el SCM verifica. El scoring solo pregunta: ¿es verdad? ¿es relevante? ¿cubrió lo pedido? ¿no spameó?
+6. **Diversidad de investigación** — todo diseño debe funcionar para los tipos diversos de investigación. No diseñar solo para "X→Y".
 
+## Donde buscar que
 
-### Commit workflow — MANDATORIO
+| Necesito... | Ir a... |
+|---|---|
+| Entender como funciona el sistema hoy (usuario, explicacion AMIGABLE) | `CURRENT_STATE.md` |
+| Entender la arquitectura tecnica | `ARCHITECTURE.md` |
+| Vision, principios, invariantes | `PROJECT.md` |
+| Que hacer / trabajo pendiente | `TODO.md` |
+| Historial de cambios | `CHANGELOG.md` |
+| Indice de research (que doc es canon, cual no) | `research/README.md` |
+| **Tesis/paper: que hay que demostrar** | `research/synthesis/thesis_evaluation_framework.md` |
+| **Tesis/paper: config operativa (modelo, harness, suite)** | `research/synthesis/sreg_training_transfer_protocol.md` |
+| **Tesis/paper: related work (SandMLE)** | `research/synthesis/related_work_sandmle.md` |
+| **Tesis/paper: related work (SciGym)** | `research/synthesis/related_work_scigym.md` |
+| **Tesis/paper: related work (SciAgentGym)** | `research/synthesis/related_work_sciagentgym.md` |
+| **Tesis/paper: benchmarks externos, ejemplos y transfer** | `research/synthesis/external_benchmarks_transfer_analysis.md` |
+| 23 escenarios de validacion | `research/synthesis/investigation_scenarios_rubric.md` |
+| Vision de Open Investigation | `research/synthesis/open_investigation_vision.md` |
+| Scoring fundamentals | `research/synthesis/oi_scoring_fundamentals.md` |
+| Taxonomia de investigacion | `research/synthesis/Doc1_Taxonomia_El_Mapa.md` |
+| Scoring next design (sub-questions) | `research/synthesis/oi_scoring_next_design.md` |
+| **Eval suites (4 suites sistematicas)** | `research/synthesis/eval_suite_framework.md` |
+| **Science Coverage suite (diseño)** | `research/synthesis/eval_suite_science_coverage.md` |
 
-```
-1. Desarrollo + Tests + Validation
-   Escribir codigo + pytest + ruff + E2E
+## Skills disponibles
 
-2. Codex review + Fix     (MANDATORIO si MCP disponible, skip si trivial)
-   Mandar a Codex para critica. Fixear hallazgos. Re-testear.
-   Iterar hasta que Codex no tenga criticas graves.
+| Skill | Cuando usarla |
+|---|---|
+| `/run` | Generar un caso de investigacion con LLM |
+| `/eval` | Evaluar calidad de casos (L2, la que importa) |
+| `/rescore` | Re-evaluar casos congelados sin regenerar (P0) |
+| `/explain` | Presentar cambios al usuario antes de commit |
+| `/codex-collab` | Consultar Codex como segunda opinion |
+| `/plan` | Ver roadmap y estado del proyecto |
+| `/status` | Resumen rapido de donde estamos |
 
-3. Presentar al usuario   (SIEMPRE)
-   Explicar en espanol. Pedir aprobacion.
-   ESPERAR aprobacion. NO commitear sin ella.
+### research/ — mantener limpio
 
-4. Actualizar docs + Commit (solo DESPUES de aprobacion)
+- `synthesis/` = conclusiones. `notes/` = working docs. `archive/` = legacy.
+- Siempre actualizar `research/README.md` cuando muevas o crees un doc.
 
-5. Sugerir proximos pasos
-```
+## Antes de cada commit — QUE ACTUALIZAR
 
-Ver `/precommit` skill para el protocolo completo.
+1. **CURRENT_STATE.md** — el cambio afecta como funciona el sistema? Actualizar.
+2. **CHANGELOG.md** — agregar entrada describiendo el cambio (producto, no internals).
+3. **TODO.md** — completaste algo? Marcarlo. Surgio algo nuevo? Agregarlo.
+4. **research/README.md** — cambiaste o creaste docs de research? Actualizar indice.
+5. **ARCHITECTURE.md** — cambiaste componentes, contratos o flows? Actualizar.
+6. **Tests y scripts** — el cambio deja tests o scripts obsoletos? Eliminarlos.
+7. **Skills, memorias, otros** — el cambio deja skills (`.claude/skills/`),
+ memorias, o scripts con referencias obsoletas? Actualizarlos o eliminarlos.
 
-## LA PREGUNTA — el ordenador de todo el proyecto
+**"Actualizar" no es solo docs del repo. Es TODO lo que referencia al sistema:
+skills, memorias, scripts, configs. Si algo quedo desactualizado, arreglarlo.**
 
-> **¿POR QUE ESTO TODAVIA NO ES UNA INVESTIGACION REAL? ¿QUE LE FALTA?**
+## Validacion — LA UNICA QUE IMPORTA ES E2E
 
-**Esta pregunta debe estar presente en CADA decision, CADA evaluacion, CADA
-linea de codigo.** No es un principio aspiracional — es el filtro operativo
-diario. Si no podes responder "que le falta para ser investigacion real",
-no entendes el problema.
+**La validacion real de CUALQUIER cambio es una evaluacion multi-nivel,
+cualitativa, del end-to-end de la investigacion real.** Unit tests son un
+check mecanico secundario — confirman que el codigo no rompe, nada mas.
+NUNCA usar unit tests como evidencia de que un cambio "funciona". Para
+saber si funciona: correr el pipeline E2E con LLM real (`/run --oi`) y
+evaluar cualitativamente el resultado (`/eval`).
 
-### Como aplicarla
+**Escenarios diversos — NO NEGOCIABLE**: los E2E SIEMPRE deben cubrir tipos
+variados de investigacion. NUNCA correr solo causal simple. Cada batch de
+validacion debe incluir al menos 3 tipos distintos de:
+`research/synthesis/investigation_scenarios_rubric.md` (system mapping,
+heterogeneidad, confounding, descriptivo, multi-outcome, epistemologico, etc.).
+Si solo probaste "X causa Y", NO validaste nada. Usar seeds de `seeds/`
+para generar casos diversos: `python scripts/generate_src.py --seed-file seeds/X.md -o ... --oi`.
 
-- **Al evaluar un SRC**: Se parece a un problema de investigacion real? Las preguntas
-  son las que un investigador haria? Los datos tienen la estructura que tendria un
-  dataset real? **Que le falta para que un cientifico lo confunda con un caso real?**
-- **Al evaluar al solver**: Esta investigando como investigaria una persona? Usa los
-  datos? Razona causalmente? O responde desde priors de pretraining? **Que le falta
-  al entorno para FORZAR investigacion genuina?**
-- **Al disenar cambios**: Este cambio acerca el entorno a investigacion real, o lo
-  aleja? **Resuelve alguna de las brechas conocidas, o es cosmético?**
-- **Al interpretar scores**: Un score bajo significa que el solver fallo como
-  investigador, o que el caso estaba mal disenado? **El score captura calidad de
-  investigacion o solo coincidencia numerica?**
-- **Al priorizar trabajo**: Entre dos tareas, priorizar la que cierra una brecha
-  mas grande entre SREG y la investigacion real.
-
-### La respuesta evoluciona
-
-La respuesta a "que le falta" cambia a medida que SREG mejora. Hoy las brechas
-principales estan documentadas en `research/synthesis/sreg_scientific_coverage.md`.
-Cada vez que se cierra una brecha, actualizar ese documento y re-preguntar:
-**¿y ahora que le falta?**
-
-### La regla de oro
-
-Si algo no se parece a investigacion real, es un bug — no importa si los tests
-pasan. Si algo se parece a un juego artificial (budgets de juguete, acciones
-predefinidas, preguntas que se responden sin datos), hay que eliminarlo o
-rediseniarlo.
-
-## Harness de evaluacion — como sabemos si SREG funciona
-
-Tres niveles fundamentalmente distintos. Cada uno responde una pregunta
-diferente y se corre en momentos diferentes.
-
-### Nivel 1: Tests automaticos (`pytest`)
-
-**Pregunta:** "El codigo funciona?"
-**Cuando:** antes de cada commit. Siempre.
-**Como:** `pytest tests/ -v` + `ruff check src/ tests/`
-
-### Nivel 2: Diagnostico de entornos (`/eval`)
-
-**Pregunta:** "Los entornos generados son buenos?"
-**Cuando:** despues de cambios que afecten generacion (templates, prompts,
-orchestrator, data pipeline, problem builder).
-**Como:** generar SRCs reales con el sistema completo y evaluarlos.
-
-Tiene dos componentes igualmente importantes:
-
-#### 2a. Cuantitativo (DiagnosticRunner)
-Metricas automaticas: KL, submit rate, baseline comparison por eval type,
-budget efficiency, failure modes. Ver `/eval` skill.
-
-#### 2b. Cualitativo (Rubrica + descubrimiento abierto)
-**LEER los casos generados.** Esto no es opcional ni secundario — es donde
-se encontraron TODOS los problemas fundamentales de SREG hasta ahora.
-
-Dos fases:
-1. **Rubrica estructurada**: evaluar dimensiones conocidas (0-1-2) y
-   critical failures (si/no). Ver `research/synthesis/qualitative_eval_rubric.md`.
-2. **Descubrimiento abierto**: leer el caso con ojos frescos y buscar
-   CUALQUIER cosa que no se sienta como investigacion real. Los problemas
-   nuevos no estan en la rubrica — hay que buscarlos activamente.
-
-**No-data baseline probe**: darle el brief + preguntas a un LLM SIN dataset.
-Si responde bien, el SRC no fuerza investigacion. Es el test mas poderoso.
-
-#### Evolucion de la rubrica
-
-La rubrica es un piso, no un techo. Se evoluciona asi:
-
-1. **Descubrimiento**: durante evaluacion cualitativa se encuentra un
-   problema nuevo (no cubierto por las dimensiones/CF existentes)
-2. **Registro**: se documenta en `research/synthesis/qualitative_eval_rubric.md`
-   seccion "Registro de hallazgos" con fecha, evidencia, y caso donde aparecio
-3. **Promocion**: si el problema aparece en 2+ evaluaciones independientes,
-   se promueve a nueva dimension o critical failure
-4. **Refinamiento**: las dimensiones existentes se detallan con sub-criterios
-   cuando la escala 0-1-2 no captura suficiente matiz
-
-**Regla clave**: si encontras un problema y no esta en la rubrica, el
-problema es real y la rubrica esta incompleta. Nunca ignorar un problema
-porque "no esta en el checklist".
-
-### Nivel 3: Transfer benchmark (FUTURO, SEPARADO)
-
-**Pregunta:** "Entrenar en SREG mejora las policies?"
-**Cuando:** cuando haya policies entrenadas.
-**Como:** benchmarks externos (CLadder, QRData, DiscoveryBench).
-No es parte de SREG core. Ver `research/synthesis/benchmark_analysis.md`.
-
-### Referencia rapida
-
-| Nivel | Skill | Frecuencia | Que mide |
-|-------|-------|------------|----------|
-| L1 Tests | `/test` | Cada commit | Codigo funciona |
-| L2 Cuanti | `/eval` | Post-cambio generacion | Metricas de entornos |
-| L2 Cuali | `/eval` | Post-cambio generacion | Realismo, coherencia, problemas nuevos |
-| L3 Transfer | — | Futuro | Mejora de policies |
-
-## Project overview
-
-SREG genera entornos sinteticos de investigacion con reward signals exactos,
-para entrenar razonamiento cientifico via RL. Ver `PROJECT.md` para la
-vision completa, `ARCHITECTURE.md` para el diseno del sistema.
-
-**Terminologia clave:**
-
-- **SRC** (Synthetic Research Case): la unidad de producto — world + problem + tasks + data
-- **Teacher**: policy optima (upper bound del reward)
-- **SCM** (Structural Causal Model): la verdad formal oculta de cada SRC.
-  Grafo causal + ecuaciones + ruido. Engine principal del pipeline E2E.
-  Ver `research/synthesis/scm_migration_rationale.md` para los fundamentos.
-- **BN** (legacy): red bayesiana discreta. Disponible pero ya no se usa en
-  el pipeline principal. Se mantiene por backward compatibility.
+**Unit tests - MINIMO INDISPENSABLE**
+- **Solo correr tests DESPUES de cambiar codigo.** No como ritual, no como
+  verificacion previa a commit, no "por si acaso". Si no cambiaste codigo,
+  no corras tests.
+- **NUNCA correr la suite completa** salvo que el usuario lo pida explicitamente.
+- Si cambias un archivo, correr SOLO el test de ese archivo. UNA VEZ.
+- Si falla un import, arreglar el import — no re-correr toda la suite.
+- **NUNCA** correr tests en paralelo ni repetir la misma suite.
+- En caso de duda: NO correr tests. Preguntar al usuario.
 
 ## Environment setup
 
 ```bash
-conda activate sreg
+conda activate sreg # Python 3.11
+pip install -e ".[dev]"
 ```
 
-Python 3.11. Recrear: `conda create -n sreg python=3.11 -y && conda activate sreg && pip install -e ".[dev]"`
+## Azure LLM — SIEMPRE DISPONIBLE
+
+**Las credenciales de Azure estan en `.env` en la raiz del repo.** Se cargan
+automaticamente via `python-dotenv` en todos los scripts y el orchestrator.
+**NUNCA asumir que Azure no esta disponible.** Si necesitas el LLM, usalo.
+
+Modelos: `gpt-5.4` (orchestrator), `gpt-5.2-codex` (solver). Ver `.env` para
+lista completa y advertencias de costo.
 
 ## Tech stack
 
-- **pgmpy** — BN construction + inference (`DiscreteBayesianNetwork`, NOT `BayesianNetwork`)
-- **networkx** — DAG validation (`nx.is_d_separator()`, NOT `nx.d_separated`)
-- **numpy / scipy** — sampling, distributions
-- **pydantic v2** — data contracts (`BaseModel`, not dataclass)
-- **openai SDK** — LLM via Azure AI Foundry, Responses API (`client.responses.create`, NOT `chat.completions`)
+- **networkx** — DAG: `nx.is_d_separator()` (NOT `nx.d_separated`)
+- **numpy / scipy / pydantic v2** — sampling, distributions, contracts
+- **openai SDK** — Responses API: `client.responses.create` (NOT `chat.completions`)
 - **pytest** + **ruff** (line length 100)
 
-Env vars: `AZURE_INFERENCE_CREDENTIAL`, `AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL` (orchestrator),
-`AZURE_SOLVER_MODEL` (solver, defaults to AZURE_MODEL)
+Env vars (en `.env`, cargados por dotenv): `AZURE_INFERENCE_CREDENTIAL`,
+`AZURE_FOUNDRY_BASE_URL`, `AZURE_MODEL`, `AZURE_SOLVER_MODEL`
 
 ## Project structure
 
 ```
 src/sreg/
-├── models/          # Pydantic contracts (World, Episode, Task, Score, DAGSpec, CasePlan...)
-├── inference/       # LLM protocol (ModelClient, OpenAIClient, ToolEnrichedClient, responses_utils)
-├── world/           # Templates, cpd_gen, DAG generators, pgmpy utils
-├── solver/          # Teacher (exact Bayesian inference)
-├── tools/           # WorldGen, WorldCheck, EpisodeGen, TaskGen, Verifier, ProblemBuilder
-├── env/             # EpisodeRunner
-├── orchestrator/    # LLM orchestrator (function calling, case design)
-├── agent/           # Solver diagnostico (python_exec, engine, solve_case)
-├── benchmarks/      # CLadder, QRData, DiscoveryBench adapters
-├── training/        # SregEnv/verifiers adapter (experimental)
-├── harness/         # DiagnosticRunner, trajectories, comparison
-└── display.py
-
-scripts/
-├── generate_src.py        # Generar SRCs (--inspect, --solve, --report, PDF seeds)
-├── run_benchmark.py       # Benchmarks externos (--with-tools, --base-url)
-├── run_diagnostic.py      # N SRCs + metricas + failure modes
-├── serve_model.sh         # vLLM setup
-├── demo.py                # Demo sin LLM
-├── view_case.py           # Inspeccionar casos exportados
-├── view_trajectory.py     # Inspeccionar trayectorias
-├── batch_sweep.py         # Parameter sweep
-├── semantic_transform.py  # Transformar SRC a modo abstract/fictional
-└── run_inspiration_reports.py  # Batch inspiration reports
-
-seeds/               # Paper seeds (PDF, markdown)
-experiments/         # Resultados de diagnostico
-research/            # Analisis, hallazgos, sintesis (ver research/README.md)
-tests/               # Mirrors src/ structure
-.claude/skills/      # /plan, /status, /test, /review, /phase, /codex-collab
+ models/ # Pydantic contracts (SCM, OI, tasks, episodes)
+ inference/ # LLM protocol (ModelClient, Responses API)
+ world/ # SCM engine (scm.py, expression compiler, scm_data)
+ solver/ # SCMSolver (teacher / ground truth)
+ tools/ # SCM pipeline + OI pipeline (compiler, verifier, salience, runner)
+ orchestrator/ # LLM orchestrator (function calling, SCM-only)
+ agent/ # python_exec + tool-calling engine (for OI solver)
+ benchmarks/ # CLadder, QRData, DiscoveryBench
+scripts/ # generate_src.py, run_benchmark.py
+seeds/ # Research seeds (.md/.pdf) for diverse E2E generation
+tests/ # Mirrors src/ structure
+research/ # Analisis y sintesis (ver research/README.md)
 ```
 
 ## Code conventions
 
 - Type hints on public functions
 - `__all__` exports in every `__init__.py`
-- Tests mirror src: `src/sreg/tools/X.py` → `tests/tools/test_X.py`
-- Imports: stdlib → third-party → local, separated by blank lines
+- Tests mirror src: `src/sreg/tools/X.py` -> `tests/tools/test_X.py`
+- Imports: stdlib -> third-party -> local, separated by blank lines
 - Terminal output: ASCII-safe (Windows cp1252)
 - Communicate with the user in **Spanish**
 
 ## Commands
 
-```bash
-pytest tests/ -v                          # All tests
-pytest tests/tools/test_world_gen.py -v   # Specific file
-ruff check src/ tests/                    # Lint
-ruff format src/ tests/                   # Format
-```
+`pytest tests/ -v` | `pytest tests/tools/test_X.py -v` | `ruff check src/ tests/` | `ruff format src/ tests/`
 
-## Git conventions
+## Git + Codex
 
 - Branch naming: `feature/<name>`, `fix/<name>`, `refactor/<name>`
-- Commit messages: imperative mood, concise
-- Always ask user before pushing
-
-## Codex collaboration
-
-**Only when Codex MCP is available.** Codex = critical collaborator, not yes-man.
-
-- **Mandatory**: code review after implementation
-- **Recommended**: strategy, design, problem-solving (use judgment)
-- **Skip**: doc-only, trivial fixes
-
-Claude leads, Codex advises. Present BOTH perspectives when disagreeing.
-See `/codex-collab` skill for full protocol.
-
-### Thread management — NON-NEGOTIABLE
-
-**SIEMPRE usar `codex-reply` con el `threadId` existente para continuar una
-conversacion.** Solo usar `mcp__codex__codex` (sesion nueva) cuando el tema
-sea genuinamente diferente. Codex retiene todo el contexto en el thread —
-re-explicar desperdicia tokens y produce respuestas mas superficiales.
-
-- Guardar el `threadId` de la primera llamada y reutilizarlo en TODOS los
-  follow-ups del mismo tema o sesion. El tool requiere el threadId explicito
-  — es responsabilidad de Claude trackearlo, NO del usuario.
-- Si no hay threadId previo o el tema cambio completamente → sesion nueva.
-- En caso de duda, USAR REPLY.
-
-## Worktrees
-
-Multiple Claude Code sessions MUST use worktrees (`claude --worktree <name>`).
-Each worktree gets its own branch and working directory. Check at session start:
-
-```bash
-git rev-parse --git-dir   # "worktrees/" = you're in one
-git branch --show-current
-```
-
-Rules: each session owns specific files, shared docs are danger zones,
-merge via main session review (not blind merge). No active worktrees currently.
+- Always ask user before pushing. Multiple sessions: `claude --worktree <name>`.
+- **Codex** (when MCP available): mandatory for code review, recommended for design.
+ Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.
+- **CLAUDE LIDERA, CODEX ASESORA.** Formar opinion propia ANTES de consultar.
+ Presentar ambas opiniones, argumentar desacuerdos. El usuario decide.
