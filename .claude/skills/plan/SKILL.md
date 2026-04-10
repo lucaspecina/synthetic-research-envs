@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Review the implementation plan and project status. Use when the user asks about the project roadmap, current phase, or what needs to be done next.
+description: Review the implementation plan and project status. Use when the user asks about the project roadmap or what needs to be done next.
 ---
 
 Review the current implementation plan and project status.

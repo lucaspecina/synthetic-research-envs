@@ -117,6 +117,5 @@ En espanol:
 
 ## Referencia
 
-- Rubrica: `research/synthesis/qualitative_eval_rubric.md`
 - Escenarios: `research/synthesis/investigation_scenarios_rubric.md`
 - OI vision: `research/synthesis/open_investigation_vision.md`

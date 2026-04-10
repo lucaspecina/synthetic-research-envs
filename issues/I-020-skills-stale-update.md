@@ -1,7 +1,7 @@
 ---
 id: 20
 title: Skills stale update — fix BN/legacy refs
-status: open
+status: done
 type: hygiene
 lane: hygiene
 priority: now
@@ -12,9 +12,9 @@ origin: audit 2026-04-10
 # I-020: Skills stale update — fix BN/legacy refs
 
 ## Status
-- **Estado:** diagnosticado durante release audit
-- **Ultimo resultado:** 3 skills con refs legacy, 1-2 posiblemente obsoletas
-- **Proximo paso:** actualizar o eliminar skills criticas
+- **Estado:** DONE
+- **Ultimo resultado:** 6 skills actualizados, 1 eliminado
+- **Cerrado:** 2026-04-10
 
 ## Pregunta
 Varias skills del proyecto referencian conceptos eliminados (BN, semantic

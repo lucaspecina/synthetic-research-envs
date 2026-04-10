@@ -46,7 +46,7 @@ python scripts/generate_src.py --seed-file seeds/paper.pdf -o experiments/case_N
 If $ARGUMENTS is just a topic (e.g., `/run epidemiology`), build a goal like:
 ```
 "Generate a research problem about [topic] in a fictional setting.
-Use dag_construct with 8 nodes. Design a research case."
+Use scm_construct with 8 variables. Design a research case."
 ```
 
 Always use `-o experiments/case_TOPIC/` with a descriptive name.
