@@ -25,7 +25,7 @@ and pass as the `base-instructions` parameter.
 This ensures Codex ALWAYS knows:
 - Its role (critical collaborator, not yes-man)
 - The document hierarchy (CLAUDE.md -> PROJECT.md -> CURRENT_STATE.md -> ...)
-- The project architecture (two-layer: formal BN + semantic)
+- The project architecture (two-layer: formal SCM + semantic)
 - How to review (alignment with PROJECT.md, trigger table, etc.)
 
 ### Thread management — PREFER REPLY OVER NEW SESSIONS
@@ -54,8 +54,8 @@ The `prompt` parameter contains ONLY the specific task context:
 When Codex reviews SREG code, it should check:
 - Alignment with PROJECT.md vision (environments for RL, not training)
 - Tasks feel like science, not graph theory exercises
-- Rewards are exact (from BN), not heuristic
-- Semantic layer is realistic but fictional
+- Rewards are exact (from SCM), not heuristic
+- Semantic layer is realistic (or fictional for RL training)
 - Doc updates needed (trigger table in CLAUDE.md)
 
 ## Claude leads, Codex advises

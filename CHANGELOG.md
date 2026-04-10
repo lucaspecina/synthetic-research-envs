@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### 2026-04-10 — Issue tracking + cierre formal v1
+
+**Merge a main + tags + issue tracking local.**
+- Tag `sreg-v0` en `770ad28` (sistema viejo BN + guided tasks)
+- Tag `sreg-v1` en `0a28783` (merge commit, OI + SCM cerrado)
+- `main` ahora es SREG v1 estable
+- Issue tracking local: `issues/I-NNN.md` (23 issues creados)
+- `TODO.md` reescrito como board operativo (54 lineas, refs a issues)
+- TODO v1 historico archivado en `docs/archive/todo_v1_history.md`
+- Skills actualizadas: codex-collab (BN→SCM)
+- CLAUDE.md actualizado con nuevas rutas (issues/, docs/archive/)
+
 ### 2026-04-09 — Criterio 6: build->use handoff
 
 **`scripts/run_oi.py` — entry point publico para correr el solver
