@@ -647,14 +647,14 @@ def main():
                 "or also intervene/experiment? Match the action types.\n\n"
                 "7. DATA CHARACTERISTICS: Multiple data sources? Missing values? "
                 "Request rich data format in build_problem if the seed implies complex data.\n\n"
-                "Use dag_construct. Create variable names that sound scientific and "
+                "Use scm_construct. Create variable names that sound scientific and "
                 "domain-appropriate (NOT generic like 'variable_1').\n\n"
                 f"--- RESEARCH SEED ---\n{seed_content}\n--- END SEED ---"
             )
         else:
             goal = (
                 "Generate a research problem about marine ecology in a fictional "
-                "archipelago, medium difficulty, 8 nodes. Use dag_construct. "
+                "archipelago, medium difficulty, 8 nodes. Use scm_construct. "
                 "Design a research case with at least 3 different evaluation types."
             )
     if args.seed is not None:

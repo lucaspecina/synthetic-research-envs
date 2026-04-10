@@ -561,9 +561,9 @@ El modo principal de evaluacion. Separa la evaluacion en 3 capas:
 - **Open** (principal, Alpha-0): brief abierto, claim cards, compilacion + verificacion SCM
 - **Full Open** (futuro): solo brief, sin ninguna guia
 
-**Honestidad sobre reward:** modo Guided = exacto. Modo Open = verificacion
-SCM exacta DESPUES de compilacion. La compilacion tiene subjetividad
-encapsulada. Es mucho mas riguroso que LLM judge pero no 100% mecanico.
+**Honestidad sobre reward:** verificacion SCM exacta DESPUES de compilacion.
+La compilacion tiene subjetividad encapsulada. Es mucho mas riguroso que
+LLM judge pero no 100% mecanico.
 
 **Constraints (2026-04-06):**
 - `ref_arm` requerido para difference/ratio (BUG 9 fix). Formula:

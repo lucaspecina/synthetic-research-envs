@@ -27,10 +27,10 @@ Parse $ARGUMENTS:
 
 ```bash
 # Generate with inspection
-python scripts/generate_src.py --goal "..." -o experiments/eval_TOPIC/ --inspect --seed N
+python scripts/generate_src.py --goal "..." -o results/eval_TOPIC/ --inspect --seed N
 
 # Generate with OI solver run
-python scripts/generate_src.py --goal "..." -o experiments/eval_TOPIC/ --oi --seed N
+python scripts/generate_src.py --goal "..." -o results/eval_TOPIC/ --oi --seed N
 ```
 
 ## Validar contra escenarios diversos — NO NEGOCIABLE

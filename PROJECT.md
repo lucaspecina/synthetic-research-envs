@@ -125,9 +125,9 @@ vocabulario canonico:
 Las dos subsecciones siguientes detallan que cubre v1 ("Lo que SREG evalua
 HOY") y que corresponde a v2 y v3 ("Lo que queda FUERA del scope actual").
 
-Los criterios concretos para cerrar v1 viven en `TODO.md` seccion
-"SREG v1 — criterios de done". El detalle del pipeline end-to-end vive en
-`CURRENT_STATE.md`.
+Los criterios de cierre de v1 fueron cumplidos (2026-04-09, tag `sreg-v1`).
+Ver `docs/archive/todo_v1_history.md` para el historico. El detalle del
+pipeline end-to-end vive en `CURRENT_STATE.md`.
 
 > **Nota terminologica.** "SREG v1" refiere al **producto**. Dentro de
 > SREG v1 existen sub-pipelines internos con nombres propios ("SQ v1

@@ -58,7 +58,7 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 - `notes/s03_extraction_diagnosis.md` — A/B test extraccion compiler
 - `notes/brief_vs_eval_separation.md` — separacion brief vs eval
 - `notes/indirect_measurement_design.md` — instrumentos como nodos del SCM
-- `notes/oi_compiler_case_analysis.md` — 10 dominios analizados
+- `notes/open_investigation_case_analysis.md` — 10 dominios analizados
 
 ### Archive (historico, read-only)
 

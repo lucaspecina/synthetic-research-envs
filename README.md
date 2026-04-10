@@ -141,7 +141,7 @@ src/sreg/
   benchmarks/      # External benchmark adapters (CLadder, QRData, DiscoveryBench)
 
 scripts/           # Entry points (generate_src, run_benchmark, OI scripts)
-experiments/       # Generated SRCs and results
+results/           # Generated SRCs and evaluation results (gitignored)
 ```
 
 ## Tests

@@ -25,12 +25,12 @@ PENSAR -> PROBAR -> ANALIZAR.
 
 ### Generar un caso (sin solver)
 ```bash
-python scripts/generate_src.py --seed-file seeds/SEED.md -o results/NOMBRE/ --oi --inspect
+python scripts/generate_src.py --seed-file seeds/SEED.md -o results/NOMBRE/ --inspect
 ```
 
 ### Generar + solver completo
 ```bash
-python scripts/generate_src.py --seed-file seeds/SEED.md -o results/NOMBRE/ --oi --solve
+python scripts/generate_src.py --seed-file seeds/SEED.md -o results/NOMBRE/ --oi
 ```
 
 ### Evaluar calidad

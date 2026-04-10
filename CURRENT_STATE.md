@@ -15,8 +15,8 @@
 >
 > **Este documento describe SREG v1** (Open Investigation sobre SCM). Para
 > el roadmap del producto (v0 → v1 → v2 → v3) ver `PROJECT.md` seccion
-> "Roadmap del producto". Para los criterios de cierre de v1 ver `TODO.md`
-> seccion "SREG v1 — criterios de done".
+> "Roadmap del producto". SREG v1 cerrado (2026-04-09, tag `sreg-v1`).
+> Historico en `docs/archive/todo_v1_history.md`.
 >
 > Actualizado: 2026-04-09
 

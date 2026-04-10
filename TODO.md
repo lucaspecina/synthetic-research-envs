@@ -7,7 +7,7 @@
 
 ## NOW
 
-- [ ] I-020: Skills stale update — fix BN/legacy refs (hygiene)
+(vacio — picking next)
 
 ## NEXT
 
@@ -56,6 +56,7 @@
 
 ## RECENTLY CLOSED
 
+- [x] I-020: Skills stale update — fix BN/legacy refs (2026-04-10)
 - [x] SREG v1 — 6 criterios de cierre (2026-04-09, tag `sreg-v1`)
 - [x] Merge v1 a main + tags sreg-v0/sreg-v1 (2026-04-10)
 - [x] Migracion a issue tracking local (2026-04-10)
