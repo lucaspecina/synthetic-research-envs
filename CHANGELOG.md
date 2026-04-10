@@ -5,6 +5,14 @@
 
 ## [Unreleased]
 
+### 2026-04-09 — Criterio 6: build->use handoff
+
+**`scripts/run_oi.py` — entry point publico para correr el solver
+sobre un caso existente.** Completa el loop build->use->eval:
+`generate_src.py` (build) -> `run_oi.py` (use) -> `rescore.py` (eval).
+Smoke E2E verificado. Documentado en `CURRENT_STATE.md` seccion
+"Como usar SREG v1". Criterio 6 cerrado.
+
 ### 2026-04-09 — Criterio 5: config v1 congelada
 
 **Config v1 documentada en `CURRENT_STATE.md` seccion "Config v1

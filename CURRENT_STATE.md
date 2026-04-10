@@ -44,6 +44,71 @@ estos valores es un cambio de version, no un bugfix.
 **Baseline canonico:** `results/v1_canonical_batch/` (12 casos, average
 total 0.509, `rescore --reaggregate` delta 0.0000). Ver MANIFEST.md.
 
+## Como usar SREG v1 (build -> use -> eval)
+
+Tres pasos, tres scripts. Cada uno es independiente del anterior.
+
+### Paso 1: Build — generar un caso
+
+```bash
+# Escribir un seed (archivo .md que describe el problema de investigacion)
+# Ver seeds/ para ejemplos
+
+python scripts/generate_src.py \
+    --seed-file seeds/mi_caso.md \
+    -o results/mi_caso \
+    --oi          # incluye --oi para correr el solver en el mismo paso
+```
+
+Output: `results/mi_caso/src.json` (mundo, problema, datasets, SQs) +
+`results/mi_caso/oi_result.json` (si se uso `--oi`).
+
+Si solo queres generar el caso SIN correr el solver (para correrlo
+despues con otro modelo o config):
+
+```bash
+python scripts/generate_src.py \
+    --seed-file seeds/mi_caso.md \
+    -o results/mi_caso
+    # sin --oi: solo genera src.json
+```
+
+### Paso 2: Use — correr el solver sobre un caso existente
+
+```bash
+python scripts/run_oi.py results/mi_caso/
+```
+
+Toma `src.json`, reconstruye el mundo, carga las sub-questions, y corre
+el solver LLM. Produce `oi_result.json` con claims, scores, y
+conversation completa.
+
+Opciones:
+- `--claim-cap 15` (default v1)
+- `--max-iterations 20` (default v1)
+- `--temperature 0.0` (default v1)
+- `--solver-model gpt-5.2-codex` (default v1)
+- `--out results/otro_dir/` (output a otro directorio)
+
+### Paso 3: Eval — verificar reproducibilidad
+
+```bash
+# Reaggregate: verifica que el scoring es determinista
+python scripts/rescore.py results/mi_caso/ --reaggregate
+
+# Rejudge: re-evalua relevancia con LLM (frozen truths)
+python scripts/rescore.py results/mi_caso/ --rejudge
+
+# Recompile: re-compila claims + re-verifica + re-evalua
+python scripts/rescore.py results/mi_caso/ --recompile
+```
+
+### Requisitos
+
+- Python 3.11+ con `pip install -e ".[dev]"` (o `conda activate sreg`)
+- Azure credentials en `.env`: `AZURE_FOUNDRY_BASE_URL`,
+  `AZURE_INFERENCE_CREDENTIAL`, `AZURE_MODEL`, `AZURE_SOLVER_MODEL`
+
 ---
 
 ## Que es SREG, en una frase

@@ -59,10 +59,14 @@ Los 6 criterios de cierre:
    LLM judge, cap=15, gpt-5.2-codex solver, gpt-5.4 compiler/judge,
    20 iterations, temp 0.0, seed 42, n_mc 20k, total = corr x wcov.
 
-6. **Build → use handoff** — SREG v1 es buildable por otros (otro dev
-   puede generar casos nuevos) Y usable por un solver externo sin tocar
-   el codigo del generator. Si el loop build → use requiere ediciones al
-   repo, v1 no esta cerrado.
+6. **Build → use handoff** — **CERRADO (2026-04-09).** Tres scripts
+   publicos cubren el loop completo:
+   - `generate_src.py` — build (genera caso desde seed)
+   - `run_oi.py` — use (corre solver sobre caso existente)
+   - `rescore.py` — eval (verifica reproducibilidad)
+   Documentado en `CURRENT_STATE.md` seccion "Como usar SREG v1".
+   Smoke E2E verificado: `run_oi.py` sobre caso existente produce
+   `oi_result.json` valido que pasa `rescore --reaggregate`.
 
 > **Nota.** Estos 6 criterios son el piso minimo. No implican que SREG v1
 > sea "perfecto" — implican que es **cerrado** y reproducible como producto,
