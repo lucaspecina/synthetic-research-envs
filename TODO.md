@@ -14,7 +14,6 @@
 **Scoring**
 - [ ] I-001: Verifier robustness — P1.5 deuda tecnica
 - [ ] I-002: Credit-assignment unit-level truth (P2)
-- [ ] I-003: Claim compiler grammar-direct (A23)
 
 **Eval**
 - [ ] I-006: Eval suite — core correctness
@@ -56,6 +55,7 @@
 
 ## RECENTLY CLOSED
 
+- [x] I-003: Claim compiler grammar-direct (A23) — cerrado retroactivamente (2026-04-10, hecho en commit `9ebf29d` del 2026-04-03)
 - [x] I-020: Skills stale update — fix BN/legacy refs (2026-04-10)
 - [x] SREG v1 — 6 criterios de cierre (2026-04-09, tag `sreg-v1`)
 - [x] Merge v1 a main + tags sreg-v0/sreg-v1 (2026-04-10)
