@@ -86,6 +86,8 @@ Cada decisión pasa por este TRIPLE filtro:
 | Scoring fundamentals | `research/synthesis/oi_scoring_fundamentals.md` |
 | Taxonomia de investigacion | `research/synthesis/Doc1_Taxonomia_El_Mapa.md` |
 | Scoring next design (sub-questions) | `research/synthesis/oi_scoring_next_design.md` |
+| **Eval suites (4 suites sistematicas)** | `research/synthesis/eval_suite_framework.md` |
+| **Science Coverage suite (diseño)** | `research/synthesis/eval_suite_science_coverage.md` |
 
 ## Skills disponibles
 
