@@ -45,7 +45,8 @@ N=50K) is acceptable.
 **Dependency:** None. This is the foundation. If it fails, nothing else
 is interpretable.
 
-**Detail doc:** `eval_suite_core_correctness.md` (TODO)
+**Detail doc:** Implemented in `tests/eval/suite1_core_correctness/`
+(52 tests, 100% pass, 2026-04-12)
 
 ---
 

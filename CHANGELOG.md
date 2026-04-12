@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### 2026-04-12 — Suite 1: Core Correctness (I-006)
+
+**Eval suite para validar el substrato matematico de SREG.** 52 tests,
+100% pass. Sin LLM — puro SCM engine, verifier, y scoring arithmetic.
+
+- 6 mundos hand-crafted con ground truth analitico verificado contra MC:
+  linear_chain, confounder, latent_confounder, threshold, independence,
+  mediation.
+- 26 specs parametrizados cubriendo 100% de enums activos (34/34):
+  6 QueryKind, 7 MeasurementKind, 8 ComparisonKind, 13 AssertionKind.
+- 5 validation rejection tests (contratos pydantic: ADJUST+CORR, etc.)
+- 1 rescore determinism test (delta = 0.0000)
+- 4 coverage self-checks (confirma cobertura completa de enums)
+- 16 scoring arithmetic tests con valores calculados a mano
+  (8 claim-level, 8 episode-level, incluye boundary cases)
+
+Archivos: `tests/eval/suite1_core_correctness/`
+  (worlds.py, registry.py, test_suite1.py, test_scoring_math.py)
+
 ### 2026-04-10 — Issue tracking + cierre formal v1
 
 **Merge a main + tags + issue tracking local.**

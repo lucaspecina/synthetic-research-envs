@@ -17,7 +17,7 @@
 - [ ] I-003: Claim compiler grammar-direct (A23)
 
 **Eval**
-- [ ] I-006: Eval suite — core correctness
+- [x] I-006: Eval suite — core correctness (2026-04-12, 52 tests)
 - [ ] I-007: Eval suite — translation / compilation
 - [ ] I-008: Eval suite — science coverage
 - [ ] I-009: Eval suite — E2E reward alignment
@@ -59,6 +59,7 @@
 - [x] SREG v1 — 6 criterios de cierre (2026-04-09, tag `sreg-v1`)
 - [x] Merge v1 a main + tags sreg-v0/sreg-v1 (2026-04-10)
 - [x] Migracion a issue tracking local (2026-04-10)
+- [x] I-006: Eval suite — core correctness (2026-04-12, 52/52 pass)
 
 ## Referencia rapida
 
