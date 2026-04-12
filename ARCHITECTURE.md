@@ -183,18 +183,9 @@ Contrato de una evaluacion concreta derivada del mundo.
 Contiene tipo, pregunta, target, evidencia visible, respuesta correcta oculta y
 metodo de scoring.
 
-La superficie de evaluacion seleccionada para este horizonte es una superficie
-tipada de preguntas cientificas. Incluye:
-
-- `infer_target`
-- `next_best_observation`
-- `hypothesis_selection`
-- `causal_effect`
-- `best_intervention`
-- `adjustment_set`
-- `compare_interventions`
-- `should_condition`
-- `infer_latent_cause`
+**Nota:** En OI mode (el modo canonico de SREG v1), los Task types no se
+usan. La superficie de evaluacion es `SubQuestionIntentV2`. Los Task types
+se retienen para el path legacy non-OI del orchestrator.
 
 ### `Episode`
 
@@ -542,7 +533,7 @@ El modo principal de evaluacion. Separa la evaluacion en 3 capas:
    Cada card tiene: texto, variables foco, confianza, evidencia.
    El solver NO ve categorias de scoring ni patrones esperados.
 2. **Compiler** — traduce claim cards a specs ejecutables. Cada claim se
-   descompone en N `CompiledUnit`s (one per `ClaimIntent`). Usa una GRAMATICA
+   descompone en N `CompiledUnit`s (one per sub-claim). Usa una GRAMATICA
    COMPOSABLE de 4 piezas (Simulacion + Medicion + Comparacion + Asercion).
    `CompilerOutput` tiene lista de units + status (`compiled`/`partial`/
    `abstention`). El compiler NO juzga calidad — solo traduce.

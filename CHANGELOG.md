@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### 2026-04-12 — Deep audit cleanup
+
+**Eliminacion de codigo muerto y docs drift tras la consolidacion SQ v2.**
+
+- **~4500 LoC eliminados**: `oi_salience.py` (1170), `oi_subquestions.py` (1234),
+  tests asociados (`test_oi_salience.py`, `test_oi_subquestions.py`,
+  `test_oi_scoring_v2.py`, `test_oi_pilot.py`), secciones muertas en
+  `test_oi_compiler.py`, `test_oi_verifier.py`, `test_open_investigation.py`.
+- **Modelos eliminados**: EpisodeScore, FamilyKey, FamilyAtom, SalienceFamily,
+  SalienceMap, ClaimVerdict + 11 constantes de scoring legacy.
+- **API simplificada**: `get_score()` y `get_sq_score()` fusionados en un solo
+  `get_score() -> EpisodeSubQuestionScore | None`.
+- **14 scripts archivados** en `scripts/archive/` (p06_*, compiler_benchmark,
+  trace_e2e, oi_pilot_batch, etc.).
+- **Docs reescritos**: CURRENT_STATE.md (grammar-direct como default, SQ v2
+  como canonico, eliminada seccion salience), ARCHITECTURE.md (Task types,
+  ClaimIntent parenthetical), PROJECT.md (Flow A pointer),
+  open_investigation_vision.md (pipeline diagram actualizado).
+- **E2E validado** con 2 seeds diversos post-cleanup. Bugs encontrados y
+  corregidos: refs stale a `get_sq_score()`, imports muertos en cadena
+  de imports (oi_demo_case → test_oi_curated_worlds → oi_salience).
+
 ### 2026-04-10 — Issue tracking + cierre formal v1
 
 **Merge a main + tags + issue tracking local.**

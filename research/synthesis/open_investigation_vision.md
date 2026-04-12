@@ -500,59 +500,48 @@ De 30 respuestas diversas en 10 dominios:
 Los que rompen son claims EPISTEMICOS, no causales complejos.
 Ver `notes/open_investigation_case_analysis.md` para detalle completo.
 
-## Estado de implementacion (actualizado 2026-03-27)
+## Estado de implementacion (actualizado 2026-04-12)
 
-### Pipeline completo (103 tests, solo falta LLM extraction)
+### Pipeline completo
 
 ```
 Solver → ClaimCard (NL)
-  → [LLM + exemplars] → ClaimIntent (symbolic IR)    ← FALTA ESTE PASO
-  → [validate_intent] → preview check
-  → [lower_intent] → AtomicSpec(s) con canonical anchors
-  → [match_specs_to_families] → family matches
+  → [LLM + grammar ref] → AtomicSpec(s)              ← grammar-direct (default)
   → [verify_atom vs SCM] → verdicts
-  → [score_compiled_episode] → EpisodeScore
+  → [match specs → SQ v2] → SubQuestionIntentV2 scores
+  → [_score_with_judge] → EpisodeSubQuestionScore
 ```
 
+Fallback path: `lower_intent` (ClaimIntent IR → 8 patterns → AtomicSpecs).
+
 1. **[DONE] DSL grammar** — `src/sreg/models/open_investigation.py`
-   42 tests. QueryContext (6 kinds incl observe/adjust), Measurement (9),
-   Comparison (8), Assertion (13). ClaimCard, SalienceMap, scoring models.
+   QueryContext (6 kinds incl observe/adjust), Measurement (9),
+   Comparison (8), Assertion (13). ClaimCard, AtomicSpec, scoring models.
 
-2. **[DONE] Salience map generator** — `src/sreg/tools/oi_salience.py`
-   9 tests. 7 pattern types (causal, mediation, heterogeneity, tail,
-   variance, observational, ranking), multi-atom families with qualifiers.
+2. **[REMOVED] Salience map** — `oi_salience.py` eliminado 2026-04-12.
+   Reemplazado por SQ v2 (SubQuestionIntentV2 + VerificationSpec).
 
-3. **[DONE] Verifier + scoring** — `src/sreg/tools/oi_verifier.py`
-   22 tests. verify_atom pipeline, _extract_scalar for any comparison,
-   mediation via 4-arm CDE, identifiability via backdoor criterion,
-   specificity bonus + overclaim penalty, precision gate.
+3. **[DONE] Verifier** — `src/sreg/tools/oi_verifier.py`
+   verify_atom pipeline, _extract_scalar for any comparison,
+   mediation via 4-arm CDE, identifiability via backdoor criterion.
 
-4. **[DONE] Pilot E2E** — `tests/tools/test_oi_pilot.py`
-   4 tests. Oracle(0.775) > No-data(0.550) > Shotgun(0.340).
+4. **[REMOVED] Pilot E2E** — `test_oi_pilot.py` eliminado 2026-04-12.
+   Reemplazado por E2E reales con LLM (scripts/run_oi.py).
 
-5. **[DONE] Compiler (deterministic)** — `src/sreg/tools/oi_compiler.py`
-   26 tests. ClaimIntent IR + WorldSummary anchors + lowering (7 patterns)
-   + preview validator + matching to families + full episode scorer.
-   Multi-part claims (mediation, heterogeneity) → 2 specs per Codex design.
+5. **[DONE] Compiler** — `src/sreg/tools/oi_compiler.py` (lower_intent)
+   + `src/sreg/tools/oi_extraction.py` (grammar-direct, default).
 
 6. **[DONE] Exemplar bank** — `src/sreg/tools/oi_exemplars.py`
    14 positive (all 7 patterns) + 5 negative (abstention). Hand-crafted.
 
-### Pendiente (requiere LLM)
-
-7. **LLM extraction**: ClaimCard → ClaimIntent via few-shot prompting.
-   El unico paso que necesita LLM en todo el pipeline.
-
-8. **Compiler benchmark offline**: 200+ claims, 15+ mundos, >90%
-   precision, >95% harmful-error control.
-
-9. **Piloto scaffolded**: solver real + compiler + scoring.
+7. **[DONE] SQ v2 scoring** — `oi_sq_compiler.py` + `oi_relevance_judge.py`
+   + `oi_sq_matching.py`. SubQuestionIntentV2 con VerificationSpec bundles,
+   LLM judge para relevancia, matching specs a SQs.
 
 ### Issues conocidos (Codex review 2026-03-27)
 
 - ADJUST: FIXED — ahora usa stratificacion observacional, no do()
-- Multi-atom families: FIXED — causal effects tienen 1-3 atomos
-- Salience map patterns: FIXED — 7 tipos incluyendo observacionales + ranking
+- Multi-atom families: REMOVED — salience families eliminadas; SQ v2 usa VerificationSpec bundles
 - Identifiability check: FIXED — usa backdoor criterion con mutilated graph
   (dirigido), no dag.to_undirected(). Verifica candidate_adjust_set,
   parents de treatment, y non-descendant ancestors como fallback.
