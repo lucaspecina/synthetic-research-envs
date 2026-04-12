@@ -404,71 +404,6 @@ class EpisodeTrace(BaseModel):
     def accessed_artifact_ids(self) -> set[str]:
         """All artifact IDs the solver accessed."""
         return {a.artifact_id for a in self.accesses}
-
-
-# ---------------------------------------------------------------------------
-# Salience Map — pre-computed truths for coverage scoring
-# ---------------------------------------------------------------------------
-
-
-class FamilyKey(BaseModel):
-    """Canonical key for grouping equivalent claims into families."""
-
-    brief_target: str
-    focus_signature: tuple[str, ...] = Field(min_length=1)
-    pattern_class: str
-    scope_class: str = "global"
-
-    @field_validator("focus_signature")
-    @classmethod
-    def validate_sorted(cls, v: tuple[str, ...]) -> tuple[str, ...]:
-        return tuple(sorted(v))
-
-
-class FamilyAtom(BaseModel):
-    """A single verifiable truth within a family."""
-
-    atom_id: str = Field(min_length=1)
-    spec: AtomicSpec
-    weight: float = Field(default=1.0, gt=0.0)
-    material: bool = Field(
-        default=True,
-        description="If True, omitting this atom triggers overclaim penalty",
-    )
-
-
-class SalienceFamily(BaseModel):
-    """A family of related truths in the salience map.
-
-    Coverage is scored per-family, not per-atom.
-    """
-
-    family_id: str = Field(min_length=1)
-    key: FamilyKey
-    atoms: tuple[FamilyAtom, ...] = Field(min_length=1)
-    salience: float = Field(gt=0.0, le=1.0)
-
-
-class SalienceMap(BaseModel):
-    """Brief-anchored map of discoverable truths for an SCM world.
-
-    Typically 10-24 families for a 12-node SCM, hard cap at 30.
-    """
-
-    world_id: str
-    brief_target: str
-    families: list[SalienceFamily] = Field(max_length=30)
-
-    @property
-    def family_ids(self) -> set[str]:
-        return {f.family_id for f in self.families}
-
-
-# ---------------------------------------------------------------------------
-# Scoring — verification results
-# ---------------------------------------------------------------------------
-
-
 class AtomVerdict(BaseModel):
     """Result of verifying a single AtomicSpec against the SCM.
 
@@ -513,53 +448,6 @@ class AtomVerdict(BaseModel):
     solver_assertion_holds: bool
     score: float = Field(ge=0.0, le=1.0)
     detail: dict[str, Any] = Field(default_factory=dict)
-
-
-class ClaimVerdict(BaseModel):
-    """Result of verifying a single claim against the salience map."""
-
-    claim_id: str
-    matched_family_id: str | None = None
-    atom_verdicts: list[AtomVerdict] = Field(default_factory=list)
-    score: float = Field(ge=0.0, le=1.0)
-    verdict: str = Field(
-        description=(
-            "v1: fully_true | partially_true_with_omission | mixed | false | unmatched. "
-            "v2: fully_true | partially_true | true_but_irrelevant | false | abstention"
-        )
-    )
-
-    # v2 scoring fields (populated by score_compiled_episode_v2)
-    truth_score: float = Field(
-        default=0.0, ge=0.0, le=1.0,
-        description="SCM-verified truth score, independent of family match",
-    )
-    relevance: float = Field(
-        default=1.0, ge=0.0, le=1.0,
-        description="Structural relevance to brief target (DAG-based)",
-    )
-    effective_score: float = Field(
-        default=0.0, ge=0.0, le=1.0,
-        description="truth * relevance * warrant (final per-claim score)",
-    )
-
-
-class EpisodeScore(BaseModel):
-    """Complete scoring of an Open Investigation episode."""
-
-    correctness: float = Field(ge=0.0, le=1.0)
-    coverage: float = Field(ge=0.0, le=1.0)
-    efficiency: float = Field(ge=0.0, le=1.0)
-    total: float = Field(ge=0.0, le=1.0)
-    claim_verdicts: list[ClaimVerdict] = Field(default_factory=list)
-    families_hit: int = Field(ge=0)
-    families_total: int = Field(ge=0)
-    precision_gate_active: bool = False
-
-    # Weights
-    W_CORRECTNESS: float = 0.60
-    W_COVERAGE: float = 0.30
-    W_EFFICIENCY: float = 0.10
 
 
 # ---------------------------------------------------------------------------
@@ -929,18 +817,7 @@ def load_sub_questions_v2_robust(
 # Scoring parameters
 # ---------------------------------------------------------------------------
 
-SPEC_BASE: float = 0.50
-SPEC_BONUS_MAX: float = 0.50
-OVERCLAIM_MAX: float = 0.50
-FAMILY_HIT_THRESHOLD: float = 0.60
-EPISODE_PRECISION_GATE: float = 0.55
 MAX_CLAIMS: int = 15
-MAX_FAMILIES: int = 30
-# v2 scoring constants — structural relevance
-NON_TARGET_CAP: float = 0.50  # max relevance when target not in focus
-DESCRIPTIVE_PENALTY: float = 0.20  # multiplier for trivial descriptive claims
-RELEVANCE_ANCESTOR: float = 0.70  # relevance for ancestor-touching claims
-RELEVANCE_DESCENDANT: float = 0.40  # relevance for descendant-touching claims
 
 
 # ---------------------------------------------------------------------------
@@ -967,13 +844,7 @@ __all__ = [
     "ClaimSubmission",
     "ArtifactAccess",
     "EpisodeTrace",
-    "FamilyKey",
-    "FamilyAtom",
-    "SalienceFamily",
-    "SalienceMap",
     "AtomVerdict",
-    "ClaimVerdict",
-    "EpisodeScore",
     "AskOperator",
     "AcceptanceRule",
     "SQTier",
@@ -990,15 +861,5 @@ __all__ = [
     "load_sub_questions_v2_robust",
     "SubQuestionScore",
     "EpisodeSubQuestionScore",
-    "SPEC_BASE",
-    "SPEC_BONUS_MAX",
-    "OVERCLAIM_MAX",
-    "FAMILY_HIT_THRESHOLD",
-    "EPISODE_PRECISION_GATE",
     "MAX_CLAIMS",
-    "MAX_FAMILIES",
-    "NON_TARGET_CAP",
-    "DESCRIPTIVE_PENALTY",
-    "RELEVANCE_ANCESTOR",
-    "RELEVANCE_DESCENDANT",
 ]

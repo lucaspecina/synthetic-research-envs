@@ -26,10 +26,8 @@ from sreg.models.open_investigation import (
     MAX_CLAIMS,
     ArtifactAccess,
     ClaimCard,
-    EpisodeScore,
     EpisodeSubQuestionScore,
     EpisodeTrace,
-    SubQuestionIntent,
     SubQuestionIntentV2,
     SubQuestionScore,
 )
@@ -191,8 +189,7 @@ class OIEpisodeRunner:
         self._llm_call = llm_call
         self.claim_cap = claim_cap
 
-        # Sub-questions for scoring (optional — v1 or v2, not both)
-        self._subquestions: list[SubQuestionIntent] = []
+        # Sub-questions for scoring (SQ v2 only)
         self._subquestions_v2: list[SubQuestionIntentV2] = []
         self._sq_score: EpisodeSubQuestionScore | None = None
 
@@ -208,7 +205,6 @@ class OIEpisodeRunner:
 
         # Submission state
         self._submitted = False
-        self._score: EpisodeScore | None = None
         self._last_compiled: list | None = None
 
         # Scoring internals (for rescore / P0 persistence)
@@ -272,25 +268,14 @@ class OIEpisodeRunner:
                 desc = f"{desc} [unit: {meta.unit}]" if desc else f"unit: {meta.unit}"
             variable_descriptions[name] = desc
 
-        # Use v2 SQs if available, otherwise v1
-        if self._subquestions_v2:
-            sq_context = [
-                {
-                    "sq_id": sq.sq_id,
-                    "pattern": "free_text",
-                    "text_gloss": sq.text_gloss,
-                }
-                for sq in self._subquestions_v2
-            ]
-        else:
-            sq_context = [
-                {
-                    "sq_id": sq.sq_id,
-                    "pattern": sq.pattern,
-                    "text_gloss": sq.text_gloss or sq.sq_id,
-                }
-                for sq in self._subquestions
-            ]
+        sq_context = [
+            {
+                "sq_id": sq.sq_id,
+                "pattern": "free_text",
+                "text_gloss": sq.text_gloss,
+            }
+            for sq in self._subquestions_v2
+        ]
 
         return ExtractionContext(
             research_brief=self.problem.research_question,
@@ -338,7 +323,7 @@ class OIEpisodeRunner:
         self,
         claims: list[ClaimCard],
         compiled_claims: list | None = None,
-    ) -> EpisodeScore:
+    ) -> EpisodeSubQuestionScore:
         """Submit claims and compute the episode score.
 
         Args:
@@ -348,9 +333,8 @@ class OIEpisodeRunner:
                 auto-compiles via extraction pipeline.
 
         Returns:
-            EpisodeScore with correctness, coverage, efficiency, warrant.
+            EpisodeSubQuestionScore with correctness, coverage, total.
         """
-        from sreg.tools.oi_salience import build_salience_map
 
         if self._submitted:
             raise RuntimeError("Claims already submitted for this episode")
@@ -423,76 +407,25 @@ class OIEpisodeRunner:
         self._last_compiled = compiled
         self._last_claims = list(claims)
 
-        # --- Scoring path ---
-        # CANONICAL (v1): SQ v2 + LLM judge.
-        # Legacy fallbacks (SQ v1, salience map) are kept for backward
-        # compat but are NOT part of the v1 canonical path. Scores
-        # produced by fallback paths must not be used as official v1
-        # results.
-
-        if self._subquestions_v2:
-            self._sq_score = self._score_with_judge(claims, compiled)
-            logger.info(
-                "SQ v2 judge score (canonical): total=%.3f correctness=%.3f "
-                "weighted_coverage=%.3f coverage=%.3f",
-                self._sq_score.total,
-                self._sq_score.correctness,
-                self._sq_score.weighted_coverage,
-                self._sq_score.coverage,
+        # --- Scoring ---
+        if not self._subquestions_v2:
+            raise RuntimeError(
+                "No sub_questions_v2 provided. SQ v2 + LLM judge is the "
+                "only supported scoring path. Ensure the SRC was generated "
+                "with sub_questions_v2 in src.json."
             )
 
-        # Legacy fallback: SQ v1 (pattern-based, no LLM judge)
-        elif self._subquestions:
-            logger.warning(
-                "LEGACY PATH: using SQ v1 scoring (not v1 canonical). "
-                "Scores from this path are not official v1 results. "
-                "To use the canonical path, provide sub_questions_v2."
-            )
-            self._sq_score = self._score_with_subquestions(compiled)
-            logger.info(
-                "SQ v1 score (legacy): total=%.3f correctness=%.3f "
-                "coverage=%.3f",
-                self._sq_score.total,
-                self._sq_score.correctness,
-                self._sq_score.weighted_coverage,
-            )
+        self._sq_score = self._score_with_judge(claims, compiled)
+        logger.info(
+            "SQ v2 judge score: total=%.3f correctness=%.3f "
+            "weighted_coverage=%.3f coverage=%.3f",
+            self._sq_score.total,
+            self._sq_score.correctness,
+            self._sq_score.weighted_coverage,
+            self._sq_score.coverage,
+        )
 
-        # Legacy fallback: salience map (no SQs at all)
-        else:
-            logger.warning(
-                "LEGACY PATH: using salience map scoring (not v1 canonical). "
-                "Scores from this path are not official v1 results. "
-                "To use the canonical path, provide sub_questions_v2."
-            )
-            solver = SCMSolver(self.world, n_mc=self.n_mc)
-            salience = build_salience_map(
-                self.world, self.target, n_mc=self.n_mc, seed=self.seed
-            )
-            all_asset_ids = self.catalog.all_ids
-            from sreg.tools.oi_compiler import score_compiled_episode_v2
-
-            score = score_compiled_episode_v2(
-                compiled_claims=compiled,
-                families=salience.families,
-                world=self.world,
-                solver=solver,
-                target=self.target,
-                n_mc=self.n_mc,
-                seed=self.seed,
-                claim_cards=claims,
-                trace=None,
-                data_asset_ids=all_asset_ids,
-            )
-            self._score = score
-            logger.info(
-                "Salience map score (legacy): total=%.3f correctness=%.3f "
-                "coverage=%.3f",
-                score.total,
-                score.correctness,
-                score.coverage,
-            )
-
-        return self._sq_score or self._score
+        return self._sq_score
 
     def compiler_stats(self) -> dict:
         """Return compiler backend stats from last submission."""
@@ -562,10 +495,6 @@ class OIEpisodeRunner:
     # -----------------------------------------------------------------
     # Sub-question support
     # -----------------------------------------------------------------
-
-    def set_subquestions(self, sqs: list[SubQuestionIntent]) -> None:
-        """Set sub-questions for SQ v1 scoring. Call before submit_claims."""
-        self._subquestions = list(sqs)
 
     def set_subquestions_v2(self, sqs: list[SubQuestionIntentV2]) -> None:
         """Set pre-grounded SQ v2s for LLM judge scoring.
@@ -799,58 +728,12 @@ class OIEpisodeRunner:
             total=total,
         )
 
-    def _score_with_subquestions(
-        self, compiled: list,
-    ) -> EpisodeSubQuestionScore:
-        """Compute sub-question score from compiled claims."""
-        from sreg.tools.oi_subquestions import (
-            resolve_all,
-            score_episode_with_subquestions,
-        )
-
-        # Resolve SQs against the world
-        resolved = resolve_all(
-            self._subquestions, self.world,
-            target=self.target, n_mc=self.n_mc, seed=self.seed,
-        )
-
-        # Extract (ClaimIntent, truth) tuples — one per CompiledUnit (A22)
-        from sreg.tools.oi_compiler import CompilerOutput
-        from sreg.tools.oi_verifier import verify_atom
-
-        solver = SCMSolver(self.world, n_mc=self.n_mc)
-        claim_tuples = []
-        for co in compiled:
-            if not isinstance(co, CompilerOutput) or not co.compiled:
-                continue
-            for unit in co.units:
-                # Skip grammar-direct units in v1 path (no ClaimIntent)
-                if unit.intent is None:
-                    continue
-                # Per-unit truth: proportional (M/N atoms that hold)
-                if unit.specs:
-                    verdicts = [
-                        verify_atom(s, self.world, solver, self.n_mc, self.seed)
-                        for s in unit.specs
-                    ]
-                    n_hold = sum(1 for v in verdicts if v.solver_assertion_holds)
-                    truth = n_hold / len(verdicts)
-                else:
-                    truth = 0.0
-                claim_tuples.append((unit.intent, truth))
-
-        return score_episode_with_subquestions(claim_tuples, resolved)
-
     # -----------------------------------------------------------------
     # Results and metadata
     # -----------------------------------------------------------------
 
-    def get_score(self) -> EpisodeScore | None:
+    def get_score(self) -> EpisodeSubQuestionScore | None:
         """Return the episode score, or None if not yet submitted."""
-        return self._score
-
-    def get_sq_score(self) -> EpisodeSubQuestionScore | None:
-        """Return the sub-question score, or None if not computed."""
         return self._sq_score
 
     def get_trace(self) -> EpisodeTrace:
