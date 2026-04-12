@@ -420,8 +420,7 @@ def run_nodata_probe(
     runner.submit_claims(claims)
 
     # Get scores
-    v2_score = runner.get_score()
-    sq_score = runner.get_sq_score()
+    sq_score = runner.get_score()
 
     result = {
         "world": world_name,
@@ -434,12 +433,6 @@ def run_nodata_probe(
             for c in claims
         ],
     }
-    if v2_score:
-        result["v2"] = {
-            "total": round(v2_score.total, 3),
-            "correctness": round(v2_score.correctness, 3),
-            "coverage": round(v2_score.coverage, 3),
-        }
     if sq_score:
         result["sq"] = {
             "total": round(sq_score.total, 3),

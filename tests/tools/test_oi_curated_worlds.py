@@ -15,7 +15,6 @@ from __future__ import annotations
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_driver import ScriptedAction, run_oi_scripted
 from sreg.tools.oi_runner import OIEpisodeRunner
-from sreg.tools.oi_salience import build_salience_map
 from sreg.world.scm import SCMWorld
 
 N_MC = 20_000

@@ -562,7 +562,7 @@ def run_oi_investigation(
                     })
 
     return OIInvestigationResult(
-        score=runner.get_sq_score() or runner.get_score(),
+        score=runner.get_score(),
         trace=runner.get_trace(),
         messages=messages,
         n_steps=runner._step["current"],
@@ -642,7 +642,7 @@ def run_oi_scripted(
             break
 
     return OIInvestigationResult(
-        score=runner.get_sq_score() or runner.get_score(),
+        score=runner.get_score(),
         trace=runner.get_trace(),
         messages=messages,
         n_steps=runner._step["current"],

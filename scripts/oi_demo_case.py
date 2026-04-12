@@ -30,7 +30,6 @@ from openai import OpenAI
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_driver import OIInvestigationResult, run_oi_investigation
 from sreg.tools.oi_runner import OIEpisodeRunner
-from sreg.tools.oi_salience import build_salience_map
 from sreg.world.scm import SCMWorld
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests" / "tools"))
@@ -496,7 +495,7 @@ def build_report(
     # =========================================================
     # Part 5: Sub-question evaluation (hidden agenda)
     # =========================================================
-    sq_score = runner.get_sq_score() if runner else None
+    sq_score = runner.get_score() if runner else None
     if sub_questions or sq_score:
         tier_weights = {"high": 1.0, "medium": 0.6, "low": 0.3}
 
