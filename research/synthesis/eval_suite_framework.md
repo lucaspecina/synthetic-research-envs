@@ -171,7 +171,8 @@ scorer is stable would measure a mix of ordering + known bugs.
 **Dependency:** All other suites should be characterized first. This is
 the capstone evaluation.
 
-**Detail doc:** `eval_suite_reward_alignment.md` (TODO)
+**Detail doc:** Blocks A+B implemented in `tests/eval/suite4_reward_alignment/`
+(25 tests, 100% pass, 2026-04-12). Block C gated on P2.
 
 ---
 

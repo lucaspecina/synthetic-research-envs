@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### 2026-04-12 — Suite 4 Blocks A+B: Reward Alignment (I-009)
+
+**Eval suite para validar que el scoring fuerza investigacion real y
+resiste estrategias adversariales.** 25 tests, 100% pass. Sin LLM —
+inputs hand-crafted contra formula de scoring.
+
+- **Block A (7 tests):** investigation pressure — data-informed beats
+  no-data (gap>0.05), precision gate castiga guessing, cobertura amplia
+  beats profundidad en 1 familia, overclaim penalty fuerza thoroughness.
+- **Block B (18 tests):** reward robustness — 7 estrategias adversariales
+  (generic, duplicate, volume spam, wrong-variable, precision flood,
+  cherry-pick, composite) todas pierden vs investigacion honesta.
+- Block C (trajectory ordering) pendiente — gated on P2 credit-assignment.
+
+Archivos: `tests/eval/suite4_reward_alignment/`
+  (test_block_a_investigation_pressure.py, test_block_b_antihack.py)
+
 ### 2026-04-12 — Suite 1: Core Correctness (I-006)
 
 **Eval suite para validar el substrato matematico de SREG.** 52 tests,

@@ -20,7 +20,8 @@
 - [x] I-006: Eval suite — core correctness (2026-04-12, 52 tests)
 - [ ] I-007: Eval suite — translation / compilation
 - [ ] I-008: Eval suite — science coverage
-- [ ] I-009: Eval suite — E2E reward alignment
+- [x] I-009: Eval suite — E2E reward alignment blocks A+B (2026-04-12, 25 tests)
+- [ ] I-009c: Eval suite — E2E reward alignment block C (gated on P2)
 
 **Training**
 - [ ] I-010: Qwen3-8B BEFORE benchmarks
@@ -56,6 +57,7 @@
 
 ## RECENTLY CLOSED
 
+- [x] I-009 A+B: Eval suite — reward alignment blocks A+B (2026-04-12, 25/25 pass)
 - [x] SREG v1 — 6 criterios de cierre (2026-04-09, tag `sreg-v1`)
 - [x] Merge v1 a main + tags sreg-v0/sreg-v1 (2026-04-10)
 - [x] Migracion a issue tracking local (2026-04-10)
