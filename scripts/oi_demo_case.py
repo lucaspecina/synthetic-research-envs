@@ -434,7 +434,7 @@ def build_report(
         lines.append(f"| **Total** | **{s.total:.3f}** |")
         lines.append(f"| Correctness | {s.correctness:.3f} |")
 
-        # Handle both EpisodeScore (v1) and EpisodeSubQuestionScore (v2)
+        # SQ v2 scoring details
         from sreg.models.open_investigation import EpisodeSubQuestionScore
         if isinstance(s, EpisodeSubQuestionScore):
             lines.append(f"| Coverage | {s.coverage:.3f} |")
