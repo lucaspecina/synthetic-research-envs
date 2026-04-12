@@ -250,3 +250,66 @@ as a controlled subset of Suite 3's corpus.
 In practice: build the corpus and worlds now (Phase 1-3 of Suite 3),
 run Suite 1 in parallel, then run Suite 2 on a subset, and only then
 interpret Suite 3 results as thesis evidence.
+
+---
+
+## Future direction: Behavioral ablation evals
+
+> **Status:** idea stage, needs design work. Documented 2026-04-12.
+
+Suites 1-4 evaluate the **system** (math, translation, scoring formula,
+reward ordering). But there's a complementary question:
+
+> Do the evolutionary pressures in SREG actually produce the desired
+> behavioral properties in a trained agent?
+
+This would be a different kind of evaluation: **controlled scenarios
+that isolate a specific capability and measure whether the agent has it.**
+
+### The pattern
+
+Take a capability from the evolutionary pressures list (PROJECT.md) and
+design a scenario that forces the agent into a situation where HAVING
+that capability produces a better outcome than NOT having it. Then
+measure whether the agent (or its score) reflects the difference.
+
+### Concrete examples (brainstorm, not designed)
+
+- **Data access ablation** (partially in Block A): same case, solver
+  with vs without data access. Already tested at formula level; could
+  extend to real solver runs.
+- **Code execution ablation**: same case, solver with python_exec vs
+  solver restricted to text-only reasoning. Tests whether the system
+  rewards computational investigation over verbal reasoning.
+- **Dead-end recovery**: start the solver from a hypothesis history that
+  is heading toward a dead end. Does the agent pivot or persist? Tests
+  research taste and knowing when a line of inquiry is unproductive.
+- **Premature conclusion resistance**: give the solver partial evidence
+  that suggests a wrong conclusion. Does it investigate further or
+  commit early? Tests knowing when a conclusion is premature vs well
+  founded.
+- **Breadth vs depth judgment**: cases where the right strategy is to
+  go broad (many families) vs cases where depth matters (complex
+  mediation). Does the agent adapt its strategy?
+
+### Key differences from current suites
+
+- Current suites use **hand-crafted inputs** or **fixed trajectories**.
+  These would use **live solver runs under controlled conditions**.
+- Current suites verify the **scoring system**. These would verify that
+  the scoring system **produces the right training signal** — i.e., that
+  agents trained on SREG actually develop the properties we want.
+- Closer to behavioral evals / capability evals than to unit tests.
+- Likely requires a trained (or at least fine-tuned) model to be
+  meaningful — testing base models may just measure pre-training priors.
+
+### Open questions
+
+- How to measure subtle properties (research taste, question quality)
+  without human judges or another LLM in the loop?
+- Which properties are measurable via score differential vs which need
+  qualitative evaluation?
+- Can we design these as automated evals, or are some inherently
+  qualitative?
+- What's the minimum viable version — one property, one case, one
+  ablation?
