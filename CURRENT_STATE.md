@@ -349,10 +349,9 @@ intermedia como `ClaimIntent`**.
 Una claim compuesta puede producir varios `CompiledUnit`s.
 Cada `CompiledUnit` contiene uno o mas `AtomicSpec`s.
 
-Si el LLM falla en producir specs validos, existe un fallback determinista
-(`lower_intent` en `oi_compiler.py`) que usa la IR intermedia `ClaimIntent`
-con 8 patterns predefinidos. Este path es fallback-only y produce resultados
-menos expresivos.
+Si el LLM falla en producir specs validos, la claim se marca como
+abstention (sin score). No hay fallback — grammar-direct es el unico
+path de compilacion.
 
 ### Paso B. `WorldSummary`: de palabras vagas a anclas canonicas
 
@@ -740,8 +739,8 @@ cuando `arm.adjust_set` es vacio, o devuelve `adjust_invalid` limpio
 si no existe set identificable. Esto ya existia — el cambio es que ahora
 `adjust_set` SIEMPRE llega vacio al verifier desde Flow B.
 
-**Flow A** (`oi_compiler.py::lower_intent`) queda intacto: el solver
-sigue siendo responsable de su propio razonamiento causal. Ver
+**Flow A** (`oi_extraction.py::compile_claim_direct`) queda ciego al DAG:
+el solver sigue siendo responsable de su propio razonamiento causal. Ver
 `PROJECT.md` invariante 8 (Flow A vs Flow B) para el contrato completo.
 
 ### Harness aislado de recompile (2026-04-08)

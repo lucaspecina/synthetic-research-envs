@@ -512,7 +512,7 @@ Solver → ClaimCard (NL)
   → [_score_with_judge] → EpisodeSubQuestionScore
 ```
 
-Fallback path: `lower_intent` (ClaimIntent IR → 8 patterns → AtomicSpecs).
+Si grammar-direct falla, la claim se marca como abstention (sin fallback).
 
 1. **[DONE] DSL grammar** — `src/sreg/models/open_investigation.py`
    QueryContext (6 kinds incl observe/adjust), Measurement (9),
@@ -528,11 +528,11 @@ Fallback path: `lower_intent` (ClaimIntent IR → 8 patterns → AtomicSpecs).
 4. **[REMOVED] Pilot E2E** — `test_oi_pilot.py` eliminado 2026-04-12.
    Reemplazado por E2E reales con LLM (scripts/run_oi.py).
 
-5. **[DONE] Compiler** — `src/sreg/tools/oi_compiler.py` (lower_intent)
-   + `src/sreg/tools/oi_extraction.py` (grammar-direct, default).
+5. **[DONE] Compiler** — `src/sreg/tools/oi_extraction.py` (grammar-direct).
+   `lower_intent` fallback eliminado 2026-04-13.
 
-6. **[DONE] Exemplar bank** — `src/sreg/tools/oi_exemplars.py`
-   14 positive (all 7 patterns) + 5 negative (abstention). Hand-crafted.
+6. **[REMOVED] Exemplar bank** — `oi_exemplars.py` eliminado 2026-04-13.
+   Era parte del fallback v1 (ClaimIntent extraction). Grammar-direct no lo necesita.
 
 7. **[DONE] SQ v2 scoring** — `oi_sq_compiler.py` + `oi_relevance_judge.py`
    + `oi_sq_matching.py`. SubQuestionIntentV2 con VerificationSpec bundles,

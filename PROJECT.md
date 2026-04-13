@@ -321,9 +321,8 @@ SCM pueden ver. Confundirlos es una fuente recurrente de bugs silenciosos
 que rompen o bien la presion evolutiva sobre el solver, o bien el ground
 truth del reward exacto.
 
-**Flow A** — compilacion de claims (`oi_extraction.py` grammar-direct
-default, `oi_compiler.py::lower_intent` fallback): traduce claims del
-solver en specs de verificacion. **Debe permanecer ciego al
+**Flow A** — compilacion de claims (`oi_extraction.py` grammar-direct):
+traduce claims del solver en specs de verificacion. **Debe permanecer ciego al
 DAG del SCM.** Dar a Flow A acceso estructural rescataria el razonamiento
 causal del solver (auto-corregir un `adjust_set` invalido, canonicalizar
 un control set malo) y romperia la presion evolutiva — razonar mal
