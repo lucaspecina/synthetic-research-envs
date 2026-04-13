@@ -36,6 +36,7 @@
 | `synthesis/a27_answer_key_contract.md` | **CANON answer key.** Contrato del answer key rico |
 | `synthesis/scm_migration_rationale.md` | **CANON migracion.** Por que SCM y no BN |
 | `synthesis/research_case_design.md` | **CANON disenio.** Como diseniar SRCs que se sientan como investigacion real |
+| `synthesis/sherlock_interactive_design.md` | **CANON diseno v2.** Sherlock-type interactive investigation — 3 modelos, SciGym comparison, Modelo 1 concreto |
 | `synthesis/real_papers_patterns.md` | **CANON patrones.** Patrones consistentes en papers reales |
 
 ### Notas activas (notes/)
