@@ -31,6 +31,7 @@ class OpenAIClient:
     """ModelClient adapter for OpenAI-compatible APIs.
 
     Works with OpenAI, Azure AI Foundry, and any OpenAI-compatible endpoint.
+    Uses the Responses API (not Chat Completions).
 
     Usage::
 
@@ -43,6 +44,8 @@ class OpenAIClient:
         # Custom endpoint
         client = OpenAIClient(api_key="key", base_url="http://localhost:8000/v1")
     """
+
+    supports_previous_response_id: bool = True
 
     def __init__(
         self,

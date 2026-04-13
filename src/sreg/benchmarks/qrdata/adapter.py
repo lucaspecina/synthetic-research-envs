@@ -153,6 +153,11 @@ class QRDataAdapter:
         consecutive_errors = 0
 
         for i, ex in enumerate(examples):
+            # Load full CSV data into client's python_exec namespace (if supported)
+            data_assets = self._load_data_assets(ex.data_files)
+            if hasattr(client, "set_data"):
+                client.set_data(data_assets if data_assets else None)
+
             prompt = self._compose_prompt(ex)
             messages = [
                 Message(role=MessageRole.SYSTEM, content=SYSTEM_PROMPT),
@@ -321,6 +326,25 @@ class QRDataAdapter:
         )
 
         return "\n\n".join(parts)
+
+    def _load_data_assets(self, data_files: list[str]) -> list[dict]:
+        """Load full CSV files as data assets for python_exec namespace."""
+        import csv as csv_mod
+
+        assets = []
+        for fname in data_files:
+            path = self.csv_dir / fname
+            if not path.exists():
+                continue
+            try:
+                with open(path, encoding="utf-8", errors="replace") as f:
+                    reader = csv_mod.DictReader(f)
+                    data = list(reader)
+                if data:
+                    assets.append({"data": data, "format": "tabular"})
+            except Exception as e:
+                logger.warning(f"Error loading {path} as data asset: {e}")
+        return assets
 
     def _load_csv_preview(self, data_files: list[str]) -> str:
         """Load CSV files and return a truncated text preview."""

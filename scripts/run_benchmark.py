@@ -39,7 +39,7 @@ logger = logging.getLogger("run_benchmark")
 
 def _make_client(args: argparse.Namespace):
     """Build the appropriate ModelClient based on CLI flags."""
-    from sreg.inference.openai_client import OpenAIClient
+    backend = getattr(args, "backend", "azure")
 
     kwargs = {}
     if args.model:
@@ -52,7 +52,18 @@ def _make_client(args: argparse.Namespace):
             api_key = "not-needed"
         kwargs["api_key"] = api_key
 
-    base_client = OpenAIClient(**kwargs)
+    if backend == "vllm":
+        from sreg.inference.chat_client import ChatCompletionsClient
+        # vLLM Qwen3: disable thinking mode for tool calling
+        kwargs.setdefault("extra_body", {
+            "chat_template_kwargs": {"enable_thinking": False},
+        })
+        base_client = ChatCompletionsClient(**kwargs)
+        logger.info(f"Backend: Chat Completions (vLLM) — model={kwargs.get('model')}")
+    else:
+        from sreg.inference.openai_client import OpenAIClient
+        base_client = OpenAIClient(**kwargs)
+        logger.info(f"Backend: Responses API (Azure) — model={kwargs.get('model')}")
 
     if args.with_tools:
         from sreg.inference.tool_client import ToolEnrichedClient
@@ -483,6 +494,13 @@ def main():
         action="store_true",
         help="Give the model python_exec + think tools (solver capabilities). "
              "Especially useful for QRData where data analysis improves scores.",
+    )
+    parser.add_argument(
+        "--backend",
+        choices=["azure", "vllm"],
+        default="azure",
+        help="LLM backend: 'azure' (Responses API) or 'vllm' (Chat Completions). "
+             "Default: azure.",
     )
     parser.add_argument(
         "--base-url",

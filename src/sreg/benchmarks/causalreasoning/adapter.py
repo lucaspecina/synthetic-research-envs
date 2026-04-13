@@ -93,6 +93,7 @@ class CRBExample(BaseModel):
     identification_strategy: str  # gold strategy
     metadata_text: str  # loaded metadata content
     data_preview: str  # truncated CSV data
+    data_path: str  # relative path to full CSV (for python_exec loading)
     gold_spec: dict  # loaded identification spec JSON
     gold_effect: float
     gold_se: float
@@ -195,6 +196,7 @@ class CRBAdapter:
                     identification_strategy=item.get("identification_strategy", ""),
                     metadata_text=metadata_text,
                     data_preview=data_preview,
+                    data_path=item.get("data_path", ""),
                     gold_spec=gold_spec,
                     gold_effect=float(item.get("effect", 0.0)),
                     gold_se=float(item.get("standard_error", 0.0)),
@@ -221,6 +223,11 @@ class CRBAdapter:
         consecutive_errors = 0
 
         for i, ex in enumerate(examples):
+            # Load full CSV data into client's python_exec namespace (if supported)
+            data_assets = self._load_data_assets(ex.data_path)
+            if hasattr(client, "set_data"):
+                client.set_data(data_assets if data_assets else None)
+
             prompt = self._compose_prompt(ex)
             messages = [
                 Message(role=MessageRole.SYSTEM, content=SYSTEM_PROMPT),
@@ -579,6 +586,25 @@ class CRBAdapter:
     # -----------------------------------------------------------------------
     # Data loading helpers
     # -----------------------------------------------------------------------
+
+    def _load_data_assets(self, rel_path: str) -> list[dict]:
+        """Load full CSV as data assets for python_exec namespace."""
+        import csv as csv_mod
+
+        if not rel_path:
+            return []
+        path = self.data_dir / rel_path
+        if not path.exists():
+            return []
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                reader = csv_mod.DictReader(f)
+                data = list(reader)
+            if data:
+                return [{"data": data, "format": "tabular"}]
+        except Exception as e:
+            logger.warning(f"Error loading {path} as data asset: {e}")
+        return []
 
     def _load_metadata(self, rel_path: str) -> str:
         """Load metadata text file."""

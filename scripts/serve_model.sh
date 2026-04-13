@@ -1,13 +1,13 @@
 #!/bin/bash
 # Serve a model with vLLM (OpenAI-compatible API).
 #
-# Run this in WSL2 (or native Linux with GPU).
+# Run this on a machine with a GPU (H100, A100, etc.) or in WSL2.
 #
 # Usage:
 #   # First time setup:
 #   bash scripts/serve_model.sh --setup
 #
-#   # Serve Qwen 0.5B (default, fits in 12GB VRAM):
+#   # Serve Qwen3-8B (default for thesis benchmarks):
 #   bash scripts/serve_model.sh
 #
 #   # Serve a different model:
@@ -17,16 +17,22 @@
 #   bash scripts/serve_model.sh --port 8080
 #
 # After starting, the model is available at:
-#   http://localhost:8000/v1  (OpenAI-compatible API)
+#   http://localhost:8000/v1  (OpenAI-compatible Chat Completions API)
+#
+# Run benchmarks against it:
+#   python scripts/run_benchmark.py --benchmark qrdata --model qwen3-8b \
+#       --backend vllm --base-url http://localhost:8000/v1 --api-key none \
+#       --with-tools --subset dev
 #
 # Test with:
 #   curl http://localhost:8000/v1/models
 
 set -e
 
-MODEL="${MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
+MODEL="${MODEL:-Qwen/Qwen3-8B}"
 PORT="${PORT:-8000}"
-GPU_MEM_UTILIZATION="${GPU_MEM_UTILIZATION:-0.85}"
+GPU_MEM_UTILIZATION="${GPU_MEM_UTILIZATION:-0.90}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-16384}"
 VENV_DIR="$HOME/.venvs/vllm"
 
 # Parse arguments
@@ -36,6 +42,7 @@ while [[ $# -gt 0 ]]; do
         --model)    MODEL="$2"; shift 2 ;;
         --port)     PORT="$2"; shift 2 ;;
         --gpu-mem)  GPU_MEM_UTILIZATION="$2"; shift 2 ;;
+        --max-len)  MAX_MODEL_LEN="$2"; shift 2 ;;
         *)          echo "Unknown arg: $1"; exit 1 ;;
     esac
 done
@@ -70,6 +77,7 @@ echo "=== Starting vLLM server ==="
 echo "Model: $MODEL"
 echo "Port: $PORT"
 echo "GPU memory utilization: $GPU_MEM_UTILIZATION"
+echo "Max model length: $MAX_MODEL_LEN"
 echo ""
 echo "API will be available at: http://localhost:$PORT/v1"
 echo "Press Ctrl+C to stop."
@@ -79,7 +87,7 @@ python -m vllm.entrypoints.openai.api_server \
     --model "$MODEL" \
     --port "$PORT" \
     --gpu-memory-utilization "$GPU_MEM_UTILIZATION" \
+    --max-model-len "$MAX_MODEL_LEN" \
     --enable-auto-tool-choice \
     --tool-call-parser hermes \
-    --max-model-len 4096 \
     --trust-remote-code

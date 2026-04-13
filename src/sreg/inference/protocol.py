@@ -40,15 +40,6 @@ class FinishReason(StrEnum):
 # ---------------------------------------------------------------------------
 
 
-class Message(BaseModel):
-    """A single message in a chat conversation."""
-
-    role: MessageRole
-    content: str | None = None
-    tool_call_id: str | None = None
-    name: str | None = None
-
-
 class ToolSpec(BaseModel):
     """Tool definition exposed to the model (provider-agnostic)."""
 
@@ -64,6 +55,16 @@ class ToolCall(BaseModel):
     name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
     raw_arguments: str | None = None
+
+
+class Message(BaseModel):
+    """A single message in a chat conversation."""
+
+    role: MessageRole
+    content: str | None = None
+    tool_call_id: str | None = None
+    name: str | None = None
+    tool_calls: list[ToolCall] | None = None  # assistant msgs with tool invocations
 
 
 class Usage(BaseModel):
