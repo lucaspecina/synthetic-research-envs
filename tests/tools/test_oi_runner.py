@@ -407,8 +407,8 @@ class TestRunnerSubmission:
         assert "c1" in runner.trace.claim_steps
         assert runner.trace.claim_steps["c1"] == 2  # last step
 
-    def test_submit_auto_compiles_via_deterministic_fallback(self):
-        """Without LLM, auto-compilation uses keyword-based fallback."""
+    def test_submit_without_llm_still_scores(self):
+        """Without LLM, claims abstain but scoring still runs via stub."""
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=5000)
@@ -421,18 +421,12 @@ class TestRunnerSubmission:
         claims = [_make_claim()]
         score = runner.submit_claims(claims)
 
-        # Deterministic fallback should compile the causal_effect claim
-        assert score.total > 0
+        # Without LLM, grammar-direct abstains. Dummy scorer still returns a score.
+        assert score is not None
 
-    def test_submit_with_compiled_intents(self):
-        """Test submission with pre-compiled ClaimIntents."""
-        from sreg.tools.oi_compiler import (
-            ClaimIntent,
-            Direction,
-            PatternClass,
-            build_world_summary,
-            lower_intent,
-        )
+    def test_submit_with_precompiled(self):
+        """Test submission with pre-compiled CompilerOutput."""
+        from sreg.tools.oi_compiler import CompiledUnit, CompilerOutput
 
         problem = _make_problem()
         world = _make_scm_world()
@@ -443,17 +437,23 @@ class TestRunnerSubmission:
         runner.run_code('df = load_artifact("dataset_bg")')
         runner.run_code('oi.regress(df, y="Y", x=["A"])')
 
-        # Create a claim + pre-compiled intent
+        # Create a claim + pre-compiled output
         claim = _make_claim()
-        summary = build_world_summary(world, "Y", n_mc=5000, seed=42)
-        intent = ClaimIntent(
-            claim_id="c1",
-            pattern=PatternClass.CAUSAL_EFFECT,
-            treatment="A",
-            outcome="Y",
-            direction=Direction.POSITIVE,
+        spec = AtomicSpec(
+            spec_id="c1_s0",
+            arms=(
+                QueryArm(label="hi", kind=QueryKind.INTERVENE, values={"A": 1.0}),
+                QueryArm(label="lo", kind=QueryKind.INTERVENE, values={"A": -1.0}),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
         )
-        compiled = [lower_intent(intent, summary)]
+        compiled = [CompilerOutput(
+            claim_id="c1",
+            status="compiled",
+            units=[CompiledUnit(unit_id="c1_u0", specs=[spec], backend="grammar_direct")],
+        )]
 
         score = runner.submit_claims([claim], compiled_claims=compiled)
         assert score.total > 0  # Should get some credit
@@ -503,13 +503,7 @@ class TestRunnerPromptContext:
 class TestMockSolverFlow:
     def test_full_investigation_flow(self):
         """Simulate a full solver investigation without LLM."""
-        from sreg.tools.oi_compiler import (
-            ClaimIntent,
-            Direction,
-            PatternClass,
-            build_world_summary,
-            lower_intent,
-        )
+        from sreg.tools.oi_compiler import CompiledUnit, CompilerOutput
 
         problem = _make_problem()
         world = _make_scm_world()
@@ -537,21 +531,27 @@ class TestMockSolverFlow:
         # Verify trace accumulated
         assert len(runner.trace.accesses) == 2
 
-        # Step 6: Submit claims with pre-compiled intents
+        # Step 6: Submit claims with pre-compiled specs
         claim = _make_claim(
             text="A has a positive causal effect on Y, controlling for B",
             focus=["A", "Y"],
         )
 
-        summary = build_world_summary(world, "Y", n_mc=5000, seed=42)
-        intent = ClaimIntent(
-            claim_id="c1",
-            pattern=PatternClass.CAUSAL_EFFECT,
-            treatment="A",
-            outcome="Y",
-            direction=Direction.POSITIVE,
+        spec = AtomicSpec(
+            spec_id="c1_s0",
+            arms=(
+                QueryArm(label="hi", kind=QueryKind.INTERVENE, values={"A": 1.0}),
+                QueryArm(label="lo", kind=QueryKind.INTERVENE, values={"A": -1.0}),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
         )
-        compiled = [lower_intent(intent, summary)]
+        compiled = [CompilerOutput(
+            claim_id="c1",
+            status="compiled",
+            units=[CompiledUnit(unit_id="c1_u0", specs=[spec], backend="grammar_direct")],
+        )]
 
         score = runner.submit_claims([claim], compiled_claims=compiled)
 
