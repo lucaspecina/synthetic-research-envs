@@ -1,19 +1,115 @@
 # SREG Evaluation Suite Framework
 
 > **Status:** CANON evaluation.
-> **Date:** 2026-04-09
-> **Purpose:** Define the 4 evaluation suites for SREG v1 and how they
-> relate to each other.
+> **Date:** 2026-04-09, updated 2026-04-12
+> **Purpose:** Define what SREG must evaluate to demonstrate it fulfills
+> its objective, and how each evaluation layer maps to concrete suites.
+
+## The objective
+
+SREG's goal is to be a **training environment** where RL produces agents
+with good scientific judgment. For that to work, a chain of properties
+must ALL hold. If any link breaks, the system doesn't fulfill its purpose.
+
+## The 6 evaluation layers
+
+Each layer answers one question. They are ordered by dependency — each
+layer assumes the previous ones hold.
+
+```
+Layer 1: Mathematical correctness        Suite 1         DONE
+Layer 2: Translation fidelity            Suite 2         TODO
+Layer 3: Science coverage                Suite 3         TODO (separate lane)
+Layer 4: Reward formula properties       Suite 4 A+B     DONE
+Layer 5: Training signal quality         Suite 5 (NEW)   TODO — identified gap
+Layer 6: Behavioral outcomes             Future          needs trained model
+```
+
+### Layer 1 — Is the math correct?
+> If the verifier gives wrong answers, nothing else is interpretable.
+
+Evaluates: SCM engine, verifier, scoring arithmetic.
+**Suite 1: Core Correctness** — 52 tests, 100% pass.
+
+### Layer 2 — Does translation preserve meaning?
+> If "X causes Y" compiles to the wrong spec, correct investigation
+> gets wrong scores.
+
+Evaluates: SQ compiler, claim compiler, relevance judge accuracy.
+**Suite 2: Translation/Compilation** — TODO.
+
+### Layer 3 — Can the system represent diverse science?
+> If SREG only works for "X causes Y", the agent learns one trick.
+
+Evaluates: grammar + compiler + verifier expressiveness across the
+full spectrum of scientific question types.
+**Suite 3: Science Coverage** — TODO (separate worktree/lane).
+
+### Layer 4 — Does the scoring formula have the right incentives?
+> If the formula can be hacked or doesn't reward investigation,
+> RL trains for the wrong thing.
+
+Evaluates: formula properties with hand-crafted inputs — investigation
+pressure, anti-hack robustness, trajectory ordering.
+**Suite 4 A+B** — 25 tests, 100% pass. **Block C** gated on P2.
+
+### Layer 5 — Does the reward signal have enough quality for training?
+> If all trajectories score between 0.45 and 0.55, there's no gradient.
+> RL learns nothing regardless of how correct the formula is.
+
+This is a **newly identified gap** (2026-04-12). Layers 1-4 verify
+that the system is *correct* — but correctness is not sufficient for
+training. The reward must also have sufficient **diversity, sensitivity,
+and discrimination** to provide a useful training signal.
+
+**Key questions:**
+- **Score spread**: Do real runs produce scores distributed across a
+  wide range, or do they cluster in a narrow band?
+- **Score sensitivity**: Does a small improvement in investigation
+  quality produce a measurable increase in score?
+- **Score stability**: Does the same quality of investigation produce
+  similar scores across different runs? (low noise)
+- **Score discrimination**: Can the system reliably separate good
+  investigation from mediocre? Or is there too much overlap?
+
+**How to evaluate:**
+- Run the solver over multiple diverse cases (canonical batch or new)
+- Analyze score distributions: histogram, variance, inter-quartile range
+- Compare score distributions across quality tiers (if trajectory bank
+  exists from Block C)
+- Measure score-quality correlation (requires human quality labels or
+  proxy)
+- Check per-component contribution: is the signal coming from
+  correctness? coverage? efficiency? or is one term dominating?
+
+**Dependency:** Requires Layers 1-4 to be characterized. Also benefits
+from Layer 3 (diverse cases produce more meaningful distributions).
+
+**Suite 5: Training Signal Quality** — TODO. Design not started.
+
+### Layer 6 — Does training produce the right capabilities?
+> The ultimate test: does an agent trained on SREG actually develop
+> good scientific judgment?
+
+This is qualitatively different from Layers 1-5. Those evaluate the
+*system*. This evaluates the *outcome of training on the system*.
+
+Evaluates: whether SREG's evolutionary pressures produce the 16
+desired behavioral properties (see PROJECT.md). Requires controlled
+scenarios that isolate specific capabilities.
+
+**Future: Behavioral Ablation Evals** — idea stage. See dedicated
+section below.
+
+---
 
 ## Why this exists
 
 SREG v1 is evaluated today with qualitative E2E runs over 12 diverse
 worlds. That gives intuition but not defensible evidence for a thesis.
 
-This framework defines **4 systematic evaluation suites**, each targeting
-a different layer of the system. Together they answer: does the math
-work? does the translation work? what can the system cover? does the
-reward push in the right direction?
+The 6 layers above define WHAT must be true. The suites below define
+HOW to measure each layer systematically.
 
 The thesis evaluation framework (`thesis_evaluation_framework.md`) defines
 WHAT to demonstrate. This document defines HOW to measure it.
@@ -62,9 +158,10 @@ language and formal specs.
 **Unit of evaluation:** `(text_gloss or claim_text, WorldSummary) ->
 compiled specs` and `(claim, SQ) -> relevance score`
 
-**Design:** A gold set of ~30-50 items with hand-labeled expected specs
-(or expected verdicts from running those specs). Measured by
-**verificational equivalence** — not string match. Also includes:
+**Design:** A gold set of ~90-120 items derived bottom-up from SCM
+equations, organized in 41 semantic families across 3 research-grade
+worlds. Measured by **verificational equivalence** — not string match.
+Also includes:
 - Paraphrase robustness (same meaning, 3 formulations -> same spec family)
 - Abstention correctness (abstains when it should, doesn't when it shouldn't)
 - Relevance judge vs human gold (Cohen's kappa, calibration)
@@ -78,7 +175,7 @@ compiled specs` and `(claim, SQ) -> relevance score`
 **Dependency:** Requires Suite 1 to pass. If the verifier is broken, we
 can't measure verificational equivalence.
 
-**Detail doc:** `eval_suite_translation.md` (TODO)
+**Detail doc:** `eval_suite_translation.md` (design complete, 2026-04-13)
 
 ---
 
@@ -198,19 +295,27 @@ the frozen `p05_canonical_batch` for E2E runs.
 ## Dependency ordering
 
 ```
-Suite 1 (Core Correctness)
+Suite 1 (Core Correctness)            Layer 1
     |
     v
-Suite 2 (Translation)     Suite 3 (Science Coverage)
+Suite 2 (Translation)     Suite 3 (Science Coverage)    Layers 2-3
     |                          |
     +-----------+--------------+
                 |
                 v
-        Suite 4 (E2E / Reward)
+        Suite 4 (E2E / Reward)        Layer 4
+                |
+                v
+        Suite 5 (Signal Quality)      Layer 5
+                |
+                v
+        Behavioral Ablations          Layer 6 (future)
 ```
 
 Suite 1 is the foundation. Suites 2 and 3 can proceed in parallel once
 Suite 1 passes. Suite 4 requires understanding from all three.
+Suite 5 requires Suite 4 + real solver runs to produce score distributions.
+Layer 6 requires a trained model.
 
 ---
 
@@ -224,17 +329,22 @@ Suite 1 passes. Suite 4 requires understanding from all three.
 | Cases force real investigation | Suite 4 (block A) | — |
 | Reward ranks better investigation higher | Suite 4 (block C) | Suite 4 (block B) |
 | LLM judge is calibrated | Suite 2 | Suite 4 (block B) |
+| Reward provides viable RL training signal | Suite 5 | Suite 4 |
+| Training produces scientific judgment | Layer 6 (future) | Suite 5 |
 
 ---
 
 ## Implementation priority
 
-| # | Suite | Cost | Gating |
-|---|---|---|---|
-| 1 | Suite 1: Core Correctness | Low (no LLM) | — |
-| 2 | Suite 3: Science Coverage | Medium-high (corpus) | Suite 1 |
-| 3 | Suite 2: Translation | Medium (gold set) | Suite 1 |
-| 4 | Suite 4: E2E / Reward | High (trajectories) | P2 for block C |
+| # | Suite | Cost | Gating | Status |
+|---|---|---|---|---|
+| 1 | Suite 1: Core Correctness | Low (no LLM) | — | DONE (52/52) |
+| 2 | Suite 4 A+B: Reward Formula | Low (no LLM) | Suite 1 | DONE (25/25) |
+| 3 | Suite 3: Science Coverage | Medium-high (corpus) | Suite 1 | TODO |
+| 4 | Suite 2: Translation | Medium (gold set) | Suite 1 | TODO |
+| 5 | Suite 4 C: Trajectory Ordering | High (trajectories) | P2 | TODO |
+| 6 | Suite 5: Signal Quality | Medium (real runs) | Suite 4 | TODO |
+| 7 | Layer 6: Behavioral Ablations | Very high (trained model) | Suite 5 | Future |
 
 Suite 3's **corpus construction** is prioritized over Suite 2 because
 it can start immediately and produces the broadest evidence for the
