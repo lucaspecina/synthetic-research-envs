@@ -269,11 +269,239 @@ Before annotating gold items, define:
    items, not paraphrases.
 
 6. **Abstention rules**: when should the compiler abstain? Define the
-   boundary clearly (temporal, latent, methodological, non-expressible).
+   boundary clearly. Two categories (do NOT conflate):
+   - **Non-expressible abstention**: the grammar lacks the primitives
+     (temporal, methodological, distributional shape, optimization).
+     Compiler should refuse with a reason code.
+   - **Non-identifiability**: the grammar CAN express the question, but
+     the answer is "not identifiable." This is NOT abstention — the
+     compiler should produce an `identifiability_check` spec.
 
 7. **Relevance judge rubric**: ordinal bands (high/medium/low/none)
    with anchor examples. Pairwise ordering is the primary metric,
    not exact score match.
+
+8. **Gold lives per surface form**: different surface forms of the same
+   fact may require different gold specs (see Gold Target Design section).
+
+9. **Mediation terminology**: use "controlled direct/indirect effect",
+   never "natural direct/indirect effect." Our specs fix the mediator
+   at a reference value, which gives controlled effects.
+
+---
+
+## Gold target design (decisions from Codex review sessions, 2026-04-13)
+
+### Gold lives per SURFACE FORM, not per fact
+
+A single analytical fact can have multiple surface forms at different
+difficulty levels. Those surface forms can require DIFFERENT gold specs.
+
+Example — W1_F03 (treatment causes side effects):
+- Easy: "Treatment causes side effects" → 1 spec (T→SE)
+- Medium: "Treatment improves outcome but causes side effects" → 2 specs (T→Y + T→SE)
+
+Therefore: gold targets attach to each surface form, not to the fact.
+
+### Three-stage evaluation (not just verificational equivalence)
+
+Verificational equivalence alone is too weak. A compiler might produce
+wrong specs that happen to give the right verdict (e.g., observational
+correlation positive when causal effect is also positive — right answer
+for wrong reason).
+
+The evaluation pipeline has 3 stages, in order:
+
+1. **Compile/abstain decision**: Did the compiler correctly decide to
+   compile (when the claim IS expressible) or abstain (when it isn't)?
+   This is binary and catches gross failures.
+
+2. **Structural contract**: Did the compiler produce specs with the
+   right structure? Check (coarsest to finest):
+   - `allowed_arm_kinds` (INTERVENE for causal, BASELINE for observational)
+   - `required_role_vars` (treatment, outcome)
+   - `required_measurement_kind` (MEAN, VARIANCE, TAIL_PROB, etc.)
+   - `required_comparison_kind` (DIFFERENCE, IDENTITY, CONTRAST_DIFF)
+   - `required_assertion_polarity` (assertion kind or polarity class)
+   - `n_atoms` + `acceptance_rule` (ALL_OF or ANY_OF)
+   - Causal structure roles: `required_mediator`, `required_modifier`,
+     `required_condition_vars`, `required_cond_set`
+   This catches "right answer, wrong reason" failures.
+
+3. **Verdict equivalence**: Do the compiler's specs produce the same
+   verdict as the gold specs when run against the SCM? This is the
+   final check for correctness.
+
+A compiler that passes stage 3 but fails stage 2 is SUSPICIOUS — it
+may be exploiting a coincidence. A compiler that passes all 3 stages
+is trustworthy.
+
+### GoldTarget object structure (implemented)
+
+Each surface form has a GoldTarget with a separate StructuralContract:
+
+```python
+@dataclass
+class StructuralContract:
+    allowed_arm_kinds: set[str]
+    required_role_vars: dict[str, str]
+    required_measurement_kind: str
+    required_comparison_kind: str
+    required_assertion_polarity: str
+    n_atoms: int | tuple[int, int] = 1
+    # Causal structure roles (Phase 1 enrichment):
+    required_mediator: str | None = None
+    required_modifier: str | None = None
+    required_condition_vars: set[str] = field(default_factory=set)
+    required_cond_set: tuple[str, ...] | None = None
+
+@dataclass
+class GoldTarget:
+    fact_id: str
+    surface_form_index: int
+    status: str                          # "compile" | "abstain"
+    atoms: list[AtomicSpec]              # Gold AtomicSpec(s)
+    acceptance_rule: str = "all_of"
+    structural_contract: StructuralContract | None = None
+    alternative_atoms: list[list[AtomicSpec]] = field(default_factory=list)
+    abstain_reason_code: str | None = None
+```
+
+### Alternatives: avoiding false negatives (structure only, runner pending)
+
+A compiler may produce specs that differ from the gold but are equally
+valid. The `alternative_atoms` field holds additional valid spec sets.
+The compiler output matches if it equals ANY of: `atoms` or any entry
+in `alternative_atoms`. This is critical for mediation and heterogeneity,
+where multiple valid formalizations exist.
+
+**Status:** the field exists in `GoldTarget` but nothing consumes it
+yet. The test runner must implement alternative-matching before this
+provides actual false-negative protection. Noted as tech debt.
+
+### Abstention vs non-identifiability (NOT the same)
+
+Two distinct failure modes that must not be conflated:
+
+- **Non-identifiability**: the claim IS expressible in the grammar.
+  The compiler should produce specs with
+  `measurement=identifiability_check` and `assertion=not_identifiable`.
+  The verdict is a **real answer**: "this cannot be estimated from
+  observational data." Example: "Can we estimate P→H?" in W3.
+
+- **Abstention**: the claim CANNOT be expressed in the grammar at all.
+  The compiler should refuse to compile. No spec is produced.
+  Example: "Temperature changes precede health effects" (temporal),
+  "What is the optimal dose?" (optimization).
+
+### Intervention values: anchors, not hardcoded (target state)
+
+**Target state:** For vague claims ("treatment improves outcome"), the
+gold spec should use canonical anchors from the WorldSummary (hi/lo/mid),
+not hardcoded values like 1.0/0.0. The compiler uses the WorldSummary to
+pick intervention points, so the gold should match this contract.
+
+Only when the surface form specifies exact values ("a one-unit increase")
+should the gold use explicit numeric values.
+
+**Current state:** The WorldSummary anchor system does not exist yet.
+Current gold targets use hardcoded values (0.0, 1.0, -1.0, 1.5) that
+are correct for these specific worlds. When anchors are implemented,
+gold targets should migrate to use them. Noted as tech debt.
+
+### Compound claims → multiple specs + acceptance rule
+
+When a single claim contains multiple sub-findings, the gold has
+multiple AtomicSpecs with an acceptance rule:
+
+- **ALL_OF**: all sub-specs must hold. "T improves Y AND causes SE."
+- **ANY_OF**: at least one sub-spec must hold. (Rare in practice.)
+
+### False claims: same formalization, false verdict
+
+A false claim (e.g., "exposure increases disease" when ATE is negative)
+should compile to specs that are structurally correct but produce a
+FALSE verdict. The gold has:
+- `status="compile"` (it IS expressible)
+- `assertion=POSITIVE` (what the claim asserts)
+- Expected verdict = FALSE (because the SCM disagrees)
+
+This tests whether the compiler formalizes correctly even when the
+claim is wrong. The compiler is a TRANSLATOR, not a fact-checker.
+
+### Mediation specs use CONTRAST_DIFF
+
+For direct/indirect effect decomposition, the grammar has CONTRAST_DIFF:
+- 4 arms: total_hi, total_lo, direct_hi, direct_lo
+- Measurement: MEAN on outcome
+- Comparison: CONTRAST_DIFF = (total_hi - total_lo) - (direct_hi - direct_lo)
+- Assertion: POSITIVE if indirect is positive, etc.
+
+Direct effect uses 2 arms with mediator fixed at reference value.
+
+### Heterogeneity specs use conditioned arms
+
+"Effect varies by modifier" → 4 arms conditioned on modifier high/low:
+- hi_mod_hi, lo_mod_hi, hi_mod_lo, lo_mod_lo
+- Comparison: CONTRAST_DIFF (effect in high stratum minus effect in low)
+- Assertion: GAP_MATERIAL (generic heterogeneity) or POSITIVE (directional)
+
+### Confounding detection: OBSERVE vs INTERVENE CONTRAST_DIFF
+
+Confounding = observational effect differs from causal effect.
+Formalization: 4-arm CONTRAST_DIFF with OBSERVE and INTERVENE arms:
+- obs_hi, obs_lo (observational conditioning)
+- causal_hi, causal_lo (interventional do-calculus)
+- CONTRAST_DIFF = (obs effect) - (causal effect)
+- GAP_MATERIAL assertion (non-zero = confounding exists)
+
+Use symmetric values (e.g., T=+1/-1) to maximize the gap.
+
+### Collider bias: IDENTIFIABILITY_CHECK with candidate_adjust_set
+
+Collider bias facts ("adjusting for L biases the estimate") map to
+identifiability checks with a specific candidate adjustment set:
+- IDENTIFIABILITY_CHECK with `candidate_adjust_set=("L",)`
+- NOT_IDENTIFIABLE assertion (this candidate set is invalid)
+
+**Important distinction:** this is NOT "globally non-identifiable"
+(like P->H in W3 where no adjustment set works). This is "this
+specific candidate adjustment set is invalid." The causal effect E->D
+IS identifiable via {C} — just not via {L}. The `candidate_adjust_set`
+parameter makes this distinction explicit.
+
+This is cleaner than trying to measure partial_corr(E,D|L) and
+determine its sign, because the claim is about the validity of the
+adjustment set, not about a specific numerical value.
+
+### Stage 3 detail: beyond boolean verdicts (tech debt)
+
+Codex review identified that stage 3 ("same boolean verdict") is too
+weak for some fact types:
+- **Scalars**: should compare sign + approximate magnitude, not just
+  pass/fail. Use `AtomVerdict.detail` for this.
+- **Changepoints**: should verify existence AND location (e.g.,
+  changepoint_x near 0), not just existence.
+- **Identifiability**: boolean is sufficient.
+
+This is noted as tech debt for the test harness implementation. The
+gold targets are correct; the harness needs to extract and compare
+`detail` fields. NOT blocking for current batch.
+
+### Abstention reason codes: soft labels
+
+Codex recommended treating abstention reason codes as soft diagnostic
+labels, not hard-fail criteria. Exact code match is useful for
+categorization but should not be a pass/fail gate. The critical test
+is: did the compiler abstain when it should have?
+
+### Decisions documented but NOT yet implemented
+
+- RJ (relevance judge) gold pairs: separate table structure with
+  claim-SQ pairs and expected ordinal bands. Deferred to after claim/SQ
+  gold is complete.
+- `equivalence_group_id` for paraphrase families: will be added when
+  CC-C1 / SQ-B3 families are implemented.
 
 ---
 
@@ -330,3 +558,24 @@ Matrix v3 and world design reviewed in 3 rounds with Codex (GPT-5.4).
 Key contributions from Codex: role binding as separate family, separating
 scope/conditioning/adjusting, Simpson reversal margin check, near_zero
 correction in W3, annotation policy recommendation.
+
+World implementation (W1-W3) reviewed by Codex (1 round, 2026-04-13).
+Key contributions: variance-effect fact via B*T interaction in W1,
+partial correlation Simpson's test in W2, keep sharp threshold in W3,
+4 additional MC verification tests recommended and implemented.
+
+Gold target design reviewed by Codex (4 rounds, 2026-04-13). Key
+contributions: gold per surface form (not per fact), 3-stage evaluation
+(compile/abstain → structural contract → verdict equivalence),
+abstention vs non-identifiability distinction, CONTRAST_DIFF for
+mediation and heterogeneity, anchor-based intervention values,
+GoldTarget object structure, W3_F10 variance bug caught, label
+overload bug (NOT_IDENTIFIABLE) caught, true/false balance critique.
+
+Phase 1+2 review (rounds 3-4): alternative_atoms for false-negative
+prevention, StructuralContract enrichment (mediator/modifier/condition
+roles), W2_F02 covariance-vs-correlation fix, stage 3 detail comparison
+(tech debt noted), confounding formalization (OBSERVE vs INTERVENE
+CONTRAST_DIFF), collider bias as IDENTIFIABILITY_CHECK with
+candidate_adjust_set, batch 2 coverage gaps (VARIANCE, TAIL_PROB,
+opposite-sign mediation, positive identifiability, compileable SQ).
