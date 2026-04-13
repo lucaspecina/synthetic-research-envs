@@ -370,5 +370,5 @@ Desde ahora:
 Si este framework cambia una decision operativa del proyecto:
 
 - resumir en `PROJECT.md`
-- bajar trabajo pendiente a `TODO.md`
+- bajar trabajo pendiente a GitHub Issues
 - registrar implementaciones en `CURRENT_STATE.md`

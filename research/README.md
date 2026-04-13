@@ -128,7 +128,7 @@ S03/S04, etc.) ver `notes/`. Estos no son canon — son insumo.
 2. Se investiga y consolida -> `synthesis/`
 3. Si se vuelve decision del proyecto -> se promueve a `PROJECT.md` o
    `ARCHITECTURE.md`
-4. Si implica trabajo pendiente -> `TODO.md`
+4. Si implica trabajo pendiente -> GitHub Issue (`gh issue create`)
 5. Si se implementa -> `CURRENT_STATE.md` + `CHANGELOG.md`
 
 El archivo de research queda como registro historico — no se borra, pero

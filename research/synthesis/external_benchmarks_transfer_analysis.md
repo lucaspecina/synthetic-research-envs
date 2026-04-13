@@ -186,7 +186,7 @@ pero parte del boost es del cambio de harness, no del entrenamiento.
 **Esto invalida la comparacion.** O re-corremos BEFORE con code
 execution, o sacamos QRData del Tier 1. No hay tercera opcion limpia.
 
-Ver `TODO.md` T4.
+Ver GitHub Issue #13.
 
 ---
 
@@ -236,7 +236,7 @@ si las hipotesis son objectivamente mejores.
 
 **LLM-judge no determinista.** Sin mitigacion (judge model fijo, prompt
 fijo, version fija, multiple seeds + voting), los deltas BEFORE/AFTER
-no son comparables. Ver `TODO.md` T5.
+no son comparables. Ver GitHub Issue #13.
 
 ### Caveat sobre drift estilistico durante RL
 
@@ -464,7 +464,7 @@ Esto es una limitacion honesta del paper. Hay dos opciones:
   cerrado y metricas de juicio. Trabajo grande pero convierte el gap
   en una contribucion adicional.
 
-Decision pendiente. Ver `TODO.md` y `thesis_evaluation_framework.md`.
+Decision pendiente. Ver GitHub Issues y `thesis_evaluation_framework.md`.
 
 ---
 

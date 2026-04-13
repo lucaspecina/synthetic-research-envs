@@ -46,7 +46,7 @@ Every change — code or docs — follows this workflow.
 **Only AFTER user says yes.**
 
 - Update docs:
-  - `TODO.md`: mark completed tasks `[x]`, add new tasks
+  - GitHub Issues: close completed issues (`gh issue close`), create new ones (`gh issue create`)
   - `CHANGELOG.md`: add entry for new functionality
   - `CURRENT_STATE.md`: update test count, modules, capabilities
   - `CLAUDE.md`: update project structure, conventions
@@ -57,9 +57,9 @@ Every change — code or docs — follows this workflow.
 ### Step 5: What's next?
 **MANDATORY. Right after commit+push.**
 
-- Review `TODO.md` and identify what's next in the roadmap.
+- List open GitHub Issues (`gh issue list --label prio:now`) and identify what's next.
 - Present 1-3 concrete next steps to the user, in friendly Spanish.
-  Not a dump of the whole TODO — a curated suggestion of what makes sense NOW.
+  Not a dump of all issues — a curated suggestion of what makes sense NOW.
 - Explain briefly WHY each option matters (how it fits in the big picture).
 - Ask: "¿Qué te parece? ¿Seguimos con algo?" (or similar).
 - Let the user choose, or suggest a different direction.

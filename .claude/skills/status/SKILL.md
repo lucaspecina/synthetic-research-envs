@@ -5,7 +5,7 @@ description: Give a concise project status overview. Use when the user asks abou
 
 Give a concise project status overview.
 
-1. Read `TODO.md` and `CHANGELOG.md`
-2. Count tasks by lane: NOW, NEXT, LATER, PARKED
-3. Show the last 5 changelog entries
+1. List open GitHub Issues: `gh issue list --label prio:now`, `gh issue list --label prio:next`
+2. Read `CHANGELOG.md` for recent entries
+3. Count issues by priority and lane
 4. Identify the current focus area and what to work on next

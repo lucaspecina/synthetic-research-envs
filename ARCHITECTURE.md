@@ -7,7 +7,7 @@
 > `PROJECT.md` define la vision.
 > `ARCHITECTURE.md` define el sistema objetivo para este horizonte.
 > `CURRENT_STATE.md` describe que parte de eso existe hoy realmente.
-> `TODO.md` describe la brecha y el trabajo pendiente.
+> GitHub Issues describe la brecha y el trabajo pendiente.
 
 ---
 

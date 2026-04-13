@@ -2,7 +2,7 @@
 
 > **Status:** CANON diseno v2. Research activo.
 > **Date:** 2026-04-13
-> **Issue:** I-016
+> **Issue:** #16
 > **Related:** `related_work_scigym.md`, `open_investigation_vision.md`,
 > `PROJECT.md` Horizonte 2
 
@@ -698,6 +698,6 @@ Seccion de series temporales revisada. Cambios incorporados:
 - `research/synthesis/related_work_scigym.md` — SciGym analisis completo
 - `research/synthesis/open_investigation_vision.md` — vision de OI
 - `PROJECT.md` Horizonte 2 — donde encaja en el roadmap
-- `issues/I-016-sequential-investigation-sherlock.md` — issue de tracking
+- GitHub Issue #16 — issue de tracking
 - SciGym paper: Duan et al. 2025, `github.com/h4duan/SciGym`
 - Pearl's causal hierarchy: observational < interventional < counterfactual

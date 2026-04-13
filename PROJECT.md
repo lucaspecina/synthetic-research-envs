@@ -4,7 +4,7 @@
 > **Este documento es la estrella polar del proyecto.** Define que es SREG,
 > para que existe, que deberia lograr y que principios no pueden romperse.
 > No describe implementacion, estado actual ni backlog. Para eso existen
-> `ARCHITECTURE.md`, `CURRENT_STATE.md` y `TODO.md`.
+> `ARCHITECTURE.md`, `CURRENT_STATE.md` y GitHub Issues.
 
 ---
 

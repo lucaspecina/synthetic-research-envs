@@ -72,7 +72,7 @@ Cada decisión pasa por este TRIPLE filtro:
 | Entender como funciona el sistema hoy (usuario, explicacion AMIGABLE) | `CURRENT_STATE.md` |
 | Entender la arquitectura tecnica | `ARCHITECTURE.md` |
 | Vision, principios, invariantes | `PROJECT.md` |
-| Que hacer / trabajo pendiente | `TODO.md` (board) + `issues/I-NNN.md` (detalle) |
+| Que hacer / trabajo pendiente | GitHub Issues (labels: `lane:*`, `type:*`, `prio:*`) |
 | Historial de cambios | `CHANGELOG.md` |
 | Historico TODO v1 | `docs/archive/todo_v1_history.md` |
 | Indice de research (que doc es canon, cual no) | `research/README.md` |
@@ -111,7 +111,7 @@ Cada decisión pasa por este TRIPLE filtro:
 
 1. **CURRENT_STATE.md** — el cambio afecta como funciona el sistema? Actualizar.
 2. **CHANGELOG.md** — agregar entrada describiendo el cambio (producto, no internals).
-3. **TODO.md + issues/** — completaste algo? Mover en TODO.md. Surgio algo nuevo? Crear issue en `issues/I-NNN.md` y agregar al board.
+3. **GitHub Issues** — completaste algo? Cerrar issue con `gh issue close`. Surgio algo nuevo? Crear con `gh issue create` + labels (`lane:*`, `type:*`, `prio:*`).
 4. **research/README.md** — cambiaste o creaste docs de research? Actualizar indice.
 5. **ARCHITECTURE.md** — cambiaste componentes, contratos o flows? Actualizar.
 6. **Tests y scripts** — el cambio deja tests o scripts obsoletos? Eliminarlos.
@@ -190,8 +190,7 @@ scripts/ # generate_src.py, run_oi.py, rescore.py, run_benchmark.py
 seeds/ # Research seeds (.md/.pdf) for diverse E2E generation
 tests/ # Mirrors src/ structure
 research/ # Analisis y sintesis (ver research/README.md)
-issues/ # Issue tracking local (I-NNN-slug.md)
-docs/archive/ # Historico (todo_v1_history.md, etc.)
+docs/archive/ # Historico (todo_v1_history.md, issue-tracker/, etc.)
 ```
 
 ## Code conventions
@@ -207,11 +206,36 @@ docs/archive/ # Historico (todo_v1_history.md, etc.)
 
 `pytest tests/ -v` | `pytest tests/tools/test_X.py -v` | `ruff check src/ tests/` | `ruff format src/ tests/`
 
-## Git + Codex
+## Git + GitHub Issues + Codex
 
-- Branch naming: `feature/<name>`, `fix/<name>`, `refactor/<name>`
+### Issue workflow
+- **Issues en GitHub** con labels: `lane:*`, `type:*`, `prio:*`, `status:*`
+- **1 issue = 1 branch = 1 worktree = 1 PR**
+- Branch naming: `issue/NNN-short-slug` (ej: `issue/16-sherlock-interactive`)
+- PR body empieza con `Closes #NNN` para cierre automatico
+- Squash merge preferido
+- Commits referencian issue: `#NNN descripcion` (ej: `#16 add intervention tools`)
+
+### gh CLI
+`gh` esta instalado pero puede no estar en PATH de bash. Usar path completo
+si falla: `"/c/Program Files/GitHub CLI/gh.exe"`. Authenticated as `lucaspecina`.
+
+### Flujo
+1. Elegir issue `prio:now` → ponerle `status:in-progress`:
+   `gh issue edit NNN --add-label status:in-progress`
+2. Crear worktree + branch: `claude --worktree issue-NNN-slug`
+3. Trabajar, commitear
+4. Abrir PR con `gh pr create` + `Closes #NNN`
+5. Mergear PR, cerrar issue, borrar branch, remover worktree
+
+### Git general
 - Always ask user before pushing. Multiple sessions: `claude --worktree <name>`.
+- Worktrees legacy (`worktree-*`) siguen con naming viejo. La convencion
+  `issue/NNN-*` aplica a work nuevo.
+- Worktrees existentes deben mergear main para traer docs actualizados.
+
+### Codex
 - **Codex** (when MCP available): mandatory for code review, recommended for design.
- Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.
+  Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.
 - **CLAUDE LIDERA, CODEX ASESORA.** Formar opinion propia ANTES de consultar.
- Presentar ambas opiniones, argumentar desacuerdos. El usuario decide.
+  Presentar ambas opiniones, argumentar desacuerdos. El usuario decide.

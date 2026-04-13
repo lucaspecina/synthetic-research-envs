@@ -4,6 +4,9 @@ data/benchmarks/
 # PDF seeds (too large for git, download locally)
 seeds/*.pdf
 
+# Claude Code worktrees (parallel sessions, never commit)
+.claude/worktrees/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

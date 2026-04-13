@@ -214,7 +214,7 @@ Si cambia cualquiera de estas decisiones:
 
 - actualizar este archivo;
 - resumir el cambio en `thesis_evaluation_framework.md` si afecta la tesis;
-- bajar tareas concretas a `TODO.md`;
+- bajar tareas concretas a GitHub Issues;
 - registrar implementacion en `CURRENT_STATE.md`.
 
 ## Precedente externo

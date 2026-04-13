@@ -5,7 +5,7 @@
 > Models (SCM) con simulacion.
 >
 > Status: **DECIDIDO** (2026-03-20). Implementacion en branch `feature/scm-engine`.
-> Referencia: A8 en `TODO.md`, `notes/gaussian_bn_prototype_findings.md`
+> Referencia: A8 (historico, resuelto), `notes/gaussian_bn_prototype_findings.md`
 
 ---
 

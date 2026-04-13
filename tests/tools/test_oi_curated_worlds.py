@@ -1,7 +1,7 @@
 """Curated test worlds for OI Alpha pilot.
 
 Three hand-crafted SCMWorlds designed to exercise different aspects of the
-OI pipeline. The roadmap (TODO.md, Paso 3) calls for:
+OI pipeline. The original roadmap called for:
   - One with real interaction
   - One with partial mediation
   - One with interesting confounding
