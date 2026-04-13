@@ -1,5 +1,5 @@
 # Benchmark datasets (download locally, don't commit)
-data/benchmarks/
+data/
 
 # PDF seeds (too large for git, download locally)
 seeds/*.pdf

@@ -1,0 +1,63 @@
+{
+  "run_id": "fd0ea5710ff9",
+  "benchmark": "crb",
+  "benchmark_version": "v1",
+  "model_name": "gpt-5.4",
+  "model_backend": "openai",
+  "inference_config": {},
+  "eval_split": "all",
+  "metric_name": "full_identification_accuracy",
+  "metric_value": 0.43506493506493504,
+  "higher_is_better": true,
+  "num_examples": 173,
+  "num_correct": 67,
+  "seed": 42,
+  "prompt_version": "v1",
+  "code_version": "2ad7013",
+  "dataset_version": "v1-hf",
+  "toolset_version": null,
+  "started_at": "2026-04-13T01:12:26.252421Z",
+  "completed_at": "2026-04-13T01:12:26.252421Z",
+  "status": "success",
+  "summary": {
+    "strategy_accuracy": 0.7857142857142857,
+    "treatments_accuracy": 0.7272727272727273,
+    "outcomes_accuracy": 0.9285714285714286,
+    "controls_accuracy": 0.7142857142857143,
+    "full_identification_accuracy": 0.43506493506493504,
+    "by_strategy": {
+      "Conditional Exogeneity": {
+        "strategy_accuracy": 0.2727272727272727,
+        "full_id_accuracy": 0.18181818181818182,
+        "count": 33
+      },
+      "Difference-in-Differences": {
+        "strategy_accuracy": 0.9649122807017544,
+        "full_id_accuracy": 0.7719298245614035,
+        "count": 57
+      },
+      "Instrumental Variable": {
+        "strategy_accuracy": 0.8571428571428571,
+        "full_id_accuracy": 0.2857142857142857,
+        "count": 21
+      },
+      "RCT": {
+        "strategy_accuracy": 1.0,
+        "full_id_accuracy": 1.0,
+        "count": 1
+      },
+      "Regression Discontinuity": {
+        "strategy_accuracy": 0.9047619047619048,
+        "full_id_accuracy": 0.23809523809523808,
+        "count": 42
+      }
+    },
+    "mean_estimation_error": 15.754563324138617,
+    "median_percentage_error": 100.0,
+    "within_ci_rate": 0.43478260869565216,
+    "null_hypothesis_accuracy": 0.9767441860465116,
+    "errors": 19,
+    "answered": 154
+  },
+  "errors": []
+}

@@ -70,31 +70,44 @@ class OpenAIClient:
         model: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        previous_response_id: str | None = None,
+        raw_input: list[dict[str, Any]] | None = None,
     ) -> ChatResponse:
-        """Send a request via the Responses API and return a normalized response."""
-        # Extract system prompt from messages
-        instructions = None
-        input_items: list[dict[str, Any]] = []
-        for m in messages:
-            if m.role == MessageRole.SYSTEM:
-                instructions = m.content
-            elif m.role == MessageRole.USER:
-                input_items.append({"role": "user", "content": m.content or ""})
-            elif m.role == MessageRole.ASSISTANT:
-                input_items.append({"role": "assistant", "content": m.content or ""})
-            elif m.role == MessageRole.TOOL:
-                input_items.append({
-                    "type": "function_call_output",
-                    "call_id": m.tool_call_id or "",
-                    "output": m.content or "",
-                })
+        """Send a request via the Responses API and return a normalized response.
 
+        For multi-turn tool calling, use previous_response_id + raw_input
+        (function_call_output items) instead of rebuilding the full message
+        history. This matches how the Responses API chains requests.
+        """
         kwargs: dict[str, Any] = {
             "model": model or self.default_model,
-            "input": input_items if input_items else "",
         }
-        if instructions:
-            kwargs["instructions"] = instructions
+
+        if previous_response_id and raw_input is not None:
+            # Continuation: chain with previous response, send only tool outputs
+            kwargs["previous_response_id"] = previous_response_id
+            kwargs["input"] = raw_input
+        else:
+            # First call: extract system prompt and build input items
+            instructions = None
+            input_items: list[dict[str, Any]] = []
+            for m in messages:
+                if m.role == MessageRole.SYSTEM:
+                    instructions = m.content
+                elif m.role == MessageRole.USER:
+                    input_items.append({"role": "user", "content": m.content or ""})
+                elif m.role == MessageRole.ASSISTANT:
+                    input_items.append({"role": "assistant", "content": m.content or ""})
+                elif m.role == MessageRole.TOOL:
+                    input_items.append({
+                        "type": "function_call_output",
+                        "call_id": m.tool_call_id or "",
+                        "output": m.content or "",
+                    })
+            kwargs["input"] = input_items if input_items else ""
+            if instructions:
+                kwargs["instructions"] = instructions
+
         if temperature is not None:
             kwargs["temperature"] = temperature
         if max_tokens is not None:

@@ -1,0 +1,48 @@
+{
+  "run_id": "e15974909d2d",
+  "benchmark": "cladder",
+  "benchmark_version": "v1",
+  "model_name": "gpt-5.4",
+  "model_backend": "openai",
+  "inference_config": {},
+  "eval_split": "all",
+  "metric_name": "accuracy",
+  "metric_value": 0.65,
+  "higher_is_better": true,
+  "num_examples": 100,
+  "num_correct": 65,
+  "seed": 42,
+  "prompt_version": "v1-zero-shot",
+  "code_version": "2ad7013",
+  "dataset_version": "v1-balanced",
+  "toolset_version": null,
+  "started_at": "2026-04-12T18:16:42.806960Z",
+  "completed_at": "2026-04-12T18:16:42.806401Z",
+  "status": "success",
+  "summary": {
+    "by_rung": {
+      "rung_1": 0.7666666666666667,
+      "rung_2": 0.6666666666666666,
+      "rung_3": 0.55
+    },
+    "by_query_type": {
+      "ate": 0.7,
+      "backadj": 0.7,
+      "collider_bias": 0.6,
+      "correlation": 0.7,
+      "det-counterfactual": 0.5,
+      "ett": 0.8,
+      "exp_away": 0.9,
+      "marginal": 0.7,
+      "nde": 0.4,
+      "nie": 0.5
+    },
+    "by_sensical": {
+      "commonsense": 0.65
+    },
+    "unparseable": 0,
+    "errors": 8,
+    "answered": 92
+  },
+  "errors": []
+}
