@@ -125,7 +125,8 @@ def _setup_dummy_scoring(runner: OIEpisodeRunner) -> None:
         sq_scores=[], coverage=0.5, weighted_coverage=0.5,
         correctness=0.8, novel_bonus=0.0, total=0.5,
     )
-    runner._score_with_judge = lambda claims, compiled: _dummy_score
+    # New pure signature: returns (score, claim_truths, relevance_results, judge_claims)
+    runner._score_with_judge = lambda claims, compiled: (_dummy_score, {}, [], [])
 
 
 def _claim_dict(

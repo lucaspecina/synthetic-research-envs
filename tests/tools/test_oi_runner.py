@@ -295,7 +295,8 @@ def _setup_dummy_scoring(runner: OIEpisodeRunner) -> None:
         novel_bonus=0.0,
         total=0.5,
     )
-    runner._score_with_judge = lambda claims, compiled: _dummy_score
+    # New pure signature: returns (score, claim_truths, relevance_results, judge_claims)
+    runner._score_with_judge = lambda claims, compiled: (_dummy_score, {}, [], [])
 
 
 class TestRunnerSubmission:
@@ -474,6 +475,154 @@ class TestRunnerSubmission:
         assert not runner.is_submitted
         runner.submit_claims([_make_claim()])
         assert runner.is_submitted
+
+
+# ---------------------------------------------------------------------------
+# Transactional submit_claims: scoring failure must leave runner pristine
+# ---------------------------------------------------------------------------
+
+
+class TestRunnerTransactionality:
+    """Regression: if _score_with_judge raises (e.g. LLM timeout), the runner
+    must be left exactly as it was before submit_claims was called, so the
+    solver can retry the submission. Previously, _submitted / _last_compiled
+    / _last_claims / trace.claim_steps were mutated BEFORE scoring, leaving
+    the runner 'dirty' and causing retries to fail with 'already submitted'.
+    """
+
+    def _make_sq(self):
+        _atom = AtomicSpec(
+            spec_id="s1",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
+        )
+        _verdict = AtomVerdict(
+            atom_id="s1", spec=_atom, ground_truth=1.0,
+            solver_assertion_holds=True, score=1.0,
+        )
+        _spec = VerificationSpec(spec=_atom, role="required", verdict=_verdict)
+        return SubQuestionIntentV2(
+            sq_id="sq1",
+            text_gloss="Does A increase Y?",
+            verification_specs=[_spec],
+            focus_variables=("A", "Y"),
+        )
+
+    def _assert_pristine(self, runner: OIEpisodeRunner) -> None:
+        """Every mutable field touched by submit_claims must be untouched."""
+        assert runner._submitted is False
+        assert runner.is_submitted is False
+        assert runner._last_compiled is None
+        assert runner._last_claims is None
+        assert runner._claim_truths is None
+        assert runner._relevance_results is None
+        assert runner._judge_claims is None
+        assert runner._sq_score is None
+        assert runner.get_score() is None
+        assert runner.trace.claim_steps == {}
+
+    def test_scoring_timeout_leaves_runner_pristine(self):
+        """Simulated LLM timeout during judging: runner must stay clean."""
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner.set_subquestions_v2([self._make_sq()])
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        def boom(_claims, _compiled):
+            raise TimeoutError("LLM judge timed out")
+
+        runner._score_with_judge = boom
+
+        with pytest.raises(TimeoutError, match="timed out"):
+            runner.submit_claims([_make_claim()])
+
+        self._assert_pristine(runner)
+
+    def test_scoring_runtime_error_leaves_runner_pristine(self):
+        """Generic RuntimeError during scoring: same transactional guarantee."""
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner.set_subquestions_v2([self._make_sq()])
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        runner._score_with_judge = lambda *_: (_ for _ in ()).throw(
+            RuntimeError("scoring exploded")
+        )
+
+        with pytest.raises(RuntimeError, match="exploded"):
+            runner.submit_claims([_make_claim()])
+
+        self._assert_pristine(runner)
+
+    def test_retry_after_scoring_failure_succeeds(self):
+        """After a transient scoring failure, a retry must succeed — the
+        'already submitted' guard must NOT trip because the first attempt
+        never committed."""
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner.set_subquestions_v2([self._make_sq()])
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        attempts = {"n": 0}
+        _dummy_score = EpisodeSubQuestionScore(
+            sq_scores=[], coverage=0.0, weighted_coverage=0.0,
+            correctness=0.0, novel_bonus=0.0, total=0.0,
+        )
+
+        def flaky(_claims, _compiled):
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                raise TimeoutError("transient")
+            return (_dummy_score, {}, [], [])
+
+        runner._score_with_judge = flaky
+
+        # First attempt fails; runner stays pristine.
+        with pytest.raises(TimeoutError):
+            runner.submit_claims([_make_claim()])
+        self._assert_pristine(runner)
+
+        # Second attempt commits normally.
+        score = runner.submit_claims([_make_claim()])
+        assert score is _dummy_score
+        assert runner.is_submitted
+        assert runner._last_compiled is not None
+        assert runner._sq_score is _dummy_score
+        assert "c1" in runner.trace.claim_steps
+
+    def test_compile_failure_leaves_runner_pristine(self):
+        """If auto-compile raises (e.g. extraction pipeline error), the
+        runner must also stay pristine — scoring hadn't even started."""
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner.set_subquestions_v2([self._make_sq()])
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        # Make the auto-compile path blow up by pointing compile_episode_claims
+        # at a failing shim. submit_claims goes through the auto-compile branch
+        # because compiled_claims is None.
+        import sreg.tools.oi_extraction as oi_extraction
+
+        def boom_compile(*_args, **_kwargs):
+            raise RuntimeError("compile failed")
+
+        # monkeypatch via direct attribute assignment (pytest-style fixture not
+        # used here because we construct the runner manually).
+        original = oi_extraction.compile_episode_claims
+        oi_extraction.compile_episode_claims = boom_compile
+        try:
+            with pytest.raises(RuntimeError, match="compile failed"):
+                runner.submit_claims([_make_claim()])
+        finally:
+            oi_extraction.compile_episode_claims = original
+
+        self._assert_pristine(runner)
 
 
 # ---------------------------------------------------------------------------

@@ -233,13 +233,16 @@ def rescore_recompile(exp_dir: Path) -> dict:
     ctx = runner._build_extraction_context(summary.observable_names)
     compiled = compile_episode_claims(claims, summary, llm_call=llm, context=ctx)
 
-    # Submit (triggers scoring via _score_with_judge)
-    runner._submitted = True
-    runner._last_compiled = compiled
-    runner._last_claims = list(claims)
-
-    # Run v2 scoring
-    score = runner._score_with_judge(claims, compiled)
+    # Run v2 scoring — _score_with_judge is pure (no self-mutation), and
+    # _commit_scoring_result is the single source of truth for the submit
+    # invariant. record_claim_steps=False because rescore rehydrated
+    # runner.trace from the frozen episode above.
+    bundle = runner._score_with_judge(claims, compiled)
+    runner._commit_scoring_result(
+        compiled=compiled, claims=claims, bundle=bundle,
+        record_claim_steps=False,
+    )
+    score = bundle[0]
 
     return _build_report(exp_dir, claims, compiled, score, result)
 

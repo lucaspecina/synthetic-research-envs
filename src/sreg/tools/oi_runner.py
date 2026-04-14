@@ -326,6 +326,13 @@ class OIEpisodeRunner:
     ) -> EpisodeSubQuestionScore:
         """Submit claims and compute the episode score.
 
+        Transactional: ALL side effects (`_submitted`, `_last_compiled`,
+        `_last_claims`, `_claim_truths`, `_relevance_results`,
+        `_judge_claims`, `_sq_score`, `trace.claim_steps`) are committed
+        atomically AFTER both compilation and scoring succeed. If compile
+        or scoring raises (e.g. LLM timeout during judge), the runner is
+        left exactly as it was before the call, so the solver can retry.
+
         Args:
             claims: The solver's ClaimCards (1-claim_cap claims).
             compiled_claims: Pre-compiled CompilerOutputs aligned 1:1
@@ -335,6 +342,8 @@ class OIEpisodeRunner:
         Returns:
             EpisodeSubQuestionScore with correctness, coverage, total.
         """
+
+        # --- Pre-flight validation (no mutation) ---
 
         if self._submitted:
             raise RuntimeError("Claims already submitted for this episode")
@@ -358,7 +367,6 @@ class OIEpisodeRunner:
 
         # Validate evidence_basis: atomic rejection of entire submission
         # if ANY claim cites an artifact_id that was never accessed (#25).
-        # This must happen BEFORE any state mutation (claim_steps, _submitted).
         accessed = self.trace.accessed_artifact_ids()
         evidence_errors = validate_evidence_refs(
             claims, accessed, catalog_ids=self.catalog.all_ids,
@@ -383,11 +391,12 @@ class OIEpisodeRunner:
                 + "\n\nFix the invalid references and resubmit."
             )
 
-        # Record claim steps in trace
-        for claim in claims:
-            self.trace.claim_steps[claim.claim_id] = self._step["current"]
+        # --- Stage compile (in locals, no mutation yet) ---
+        # Compile-alignment errors (length, type, claim_id mismatch) must
+        # surface here before the subquestions_v2 check — they describe the
+        # caller's arguments, which is a more actionable error than a runner
+        # configuration issue.
 
-        # Validate and use pre-compiled claims, or auto-compile
         if compiled_claims is not None:
             self._validate_compiled_alignment(claims, compiled_claims)
             compiled = compiled_claims
@@ -403,11 +412,6 @@ class OIEpisodeRunner:
                 claims, summary, llm_call=self._llm_call, context=ctx
             )
 
-        self._submitted = True
-        self._last_compiled = compiled
-        self._last_claims = list(claims)
-
-        # --- Scoring ---
         if not self._subquestions_v2:
             raise RuntimeError(
                 "No sub_questions_v2 provided. SQ v2 + LLM judge is the "
@@ -415,17 +419,64 @@ class OIEpisodeRunner:
                 "with sub_questions_v2 in src.json."
             )
 
-        self._sq_score = self._score_with_judge(claims, compiled)
+        # --- Stage scoring (pure; raises on LLM timeout / judge failure) ---
+        # If this raises, nothing below runs, and none of the state below is
+        # touched. That is the transactional invariant.
+
+        bundle = self._score_with_judge(claims, compiled)
+
+        # --- COMMIT: atomic mutation of runner state ---
+        self._commit_scoring_result(
+            compiled=compiled, claims=claims, bundle=bundle,
+            record_claim_steps=True,
+        )
+
+        score = bundle[0]
         logger.info(
             "SQ v2 judge score: total=%.3f correctness=%.3f "
             "weighted_coverage=%.3f coverage=%.3f",
-            self._sq_score.total,
-            self._sq_score.correctness,
-            self._sq_score.weighted_coverage,
-            self._sq_score.coverage,
+            score.total,
+            score.correctness,
+            score.weighted_coverage,
+            score.coverage,
         )
 
-        return self._sq_score
+        return score
+
+    def _commit_scoring_result(
+        self,
+        *,
+        compiled: list,
+        claims: list[ClaimCard],
+        bundle: tuple[
+            EpisodeSubQuestionScore, dict[str, float], list[dict], list[dict]
+        ],
+        record_claim_steps: bool,
+    ) -> None:
+        """Atomically commit the result of a scoring pass.
+
+        Single source of truth for the submit-commit invariant. Used by:
+          - submit_claims (record_claim_steps=True): full lifecycle.
+          - rescore pipelines (record_claim_steps=False): the rescore path
+            hydrates the runner's trace from a frozen episode, so recording
+            claim_steps here would either duplicate or clobber frozen state.
+
+        All fields are written together. `_submitted` goes LAST so that a
+        hypothetical exception between mutations leaves the runner
+        re-submittable (the claim-already-submitted guard only trips once
+        every other field is in a consistent state).
+        """
+        score, claim_truths, relevance_results, judge_claims = bundle
+        if record_claim_steps:
+            for claim in claims:
+                self.trace.claim_steps[claim.claim_id] = self._step["current"]
+        self._last_compiled = compiled
+        self._last_claims = list(claims)
+        self._claim_truths = dict(claim_truths)
+        self._relevance_results = list(relevance_results)
+        self._judge_claims = list(judge_claims)
+        self._sq_score = score
+        self._submitted = True
 
     def compiler_stats(self) -> dict:
         """Return compiler backend stats from last submission."""
@@ -515,8 +566,14 @@ class OIEpisodeRunner:
         self,
         claims: list[ClaimCard],
         compiled: list,
-    ) -> EpisodeSubQuestionScore:
+    ) -> tuple[EpisodeSubQuestionScore, dict[str, float], list[dict], list[dict]]:
         """Score claims against SQ v2s using LLM relevance judge.
+
+        Pure function — does NOT mutate runner state. Returns the bundle
+        (score, claim_truths, relevance_results, judge_claims) so that the
+        caller (submit_claims) can commit all fields atomically after a
+        successful scoring, or leave the runner untouched if scoring raises
+        (e.g. LLM timeout). This is the transactional invariant.
 
         Steps:
         1. Compute truth per claim (verify compiled specs against SCM)
@@ -658,17 +715,17 @@ class OIEpisodeRunner:
             })
 
         # -- 3. Run LLM judge --
+        # NOTE: this is the most likely point of failure (LLM timeout /
+        # network error). If it raises, self._claim_truths / _relevance_results
+        # / _judge_claims must remain untouched so a retry sees a pristine
+        # runner. That is why persistence is deferred to submit_claims after
+        # the full bundle is computed (see _score_with_judge docstring).
         relevance_results = judge_all_claims(
             claims=judge_claims,
             sqs=judge_sqs,
             brief_text=self.problem.research_question,
             llm_call=judge_llm,
         )
-
-        # Persist internals for rescore (P0)
-        self._claim_truths = dict(claim_truths)
-        self._relevance_results = list(relevance_results)
-        self._judge_claims = list(judge_claims)
 
         # Index: (claim_id, sq_id) -> relevance
         rel_map: dict[tuple[str, str], float] = {}
@@ -719,7 +776,7 @@ class OIEpisodeRunner:
         # Total = correctness × weighted_coverage (both must be high)
         total = min(1.0, correctness * weighted_coverage)
 
-        return EpisodeSubQuestionScore(
+        score = EpisodeSubQuestionScore(
             sq_scores=sq_scores,
             coverage=sum(1 for s in sq_scores if s.matched) / len(sq_scores) if sq_scores else 0.0,
             weighted_coverage=weighted_coverage,
@@ -727,6 +784,7 @@ class OIEpisodeRunner:
             novel_bonus=0.0,
             total=total,
         )
+        return score, claim_truths, relevance_results, judge_claims
 
     # -----------------------------------------------------------------
     # Results and metadata
