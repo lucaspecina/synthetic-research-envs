@@ -15,9 +15,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 
 from sreg.models.open_investigation import ClaimCard, EvidenceRef
-from sreg.tools.oi_runner import OIEpisodeRunner
+from sreg.tools.oi_runner import OIEpisodeRunner, SubmissionCancelled
 
 logger = logging.getLogger(__name__)
 
@@ -102,23 +103,74 @@ async def submit_claims(
     # Score via runner (compile + verify + judge). This makes LLM calls
     # (compiler + relevance judge) and can take seconds. Run in thread
     # to avoid blocking the event loop.
+    #
+    # `cancel_event` closes the race described in issue #25: asyncio.wait_for
+    # cancels the await but NOT the worker thread. Without the event, the
+    # thread can still commit the score AFTER we have already returned a
+    # timeout to the agent, leaving runner._submitted=True — the next retry
+    # would fail with "already submitted" and the episode would be lost.
+    # With the event, the thread checks it at the commit checkpoint and
+    # raises SubmissionCancelled instead of committing.
+    cancel_event = threading.Event()
     try:
         score = await asyncio.wait_for(
-            asyncio.to_thread(runner.submit_claims, claim_cards),
+            asyncio.to_thread(
+                runner.submit_claims, claim_cards, cancel_event=cancel_event,
+            ),
             timeout=_SCORING_TIMEOUT_S,
         )
     except asyncio.TimeoutError:
+        # Signal the worker thread to abort its commit. It cannot be killed
+        # but it will honor the event at its next checkpoint.
+        cancel_event.set()
         state["submit_error"] = "scoring_timeout"
-        logger.error("submit_claims scoring timed out after %.0fs", _SCORING_TIMEOUT_S)
+        logger.error(
+            "submit_claims scoring timed out after %.0fs; cancel_event set",
+            _SCORING_TIMEOUT_S,
+        )
         return f"Error: scoring timed out after {_SCORING_TIMEOUT_S:.0f}s."
     except ValueError as e:
         state["submit_error"] = f"validation_error: {e}"
         logger.warning("submit_claims validation error: %s", e)
         return f"Submission error: {e}"
     except RuntimeError as e:
+        # Race recovery: a previous call's worker thread may have committed
+        # the runner AFTER that call's timeout returned an error to the
+        # agent. In that case, the current retry's `runner.submit_claims`
+        # sees `_submitted=True` and raises "already submitted". Rather
+        # than losing the episode, reuse the score that is already on the
+        # runner. This is the complement of `cancel_event`: the event
+        # closes most of the race window, this handles the residual case
+        # where the thread committed before we could signal cancellation.
+        if (
+            "already submitted" in str(e)
+            and runner.is_submitted
+            and runner.get_score() is not None
+        ):
+            recovered = runner.get_score()
+            state["score"] = recovered
+            state["submitted"] = True
+            state["submit_error"] = None
+            logger.warning(
+                "submit_claims retry recovered score from background-committed "
+                "runner (previous timeout's worker finished after env gave up)"
+            )
+            return (
+                f"Claims submitted successfully (recovered from background "
+                f"scoring). Correctness: {recovered.correctness:.3f}, "
+                f"Coverage: {recovered.weighted_coverage:.3f}, "
+                f"Total: {recovered.total:.3f}"
+            )
         state["submit_error"] = f"runtime_error: {e}"
         logger.error("submit_claims runtime error: %s", e)
         return f"Error: {e}"
+    except SubmissionCancelled as e:
+        # Rare: can only reach here if cancel_event was set externally
+        # BEFORE wait_for fired its TimeoutError. Defensive handler — the
+        # contract is that the runner stays pristine, so treat as cancelled.
+        state["submit_error"] = "cancelled"
+        logger.warning("submit_claims cancelled (pre-timeout signal): %s", e)
+        return f"Error: submission cancelled: {e}"
 
     # Store score in state — reward function reads from here
     state["score"] = score

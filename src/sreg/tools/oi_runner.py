@@ -17,6 +17,7 @@ This module handles everything EXCEPT the LLM calls.
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from typing import Any
 
@@ -39,6 +40,24 @@ logger = logging.getLogger(__name__)
 
 MAX_CODE_CHARS = 8000
 MAX_OUTPUT_CHARS = 12000
+
+
+class SubmissionCancelled(Exception):
+    """Raised when submit_claims is cancelled by the caller mid-flight.
+
+    Used by the training env to propagate an async timeout down to the
+    synchronous runner: if `cancel_event` is set before the atomic commit,
+    the runner aborts without persisting any state, so a retry can succeed.
+
+    This is the fix for the env-bridge race described in issue #25:
+    asyncio.wait_for cancels the await but NOT the worker thread, so the
+    thread might reach the commit step AFTER the env has already timed
+    out. The cancel_event check in _commit_scoring_result closes that
+    window — if the env set the event, the thread sees it and raises
+    instead of committing.
+    """
+
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +342,7 @@ class OIEpisodeRunner:
         self,
         claims: list[ClaimCard],
         compiled_claims: list | None = None,
+        cancel_event: threading.Event | None = None,
     ) -> EpisodeSubQuestionScore:
         """Submit claims and compute the episode score.
 
@@ -333,14 +353,27 @@ class OIEpisodeRunner:
         or scoring raises (e.g. LLM timeout during judge), the runner is
         left exactly as it was before the call, so the solver can retry.
 
+        Cancellation: if `cancel_event` is provided and it becomes set
+        before the atomic commit, the method raises `SubmissionCancelled`
+        and the runner remains pristine. The env bridge uses this to
+        cancel a worker thread that is still running after an async
+        timeout — the thread reaches the commit check, sees the event,
+        and aborts instead of persisting state. See issue #25.
+
         Args:
             claims: The solver's ClaimCards (1-claim_cap claims).
             compiled_claims: Pre-compiled CompilerOutputs aligned 1:1
                 with claims (same order, same claim_ids). If None,
                 auto-compiles via extraction pipeline.
+            cancel_event: Optional threading.Event. If set before the
+                commit step, raises SubmissionCancelled and the runner
+                stays unchanged.
 
         Returns:
             EpisodeSubQuestionScore with correctness, coverage, total.
+
+        Raises:
+            SubmissionCancelled: if cancel_event was set before commit.
         """
 
         # --- Pre-flight validation (no mutation) ---
@@ -426,9 +459,12 @@ class OIEpisodeRunner:
         bundle = self._score_with_judge(claims, compiled)
 
         # --- COMMIT: atomic mutation of runner state ---
+        # The helper checks cancel_event right before any write. If the
+        # env bridge signalled timeout, we drop the score on the floor and
+        # raise so the runner stays re-submittable (issue #25).
         self._commit_scoring_result(
             compiled=compiled, claims=claims, bundle=bundle,
-            record_claim_steps=True,
+            record_claim_steps=True, cancel_event=cancel_event,
         )
 
         score = bundle[0]
@@ -452,6 +488,7 @@ class OIEpisodeRunner:
             EpisodeSubQuestionScore, dict[str, float], list[dict], list[dict]
         ],
         record_claim_steps: bool,
+        cancel_event: threading.Event | None = None,
     ) -> None:
         """Atomically commit the result of a scoring pass.
 
@@ -461,11 +498,22 @@ class OIEpisodeRunner:
             hydrates the runner's trace from a frozen episode, so recording
             claim_steps here would either duplicate or clobber frozen state.
 
+        If `cancel_event` is set at entry, raises SubmissionCancelled
+        BEFORE writing anything — the runner stays pristine. This is the
+        last-checkpoint-before-commit pattern that closes the env-bridge
+        race in issue #25.
+
         All fields are written together. `_submitted` goes LAST so that a
         hypothetical exception between mutations leaves the runner
         re-submittable (the claim-already-submitted guard only trips once
         every other field is in a consistent state).
         """
+        if cancel_event is not None and cancel_event.is_set():
+            raise SubmissionCancelled(
+                "Submission cancelled before commit (likely env async timeout). "
+                "Runner state is unchanged; caller may retry."
+            )
+
         score, claim_truths, relevance_results, judge_claims = bundle
         if record_claim_steps:
             for claim in claims:
@@ -864,4 +912,5 @@ class OIEpisodeRunner:
 __all__ = [
     "ArtifactCatalog",
     "OIEpisodeRunner",
+    "SubmissionCancelled",
 ]

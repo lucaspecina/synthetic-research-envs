@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+### 2026-04-14 — env bridge async race fix (cierre #25)
+
+**Complemento del fix transaccional anterior**: `asyncio.wait_for` cancela
+el `await` pero NO el thread worker. Sin proteccion, el thread podia
+commitear el runner DESPUES de que el env ya le retorno "timeout" al
+agente, y el retry subsecuente veia `_submitted=True` → "already submitted".
+
+- `OIEpisodeRunner.submit_claims` acepta `cancel_event: threading.Event`
+  y lo chequea en `_commit_scoring_result` antes de mutar estado. Si esta
+  seteado, tira `SubmissionCancelled` y el runner queda pristine.
+- Nueva exception `SubmissionCancelled` (exportada) para distinguir abort
+  pre-commit de errores normales de validacion/runtime.
+- `sreg.training.tools.submit_claims` instancia `threading.Event()` por
+  llamada, lo setea en el `TimeoutError`, y agrega recovery path en
+  `RuntimeError`: si el thread gano la carrera y commiteo antes del
+  signal, se recupera el score del runner en vez de perder el episodio.
+- `tests/training/test_tools.py` (nuevo): 4 tests async E2E via
+  `asyncio.run()` que cubren (a) timeout sin commit, (b) retry tras
+  timeout, (c) recovery cuando el thread commiteo primero, (d) path
+  rapido normal.
+- `TestRunnerTransactionality`: 3 tests adicionales de `cancel_event`
+  (set antes de commit, no set, retry tras cancel).
+
 ### 2026-04-14 — submit_claims transaccional (fix bloqueante #24)
 
 **Bug de contrato encontrado en eval real (pre-training)**: un timeout del

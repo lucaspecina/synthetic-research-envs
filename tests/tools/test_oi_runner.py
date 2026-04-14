@@ -624,6 +624,101 @@ class TestRunnerTransactionality:
 
         self._assert_pristine(runner)
 
+    # -----------------------------------------------------------------
+    # #25 follow-up: cancel_event drops the commit
+    # -----------------------------------------------------------------
+
+    def test_cancel_event_set_before_commit_leaves_runner_pristine(self):
+        """If cancel_event is set before submit_claims reaches the commit
+        step, the runner must raise SubmissionCancelled and stay pristine
+        — even though scoring already produced a valid bundle. This is the
+        fix for the env-bridge race in issue #25."""
+        import threading
+        from sreg.tools.oi_runner import SubmissionCancelled
+
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner.set_subquestions_v2([self._make_sq()])
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        _dummy_score = EpisodeSubQuestionScore(
+            sq_scores=[], coverage=0.0, weighted_coverage=0.0,
+            correctness=0.0, novel_bonus=0.0, total=0.0,
+        )
+        # Scoring returns successfully; the cancel check is the ONLY thing
+        # that should stop the commit.
+        runner._score_with_judge = lambda claims, compiled: (
+            _dummy_score, {}, [], [],
+        )
+
+        cancel_event = threading.Event()
+        cancel_event.set()  # Env timed out before we started the commit.
+
+        with pytest.raises(SubmissionCancelled, match="before commit"):
+            runner.submit_claims([_make_claim()], cancel_event=cancel_event)
+
+        self._assert_pristine(runner)
+
+    def test_cancel_event_not_set_commits_normally(self):
+        """Sanity: providing cancel_event that is never set must not
+        change normal submit behavior."""
+        import threading
+
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner.set_subquestions_v2([self._make_sq()])
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        _dummy_score = EpisodeSubQuestionScore(
+            sq_scores=[], coverage=0.0, weighted_coverage=0.0,
+            correctness=0.0, novel_bonus=0.0, total=0.0,
+        )
+        runner._score_with_judge = lambda claims, compiled: (
+            _dummy_score, {}, [], [],
+        )
+
+        cancel_event = threading.Event()  # Never set.
+
+        score = runner.submit_claims([_make_claim()], cancel_event=cancel_event)
+        assert score is _dummy_score
+        assert runner.is_submitted
+        assert runner._sq_score is _dummy_score
+
+    def test_retry_after_cancel_succeeds(self):
+        """After a cancelled submit, a fresh submit (without the cancel
+        signal) must succeed — the runner is still pristine."""
+        import threading
+        from sreg.tools.oi_runner import SubmissionCancelled
+
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner.set_subquestions_v2([self._make_sq()])
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        _dummy_score = EpisodeSubQuestionScore(
+            sq_scores=[], coverage=0.0, weighted_coverage=0.0,
+            correctness=0.0, novel_bonus=0.0, total=0.0,
+        )
+        runner._score_with_judge = lambda claims, compiled: (
+            _dummy_score, {}, [], [],
+        )
+
+        cancel_event = threading.Event()
+        cancel_event.set()
+
+        # First attempt: cancelled before commit.
+        with pytest.raises(SubmissionCancelled):
+            runner.submit_claims([_make_claim()], cancel_event=cancel_event)
+        self._assert_pristine(runner)
+
+        # Second attempt: no cancel signal — commits normally.
+        score = runner.submit_claims([_make_claim()])
+        assert score is _dummy_score
+        assert runner.is_submitted
+
 
 # ---------------------------------------------------------------------------
 # OIEpisodeRunner — prompt context
