@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### 2026-04-14 — submit_claims transaccional (fix bloqueante #24)
+
+**Bug de contrato encontrado en eval real (pre-training)**: un timeout del
+LLM judge durante scoring dejaba el runner con `_submitted=True`, bloqueando
+cualquier retry del agente con `"Claims already submitted"`. El episodio se
+perdia (reward=-0.05, truncated).
+
+- `OIEpisodeRunner._score_with_judge` es ahora puro: retorna
+  `(score, claim_truths, relevance_results, judge_claims)` sin mutar `self`.
+- `submit_claims` stagea compile + scoring en locales y commitea todas las
+  mutaciones atomicamente solo si ambos pasos tuvieron exito, via el nuevo
+  helper privado `_commit_scoring_result` (single source of truth del
+  invariante de commit).
+- `scripts/rescore.py` consume el mismo helper (`record_claim_steps=False`)
+  en vez de duplicar el bloque.
+- `TestRunnerTransactionality` agrega 4 tests de regresion: TimeoutError en
+  scoring, RuntimeError, retry tras failure transitorio, y fallo de compile.
+  Todos verifican runner pristine tras error.
+- **Nota**: este commit cierra el bug INTERNO del runner. Un race separado
+  en el bridge async del env (`asyncio.wait_for` cancela el await pero no
+  el thread) queda para el proximo commit.
+
 ### 2026-04-12 — Deep audit cleanup
 
 **Eliminacion de codigo muerto y docs drift tras la consolidacion SQ v2.**
