@@ -5,6 +5,35 @@
 
 ## [Unreleased]
 
+### 2026-04-14 — Suite 2 first baseline: claim compiler diagnostic (I-007)
+
+**Primer baseline del claim compiler contra los 55 gold targets de
+Suite 2 + diagnostic A/B/C para aislar la causa raiz de los fallos.**
+
+- **Pass rate efectivo: 31%** (17/55). 69% real error rate.
+- **Diagnostic A/B/C:** pattern-specific worked example en system prompt
+  arregla confounding; recognition gap descartado; recipe gap es el
+  bottleneck dominante.
+- **Categorias de fallo:** 20% verdict-by-accident (structure broken,
+  answer right), 40% verdict wrong, 9% compile/abstain wrong.
+- **Gaps arquitectonicos destapados** (separados del compiler gap):
+  orchestrator ve el DAG en su contexto pero no chequea coherencia de
+  SQs; CURRENT_STATE.md no explica bien los 3 actores (orchestrator /
+  SQ compiler / claim compiler) y que ve cada uno del DAG.
+
+Outputs:
+- `research/synthesis/suite2_compiler_baseline.md` — CANON evaluation result
+- `research/synthesis/compiler_baseline_failures.json` — raw dump de 21 fallos
+- `research/notes/sq_flow_and_dag_visibility_open_questions.md` — briefing
+  para proxima sesion
+- `scripts/analyze_compiler_results.py`, `scripts/dump_compiler_output.py`,
+  `scripts/prompt_diagnostic.py`
+
+Issues derivadas (fuera de scope de esta rama):
+- I-024: SQ↔DAG coherence audit (research)
+- I-025: Flow B LLM prompt — ¿DAG? (design)
+- I-026: Claim compiler recipe exemplars (scoring)
+
 ### 2026-04-12 — Suite 4 Blocks A+B: Reward Alignment (I-009)
 
 **Eval suite para validar que el scoring fuerza investigacion real y

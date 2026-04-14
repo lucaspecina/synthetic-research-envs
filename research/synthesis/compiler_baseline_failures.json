@@ -1,0 +1,2679 @@
+[
+  {
+    "id": "W1_F01_s2",
+    "difficulty": "hard",
+    "claim": "The causal effect of treatment on outcome, accounting for all pathways including through compliance, is approximately 0.7 per unit increase.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "total_causal_effect_T_on_Y_approx_0.7",
+        "arms": [
+          {
+            "label": "control",
+            "kind": "adjust",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "treated",
+            "kind": "adjust",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "greater_than",
+          "threshold": 0.7
+        }
+      },
+      {
+        "spec_id": "total_causal_effect_T_on_Y_not_far_above_0.7",
+        "arms": [
+          {
+            "label": "control",
+            "kind": "adjust",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "treated",
+            "kind": "adjust",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "less_than",
+          "threshold": 0.7
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F01_s2_gold",
+        "arms": [
+          {
+            "label": "treated",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "control",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "total_causal_effect_T_on_Y_approx_0.7",
+        "holds": false,
+        "detail": "{'measurements': {'control': 0.0006746475003394272, 'treated': 0.6816544965619278}, 'comparison': {'difference': 0.6809798490615884, 'ref': 0.0006746475003394272, 'other': 0.6816544965619278}}"
+      },
+      {
+        "atom_id": "total_causal_effect_T_on_Y_not_far_above_0.7",
+        "holds": true,
+        "detail": "{'measurements': {'control': 0.0006746475003394272, 'treated': 0.6816544965619278}, 'comparison': {'difference': 0.6809798490615884, 'ref': 0.0006746475003394272, 'other': 0.6816544965619278}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W1_F03_s2",
+    "difficulty": "hard",
+    "claim": "The treatment faces a trade-off: it improves outcome (effect ~0.7) but causes side effects of similar magnitude (~0.7).",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "treatment_improves_outcome_effect_positive",
+        "arms": [
+          {
+            "label": "control",
+            "kind": "adjust",
+            "values": {
+              "T": -0.7
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "treated",
+            "kind": "adjust",
+            "values": {
+              "T": 0.7
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "greater_than",
+          "threshold": 0.6
+        }
+      },
+      {
+        "spec_id": "treatment_causes_side_effects_effect_positive",
+        "arms": [
+          {
+            "label": "control",
+            "kind": "adjust",
+            "values": {
+              "T": -0.7
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "treated",
+            "kind": "adjust",
+            "values": {
+              "T": 0.7
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "SE",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "greater_than",
+          "threshold": 0.6
+        }
+      },
+      {
+        "spec_id": "treatment_tradeoff_effects_similar_magnitude",
+        "arms": [
+          {
+            "label": "y_effect",
+            "kind": "adjust",
+            "values": {
+              "T": 0.7
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "se_effect",
+            "kind": "adjust",
+            "values": {
+              "T": 0.7
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "not_distinguishable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F03_TY_gold",
+        "arms": [
+          {
+            "label": "treated",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "control",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "W1_F03_TSE_gold",
+        "arms": [
+          {
+            "label": "treated",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "control",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "SE",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "treatment_improves_outcome_effect_positive",
+        "holds": true,
+        "detail": "{'measurements': {'control': -0.47479891587595996, 'treated': 0.47737654329944684}, 'comparison': {'difference': 0.9521754591754068, 'ref': -0.47479891587595996, 'other': 0.47737654329944684}}"
+      },
+      {
+        "atom_id": "treatment_causes_side_effects_effect_positive",
+        "holds": true,
+        "detail": "{'measurements': {'control': -0.4911711566651016, 'treated': 0.49084833465648975}, 'comparison': {'difference': 0.9820194913215914, 'ref': -0.4911711566651016, 'other': 0.49084833465648975}}"
+      },
+      {
+        "atom_id": "treatment_tradeoff_effects_similar_magnitude",
+        "holds": false,
+        "detail": "{'measurements': {'y_effect': 0.47614821087663883, 'se_effect': 0.49084833465648975}, 'comparison': {'value': 0.47614821087663883}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W1_F05_s1",
+    "difficulty": "medium",
+    "claim": "Compliance mediates the relationship between treatment and outcome.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "mediation_t_affects_mediator_compliance",
+        "arms": [
+          {
+            "label": "t_control",
+            "kind": "adjust",
+            "values": {
+              "T": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "t_treated",
+            "kind": "adjust",
+            "values": {
+              "T": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "M",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "t_control"
+        },
+        "assertion": {
+          "kind": "not_distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "mediation_mediator_affects_outcome_conditioning_on_treatment",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "partial_correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "M",
+          "rhs": "Y"
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "not_distinguishable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F05_indirect_gold",
+        "arms": [
+          {
+            "label": "total_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "total_lo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "direct_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0,
+              "M": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "direct_lo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0,
+              "M": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "mediation_t_affects_mediator_compliance",
+        "holds": true,
+        "detail": "{'measurements': {'t_control': -0.300207506256141, 't_treated': 0.30324982638716896}, 'comparison': {'difference': 0.6034573326433099, 'ref': -0.300207506256141, 'other': 0.30324982638716896}}"
+      },
+      {
+        "atom_id": "mediation_mediator_affects_outcome_conditioning_on_treatment",
+        "holds": false,
+        "detail": "{'measurements': {'baseline': 0.24874483670975575}, 'comparison': {'value': 0.24874483670975575}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W1_F06_s0",
+    "difficulty": "easy",
+    "claim": "The effect of treatment on outcome depends on the patient's biomarker level.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "treatment_effect_depends_on_biomarker_low",
+        "arms": [
+          {
+            "label": "low_biomarker_control",
+            "kind": "adjust",
+            "values": {
+              "T": -0.5
+            },
+            "condition_on": {
+              "B": "kind='quantile_range' q_lo=0.0 q_hi=0.25"
+            }
+          },
+          {
+            "label": "low_biomarker_treated",
+            "kind": "adjust",
+            "values": {
+              "T": 0.5
+            },
+            "condition_on": {
+              "B": "kind='quantile_range' q_lo=0.0 q_hi=0.25"
+            }
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_biomarker_control"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "treatment_effect_depends_on_biomarker_high",
+        "arms": [
+          {
+            "label": "high_biomarker_control",
+            "kind": "adjust",
+            "values": {
+              "T": -0.5
+            },
+            "condition_on": {
+              "B": "kind='quantile_range' q_lo=0.75 q_hi=1.0"
+            }
+          },
+          {
+            "label": "high_biomarker_treated",
+            "kind": "adjust",
+            "values": {
+              "T": 0.5
+            },
+            "condition_on": {
+              "B": "kind='quantile_range' q_lo=0.75 q_hi=1.0"
+            }
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "high_biomarker_control"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "treatment_effect_differs_by_biomarker_level",
+        "arms": [
+          {
+            "label": "low_biomarker",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {
+              "B": "kind='quantile_range' q_lo=0.0 q_hi=0.25"
+            }
+          },
+          {
+            "label": "high_biomarker",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {
+              "B": "kind='quantile_range' q_lo=0.75 q_hi=1.0"
+            }
+          }
+        ],
+        "measurement": {
+          "kind": "partial_correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "T",
+          "rhs": "Y"
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_biomarker"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F06_s0_gold",
+        "arms": [
+          {
+            "label": "hi_bhi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {
+              "B": "kind='approx_eq' value=1.0 tol_std=0.15"
+            }
+          },
+          {
+            "label": "lo_bhi",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {
+              "B": "kind='approx_eq' value=1.0 tol_std=0.15"
+            }
+          },
+          {
+            "label": "hi_blo",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {
+              "B": "kind='approx_eq' value=-1.0 tol_std=0.15"
+            }
+          },
+          {
+            "label": "lo_blo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {
+              "B": "kind='approx_eq' value=-1.0 tol_std=0.15"
+            }
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "gap_material",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "treatment_effect_depends_on_biomarker_low",
+        "holds": false,
+        "detail": "{'measurements': {'low_biomarker_control': -0.3389493263398744, 'low_biomarker_treated': 0.34119124112445953}, 'comparison': {'difference': 0.6801405674643339, 'ref': -0.3389493263398744, 'other': 0.3"
+      },
+      {
+        "atom_id": "treatment_effect_depends_on_biomarker_high",
+        "holds": false,
+        "detail": "{'measurements': {'high_biomarker_control': -0.3389493263398744, 'high_biomarker_treated': 0.34119124112445953}, 'comparison': {'difference': 0.6801405674643339, 'ref': -0.3389493263398744, 'other': 0"
+      },
+      {
+        "atom_id": "treatment_effect_differs_by_biomarker_level",
+        "holds": false,
+        "detail": "{'measurements': {'low_biomarker': 0.7365206249168319, 'high_biomarker': 0.7351312815354781}, 'comparison': {'difference': -0.0013893433813537692, 'ref': 0.7365206249168319, 'other': 0.735131281535478"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W2_F01_s2",
+    "difficulty": "hard",
+    "claim": "Intervening to increase exposure by one unit reduces disease risk by approximately 0.2 units.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "effect_of_D_on_E_minus_0_2",
+        "arms": [
+          {
+            "label": "do_D_0",
+            "kind": "adjust",
+            "values": {
+              "D": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "do_D_1",
+            "kind": "adjust",
+            "values": {
+              "D": 1.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "E",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "do_D_0"
+        },
+        "assertion": {
+          "kind": "less_than",
+          "threshold": -0.2
+        }
+      },
+      {
+        "spec_id": "effect_of_D_on_E_approximately_negative_0_2",
+        "arms": [
+          {
+            "label": "do_D_0",
+            "kind": "adjust",
+            "values": {
+              "D": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "do_D_1",
+            "kind": "adjust",
+            "values": {
+              "D": 1.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "E",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "do_D_0"
+        },
+        "assertion": {
+          "kind": "near_zero",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W2_F01_s2_gold",
+        "arms": [
+          {
+            "label": "exposed",
+            "kind": "intervene",
+            "values": {
+              "E": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "unexposed",
+            "kind": "intervene",
+            "values": {
+              "E": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "D",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "unexposed"
+        },
+        "assertion": {
+          "kind": "negative",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "effect_of_D_on_E_minus_0_2",
+        "holds": false,
+        "detail": "{'measurements': {'do_D_0': nan, 'do_D_1': nan}, 'comparison': {'difference': nan, 'ref': nan, 'other': nan}}"
+      },
+      {
+        "atom_id": "effect_of_D_on_E_approximately_negative_0_2",
+        "holds": false,
+        "detail": "{'measurements': {'do_D_0': nan, 'do_D_1': nan}, 'comparison': {'difference': nan, 'ref': nan, 'other': nan}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W3_F03_s0",
+    "difficulty": "easy",
+    "claim": "There is a threshold in the temperature-health relationship.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "temp_h_threshold_changepoint",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "treatment": "Temp",
+          "outcome": "H",
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "changepoint_exists",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W3_F03_s0_gold",
+        "arms": [
+          {
+            "label": "temp_sweep",
+            "kind": "sweep",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "H",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "piecewise_fit",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "changepoint_exists",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "temp_h_threshold_changepoint",
+        "holds": false,
+        "detail": "{'measurements': {'baseline': True}, 'comparison': {'value': True}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W3_F03_s1",
+    "difficulty": "medium",
+    "claim": "The effect of temperature on health changes sharply at a threshold near zero: mild below, severe above.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "temp_health_threshold_sign_flip_near_zero",
+        "arms": [
+          {
+            "label": "below_zero",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "Temp": "kind='range' lo=-0.1 hi=0.0"
+            }
+          },
+          {
+            "label": "above_zero",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "Temp": "kind='range' lo=0.0 hi=0.1"
+            }
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "H",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "below_zero"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "temp_health_threshold_changepoint_near_zero",
+        "arms": [
+          {
+            "label": "temp_sweep",
+            "kind": "sweep",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "treatment": "Temp",
+          "outcome": "H",
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "changepoint_exists",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W3_F03_s1_gold",
+        "arms": [
+          {
+            "label": "temp_sweep",
+            "kind": "sweep",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "H",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "piecewise_fit",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "changepoint_exists",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "temp_health_threshold_sign_flip_near_zero",
+        "holds": false,
+        "detail": "{'measurements': {'below_zero': 0.022088338967603115, 'above_zero': -0.06994994219442781}, 'comparison': {'difference': -0.09203828116203092, 'ref': 0.022088338967603115, 'other': -0.06994994219442781"
+      },
+      {
+        "atom_id": "temp_health_threshold_changepoint_near_zero",
+        "holds": false,
+        "detail": "{'error': 'sweep arm requires sweep_var and sweep_values'}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W3_F05_s0",
+    "difficulty": "easy",
+    "claim": "Can we estimate the causal effect of pollution on health?",
+    "truth_value": "not_identifiable",
+    "compiler_specs": [
+      {
+        "spec_id": "pollution_health_identifiable",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "treatment": "P",
+          "outcome": "H",
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "identifiable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W3_F05_s0_gold",
+        "arms": [
+          {
+            "label": "base",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "treatment": "P",
+          "outcome": "H",
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "not_identifiable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "pollution_health_identifiable",
+        "holds": false,
+        "detail": "{'measurements': {'baseline': False}, 'comparison': {'value': False}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W2_F09_s0",
+    "difficulty": "easy",
+    "claim": "Can we estimate the causal effect of exposure on disease?",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "identifiability_effect_of_D_on_E",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "treatment": "D",
+          "outcome": "E",
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "identifiable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W2_F09_s0_gold",
+        "arms": [
+          {
+            "label": "base",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "treatment": "E",
+          "outcome": "D",
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "identifiable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "identifiability_effect_of_D_on_E",
+        "holds": false,
+        "detail": "{'measurements': {'baseline': False}, 'comparison': {'value': False}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W3_F04_s0",
+    "difficulty": "medium",
+    "claim": "Extreme heat creates a significant risk of very poor health outcomes.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "extreme_heat_increases_risk_of_very_poor_health",
+        "arms": [
+          {
+            "label": "normal_temp",
+            "kind": "adjust",
+            "values": {
+              "Temp": -0.001
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "extreme_heat",
+            "kind": "adjust",
+            "values": {
+              "Temp": 0.742
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "tail_prob",
+          "target": "H",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "normal_temp"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.05
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W3_F04_s0_gold",
+        "arms": [
+          {
+            "label": "hi_temp",
+            "kind": "intervene",
+            "values": {
+              "Temp": 1.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "lo_temp",
+            "kind": "intervene",
+            "values": {
+              "Temp": -1.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "tail_prob",
+          "target": "H",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "lo_temp"
+        },
+        "assertion": {
+          "kind": "negative",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "extreme_heat_increases_risk_of_very_poor_health",
+        "holds": false,
+        "detail": "{'measurements': {'normal_temp': 0.97692, 'extreme_heat': 0.53182}, 'comparison': {'difference': -0.44510000000000005, 'ref': 0.97692, 'other': 0.53182}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W3_F04_s1",
+    "difficulty": "hard",
+    "claim": "The probability of health falling below a critical threshold is much higher at elevated temperatures than at low temperatures.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "temp_high_vs_low_increases_tail_risk_health",
+        "arms": [
+          {
+            "label": "low_temp",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "Temp": "kind='quantile_range' q_lo=0.0 q_hi=0.25"
+            }
+          },
+          {
+            "label": "high_temp",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "Temp": "kind='quantile_range' q_lo=0.75 q_hi=1.0"
+            }
+          }
+        ],
+        "measurement": {
+          "kind": "tail_prob",
+          "target": "H",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_temp"
+        },
+        "assertion": {
+          "kind": "greater_than",
+          "threshold": 0.1
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W3_F04_s1_gold",
+        "arms": [
+          {
+            "label": "hi_temp",
+            "kind": "intervene",
+            "values": {
+              "Temp": 1.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "lo_temp",
+            "kind": "intervene",
+            "values": {
+              "Temp": -1.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "tail_prob",
+          "target": "H",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "lo_temp"
+        },
+        "assertion": {
+          "kind": "negative",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "temp_high_vs_low_increases_tail_risk_health",
+        "holds": false,
+        "detail": "{'measurements': {'low_temp': 0.99464, 'high_temp': 0.43824}, 'comparison': {'difference': -0.5564, 'ref': 0.99464, 'other': 0.43824}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W2_F04_s0",
+    "difficulty": "medium",
+    "claim": "Exposure increases disease risk indirectly through the mediator.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "exposure_increases_mediator",
+        "arms": [
+          {
+            "label": "low_exposure",
+            "kind": "adjust",
+            "values": {
+              "D": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "high_exposure",
+            "kind": "adjust",
+            "values": {
+              "D": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "E",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_exposure"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "mediator_increases_disease_risk",
+        "arms": [
+          {
+            "label": "low_mediator",
+            "kind": "adjust",
+            "values": {
+              "E": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "high_mediator",
+            "kind": "adjust",
+            "values": {
+              "E": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "D",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_mediator"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W2_F04_s0_gold",
+        "arms": [
+          {
+            "label": "total_hi",
+            "kind": "intervene",
+            "values": {
+              "E": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "total_lo",
+            "kind": "intervene",
+            "values": {
+              "E": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "direct_hi",
+            "kind": "intervene",
+            "values": {
+              "E": 1.0,
+              "M": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "direct_lo",
+            "kind": "intervene",
+            "values": {
+              "E": 0.0,
+              "M": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "D",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "exposure_increases_mediator",
+        "holds": false,
+        "detail": "{'measurements': {'low_exposure': nan, 'high_exposure': nan}, 'comparison': {'difference': nan, 'ref': nan, 'other': nan}}"
+      },
+      {
+        "atom_id": "mediator_increases_disease_risk",
+        "holds": false,
+        "detail": "{'measurements': {'low_mediator': 0.09830832707238683, 'high_mediator': -0.09968298039811038}, 'comparison': {'difference': -0.1979913074704972, 'ref': 0.09830832707238683, 'other': -0.099682980398110"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W2_F04_s1",
+    "difficulty": "hard",
+    "claim": "The indirect pathway (exposure -> mediator -> disease) works in the opposite direction from the direct effect: exposure increases the mediator, which increases disease.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "exposure_increases_mediator",
+        "arms": [
+          {
+            "label": "low_exposure",
+            "kind": "adjust",
+            "values": {
+              "D": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "high_exposure",
+            "kind": "adjust",
+            "values": {
+              "D": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "E",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_exposure"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "mediator_increases_disease",
+        "arms": [
+          {
+            "label": "low_mediator",
+            "kind": "adjust",
+            "values": {
+              "E": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "high_mediator",
+            "kind": "adjust",
+            "values": {
+              "E": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "M",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_mediator"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W2_F04_s1_gold",
+        "arms": [
+          {
+            "label": "total_hi",
+            "kind": "intervene",
+            "values": {
+              "E": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "total_lo",
+            "kind": "intervene",
+            "values": {
+              "E": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "direct_hi",
+            "kind": "intervene",
+            "values": {
+              "E": 1.0,
+              "M": 0.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "direct_lo",
+            "kind": "intervene",
+            "values": {
+              "E": 0.0,
+              "M": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "D",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "exposure_increases_mediator",
+        "holds": false,
+        "detail": "{'measurements': {'low_exposure': nan, 'high_exposure': nan}, 'comparison': {'difference': nan, 'ref': nan, 'other': nan}}"
+      },
+      {
+        "atom_id": "mediator_increases_disease",
+        "holds": true,
+        "detail": "{'measurements': {'low_mediator': -0.20047579482146935, 'high_mediator': 0.20147146375113167}, 'comparison': {'difference': 0.40194725857260105, 'ref': -0.20047579482146935, 'other': 0.201471463751131"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W1_F07_s0",
+    "difficulty": "easy",
+    "claim": "Disease severity confounds the relationship between treatment and outcome.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "confounding_crude_association_T_Y",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "T",
+          "rhs": "Y"
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "confounding_adjusted_association_T_Y_given_SE",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "partial_correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "T",
+          "rhs": "Y"
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "near_zero",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F07_s0_gold",
+        "arms": [
+          {
+            "label": "obs_hi",
+            "kind": "observe",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "obs_lo",
+            "kind": "observe",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "causal_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "causal_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "gap_material",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "confounding_crude_association_T_Y",
+        "holds": true,
+        "detail": "{'measurements': {'baseline': 0.7365206249168319}, 'comparison': {'value': 0.7365206249168319}}"
+      },
+      {
+        "atom_id": "confounding_adjusted_association_T_Y_given_SE",
+        "holds": false,
+        "detail": "{'measurements': {'baseline': 0.6073332227109582}, 'comparison': {'value': 0.6073332227109582}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W1_F07_s1",
+    "difficulty": "medium",
+    "claim": "Without adjusting for severity, the observed association between treatment and outcome is biased.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "unadjusted_t_y_association_nonzero",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "T",
+          "rhs": "Y"
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "t_y_association_changes_after_adjusting_for_severity",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "partial_correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "T",
+          "rhs": "Y"
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "not_distinguishable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F07_s1_gold",
+        "arms": [
+          {
+            "label": "obs_hi",
+            "kind": "observe",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "obs_lo",
+            "kind": "observe",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "causal_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "causal_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "gap_material",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "unadjusted_t_y_association_nonzero",
+        "holds": true,
+        "detail": "{'measurements': {'baseline': 0.7365206249168319}, 'comparison': {'value': 0.7365206249168319}}"
+      },
+      {
+        "atom_id": "t_y_association_changes_after_adjusting_for_severity",
+        "holds": false,
+        "detail": "{'measurements': {'baseline': 0.6073332227109582}, 'comparison': {'value': 0.6073332227109582}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W1_F07_s2",
+    "difficulty": "hard",
+    "claim": "Severity is a confounder, not a mediator, of the treatment-outcome relationship: it causes both the treatment decision and the outcome independently.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "severity_causes_treatment",
+        "arms": [
+          {
+            "label": "se_low",
+            "kind": "intervene",
+            "values": {
+              "SE": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "se_high",
+            "kind": "intervene",
+            "values": {
+              "SE": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "T",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "se_low"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "severity_causes_outcome",
+        "arms": [
+          {
+            "label": "se_low",
+            "kind": "intervene",
+            "values": {
+              "SE": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "se_high",
+            "kind": "intervene",
+            "values": {
+              "SE": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "se_low"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "severity_not_mediator_of_treatment_outcome",
+        "arms": [
+          {
+            "label": "t_low",
+            "kind": "intervene",
+            "values": {
+              "T": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "t_high",
+            "kind": "intervene",
+            "values": {
+              "T": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "SE",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "t_low"
+        },
+        "assertion": {
+          "kind": "near_zero",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F07_s2_gold",
+        "arms": [
+          {
+            "label": "obs_hi",
+            "kind": "observe",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "obs_lo",
+            "kind": "observe",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "causal_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "causal_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "gap_material",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "severity_causes_treatment",
+        "holds": false,
+        "detail": "{'measurements': {'se_low': -0.0001598093206036718, 'se_high': 0.0038917260714071335}, 'comparison': {'difference': 0.004051535392010805, 'ref': -0.0001598093206036718, 'other': 0.0038917260714071335}"
+      },
+      {
+        "atom_id": "severity_causes_outcome",
+        "holds": false,
+        "detail": "{'measurements': {'se_low': 0.0006409233628307874, 'se_high': 0.0032575812025062816}, 'comparison': {'difference': 0.002616657839675494, 'ref': 0.0006409233628307874, 'other': 0.0032575812025062816}}"
+      },
+      {
+        "atom_id": "severity_not_mediator_of_treatment_outcome",
+        "holds": false,
+        "detail": "{'measurements': {'t_low': -0.35117115666510174, 't_high': 0.35084833465648974}, 'comparison': {'difference': 0.7020194913215915, 'ref': -0.35117115666510174, 'other': 0.35084833465648974}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W2_F07_s0",
+    "difficulty": "medium",
+    "claim": "Adjusting for the collider variable introduces bias in the exposure-disease estimate.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "collider_adjustment_introduces_nonzero_association_DE_given_C",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "partial_correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "D",
+          "rhs": "E"
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "not_distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "unadjusted_exposure_disease_association_DE_is_near_zero",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "D",
+          "rhs": "E"
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "near_zero",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W2_F07_s0_gold",
+        "arms": [
+          {
+            "label": "base",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "treatment": "E",
+          "outcome": "D",
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "not_identifiable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "collider_adjustment_introduces_nonzero_association_DE_given_C",
+        "holds": false,
+        "detail": "{'measurements': {'baseline': -0.24312905694452103}, 'comparison': {'value': -0.24312905694452103}}"
+      },
+      {
+        "atom_id": "unadjusted_exposure_disease_association_DE_is_near_zero",
+        "holds": false,
+        "detail": "{'measurements': {'baseline': 0.3428209629591748}, 'comparison': {'value': 0.3428209629591748}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "W2_F07_s1",
+    "difficulty": "hard",
+    "claim": "The collider is caused by both exposure and disease; conditioning on it opens a spurious path and distorts the estimate of the causal effect.",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "collider_caused_by_exposure",
+        "arms": [
+          {
+            "label": "E_low",
+            "kind": "intervene",
+            "values": {
+              "E": -0.8
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "E_high",
+            "kind": "intervene",
+            "values": {
+              "E": 0.8
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "C",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "E_low"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "collider_caused_by_disease",
+        "arms": [
+          {
+            "label": "D_low",
+            "kind": "intervene",
+            "values": {
+              "D": -0.8
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "D_high",
+            "kind": "intervene",
+            "values": {
+              "D": 0.8
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "C",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "D_low"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "conditioning_on_collider_induces_spurious_association",
+        "arms": [
+          {
+            "label": "baseline",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "partial_correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "E",
+          "rhs": "D"
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      },
+      {
+        "spec_id": "causal_effect_estimate_distorted_by_conditioning_on_collider",
+        "arms": [
+          {
+            "label": "unconditioned",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          },
+          {
+            "label": "condition_on_collider",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "C": "kind='quantile_range' q_lo=0.4 q_hi=0.6"
+            }
+          }
+        ],
+        "measurement": {
+          "kind": "correlation",
+          "target": null,
+          "treatment": null,
+          "outcome": null,
+          "lhs": "E",
+          "rhs": "D"
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "unconditioned"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W2_F07_s1_gold",
+        "arms": [
+          {
+            "label": "base",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "treatment": "E",
+          "outcome": "D",
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null
+        },
+        "assertion": {
+          "kind": "not_identifiable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "collider_caused_by_exposure",
+        "holds": false,
+        "detail": "{'measurements': {'E_low': -0.005840585211669719, 'E_high': 0.0036559331941355554}, 'comparison': {'difference': 0.009496518405805274, 'ref': -0.005840585211669719, 'other': 0.0036559331941355554}}"
+      },
+      {
+        "atom_id": "collider_caused_by_disease",
+        "holds": false,
+        "detail": "{'measurements': {'D_low': -0.005840585211669719, 'D_high': 0.0036559331941355554}, 'comparison': {'difference': 0.009496518405805274, 'ref': -0.005840585211669719, 'other': 0.0036559331941355554}}"
+      },
+      {
+        "atom_id": "conditioning_on_collider_induces_spurious_association",
+        "holds": true,
+        "detail": "{'measurements': {'baseline': -0.243129056944521}, 'comparison': {'value': -0.243129056944521}}"
+      },
+      {
+        "atom_id": "causal_effect_estimate_distorted_by_conditioning_on_collider",
+        "holds": false,
+        "detail": "{'measurements': {'unconditioned': 0.3428209629591748, 'condition_on_collider': -0.2360324050382961}, 'comparison': {'difference': -0.5788533679974709, 'ref': 0.3428209629591748, 'other': -0.236032405"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "SQ_F01_s0",
+    "difficulty": "easy",
+    "claim": "Does treatment affect outcome?",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "t_affects_y",
+        "arms": [
+          {
+            "label": "control",
+            "kind": "adjust",
+            "values": {
+              "T": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "treated",
+            "kind": "adjust",
+            "values": {
+              "T": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "SQ_F01_s0_gold",
+        "arms": [
+          {
+            "label": "treated",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "control",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "t_affects_y",
+        "holds": false,
+        "detail": "{'measurements': {'control': -0.3389493263398744, 'treated': 0.34119124112445953}, 'comparison': {'difference': 0.6801405674643339, 'ref': -0.3389493263398744, 'other': 0.34119124112445953}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "SQ_F01_s1",
+    "difficulty": "medium",
+    "claim": "What is the causal effect of treatment on patient outcomes?",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "causal_effect_T_on_Y_positive",
+        "arms": [
+          {
+            "label": "control",
+            "kind": "adjust",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "treated",
+            "kind": "adjust",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "SQ_F01_s1_gold",
+        "arms": [
+          {
+            "label": "treated",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "control",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "causal_effect_T_on_Y_positive",
+        "holds": false,
+        "detail": "{'measurements': {'control': -0.5929880587723544, 'treated': 0.6033479478113102}, 'comparison': {'difference': 1.1963360065836646, 'ref': -0.5929880587723544, 'other': 0.6033479478113102}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  },
+  {
+    "id": "SQ_F01_s2",
+    "difficulty": "hard",
+    "claim": "If we were to intervene and change the treatment level, would we observe a change in outcome?",
+    "truth_value": "true",
+    "compiler_specs": [
+      {
+        "spec_id": "causal_effect_T_on_Y_via_adjust_mean_difference",
+        "arms": [
+          {
+            "label": "t_low",
+            "kind": "adjust",
+            "values": {
+              "T": -0.5
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "t_high",
+            "kind": "adjust",
+            "values": {
+              "T": 0.5
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "t_low"
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "SQ_F01_s2_gold",
+        "arms": [
+          {
+            "label": "treated",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {}
+          },
+          {
+            "label": "control",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {}
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "treatment": null,
+          "outcome": null,
+          "lhs": null,
+          "rhs": null
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control"
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "atom_id": "causal_effect_T_on_Y_via_adjust_mean_difference",
+        "holds": false,
+        "detail": "{'measurements': {'t_low': -0.3389493263398744, 't_high': 0.34119124112445953}, 'comparison': {'difference': 0.6801405674643339, 'ref': -0.3389493263398744, 'other': 0.34119124112445953}}"
+      }
+    ],
+    "backend": "grammar_direct"
+  }
+]

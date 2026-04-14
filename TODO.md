@@ -15,6 +15,7 @@
 - [ ] I-001: Verifier robustness — P1.5 deuda tecnica
 - [ ] I-002: Credit-assignment unit-level truth (P2)
 - [ ] I-003: Claim compiler grammar-direct (A23)
+- [ ] I-026: Claim compiler recipe exemplars (Suite 2 baseline, recipe gap)
 
 **Eval**
 - [x] I-006: Eval suite — core correctness (2026-04-12, 52 tests)
@@ -49,6 +50,8 @@
 - [ ] I-016: Sequential investigation / Sherlock (A3b)
 - [ ] I-018: Semantic modes fictional/abstract (I2)
 - [ ] I-019: Forcing real research / data-indexed (A1)
+- [ ] I-024: SQ↔DAG coherence audit (D1-D3, Suite 2 baseline)
+- [ ] I-025: Flow B LLM prompt — ¿DAG? (D4-D5, Suite 2 baseline)
 
 ## PARKED
 

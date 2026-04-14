@@ -36,7 +36,10 @@ Evaluates: SCM engine, verifier, scoring arithmetic.
 > gets wrong scores.
 
 Evaluates: SQ compiler, claim compiler, relevance judge accuracy.
-**Suite 2: Translation/Compilation** — TODO.
+**Suite 2: Translation/Compilation** — baseline run 2026-04-14:
+claim compiler effective pass rate **31%** (17/55), recipe gap
+identified as dominant failure mode. See
+`suite2_compiler_baseline.md` for the full report.
 
 ### Layer 3 — Can the system represent diverse science?
 > If SREG only works for "X causes Y", the agent learns one trick.

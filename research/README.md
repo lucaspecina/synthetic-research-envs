@@ -31,6 +31,8 @@
 | `synthesis/oi_scoring_next_design.md` | **CANON diseno.** Sub-question scoring architecture |
 | `synthesis/sq_v2_matching_spec.md` | **CANON matching.** Spec de SQ matching v2 (compile + match + agg) |
 | `synthesis/eval_suite_framework.md` | **CANON evaluation.** 4 suites de evaluacion sistematica de SREG v1 |
+| `synthesis/eval_suite_translation.md` | **CANON evaluation.** Suite 2: Translation/Compilation — design doc |
+| `synthesis/suite2_compiler_baseline.md` | **CANON evaluation result.** Suite 2 baseline 2026-04-14 (31% pass, recipe gap diagnosed) |
 | `synthesis/eval_suite_science_coverage.md` | **CANON evaluation.** Suite 3: Science Coverage — corpus, mundos, harness |
 | `synthesis/scoring_relevance_design.md` | **CANON relevance.** Verdad vs relevancia, opciones de matching |
 | `synthesis/a27_answer_key_contract.md` | **CANON answer key.** Contrato del answer key rico |
@@ -59,6 +61,7 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 - `notes/brief_vs_eval_separation.md` — separacion brief vs eval
 - `notes/indirect_measurement_design.md` — instrumentos como nodos del SCM
 - `notes/oi_compiler_case_analysis.md` — 10 dominios analizados
+- `notes/sq_flow_and_dag_visibility_open_questions.md` — briefing 2026-04-14: quien ve el DAG en cada actor (orchestrator / SQ compiler / claim compiler), dudas D1-D8 destapadas por Suite 2 baseline
 
 ### Archive (historico, read-only)
 
