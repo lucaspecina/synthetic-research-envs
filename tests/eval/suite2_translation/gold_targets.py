@@ -821,8 +821,11 @@ W1_F09_GOLDS = [
 ]
 
 # -------------------------------------------------------------------
-# W3_F04: Tail risk — P(H < -1.0 | do(Temp=high)) >> P(H < -1.0 | do(Temp=low))
-# TAIL_PROB measurement — first test of this kind.
+# W3_F04: Tail risk — high temp greatly increases poor health risk.
+# TAIL_PROB measures P(H > threshold). At hi_temp, P(H > -1.0) ≈ 0.10
+# (most are below -1.0, i.e., very poor); at lo_temp, P(H > -1.0) ≈ 0.99.
+# So P(H > -1.0 | hi) - P(H > -1.0 | lo) is NEGATIVE — high temp makes
+# the "above threshold" probability DROP (more people fall below).
 # -------------------------------------------------------------------
 
 W3_F04_GOLDS = [
@@ -846,7 +849,7 @@ W3_F04_GOLDS = [
                 ),
                 comparison=Comparison(kind=ComparisonKind.DIFFERENCE,
                                       ref_arm="lo_temp"),
-                assertion=Assertion(kind=AssertionKind.POSITIVE),
+                assertion=Assertion(kind=AssertionKind.NEGATIVE),
             ),
         ],
         structural_contract=StructuralContract(
@@ -854,7 +857,7 @@ W3_F04_GOLDS = [
             required_role_vars={"treatment": "Temp", "outcome": "H"},
             required_measurement_kind="tail_prob",
             required_comparison_kind="difference",
-            required_assertion_polarity="positive",
+            required_assertion_polarity="negative",
         ),
     )
     for i in range(2)  # W3_F04 has 2 surface forms
