@@ -5,6 +5,38 @@
 
 ## [Unreleased]
 
+### 2026-04-15 — eval harness policy/scorer split + problem_id threading
+
+**Pre-H100 critical**: `scripts/eval_oi.py` tenia los dos roles (policy
+que se entrena, scorer que corre la OI pipeline) leyendo los mismos
+`AZURE_*` env vars. Sin separacion era imposible apuntar la policy a un
+vLLM local mientras el scorer sigue en Azure — el flujo de H100.
+
+- Nuevo modulo `src/sreg/training/eval_config.py`: `RoleConfig` +
+  `resolve_role_config(role, cli_*, env)`. Precedencia CLI > `POLICY_*`
+  /`SCORER_*` > `AZURE_*` legacy. Invariante: `env[api_key_var] ==
+  api_key` — sin eso `verifiers.ClientConfig(api_key_var=...)` leeria
+  un var vacio en rollout time y los rollouts fallarian con auth opaco.
+- `scripts/eval_oi.py`: 6 flags nuevas (`--policy-base-url`,
+  `--policy-model`, `--policy-api-key-var`, `--scorer-*`). Config dumpeada
+  al output JSON con api key REDACTED. El smoke path "todo en Azure"
+  sigue funcionando sin tocar env.
+- `SregEnv.setup_state`: copia `problem_id` de la row del dataset al
+  top-level state para que `state_columns=["problem_id"]` lo exponga
+  en el `RolloutOutput`. `state_columns=["problem_id"]` agregado al
+  `evaluate_sync` en eval_oi.py.
+- NaN/inf guard en rewards (`_validate_rewards` -> `sys.exit(2)`). Un
+  NaN silencioso en una lista de rewards corrompe el batch mean sin
+  error visible; ahora revienta explicito.
+- Tests: +11 (`test_eval_config.py`) cubren fallback a Azure, override
+  por role-prefixed env, CLI overrides, invariante api_key_var/api_key,
+  frozen dataclass, raises para cada campo faltante. Total 25/25 en
+  `tests/training/`.
+
+Smoke test (marine ecology SRC, Azure en ambos roles): 147s, reward
+0.066, `Problem IDs: 1 unique (['test_data'])`, config dumpeada
+correctamente con api keys redacteadas. No regression.
+
 ### 2026-04-15 — per-category error rate metrics
 
 **Review de Codex sobre observabilidad**: las senales operativas criticas

@@ -289,6 +289,14 @@ class SregEnv(vf.StatefulToolEnv):
         state["recovery_used"] = False
         state["scoring_wall_clock_s"] = 0.0
 
+        # Forward problem_id from the dataset row. verifiers' State only
+        # auto-forwards INPUT_FIELDS (prompt/answer/task/info/example_id)
+        # to state.input; problem_id is a custom column so we copy it to
+        # the top-level state so it can be extracted via
+        # state_columns=["problem_id"] in the RolloutOutput.
+        input_row = state.get("input") or {}
+        state["problem_id"] = input_row.get("problem_id")
+
         return state
 
     def update_tool_args(

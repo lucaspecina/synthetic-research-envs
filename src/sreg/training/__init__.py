@@ -17,13 +17,16 @@ from sreg.training.dataset import (  # noqa: E402
     split_train_eval,
 )
 from sreg.training.env import SregEnv  # noqa: E402
+from sreg.training.eval_config import RoleConfig, resolve_role_config  # noqa: E402
 
 __all__ = [
     "PROMPT_VERSION",
+    "RoleConfig",
     "SregEnv",
     "build_dataset",
     "load_from_dir",
     "load_srcs",
     "load_srcs_from_paths",
+    "resolve_role_config",
     "split_train_eval",
 ]
