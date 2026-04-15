@@ -24,12 +24,14 @@ from sreg.training.eval_report import (  # noqa: E402
     summarize_values,
     write_trajectories_jsonl,
 )
+from sreg.training.train_config import load_config, validate_config  # noqa: E402
 
 __all__ = [
     "PROMPT_VERSION",
     "RoleConfig",
     "SregEnv",
     "build_dataset",
+    "load_config",
     "load_from_dir",
     "load_srcs",
     "load_srcs_from_paths",
@@ -38,5 +40,6 @@ __all__ = [
     "run_metadata",
     "split_train_eval",
     "summarize_values",
+    "validate_config",
     "write_trajectories_jsonl",
 ]

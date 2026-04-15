@@ -5,6 +5,49 @@
 
 ## [Unreleased]
 
+### 2026-04-15 — training harness: config-driven dry-run gate
+
+**Por que**: `scripts/train_sreg.py` es la puerta al loop GRPO real, pero
+sin una forma de validar el wiring antes de pagar horas de H100, cualquier
+typo en el YAML (case id mal escrito, env var no seteado, SRC corrupto)
+se descubriria 30 horas adentro del job. El gate `--dry-run` corre 1
+rollout end-to-end sin gradientes ni `verifiers-rl`, y falla fast con
+mensajes claros si algo esta roto. El config esta separado en un modulo
+testeable (`train_config.py`) asi las partes riesgosas — expansion de
+env vars, path checks, overlap train/holdout — tienen tests unitarios
+sin arrastrar el CLI entero.
+
+- Nuevo `configs/smoke_rl.yaml`: config smoke con **case IDs explicitos**
+  (10 train + 2 holdout) en vez de random-seed-split — reproducible entre
+  hosts sin depender de orden de filesystem. `dataset.dir: ${SREG_P05_BATCH}`
+  (env var, no path absoluto) para portabilidad Windows dev <-> H100 Linux.
+  `claim_cap=15, max_turns=15` = v1 canonical. `n_mc=10000` para smoke
+  (canonical levanta a 20k). `rollouts_per_example=2, total_steps=50,
+  max_concurrent=1, seed=42`.
+- Nuevo `src/sreg/training/train_config.py`: `load_config()` + `validate_config()`.
+  Expansion `$VAR` y `${VAR}` via `os.path.expandvars` antes del parse.
+  Validaciones que fallan fast: campos requeridos, tipos, env var
+  no-expandido en `dir` (caza `$VAR` literal), `dir` existe, train y
+  holdout disjuntos, sin duplicados, cada case tiene `src.json`, rangos
+  numericos razonables (`max_turns>=1`, `temp in [0,2]`, etc.).
+- Nuevo `scripts/train_sreg.py`: CLI con `--dry-run` | `--train` mutuamente
+  exclusivos. `--dry-run` construye env+dataset+clients, corre 1 rollout
+  via `env.evaluate_sync(num_examples=1, rollouts_per_example=1)`, reporta
+  reward/stop_condition, exit 0 si reward es finito. `--train` lazy-importa
+  `verifiers_rl` y sale con exit 3 + mensaje claro si falta (Linux+CUDA
+  only — intencionalmente fuera del extra `training` porque romperia el
+  env de Windows dev). Hasta que el extra `rl` y la config Qwen3-8B LoRA
+  esten wireados, `--train` raisea `NotImplementedError`. Overrides CLI
+  para policy/scorer matchean naming de `eval_oi.py` (muscle memory).
+- Exports agregados en `src/sreg/training/__init__.py`: `load_config`,
+  `validate_config`.
+- Tests: nuevos 23 (`tests/training/test_train_config.py`) en dos clases
+  — `TestLoadConfig` (YAML simple, `${VAR}` / `$VAR` expand, unresolved
+  queda literal, empty/missing/non-mapping raises) y `TestValidateConfig`
+  (valid pasa, missing key, wrong type, env var no expandido, dir no
+  existe, train vacio, overlap, duplicates, case sin `src.json`, rangos
+  invalidos).
+
 ### 2026-04-15 — eval harness: trajectory JSONL dump + concurrency docs
 
 **Paso 3 de Codex sobre eval_oi.py**: dos cosas chicas pero que pesan

@@ -1,0 +1,58 @@
+# Smoke RL configuration — validates the training loop end-to-end before
+# the canonical tesis run.
+#
+# IMPORTANT: this is NOT the canonical held-out split of Issue #14. The
+# split below is for smoke validation only; when #14 closes, the
+# canonical config replaces this one.
+#
+# Policy and scorer clients default to POLICY_* / SCORER_* / AZURE_* env
+# vars via resolve_role_config (see src/sreg/training/eval_config.py).
+# Override from the CLI: --policy-base-url, --scorer-model, etc.
+
+dataset:
+  # Path to the case-folders directory. Each case has <dir>/<case>/src.json.
+  # Uses env var expansion so the config is portable between Windows dev
+  # and H100 Linux — set SREG_P05_BATCH to the absolute path on each host.
+  dir: ${SREG_P05_BATCH}
+
+  # Explicit case IDs — NOT a seeded random split. Explicit list
+  # guarantees the smoke is reproducible across hosts regardless of
+  # filesystem ordering.
+  train_cases:
+    - missing_data
+    - policy_equity
+    - competing_mech
+    - poverty
+    - immunotherapy
+    - microbiome
+    - chemical
+    - heterogeneity
+    - confounding
+    - coral_bleach
+
+  # Holdout: 1 top-tier case (selection_bias, v1 score 0.762) + 1
+  # bottom-tier (identifiability, v1 score 0.218). Smoke only — exists
+  # to sanity-check that eval on held-out works, NOT to anchor the
+  # tesis evaluation.
+  holdout_cases:
+    - selection_bias
+    - identifiability
+
+# Rollout / env config. Matches v1 canonical harness (claim_cap=15,
+# max_turns=15) so smoke numbers are comparable to v1 solver eval.
+rollout:
+  temperature: 0.7   # training rollouts (eval BEFORE/AFTER uses 0.0)
+  max_turns: 15
+  claim_cap: 15      # = v1 canonical (NOT the 5 that eval_oi default picked)
+  n_mc: 10000        # smoke: 10k for speed. Canonical: 20k (matches v1).
+
+# Training loop config. Smoke values — the canonical run lifts most of
+# these (see research/synthesis/sreg_training_transfer_protocol.md
+# "Lo que todavia falta fijar").
+training:
+  rollouts_per_example: 2  # G for GRPO. Smoke: 2 to keep wall-clock
+                           # bounded. Canonical: 4-8 for usable variance.
+  max_concurrent: 1        # Azure scorer rate-limit. vLLM local: 4-8.
+  total_steps: 50          # smoke. Canonical: 500-2000.
+  seed: 42                 # = v1 canonical seed.
+  # learning_rate: TBD    # wires up when verifiers-rl lands.
