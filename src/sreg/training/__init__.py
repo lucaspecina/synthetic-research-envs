@@ -22,6 +22,7 @@ from sreg.training.eval_report import (  # noqa: E402
     per_case_breakdown,
     run_metadata,
     summarize_values,
+    write_trajectories_jsonl,
 )
 
 __all__ = [
@@ -37,4 +38,5 @@ __all__ = [
     "run_metadata",
     "split_train_eval",
     "summarize_values",
+    "write_trajectories_jsonl",
 ]

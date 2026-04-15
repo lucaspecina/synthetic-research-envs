@@ -64,6 +64,7 @@ from sreg.training.eval_report import (  # noqa: E402
     per_case_breakdown,
     run_metadata,
     summarize_values,
+    write_trajectories_jsonl,
 )
 
 
@@ -154,7 +155,12 @@ def main():
     )
     parser.add_argument(
         "--max-concurrent", type=int, default=1,
-        help="Max concurrent rollouts (keep low for Azure rate limits)",
+        help=(
+            "Max concurrent rollouts. Default 1 is correct for the Azure dev "
+            "endpoint (shared rate limits — higher concurrency triggers 429s "
+            "and non-deterministic scoring tails). For H100 + local vLLM the "
+            "sweet spot is 4-8; bump up here once the policy is local."
+        ),
     )
     parser.add_argument(
         "--max-turns", type=int, default=15,
@@ -171,6 +177,18 @@ def main():
     parser.add_argument(
         "--output", type=Path, default=None,
         help="Output path for results JSON",
+    )
+    parser.add_argument(
+        "--save-trajectories", type=Path, default=None,
+        help=(
+            "Optional path to write per-rollout trajectories as JSONL "
+            "(one JSON object per line). Trajectory dumps are large "
+            "(full message history + tool calls per rollout), so this "
+            "is gated behind a flag to keep --output small by default. "
+            "Each line: {problem_id, example_id, reward, is_completed, "
+            "is_truncated, stop_condition, trajectory, completion, "
+            "token_usage, metrics}."
+        ),
     )
     # Policy config (the model being evaluated / trained)
     parser.add_argument(
@@ -393,6 +411,12 @@ def main():
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2, default=str)
         print(f"\nSaved results -> {args.output}")
+
+    # Optional: dump full trajectories to JSONL for qualitative review.
+    # Gated behind a flag because the dump can be tens of MB per rollout.
+    if args.save_trajectories:
+        n = write_trajectories_jsonl(outputs, args.save_trajectories)
+        print(f"Saved {n} trajectories -> {args.save_trajectories}")
 
 
 if __name__ == "__main__":

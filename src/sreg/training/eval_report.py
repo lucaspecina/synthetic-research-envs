@@ -4,6 +4,7 @@ Pure helpers for summarizing rollout outputs:
   - run_metadata: reproducibility context (git SHA, versions, timestamp)
   - summarize_values: mean + percentile distribution for a list of floats
   - per_case_breakdown: aggregate rollouts by problem_id
+  - write_trajectories_jsonl: stream per-rollout details to JSONL
 
 Separated from scripts/eval_oi.py so they can be unit-tested without
 CLI glue, and so a future training script (scripts/train_sreg.py) can
@@ -12,6 +13,7 @@ reuse the same aggregation contract.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -143,4 +145,57 @@ def per_case_breakdown(outputs: Sequence[dict]) -> dict:
     return breakdown
 
 
-__all__ = ["run_metadata", "summarize_values", "per_case_breakdown"]
+# Fields to extract for trajectory dumps. Keeps the JSONL output tightly
+# scoped: the expensive stuff (messages + tool calls) for qualitative
+# review, the identity stuff (problem_id + example_id) to correlate with
+# per-case breakdown, and the outcome stuff (reward + metrics + stop
+# condition) so a reader can filter without reparsing.
+_TRAJECTORY_FIELDS = (
+    "problem_id",
+    "example_id",
+    "task",
+    "reward",
+    "is_completed",
+    "is_truncated",
+    "stop_condition",
+    "metrics",
+    "trajectory",
+    "completion",
+    "token_usage",
+    "timing",
+    "error",
+)
+
+
+def write_trajectories_jsonl(
+    outputs: Sequence[dict], path: Path, *, fields: Sequence[str] | None = None,
+) -> int:
+    """Write one JSON line per rollout to `path`. Returns count written.
+
+    Args:
+        outputs: Sequence of RolloutOutput-like dicts.
+        path: Output JSONL path. Parent dir created if missing.
+        fields: Override the default fields written per rollout.
+
+    Why JSONL and not a single JSON array: trajectory dumps can be tens
+    of MB per rollout. JSONL lets a reader stream with `for line in f`
+    instead of loading everything into memory, and a partial write (if
+    the eval crashes mid-batch) still yields a parseable prefix.
+    """
+    fields = fields or _TRAJECTORY_FIELDS
+    path.parent.mkdir(parents=True, exist_ok=True)
+    count = 0
+    with open(path, "w", encoding="utf-8") as f:
+        for o in outputs:
+            record = {k: o.get(k) for k in fields}
+            f.write(json.dumps(record, default=str) + "\n")
+            count += 1
+    return count
+
+
+__all__ = [
+    "run_metadata",
+    "summarize_values",
+    "per_case_breakdown",
+    "write_trajectories_jsonl",
+]

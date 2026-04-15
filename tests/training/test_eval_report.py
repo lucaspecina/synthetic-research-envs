@@ -8,12 +8,15 @@ includes non-finite values).
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from sreg.training.eval_report import (
     per_case_breakdown,
     run_metadata,
     summarize_values,
+    write_trajectories_jsonl,
 )
 
 
@@ -163,3 +166,89 @@ class TestRunMetadata:
         """verifiers_version is always a string (version or 'unknown')."""
         meta = run_metadata()
         assert isinstance(meta["verifiers_version"], str)
+
+
+class TestWriteTrajectoriesJsonl:
+    def test_writes_one_line_per_rollout(self, tmp_path):
+        outputs = [
+            {"problem_id": "a", "reward": 0.5, "trajectory": [{"step": 1}]},
+            {"problem_id": "b", "reward": 0.3, "trajectory": [{"step": 1}, {"step": 2}]},
+        ]
+        path = tmp_path / "trajectories.jsonl"
+        n = write_trajectories_jsonl(outputs, path)
+        assert n == 2
+        lines = path.read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 2
+        # Each line is a complete JSON object, not just a fragment.
+        recs = [json.loads(line) for line in lines]
+        assert recs[0]["problem_id"] == "a"
+        assert recs[0]["reward"] == 0.5
+        assert recs[1]["problem_id"] == "b"
+
+    def test_creates_parent_dir(self, tmp_path):
+        """Auto-creates the parent dir — matches --output behavior."""
+        path = tmp_path / "nested" / "subdir" / "t.jsonl"
+        n = write_trajectories_jsonl([{"problem_id": "x"}], path)
+        assert n == 1
+        assert path.exists()
+
+    def test_empty_outputs_writes_empty_file(self, tmp_path):
+        path = tmp_path / "empty.jsonl"
+        n = write_trajectories_jsonl([], path)
+        assert n == 0
+        assert path.read_text(encoding="utf-8") == ""
+
+    def test_extra_output_fields_dropped(self, tmp_path):
+        """Only the whitelisted fields get written — extras don't bloat the file.
+
+        RolloutOutput has many fields we don't need in the trajectory
+        dump (e.g. prompt duplication). Whitelist via _TRAJECTORY_FIELDS
+        keeps each line focused.
+        """
+        outputs = [
+            {
+                "problem_id": "a",
+                "reward": 0.5,
+                "trajectory": [],
+                "completion": [],
+                "random_extra_field": "bloat",
+                "another_one": [1, 2, 3],
+            }
+        ]
+        path = tmp_path / "t.jsonl"
+        write_trajectories_jsonl(outputs, path)
+        rec = json.loads(path.read_text(encoding="utf-8").strip())
+        assert "random_extra_field" not in rec
+        assert "another_one" not in rec
+        assert rec["problem_id"] == "a"
+
+    def test_missing_fields_serialized_as_null(self, tmp_path):
+        """Rollouts missing a whitelist field get JSON null — not a KeyError."""
+        outputs = [{"problem_id": "a"}]  # no reward, no trajectory, etc.
+        path = tmp_path / "t.jsonl"
+        write_trajectories_jsonl(outputs, path)
+        rec = json.loads(path.read_text(encoding="utf-8").strip())
+        assert rec["problem_id"] == "a"
+        assert rec["reward"] is None
+        assert rec["trajectory"] is None
+
+    def test_custom_fields_override(self, tmp_path):
+        """fields= param lets callers pick what to dump."""
+        outputs = [{"problem_id": "a", "reward": 0.5, "trajectory": [{"x": 1}]}]
+        path = tmp_path / "t.jsonl"
+        write_trajectories_jsonl(outputs, path, fields=["problem_id", "reward"])
+        rec = json.loads(path.read_text(encoding="utf-8").strip())
+        assert set(rec.keys()) == {"problem_id", "reward"}
+
+    def test_non_json_serializable_values_use_str_fallback(self, tmp_path):
+        """default=str on json.dumps — exotic objects get stringified
+        instead of crashing the dump mid-file."""
+        from pathlib import PurePosixPath
+
+        outputs = [{"problem_id": "a", "trajectory": [PurePosixPath("/tmp/foo")]}]
+        path = tmp_path / "t.jsonl"
+        # Should not raise.
+        write_trajectories_jsonl(outputs, path)
+        rec = json.loads(path.read_text(encoding="utf-8").strip())
+        # PurePosixPath serializes to its str form via default=str.
+        assert rec["trajectory"][0].endswith("foo")

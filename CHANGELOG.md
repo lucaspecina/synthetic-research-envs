@@ -5,6 +5,37 @@
 
 ## [Unreleased]
 
+### 2026-04-15 — eval harness: trajectory JSONL dump + concurrency docs
+
+**Paso 3 de Codex sobre eval_oi.py**: dos cosas chicas pero que pesan
+antes del primer batch real. (1) El `--output` JSON es util para metrics
+pero no trae las trajectorias completas — para QA cualitativo hay que
+revisar el historial de mensajes + tool calls, y eso no entra en un dump
+"chico". (2) `--max-concurrent` tenia un default silencioso de 1 sin
+explicar por que; el proximo que corra en H100 va a querer subirlo y no
+hay pista de cual es el sweet spot.
+
+- Nuevo flag `--save-trajectories PATH`: escribe un JSONL con una linea
+  por rollout (problem_id, example_id, task, reward, is_completed,
+  is_truncated, stop_condition, metrics, trajectory, completion,
+  token_usage, timing, error). Gated behind flag porque un dump puede
+  ser decenas de MB por rollout; el `--output` chico sigue siendo el
+  default. JSONL en vez de JSON array para poder stream-ear y para que
+  un crash mid-batch deje un prefix parseable.
+- Nuevo helper `write_trajectories_jsonl(outputs, path, *, fields=None)`
+  en `eval_report.py`. Whitelist `_TRAJECTORY_FIELDS` default; custom
+  `fields=` para callers que quieran dump mas chico. `default=str` en
+  `json.dumps` — objetos exoticos (Path, etc.) se estringifican en vez
+  de crashear el dump a mitad.
+- `--max-concurrent` help ampliado: documenta el tradeoff Azure (1 —
+  rate-limit compartido + cola de 429s no deterministica) vs H100 + vLLM
+  local (4-8 — sweet spot). Asi el proximo que corra en H100 no adivina.
+- Tests: +7 (`TestWriteTrajectoriesJsonl`) cubren una linea por rollout,
+  parent dir auto-creado, lista vacia -> archivo vacio, whitelist
+  drop de campos extra, missing fields -> `null` (no KeyError), custom
+  fields override, non-JSON-serializable via `default=str`. Total 49/49
+  en `tests/training/`.
+
 ### 2026-04-15 — eval harness reporting: percentiles, per-case breakdown, run metadata
 
 **Paso 2 de Codex sobre eval_oi.py**: el batch mean esconde la cola, un
