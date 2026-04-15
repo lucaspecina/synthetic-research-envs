@@ -338,3 +338,177 @@ class TestEnvBridgeTimeoutRace:
         assert state.get("submitted") is True
         assert state.get("submit_error") is None
         assert runner.is_submitted
+
+
+# ---------------------------------------------------------------------------
+# Tests — observability metadata (for pre-H100 diagnostics)
+# ---------------------------------------------------------------------------
+
+
+class TestObservabilityMetadata:
+    """Verify that each tool populates the state fields the env rubric reads
+    as metrics (see src/sreg/training/reward.py). Without these, a failed
+    training run gives no signal for why it failed."""
+
+    def test_python_exec_increments_per_tool_counter(self):
+        from sreg.training.tools import python_exec
+
+        runner = _build_runner()
+        state: dict = {}
+
+        async def run():
+            await python_exec(code="x = 1 + 1", runner=runner, state=state)
+            await python_exec(code="y = x * 2", runner=runner, state=state)
+
+        asyncio.run(run())
+        assert state["step_count"] == 2
+        assert state["python_exec_calls"] == 2
+        assert state.get("think_calls", 0) == 0
+        assert state.get("submit_attempts", 0) == 0
+
+    def test_think_increments_per_tool_counter(self):
+        from sreg.training.tools import think
+
+        state: dict = {}
+
+        async def run():
+            await think(reasoning="first thought", state=state)
+            await think(reasoning="second thought", state=state)
+            await think(reasoning="third thought", state=state)
+
+        asyncio.run(run())
+        assert state["step_count"] == 3
+        assert state["think_calls"] == 3
+        assert state.get("python_exec_calls", 0) == 0
+
+    def test_submit_attempts_counts_retries(self, monkeypatch):
+        """submit_attempts must count every call, including the retry
+        after a timeout. This is the signal that async race pressure
+        is happening in production."""
+        monkeypatch.setattr("sreg.training.tools._SCORING_TIMEOUT_S", 0.1)
+
+        runner = _build_runner()
+
+        def slow_score(claims, compiled):
+            time.sleep(0.5)
+            return (_dummy_score(), {}, [], [])
+
+        runner._score_with_judge = slow_score
+        state: dict = {}
+
+        async def attempt_one():
+            await submit_claims([_claim_dict()], runner=runner, state=state)
+            await asyncio.sleep(0.8)
+
+        asyncio.run(attempt_one())
+        assert state["submit_attempts"] == 1
+        assert state["submit_error_category"] == "timeout"
+
+        # Retry with fast scoring.
+        runner._score_with_judge = lambda c, co: (_dummy_score(0.7), {}, [], [])
+
+        async def attempt_two():
+            return await submit_claims(
+                [_claim_dict()], runner=runner, state=state,
+            )
+
+        asyncio.run(attempt_two())
+        assert state["submit_attempts"] == 2
+        assert state["submitted"] is True
+        assert state["submit_error_category"] is None
+
+    def test_scoring_wall_clock_accumulates(self):
+        """Timing must be recorded for both successful and failed scoring
+        so operators can watch the tail."""
+        runner = _build_runner()
+
+        def slow_success(claims, compiled):
+            time.sleep(0.1)  # deliberate small delay
+            return (_dummy_score(0.5), {}, [], [])
+
+        runner._score_with_judge = slow_success
+        state: dict = {}
+
+        async def run():
+            await submit_claims([_claim_dict()], runner=runner, state=state)
+
+        asyncio.run(run())
+        # At least 0.1s scoring time, plus overhead. Allow generous lower bound.
+        assert state["scoring_wall_clock_s"] >= 0.05, state["scoring_wall_clock_s"]
+        assert state["scoring_wall_clock_s"] < 5.0  # upper sanity bound
+
+    def test_recovery_sets_recovery_used(self):
+        """When the fingerprint recovery path fires, state must reflect it
+        so post-hoc analysis can distinguish normal submits from race
+        recoveries (signals Azure slowdown pressure)."""
+        runner = _build_runner()
+
+        claim_card = _parse_claim(_claim_dict())
+        bundle = (_dummy_score(0.9), {}, [], [])
+        runner._commit_scoring_result(
+            compiled=[], claims=[claim_card],
+            bundle=bundle, record_claim_steps=False,
+        )
+
+        state: dict = {}
+
+        async def run():
+            return await submit_claims(
+                [_claim_dict()], runner=runner, state=state,
+            )
+
+        asyncio.run(run())
+
+        assert state.get("recovery_used") is True
+        assert state.get("submitted") is True
+        assert state.get("submit_error_category") is None
+
+    def test_parse_error_categorized(self):
+        """Bad claim payload → submit_error_category == 'parse_error'."""
+        runner = _build_runner()
+        state: dict = {}
+
+        # Missing required key 'claim_text' → _parse_claim raises KeyError.
+        bad_claim = {"claim_id": "c1"}
+
+        async def run():
+            return await submit_claims(
+                [bad_claim], runner=runner, state=state,
+            )
+
+        result = asyncio.run(run())
+        assert "error parsing" in result.lower()
+        assert state["submit_error_category"] == "parse_error"
+        assert state["submit_attempts"] == 1
+        assert not state.get("submitted")
+
+    def test_validation_error_categorized(self):
+        """Runner's ValueError (e.g., evidence_basis mismatch) →
+        submit_error_category == 'validation_error'."""
+        runner = _build_runner()
+        state: dict = {}
+
+        # Claim citing an artifact that was never accessed — parses fine,
+        # but runner's validate_evidence_refs rejects it.
+        bad_evidence_claim = {
+            "claim_id": "c1",
+            "claim_text": "A has a positive effect on Y",
+            "focus_variables": ["A", "Y"],
+            "confidence": 0.8,
+            "evidence_basis": [
+                {
+                    "artifact_id": "nonexistent_artifact",
+                    "rationale": "Cited without any actual inspection.",
+                },
+            ],
+        }
+
+        async def run():
+            return await submit_claims(
+                [bad_evidence_claim], runner=runner, state=state,
+            )
+
+        asyncio.run(run())
+        assert state["submit_error_category"] == "validation_error"
+        assert state["submit_attempts"] == 1
+        assert not state.get("submitted")

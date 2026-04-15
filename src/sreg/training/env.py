@@ -27,10 +27,15 @@ from typing import Any  # noqa: E402
 import verifiers as vf  # noqa: E402
 
 from sreg.training.reward import (
+    python_exec_calls_metric,
+    recovery_used_metric,
+    scoring_wall_clock_metric,
     step_count_metric,
+    submit_attempts_metric,
     submit_error_metric,
     submitted_metric,
     terminal_reward,
+    think_calls_metric,
 )
 from sreg.training.tools import python_exec, submit_claims, think
 
@@ -163,11 +168,22 @@ class SregEnv(vf.StatefulToolEnv):
         self._llm_call = llm_call
         self._default_n_mc = n_mc
 
-        # Build rubric: terminal reward + tracking metrics
+        # Build rubric: terminal reward + tracking metrics (weight=0).
+        # Metrics give post-hoc visibility into what happened per episode:
+        # - step_count / python_exec_calls / think_calls / submit_attempts:
+        #   tool usage distribution (agents that never python_exec are suspect)
+        # - submit_error: binary did-an-error-happen
+        # - recovery_used: race recovery fired (signals async race pressure)
+        # - scoring_wall_clock: scoring latency (watch for Azure rate-limit tails)
         rubric = vf.Rubric(funcs=[terminal_reward], weights=[1.0])
         rubric.add_metric(submitted_metric)
         rubric.add_metric(step_count_metric)
+        rubric.add_metric(python_exec_calls_metric)
+        rubric.add_metric(think_calls_metric)
+        rubric.add_metric(submit_attempts_metric)
         rubric.add_metric(submit_error_metric)
+        rubric.add_metric(recovery_used_metric)
+        rubric.add_metric(scoring_wall_clock_metric)
 
         super().__init__(
             rubric=rubric,
@@ -248,8 +264,14 @@ class SregEnv(vf.StatefulToolEnv):
         state["runner"] = runner
         state["submitted"] = False
         state["submit_error"] = None
+        state["submit_error_category"] = None
         state["score"] = None
         state["step_count"] = 0
+        state["python_exec_calls"] = 0
+        state["think_calls"] = 0
+        state["submit_attempts"] = 0
+        state["recovery_used"] = False
+        state["scoring_wall_clock_s"] = 0.0
 
         return state
 

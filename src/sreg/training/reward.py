@@ -40,6 +40,35 @@ def step_count_metric(state: dict, **kwargs) -> float:
     return float(state.get("step_count", 0))
 
 
+def python_exec_calls_metric(state: dict, **kwargs) -> float:
+    """Track python_exec tool usage. Agents that never analyze data are suspect."""
+    return float(state.get("python_exec_calls", 0))
+
+
+def think_calls_metric(state: dict, **kwargs) -> float:
+    """Track think tool usage. Signals reasoning vs direct tool spam."""
+    return float(state.get("think_calls", 0))
+
+
+def submit_attempts_metric(state: dict, **kwargs) -> float:
+    """Track how many times the agent called submit_claims. >1 means a retry
+    happened (parse/validation/timeout/cancelled → agent tried again)."""
+    return float(state.get("submit_attempts", 0))
+
+
 def submit_error_metric(state: dict, **kwargs) -> float:
     """Track whether a submit error occurred (1.0) or not (0.0)."""
     return 1.0 if state.get("submit_error") else 0.0
+
+
+def recovery_used_metric(state: dict, **kwargs) -> float:
+    """Track whether the fingerprint recovery path fired (1.0) or not (0.0).
+    A non-zero value signals async race pressure in the env bridge — useful
+    for spotting Azure slowdowns that trigger timeout + race recovery."""
+    return 1.0 if state.get("recovery_used") else 0.0
+
+
+def scoring_wall_clock_metric(state: dict, **kwargs) -> float:
+    """Track total scoring (submit_claims) wall-clock seconds. Watch the tail
+    for Azure rate-limit pressure or compiler/judge slowdowns."""
+    return float(state.get("scoring_wall_clock_s", 0.0))

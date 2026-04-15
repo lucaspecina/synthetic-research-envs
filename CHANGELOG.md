@@ -5,6 +5,34 @@
 
 ## [Unreleased]
 
+### 2026-04-15 — observability metadata for rollout diagnostics
+
+**Checklist pre-H100 de Codex**: sin metadata granular por rollout, los
+fallos en training van a ser flying-blind. Hay que registrar bastante
+como para diagnosticar **sin re-correr** el episodio.
+
+- 6 campos nuevos en `state` (setup_state en env.py los inicializa):
+  `python_exec_calls`, `think_calls`, `submit_attempts`, `recovery_used`,
+  `submit_error_category`, `scoring_wall_clock_s`.
+- `training/tools.py` los populan: cada tool incrementa su propio
+  counter, `submit_claims` mide wall-clock del scoring (acumulativo
+  entre success y error paths) y categoriza el error en un tag corto
+  (`parse_error` / `timeout` / `validation_error` / `runtime_error` /
+  `cancelled` / `payload_mismatch`) — separado del freeform `submit_error`
+  que mantiene el detalle.
+- 5 metric functions nuevas en `reward.py` (weight=0, puro tracking):
+  `python_exec_calls_metric`, `think_calls_metric`,
+  `submit_attempts_metric`, `recovery_used_metric`,
+  `scoring_wall_clock_metric`. Cada una con docstring que explica qué
+  señal dispara (ej: `recovery_used` non-zero → async race pressure,
+  watch for Azure slowdowns).
+- Rubric en `SregEnv.__init__` las registra para que el eval harness
+  las vea sin cambios extra.
+- Tests: +7 (`TestObservabilityMetadata`), total 58 passing. Cubren per-
+  tool counter sin cross-talk, `submit_attempts` contando retries,
+  `scoring_wall_clock_s` con bounds, `recovery_used` en fingerprint hit,
+  y categorización de `parse_error` + `validation_error`.
+
 ### 2026-04-15 — harden recovery path + fix step_count diagnostics
 
 **Review critico de Codex post-#25**: el recovery path del env bridge

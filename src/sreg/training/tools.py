@@ -16,6 +16,7 @@ import asyncio
 import json
 import logging
 import threading
+import time
 
 from sreg.models.open_investigation import ClaimCard, EvidenceRef
 from sreg.tools.oi_runner import (
@@ -54,6 +55,7 @@ async def python_exec(
     # User code can be slow (regression, stats) — don't starve other rollouts.
     result = await asyncio.to_thread(runner.run_code, code)
     state["step_count"] = state.get("step_count", 0) + 1
+    state["python_exec_calls"] = state.get("python_exec_calls", 0) + 1
 
     output = result.get("output", "")
     return output if output else "(no output)"
@@ -74,6 +76,7 @@ async def think(
         return "Error: environment not initialized."
 
     state["step_count"] = state.get("step_count", 0) + 1
+    state["think_calls"] = state.get("think_calls", 0) + 1
     return "Reasoning recorded."
 
 
@@ -96,6 +99,7 @@ async def submit_claims(
     # Count the tool call regardless of outcome (matches python_exec / think).
     # Reward diagnostics and any per-step penalty need this to be accurate.
     state["step_count"] = state.get("step_count", 0) + 1
+    state["submit_attempts"] = state.get("submit_attempts", 0) + 1
 
     if state.get("submitted"):
         return "Error: you already submitted claims."
@@ -105,6 +109,7 @@ async def submit_claims(
         claim_cards = [_parse_claim(c) for c in claims]
     except Exception as e:
         state["submit_error"] = f"parse_error: {e}"
+        state["submit_error_category"] = "parse_error"
         logger.warning("submit_claims parse error: %s", e)
         return f"Error parsing claims: {e}"
 
@@ -120,6 +125,7 @@ async def submit_claims(
     # With the event, the thread checks it at the commit checkpoint and
     # raises SubmissionCancelled instead of committing.
     cancel_event = threading.Event()
+    t0 = time.perf_counter()
     try:
         score = await asyncio.wait_for(
             asyncio.to_thread(
@@ -132,6 +138,10 @@ async def submit_claims(
         # but it will honor the event at its next checkpoint.
         cancel_event.set()
         state["submit_error"] = "scoring_timeout"
+        state["submit_error_category"] = "timeout"
+        state["scoring_wall_clock_s"] = (
+            state.get("scoring_wall_clock_s", 0.0) + (time.perf_counter() - t0)
+        )
         logger.error(
             "submit_claims scoring timed out after %.0fs; cancel_event set",
             _SCORING_TIMEOUT_S,
@@ -139,9 +149,16 @@ async def submit_claims(
         return f"Error: scoring timed out after {_SCORING_TIMEOUT_S:.0f}s."
     except ValueError as e:
         state["submit_error"] = f"validation_error: {e}"
+        state["submit_error_category"] = "validation_error"
+        state["scoring_wall_clock_s"] = (
+            state.get("scoring_wall_clock_s", 0.0) + (time.perf_counter() - t0)
+        )
         logger.warning("submit_claims validation error: %s", e)
         return f"Submission error: {e}"
     except AlreadySubmittedError as e:
+        state["scoring_wall_clock_s"] = (
+            state.get("scoring_wall_clock_s", 0.0) + (time.perf_counter() - t0)
+        )
         # Race recovery: a previous call's worker thread may have committed
         # the runner AFTER that call's timeout returned an error to the
         # agent. In that case, the current retry's `runner.submit_claims`
@@ -156,6 +173,8 @@ async def submit_claims(
             state["score"] = recovered
             state["submitted"] = True
             state["submit_error"] = None
+            state["submit_error_category"] = None
+            state["recovery_used"] = True
             logger.warning(
                 "submit_claims retry recovered score from background-committed "
                 "runner (previous timeout's worker finished after env gave up); "
@@ -171,6 +190,7 @@ async def submit_claims(
         # but defensive) OR the retry sent different claims. Do NOT silently
         # recover; surface it so the agent/operator can see what happened.
         state["submit_error"] = "already_submitted_payload_mismatch"
+        state["submit_error_category"] = "payload_mismatch"
         logger.error(
             "submit_claims AlreadySubmittedError with claim mismatch: "
             "retry sent %d claims, runner committed %d. Refusing silent recovery.",
@@ -182,6 +202,10 @@ async def submit_claims(
         )
     except RuntimeError as e:
         state["submit_error"] = f"runtime_error: {e}"
+        state["submit_error_category"] = "runtime_error"
+        state["scoring_wall_clock_s"] = (
+            state.get("scoring_wall_clock_s", 0.0) + (time.perf_counter() - t0)
+        )
         logger.error("submit_claims runtime error: %s", e)
         return f"Error: {e}"
     except SubmissionCancelled as e:
@@ -189,6 +213,10 @@ async def submit_claims(
         # BEFORE wait_for fired its TimeoutError. Defensive handler — the
         # contract is that the runner stays pristine, so treat as cancelled.
         state["submit_error"] = "cancelled"
+        state["submit_error_category"] = "cancelled"
+        state["scoring_wall_clock_s"] = (
+            state.get("scoring_wall_clock_s", 0.0) + (time.perf_counter() - t0)
+        )
         logger.warning("submit_claims cancelled (pre-timeout signal): %s", e)
         return f"Error: submission cancelled: {e}"
 
@@ -196,6 +224,10 @@ async def submit_claims(
     state["score"] = score
     state["submitted"] = True
     state["submit_error"] = None
+    state["submit_error_category"] = None
+    state["scoring_wall_clock_s"] = (
+        state.get("scoring_wall_clock_s", 0.0) + (time.perf_counter() - t0)
+    )
 
     return (
         f"Claims submitted successfully. "
