@@ -41,6 +41,7 @@
 - [ ] I-027: Suite 2 baseline — artifact inconsistencies + repro gap (items 1-6 done, item 7 open)
 - [ ] I-028: Compiler emits sweep_values as list inside arm.values (schema violation)
 - [ ] I-029: Compiler never abstains (0/4 abstain decisions) — Suite 2 diagnostics hint #1
+- [ ] I-030: Compiler taxonomy spec alignment — baseline/observe aliased, condition.values ignored (prereq de I-026 Rama C)
 
 **Training**
 - [ ] I-011: CausalReasoningBenchmark integration (T2)

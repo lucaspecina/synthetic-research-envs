@@ -5,6 +5,51 @@
 
 ## [Unreleased]
 
+### 2026-04-15 (PM3) — Suite 2 taxonomy audit + I-030 (baseline/observe/condition contract bugs)
+
+**Pre-closure del diagnóstico: antes de escribir exemplares para el
+bottleneck arm_kinds (50%), auditamos si el contrato taxonómico es
+consistente entre las fuentes que el compiler consume. Confirmado: parte
+del 50% es incoherencia interna, no capability del LLM.**
+
+- **§7.6 Taxonomy audit** agregado a
+  `research/synthesis/suite2_compiler_improvement_strategy.md`. Fuentes
+  auditadas: `GRAMMAR_REF` (oi_sq_compiler.py), `compile_claim_direct()`
+  (oi_extraction.py), verifier (oi_verifier.py), gold contracts
+  (gold_targets.py), matcher (oi_sq_matching.py), D2 diag prompt, y
+  strategy doc. Filtro de severidad 3-capas (contract/executor/evaluator)
+  para clasificar cada finding.
+- **F1 — baseline vs observe (bug real):** 3 voces contradictorias.
+  `GRAMMAR_REF` los define separados; `compile_claim_direct` los usa
+  como intercambiables ("baseline or observe"); strategy doc decía
+  "NO observe"; D2 diag enseñaba "observe". Gold usa cada kind como
+  token exacto en `allowed_arm_kinds`. Viola capas 1 y 3 simultáneamente.
+- **F2 — condition.values (contract bug):** `GRAMMAR_REF` documenta
+  `values` como válido para `condition`; verifier lo ignora silenciosamente.
+  Drop de info sin log.
+- **F3-F5:** doc gaps (observe/condition, intervene+condition_on
+  híbrido, adjust OK).
+- **F6:** matcher (`oi_sq_matching.py`) NO usa `arm.kind` → bug es Suite
+  2-local, no global a SREG.
+- **I-030 creado** (`issues/I-030-compiler-taxonomy-spec-alignment.md`):
+  scope, files a tocar, spec unificada propuesta (`baseline`=joint;
+  `observe`=filter point-value por values; `condition`=filter rich
+  predicate por condition_on; eliminar `values` de condition en
+  GRAMMAR_REF; reemplazar "baseline or observe" por regla por
+  measurement). Prereq de I-026 Rama C.
+- **§8.3 Rama C actualizada:** prereq I-030 marcado, staircase ablation
+  N=0/4/8/12 agregada (propuesta de Codex), recipes sincronizados con
+  spec unificada.
+- **§7.5 Síntesis:** nueva fila Taxonomy consistency.
+- **TODO.md:** I-030 agregado.
+- **Codex review** (threadId `019d8764`): filtro 3-capas propuesto +
+  flagueó F1, F2, F6 antes del audit formal.
+
+**Implicancia para Rama C:** escribir exemplares sobre contrato
+inconsistente enseña la inconsistencia. Orden obligatorio ahora:
+I-030 (spec fix) → I-026 (exemplars). Ceiling esperable de Rama C post
+I-030 sube sin tocar shot count.
+
 ### 2026-04-15 (PM2) — Suite 2 diagnostic battery (D1/D2/D4 + stage1 split)
 
 **Antes de atacar con exemplars, corrimos 4 diagnostics para aislar el

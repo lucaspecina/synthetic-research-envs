@@ -1,5 +1,16 @@
 # Suite 2 — Compiler Improvement Strategy
 
+> **🧭 NORTE DE ESTA FASE (I-007 diagnósticos):**
+> **Evaluar y testear el compiler para entender POR QUÉ falla, DÓNDE
+> falla, y que los diagnósticos INDIQUEN CÓMO MEJORARLO.**
+> Toda propuesta de análisis pasa por 3 ejes: ¿por qué? ¿dónde? ¿cómo
+> mejorar? Si no sirve a ninguno → YAGNI. NO conectar hints con
+> presiones evolutivas / RL transfer mientras escribimos diagnósticos
+> (ese framing es correcto pero es otro norte, posterior al merge).
+>
+> **Scope:** norte aplica a I-007 solamente; el worktree eval-suite
+> cubre I-006/I-008/I-009 además y tiene scope más amplio.
+>
 > **Status:** CANON plan de ataque al recipe gap del claim compiler.
 > **Date:** 2026-04-15 (diagnostics D1/D2/D4 + stage1_split corridos).
 > **Context:** baseline v2 estable (`suite2_compiler_baseline.md` §9),
@@ -381,6 +392,88 @@ específicamente, cuándo **no** usar `condition` y cuándo el par
 | Recipe knowledge — n_atoms, role_vars, measurement, comparison, assertion | **68-96%**. Variabilidad por familia. |
 | Recipe knowledge — **arm_kinds** | **50%**. El bottleneck duro. |
 | adjust_swap formalization | Upper bound 13→**24%** (no 31%). |
+| **Taxonomy consistency (arm.kind)** | **Contract bug** (§7.6): `baseline`/`observe` aliased inconsistentemente en 3 fuentes; `condition.values` documentado pero ignorado por verifier. **Prereq de Rama C** (I-030). |
+
+### 7.6 Taxonomy audit — `arm.kind` contract vs executor vs evaluator (0 LLM calls)
+
+**Motivación.** D2 mostró arm_kinds al 50% — bottleneck duro. Antes de
+escribir exemplares (Rama C), auditamos si la definición operacional de
+cada kind es consistente entre las fuentes que el compiler consume y
+los tests/scoring ejecutan. Codex flaggeó preliminarmente 3 fuentes
+contradictorias; el audit confirma el bug y agrega más.
+
+**Fuentes auditadas.**
+
+| Fuente | Rol |
+|---|---|
+| `src/sreg/tools/oi_sq_compiler.py:43-76` — `GRAMMAR_REF` | Contrato del lenguaje, compartido por SQ compiler y claim compiler direct |
+| `src/sreg/tools/oi_extraction.py:466-490` — `compile_claim_direct()` | Prompt real de Flow A (el que se corrió en baseline v2) |
+| `src/sreg/tools/oi_verifier.py:119-155` — `_run_single_arm()` | Ejecutor (semántica efectiva de cada kind) |
+| `tests/eval/suite2_translation/gold_targets.py:50+` — `StructuralContract.allowed_arm_kinds` | Hard gate del test Suite 2 (`test_compiler_llm.py:181`) |
+| `src/sreg/tools/oi_sq_matching.py` — `spec_match()` | Matcher para scoring canónico (Suite 4+) |
+| `scripts/suite2_diag_d2_recipe_slots.py:110-126` — D2 diag prompt | Lo que enseñamos al LLM en el diagnostic (elicitation) |
+| Este doc §8.3 recipes | Recipe prescriptions actuales |
+
+**Filtro de severidad (3 capas).** Si cualquiera dice "distinto", no son aliases.
+1. **Contract**: ¿se describen como distintos en schema/prompt?
+2. **Executor**: ¿el verifier los ejecuta distinto en algún caso válido?
+3. **Evaluator**: ¿gold structural contract / matching dependen de la distinción?
+
+#### F1 — `baseline` vs `observe`: contract bug real
+
+- **Executor (capa 2):** `baseline` = `world.sample(n)` **sin filtros** (joint nativa). `observe` = `world.sample(n)` + `_filter_condition(df, arm.values)` + optional `condition_on`. **Distintos** cuando observe tiene `arm.values`, que es el uso típico. Coinciden solo en el caso degenerado "observe sin values ni condition_on".
+- **Evaluator (capa 3):** `allowed_arm_kinds` usa cada kind como token exacto. W3_F07 gold lista `{"observe", "intervene"}` explícitamente; otros golds listan `{"baseline"}`. `test_compiler_llm.py:181` exige `arm_kinds.issubset(allowed_arm_kinds)` — **hard gate**. Un compiler que emita "observe" donde gold dice "baseline" falla strict.
+- **Contract (capa 1) — 3 voces contradictorias:**
+  - `GRAMMAR_REF` las presenta como kinds separados con descripciones distintas (✓).
+  - `compile_claim_direct()` prompt:502 las trata como intercambiables: `"Use a single baseline (or observe) arm"` para claims asociacionales.
+  - Strategy doc §8.3 pre-audit decía: `"recipe observational association: [baseline]. No usar [observe]"`.
+  - D2 diag prompt `recipe_slots.py:112` enseña lo opuesto: `"T correlates with Y → arm_kinds=[observe]"`.
+
+→ Un compiler siguiendo cualquiera de las fuentes puede emitir cualquiera de los dos kinds razonablemente, y fallar `allowed_arm_kinds` gate arbitrariamente según qué eligió el gold. **Parte del 50% de arm_kinds es atribuible a esta incoherencia, no a capability del LLM.**
+
+#### F2 — `condition` con `arm.values`: contract bug (verifier ignora silenciosamente)
+
+- `GRAMMAR_REF:54`: `"values: dict of variable=value for intervene/condition"`.
+- `oi_verifier.py:142-145` — `QueryKind.CONDITION`: solo usa `arm.condition_on`. **Ignora `arm.values` silenciosamente.** No crashea; drop info.
+
+→ Un compiler que siga `GRAMMAR_REF` al pie de la letra puede emitir `condition` con `values={var: val}` esperando filtrar, y el verifier sample sin filtro. Bug real, invisible en logs.
+
+#### F3 — `condition` vs `observe`: semánticamente distintos, docs OK
+
+- `observe` filtra por `arm.values` (point-value, tolerancia 15% std implícita).
+- `condition` filtra por `arm.condition_on` (predicates ricos: range, quantile_range, in_set).
+- Ambos observacionales, distintos slots. `GRAMMAR_REF` los describe como separados. Sin contradicción entre fuentes — solo la guía "cuándo usar cuál" no es muy explícita.
+
+#### F4 — `intervene` + `condition_on` (híbrido): no documentado en contract
+
+- `oi_verifier.py:125-129`: si `intervene` tiene `condition_on`, se hace `sample(do=values)` + filter después (interventional conditioned). Comportamiento válido y útil (ej. "effect of T on Y in subgroup with X > threshold").
+- `GRAMMAR_REF` no menciona esta composición. Un compiler que no sepa que es legal podría abstenerse o producir specs incorrectas cuando el uso canónico es este.
+
+#### F5 — `adjust` semántica bien aislada, sin bugs
+
+`GRAMMAR_REF` tiene sección dedicada "Adjust arm semantics"; `compile_claim_direct` agrega ejemplos concretos; verifier `_run_adjustment()` match. **No es parte del bottleneck.**
+
+#### F6 — Matcher (`oi_sq_matching.py`): `arm.kind` NO es hard gate
+
+- `spec_match()` usa `measurement.kind`, `primary_vars`, `conditioning_set` como hard gates.
+- Grep en `oi_sq_matching.py` para `arm\.kind|QueryKind\.` → **0 matches**.
+- **Implicancia:** la ambigüedad baseline/observe es **más grave para Suite 2** (que sí gate por `allowed_arm_kinds`) que para scoring canónico Suite 4+ (que usa matching sin `arm.kind`).
+
+#### Veredicto
+
+- **F1 y F2 son contract bugs reales.** Violan capas 2-3 simultáneamente (F1) o capa 2 (F2). Son prereq de Rama C — escribir exemplares sobre un contrato inconsistente enseña la inconsistencia.
+- **F3-F5:** documentación incompleta o clarificación, no bugs.
+- **F6:** bound del bug. Es bug Suite 2-local, no global a SREG.
+
+**Acción:** abrir **I-030: compiler taxonomy spec alignment** (separado de I-026). Rama C depende de I-030 (spec first, exemplars después).
+
+**Recomendación de spec unificada (propuesta para I-030):**
+- `baseline` = joint sampling SIN filtros. Uso: claims asociacionales donde el filter/adjustment está dentro del measurement (e.g. `partial_correlation` con `cond_set`).
+- `observe` = joint sampling + `_filter_condition(arm.values)` (point-value). Uso: condicionamiento observacional simple sobre valor exacto.
+- `condition` = joint sampling + `_filter_condition(arm.condition_on)`. Uso cuando el filter NO es point-value (range, quantile, in_set).
+- **Eliminar `values` del contrato de `condition`** en GRAMMAR_REF; dejarlo solo para `intervene`.
+- Reemplazar en `compile_claim_direct` el wording `"baseline (or observe)"` por regla discriminatoria por measurement: `correlation`/`partial_correlation` → baseline; filter point-value retrospectivo → observe; filter rich-predicate → condition.
+- Sync D2 diag prompt + strategy doc §8.3 con la spec unificada.
 
 ## 8. Próximos pasos concretos (post-diagnostics)
 
@@ -407,7 +500,13 @@ todas chicas, ninguna requiere cambio arquitectural del compiler:
 
 ### 8.3 Rama C — Exemplars targetizados (I-026 refinado)
 
-Contenido del exemplar diseñado por slot, no por familia:
+> **⚠ Prereq: I-030 (taxonomy spec alignment, §7.6).** Los recipes
+> abajo asumen spec unificada. Si se escriben exemplares sobre el
+> contrato actual (inconsistente), enseñan la inconsistencia. Orden:
+> I-030 → I-026.
+
+Contenido del exemplar diseñado por slot, no por familia (recipes
+**post I-030**, según spec unificada propuesta en §7.6):
 
 - **Recognition preface** (solo para CC-B5): explicar que "doubles",
   "halves", "large positive", "small negative" son señales de
@@ -415,14 +514,23 @@ Contenido del exemplar diseñado por slot, no por familia:
 - **arm_kinds recipes** — 3 exemplars compactos:
   - Recipe "causal effect" (simple): `[intervene]` × treatment
     binarios 0/1, measurement=mean, comparison=difference.
-  - Recipe "observational association": `[baseline]` sin segundo
-    arm, measurement=correlation, comparison=identity. **No** usar
-    `[observe]`.
+  - Recipe "observational association":
+    - Si measurement es `correlation` o `partial_correlation`: usar
+      `[baseline]` (joint sampling, filter va en el measurement).
+    - Si filter es point-value retrospectivo: `[observe]` con
+      `arm.values`.
+    - Si filter es range/quantile/in_set: `[condition]` con
+      `arm.condition_on`.
   - Recipe "confounding detection" (CC-A5): pair `[intervene,
     observe]`, measurement=mean, comparison=difference. La diferencia
     entre los brazos **es** el sesgo.
 - **Decision boundary** (CC-D1, CC-D2): un exemplar en contraste
   explícito, "si la claim dice X usar recipe A; si dice Y usar recipe B".
+- **Staircase ablation** (proposed Codex 2026-04-15): antes de
+  congelar N, medir accuracy con N=0/4/8/12 exemplares sobre
+  arm-kinds confusion set. Guess: 6-8 suficiente. Si 8 no mueve la
+  aguja, el issue no es shot count sino prompt semantics (→
+  escalar a arch change).
 
 ### 8.4 Después: re-run baseline y medir
 
