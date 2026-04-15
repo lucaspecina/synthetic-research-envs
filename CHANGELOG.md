@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### 2026-04-15 — per-category error rate metrics
+
+**Review de Codex sobre observabilidad**: las senales operativas criticas
+tienen que salir del env como metrics, no esconderse en logica del script
+de eval. `submit_error_category` era string en state pero el rubric solo
+acepta floats. Cerramos el gap con metrics binarias per-categoria.
+
+- 6 metric functions nuevas en `reward.py`: `timeout_rate_metric`,
+  `payload_mismatch_rate_metric`, `validation_error_rate_metric`,
+  `parse_error_rate_metric`, `runtime_error_rate_metric`,
+  `cancelled_rate_metric`. Cada una devuelve 1.0 si el rollout termino
+  con esa categoria, 0.0 si no. Agregadas via mean, dan un rate.
+- Rubric en `SregEnv.__init__` las registra con weight=0.
+- Tests: +1 (`test_category_metrics_return_binary_floats`) valida que
+  cada metric se prende solo en su categoria y 0 en las demas. Total
+  59 passing.
+
+Senal que habilitan: batch mean de cada metric es directamente la tasa
+del failure mode en ese batch, visible en cualquier rubric-aware viewer
+sin hooks custom. Es la diagnostica que Codex pidio para triagear
+training runs sin re-correr episodios.
+
 ### 2026-04-15 — observability metadata for rollout diagnostics
 
 **Checklist pre-H100 de Codex**: sin metadata granular por rollout, los

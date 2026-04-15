@@ -27,8 +27,12 @@ from typing import Any  # noqa: E402
 import verifiers as vf  # noqa: E402
 
 from sreg.training.reward import (
+    cancelled_rate_metric,
+    parse_error_rate_metric,
+    payload_mismatch_rate_metric,
     python_exec_calls_metric,
     recovery_used_metric,
+    runtime_error_rate_metric,
     scoring_wall_clock_metric,
     step_count_metric,
     submit_attempts_metric,
@@ -36,6 +40,8 @@ from sreg.training.reward import (
     submitted_metric,
     terminal_reward,
     think_calls_metric,
+    timeout_rate_metric,
+    validation_error_rate_metric,
 )
 from sreg.training.tools import python_exec, submit_claims, think
 
@@ -175,6 +181,10 @@ class SregEnv(vf.StatefulToolEnv):
         # - submit_error: binary did-an-error-happen
         # - recovery_used: race recovery fired (signals async race pressure)
         # - scoring_wall_clock: scoring latency (watch for Azure rate-limit tails)
+        # - {timeout,payload_mismatch,validation_error,parse_error,runtime_error,
+        #   cancelled}_rate: per-category error breakdown. Aggregated across a
+        #   batch each gives a rate — the diagnostic signal for triaging
+        #   training failures without re-running episodes.
         rubric = vf.Rubric(funcs=[terminal_reward], weights=[1.0])
         rubric.add_metric(submitted_metric)
         rubric.add_metric(step_count_metric)
@@ -184,6 +194,12 @@ class SregEnv(vf.StatefulToolEnv):
         rubric.add_metric(submit_error_metric)
         rubric.add_metric(recovery_used_metric)
         rubric.add_metric(scoring_wall_clock_metric)
+        rubric.add_metric(timeout_rate_metric)
+        rubric.add_metric(payload_mismatch_rate_metric)
+        rubric.add_metric(validation_error_rate_metric)
+        rubric.add_metric(parse_error_rate_metric)
+        rubric.add_metric(runtime_error_rate_metric)
+        rubric.add_metric(cancelled_rate_metric)
 
         super().__init__(
             rubric=rubric,

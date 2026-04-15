@@ -482,6 +482,48 @@ class TestObservabilityMetadata:
         assert state["submit_attempts"] == 1
         assert not state.get("submitted")
 
+    def test_category_metrics_return_binary_floats(self):
+        """The 6 per-category metrics must return 1.0 for matching state,
+        0.0 otherwise. Verifiers aggregates them across a batch as rates."""
+        from sreg.training.reward import (
+            cancelled_rate_metric,
+            parse_error_rate_metric,
+            payload_mismatch_rate_metric,
+            runtime_error_rate_metric,
+            timeout_rate_metric,
+            validation_error_rate_metric,
+        )
+
+        matchers = {
+            "timeout": timeout_rate_metric,
+            "payload_mismatch": payload_mismatch_rate_metric,
+            "validation_error": validation_error_rate_metric,
+            "parse_error": parse_error_rate_metric,
+            "runtime_error": runtime_error_rate_metric,
+            "cancelled": cancelled_rate_metric,
+        }
+
+        # Each metric fires on its own category and no other.
+        for category, metric_fn in matchers.items():
+            state_match = {"submit_error_category": category}
+            assert metric_fn(state_match) == 1.0, f"{category} metric"
+
+            for other, other_fn in matchers.items():
+                if other == category:
+                    continue
+                assert other_fn(state_match) == 0.0, (
+                    f"{other} metric fired on {category}"
+                )
+
+        # None / missing → all zero.
+        empty: dict = {}
+        for metric_fn in matchers.values():
+            assert metric_fn(empty) == 0.0
+
+        none_state = {"submit_error_category": None}
+        for metric_fn in matchers.values():
+            assert metric_fn(none_state) == 0.0
+
     def test_validation_error_categorized(self):
         """Runner's ValueError (e.g., evidence_basis mismatch) →
         submit_error_category == 'validation_error'."""
