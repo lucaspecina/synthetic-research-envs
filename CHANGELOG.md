@@ -5,6 +5,94 @@
 
 ## [Unreleased]
 
+### 2026-04-15 (PM) — Suite 2 v2 re-baseline + verifier fix + improvement strategy
+
+**Fix del verifier (ground truth) + full re-baseline con 5 buckets + plan de
+ataque al recipe gap del compiler.**
+
+- **Verifier fix** (`src/sreg/tools/oi_verifier.py:800-815`): la rama
+  `DISTINGUISHABLE` leía `"value"` del dict de `DIFFERENCE` (que no
+  existe) → `holds=False` siempre. Ahora usa `abs(scalar) > tol` con
+  bool fast-path que preserva `IDENTITY + IDENTIFIABILITY_CHECK`.
+  Guarded por 4 tests nuevos (`TestAssertDistinguishable`). Suite 1
+  Core Correctness: 52/52 sin regresión.
+- **Round-trip test para AtomicSpec** (6 tests,
+  `TestAtomicSpecRoundTrip`): garantiza que
+  `model_dump(mode="json")` + `model_validate()` preserva cada campo
+  (adjust arm, sweep arm, condition_on con 4 predicate kinds,
+  identifiability_check, thresholds, tolerances).
+- **Full dump v2** (`scripts/suite2_full_dump_v2.py`): 55 targets,
+  5 buckets (`full_pass`, `adjust_swap`, `real_struct_err`,
+  `verdict_wrong`, `stage1_fail`), round-trip-safe. Produce
+  `compiler_baseline_full_dump_v2.json` + `.jsonl` stream log +
+  derived `compiler_baseline_failures_v2.json`.
+- **v2 re-baseline** (55 LLM calls, ~6 min). Resultados:
+  - `strict_full_pass_rate` = 7/55 = **13%** (v1 era 6/55 = 11%).
+  - `effective_pass_rate` = 17/55 = **31%** (idéntico a v1 — bucket
+    shuffle interno).
+  - `real_error_rate` = 38/55 = **69%** (idéntico a v1).
+- **Hipótesis SQ-A1 confirmada:** los 3 `SQ_F01_s*` se movieron de
+  `verdict_fail` (v1) → `real_struct_err` (v2). Stage 3 pasa gracias
+  al fix; Stage 2 sigue fallando en arm_kinds (adjust vs intervene)
+  + assertion (distinguishable vs positive). Recipe gap real, no
+  artifact.
+- **Bug nuevo detectado (I-028)**: compiler emite `sweep_values` como
+  lista dentro de `arm.values` → schema violation en W3_F03_s0,
+  W3_F03_s2 (claims de changepoint / piecewise_fit).
+- **`stage1_fail` bucket ahora mezcla dos modos de falla**:
+  decision errors (4) + crashes (2). Item 7 de I-027 propone split.
+- **Docs actualizados:**
+  - `suite2_compiler_baseline.md` §9 — addendum con delta v1→v2,
+    IDs completos por bucket, canonicality rule.
+  - `suite2_pattern_breakdown.md` reescrito con actuals (no
+    upper-bound) — per-family/regime/difficulty counts.
+  - **`suite2_compiler_improvement_strategy.md` nuevo** — definición
+    operacional de "recipe gap duro", 6 opciones de mejora ordenadas,
+    diagnostic battery (D1-D7) con priorización costo/impacto. D4
+    (adjust-swap formal equivalence, 0 LLM calls) es la primera acción.
+- **I-027 status:** `partial` — items 1-6 cerrados, item 7 abierto.
+- **Scripts obsoletos borrados:** `suite2_reverify_verdict_fails.py`,
+  `suite2_pattern_breakdown.py`, `compiler_baseline_reverify_summary.json`.
+
+### 2026-04-15 — Suite 2 close-out: pattern breakdown + zero-bound audit (I-007)
+
+**Close-out parcial de Suite 2 — triage del 31% baseline + audit manual
+de las families con 100% verdict-fail.**
+
+- **Pattern breakdown parcial** (`suite2_pattern_breakdown.md`). Cross-join
+  del JSON de 21 verdict-fails con la metadata del gold set (`ALL_FACTS`).
+  **Limitacion explicita:** upper-bound triage, NO per-family pass rate
+  (passes no estan persistidos — ver I-027). 4 zero-candidate families
+  identificadas (`N_verdict_fail == N_total`): CC-A5, SQ-A1, CC-A7, CC-D2.
+- **Audit #11a** (`suite2_fail_audit_recipe_patterns.md`). Manual sobre
+  las 10 entries de esas 4 families. Taxonomia 2-eje (locus x stability)
+  revisada con Codex. Findings:
+  - CC-A5: recipe selection, `partial` — 1 wrong recipe estable.
+  - SQ-A1: recipe selection, `invariant` — 3/3 byte-identical output
+    ignora keyword "intervene" en user AND system prompt.
+  - CC-A7: slot filling, `fragile` — measurement correcta, slots
+    inconsistentes.
+  - CC-D2: catalog visibility gap — `identifiability_check` nunca
+    alcanzado.
+- **Bug del verifier detectado** (Codex, verificado en codigo):
+  `DISTINGUISHABLE` + `DIFFERENCE` comparison = verdict-fail siempre
+  (lee `"value"` key que no existe en dict de `difference`).
+  `src/sreg/tools/oi_verifier.py:800-804`. Inflacion del bucket
+  `verdict_fail` en el baseline. Tracked I-027 item 5.
+- **Issue I-027 abierto**: inconsistencias del baseline doc (22 vs 21),
+  dual-metric `adjust_swap` benign/fail, 6 full pass vs 17 effective,
+  artefactos no persistidos para 4 de los 5 buckets, contract mismatch
+  del verifier, nomenclatura metrica fija.
+- **Task #11 re-scoped**: original ("audit de los 6 full passes")
+  bloqueada por artifact availability -> split en #11a (zero-bound fails,
+  hecho) + #11b (full_pass + real_struct_err, requiere full dump).
+
+Outputs:
+- `research/synthesis/suite2_pattern_breakdown.md`
+- `research/synthesis/suite2_fail_audit_recipe_patterns.md`
+- `scripts/suite2_pattern_breakdown.py` (pure analysis, no LLM)
+- `issues/I-027-suite2-baseline-artifact-inconsistencies.md`
+
 ### 2026-04-14 — Suite 2 first baseline: claim compiler diagnostic (I-007)
 
 **Primer baseline del claim compiler contra los 55 gold targets de

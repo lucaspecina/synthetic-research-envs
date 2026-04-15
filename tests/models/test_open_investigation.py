@@ -452,6 +452,161 @@ class TestAtomicSpec:
 
 
 # ---------------------------------------------------------------------------
+# AtomicSpec round-trip serialization (I-027 item 4 — dumper artifact contract)
+# ---------------------------------------------------------------------------
+
+
+class TestAtomicSpecRoundTrip:
+    """spec -> model_dump(mode='json') -> model_validate must be lossless.
+
+    Guards the artifact contract for `scripts/dump_compiler_output.py` so the
+    persisted JSON can be re-verified offline without running the LLM. Covers
+    the shapes that appear in the Suite 2 baseline (adjust, identifiability,
+    tail_prob, sweep, condition_on with all 4 predicate kinds).
+    """
+
+    def _roundtrip(self, spec: AtomicSpec) -> AtomicSpec:
+        payload = spec.model_dump(mode="json")
+        restored = AtomicSpec.model_validate(payload)
+        assert restored.model_dump(mode="json") == payload
+        return restored
+
+    def test_roundtrip_adjust_arm_preserves_treatment_outcome_adjust_set(self):
+        spec = AtomicSpec(
+            spec_id="adj_ate",
+            arms=(
+                QueryArm(
+                    label="control",
+                    kind=QueryKind.ADJUST,
+                    values={"T": 0.0},
+                    treatment="T",
+                    outcome="Y",
+                    adjust_set=("Z", "W"),
+                ),
+                QueryArm(
+                    label="treated",
+                    kind=QueryKind.ADJUST,
+                    values={"T": 1.0},
+                    treatment="T",
+                    outcome="Y",
+                    adjust_set=("Z", "W"),
+                ),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="control"),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
+        )
+        restored = self._roundtrip(spec)
+        assert restored.arms[0].treatment == "T"
+        assert restored.arms[0].outcome == "Y"
+        assert restored.arms[0].adjust_set == ("Z", "W")
+        assert restored.arms[1].adjust_set == ("Z", "W")
+
+    def test_roundtrip_identifiability_check_measurement(self):
+        spec = AtomicSpec(
+            spec_id="id_check",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(
+                kind=MeasurementKind.IDENTIFIABILITY_CHECK,
+                treatment="X",
+                outcome="Y",
+                candidate_adjust_set=("Z",),
+            ),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.IDENTIFIABLE),
+        )
+        restored = self._roundtrip(spec)
+        assert restored.measurement.treatment == "X"
+        assert restored.measurement.outcome == "Y"
+        assert restored.measurement.candidate_adjust_set == ("Z",)
+
+    def test_roundtrip_tail_prob_threshold(self):
+        spec = AtomicSpec(
+            spec_id="tail",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(
+                kind=MeasurementKind.TAIL_PROB, target="Y", threshold=2.0
+            ),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
+        )
+        restored = self._roundtrip(spec)
+        assert restored.measurement.threshold == 2.0
+
+    def test_roundtrip_sweep_arm_preserves_sweep_fields(self):
+        spec = AtomicSpec(
+            spec_id="sweep",
+            arms=(
+                QueryArm(
+                    label="dose_scan",
+                    kind=QueryKind.SWEEP,
+                    sweep_var="A",
+                    sweep_values=(0.0, 0.5, 1.0, 1.5),
+                    sweep_base=QueryKind.INTERVENE,
+                ),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.PIECEWISE_FIT),
+            assertion=Assertion(kind=AssertionKind.CHANGEPOINT_EXISTS),
+        )
+        restored = self._roundtrip(spec)
+        assert restored.arms[0].sweep_var == "A"
+        assert restored.arms[0].sweep_values == (0.0, 0.5, 1.0, 1.5)
+        assert restored.arms[0].sweep_base == QueryKind.INTERVENE
+
+    def test_roundtrip_condition_on_all_predicate_kinds(self):
+        spec = AtomicSpec(
+            spec_id="cond",
+            arms=(
+                QueryArm(
+                    label="bucket",
+                    kind=QueryKind.OBSERVE,
+                    condition_on={
+                        "X1": ApproxEq(value=1.5, tol_std=0.2),
+                        "X2": ConditionRange(lo=0.0, hi=1.0),
+                        "X3": QuantileRange(q_lo=0.1, q_hi=0.9),
+                        "X4": InSet(values=["A", "B"]),
+                    },
+                ),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
+        )
+        restored = self._roundtrip(spec)
+        preds = restored.arms[0].condition_on
+        assert isinstance(preds["X1"], ApproxEq) and preds["X1"].value == 1.5
+        assert isinstance(preds["X2"], ConditionRange) and preds["X2"].hi == 1.0
+        assert isinstance(preds["X3"], QuantileRange) and preds["X3"].q_hi == 0.9
+        assert isinstance(preds["X4"], InSet) and preds["X4"].values == ["A", "B"]
+
+    def test_roundtrip_distinguishable_with_tolerance(self):
+        """Ensures Assertion.tolerance is preserved — load-bearing after the
+        DISTINGUISHABLE+DIFFERENCE verifier fix (I-027 item 5)."""
+        spec = AtomicSpec(
+            spec_id="dist",
+            arms=(
+                QueryArm(
+                    label="se_low",
+                    kind=QueryKind.INTERVENE,
+                    values={"SE": -0.5},
+                ),
+                QueryArm(
+                    label="se_high",
+                    kind=QueryKind.INTERVENE,
+                    values={"SE": 0.5},
+                ),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="T"),
+            comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="se_low"),
+            assertion=Assertion(kind=AssertionKind.DISTINGUISHABLE, tolerance=0.08),
+        )
+        restored = self._roundtrip(spec)
+        assert restored.assertion.tolerance == 0.08
+        assert restored.assertion.kind == AssertionKind.DISTINGUISHABLE
+
+
+# ---------------------------------------------------------------------------
 # ClaimCard / Submission tests
 # ---------------------------------------------------------------------------
 

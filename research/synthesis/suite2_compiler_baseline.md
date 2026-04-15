@@ -1,10 +1,18 @@
 # Suite 2 — Claim Compiler Baseline Report
 
-> **Status:** CANON evaluation result.
-> **Date:** 2026-04-14.
-> **Origin:** Suite 2 (Translation/Compilation), first baseline run.
+> **Status:** CANON evaluation result. **Canonical dump is v2** (post-verifier-fix).
+> **Dates:** 2026-04-14 (v1 baseline) · 2026-04-15 (v2 re-baseline after verifier fix).
+> **Origin:** Suite 2 (Translation/Compilation).
 > **Issue:** I-007.
-> **Raw data:** `research/synthesis/compiler_baseline_failures.json` (21 verdict failures, full specs).
+> **Canonical raw data:** `research/synthesis/compiler_baseline_full_dump_v2.json`
+> (all 55 targets, 5 buckets, round-trip-safe AtomicSpec dumps).
+> **Historical v1 data:** `research/synthesis/compiler_baseline_failures.json`
+> (21 verdict failures only — kept for traceability to the 2026-04-14 analysis).
+>
+> 📎 **Addendum 2026-04-15** appended at §9 documents the v1→v2 delta, the
+> verifier-fix impact, and the SQ-A1 hypothesis confirmation. **Read §9
+> before citing any headline number** — §§1–8 are the 2026-04-14 narrative
+> preserved verbatim.
 
 ## TL;DR
 
@@ -187,18 +195,195 @@ Proposed new issues (see §8 of the notes doc for justification):
 
 ## 8. Reproducibility
 
-All scripts are in this branch:
-- `scripts/analyze_compiler_results.py` — category breakdown.
-- `scripts/dump_compiler_output.py` — per-failure spec dump.
-- `scripts/prompt_diagnostic.py` — A/B/C test.
+**v2 (canon, 2026-04-15):**
+- `scripts/suite2_full_dump_v2.py` — full 55-target dump, 5-bucket
+  categorization, round-trip-safe. **Run this to reproduce the headline.**
+- Output: `research/synthesis/compiler_baseline_full_dump_v2.json`
+  (+ `.jsonl` stream log, + derived `compiler_baseline_failures_v2.json`).
 
-Gold set:
+**v1 (historical, 2026-04-14):**
+- `scripts/analyze_compiler_results.py` — v1 category breakdown (the
+  original baseline runner).
+- `scripts/dump_compiler_output.py` — v1 per-failure dump (lossy for
+  adjust arms — see §9.2 for why this was replaced).
+- Output: `research/synthesis/compiler_baseline_failures.json` (21
+  verdict_fails, pinned for traceability to §§1–8 of this doc).
+
+**Shared:**
+- `scripts/prompt_diagnostic.py` — A/B/C test (§3). Still valid.
+
+**Gold set:**
 - `tests/eval/suite2_translation/fact_tables.py`
 - `tests/eval/suite2_translation/gold_targets.py`
 - `tests/eval/suite2_translation/worlds.py`
 
-Raw output:
-- `research/synthesis/compiler_baseline_failures.json`
-
-To reproduce: `conda activate sreg && python scripts/analyze_compiler_results.py`.
+To reproduce the canonical (v2) baseline:
+```bash
+conda activate sreg
+python scripts/suite2_full_dump_v2.py  # ~6 min, 55 LLM calls
+```
 Requires Azure credentials in `.env`.
+
+---
+
+## 9. Addendum 2026-04-15 — v2 re-baseline after verifier fix
+
+### 9.1 Why v2 exists
+
+During the v1 close-out (2026-04-14) Codex spotted a verifier contract
+mismatch (I-027 item 5): `ComparisonKind.DIFFERENCE` produces a dict
+`{difference, ref, other}`, but `AssertionKind.DISTINGUISHABLE` was
+reading `"value"` — a key that doesn't exist in that dict. Result:
+`DIFFERENCE + DISTINGUISHABLE` always returned `holds=False`, regardless
+of the actual magnitude.
+
+This is **verifier (ground-truth machinery), not compiler**. The fix
+was in scope because the verifier defines what "correct" means; leaving
+a broken verifier in place would contaminate every future eval.
+
+**Fix applied** (`src/sreg/tools/oi_verifier.py:800-815`): magnitude-based,
+`abs(scalar) > tol`, with a bool fast-path so `IDENTITY +
+IDENTIFIABILITY_CHECK` semantics are preserved. Guarded by 4 new unit
+tests in `TestAssertDistinguishable`. Suite 1 core correctness still
+52/52.
+
+### 9.2 Sequence of fixes and artifacts (2026-04-15)
+
+1. **Verifier fix** + 4 unit tests → `oi_verifier.py`, `test_oi_verifier.py`.
+2. **Offline re-verify of v1's 21 verdict_fails** → blocked for 11/21
+   entries because `scripts/dump_compiler_output.py` was lossy for adjust
+   arms (missing `treatment`, `outcome`, `adjust_set`, `sweep_*`).
+   Documented in `compiler_baseline_reverify_summary.json`. This forced
+   the move to a full re-baseline.
+3. **Round-trip test for AtomicSpec serialization** (6 tests in
+   `TestAtomicSpecRoundTrip`) → guarantees `model_dump(mode="json")` +
+   `model_validate()` preserves every spec field across all arm kinds,
+   measurements, comparisons, and assertions.
+4. **Expanded dumper** `scripts/suite2_full_dump_v2.py` — all 55 targets,
+   5-bucket categorization, round-trip-safe persistence.
+5. **Full re-baseline** — 55 fresh LLM calls, ~5:42 min. Output:
+   `compiler_baseline_full_dump_v2.json` + `compiler_baseline_failures_v2.json`.
+
+### 9.3 v2 headline results
+
+| Bucket | v1 (2026-04-14) | v2 (2026-04-15) | Δ |
+|---|---|---|---|
+| `full_pass` (stage 1+2+3 all OK) | 6 | **7** | +1 |
+| `adjust_swap` (arm_kinds-only S2 mismatch, S3 OK) | 11 | **10** | -1 |
+| `real_struct_err` (other S2 error, S3 OK — pass-by-accident) | 11 | **13** | +2 |
+| `verdict_wrong` (S2 OK, S3 wrong) | 22 | **19** | -3 |
+| `stage1_fail` (compile decision wrong or compiler crash) | 5 | **6** | +1 |
+
+**Headline metrics** (nomenclature per I-027 item 6):
+
+- `strict_full_pass_rate` = **7/55 = 13%** (was 6/55 = 11% in v1).
+- `effective_pass_rate` = **17/55 = 31%** (identical to v1 — the bucket
+  shuffle is internal).
+- `real_error_rate` = **38/55 = 69%** (identical to v1).
+
+**Qualitative conclusion unchanged:** severe recipe gap; most failures
+are compositional (the LLM names the pattern but can't compose the
+spec). The fix didn't rescue the baseline — it sharpened it.
+
+### 9.4 SQ-A1 hypothesis — CONFIRMED
+
+Codex predicted that adjust-arm + distinguishable targets would be
+disproportionately affected by the bug. Verified:
+
+- All three `SQ_F01_s{0,1,2}` moved from v1 `verdict_fail` → v2
+  `real_struct_err`.
+- Stage 3 (verdict) now **passes** for SQ-A1 — the verifier fix reaches
+  them.
+- Stage 2 (structure) still **fails** — the compiler emits `adjust` arms
+  + `distinguishable` assertion where gold expects `intervene` +
+  `positive`. Both are real recipe gaps, independent of the verifier bug.
+
+This is exactly the expected outcome of separating machinery bugs from
+compositional gaps. The verifier artifact was load-bearing for verdict
+bucketing but not for stage 2.
+
+### 9.5 Internal bucket shuffle — which IDs moved
+
+Using the v1 `compiler_baseline_failures.json` (21 verdict_fails) as the
+reference set:
+
+- **3 → `real_struct_err`** (verdict now correct, structure still wrong):
+  `SQ_F01_s0, SQ_F01_s1, SQ_F01_s2` — the SQ-A1 case above.
+- **1 → `full_pass`** (verdict now correct, structure OK, stage 1 OK):
+  `W2_F09_s0` — clean flip thanks to the fix.
+- **2 stage1_fail additions** that weren't in v1's bucketing:
+  - `W3_F03_s0, W3_F03_s2` — compiler crashed on `sweep_values` emitted
+    as a list inside `arm.values` (schema violation). This is a
+    **separate compiler bug** surfaced by the new dump, not an effect of
+    the verifier fix. Tracked as a new issue (see §9.7).
+- **Remaining v1 verdict_fails** (~15) stayed in `verdict_wrong` or
+  moved within structural-error buckets due to LLM non-determinism at
+  `temperature=0` (small rewrite drift across runs, expected).
+
+### 9.6 Full IDs per v2 bucket
+
+For downstream audit work (Task #11b):
+
+**`full_pass` (7)** — correct at all 3 stages:
+- `SQ_F07_s0` (abstain-correct: gold=abstain, compiler abstained)
+- `W1_F09_s0, W2_F06_s0, W2_F09_s0, W2_F09_s1, W3_F05_s1, W3_F05_s2`
+
+**`adjust_swap` (10)** — benign S2 arm_kinds mismatch:
+- `W1_F01_s0, W1_F01_s1, W1_F03_s0, W1_F03_s1, W2_F01_s0, W2_F01_s1,
+  W2_F11_s0, W2_F11_s1, W3_F08_s0, W3_F08_s1`
+
+**`real_struct_err` (13)** — pass-by-accident pathology:
+- `SQ_F01_s0, SQ_F01_s1, SQ_F01_s2, W1_F04_s1, W1_F05_s0, W1_F05_s2,
+  W1_F09_s1, W2_F02_s0, W2_F02_s1, W2_F02_s2, W2_F06_s1, W2_F07_s0,
+  W3_F08_s2`
+
+**`verdict_wrong` (19)** — structure OK per gold contract, verdict wrong:
+- `W1_F01_s2, W1_F03_s2, W1_F04_s0, W1_F04_s2, W1_F05_s1, W1_F06_s0,
+  W1_F06_s1, W1_F06_s2, W1_F07_s0, W1_F07_s1, W1_F07_s2, W2_F01_s2,
+  W2_F04_s0, W2_F04_s1, W2_F07_s1, W3_F03_s1, W3_F04_s0, W3_F04_s1,
+  W3_F05_s0`
+
+**`stage1_fail` (6)** — see §9.7 for split.
+
+### 9.7 `stage1_fail` now mixes two distinct failure modes
+
+The bucket label is no longer atomic. v2 reveals it now conflates:
+
+**(a) Abstain/compile decision errors** (4 entries) — the compiler
+compiled when gold said abstain, or vice versa. These are legitimate
+stage 1 failures, the original intent of the bucket.
+- `SQ_F07_s1` (gold=abstain, compiler compiled)
+- `W3_F11_s0, W3_F12_s0, W3_F12_s1` (gold=abstain, compiler compiled)
+
+**(b) Compiler runtime/schema crashes** (2 entries) — the compiler
+failed to produce specs on a target where gold expected compilation.
+Distinct failure mode: not a decision error, a bug.
+- `W3_F03_s0, W3_F03_s2` — `sweep_values` as list inside `arm.values`
+  violated the AtomicSpec schema. New issue (see below).
+
+Going forward, `stage1_fail` should either be split (`stage1_decision_fail`
+vs `stage1_crash`) or annotated. Added as item 7 on I-027.
+
+### 9.8 New issue spawned from v2
+
+- **I-028** — Compiler emits `sweep_values` as list inside
+  `arm.values` (schema violation). Cross-linked from I-027 §9.7.
+
+### 9.9 What v2 does NOT change
+
+- End-to-end conclusion: **effective_pass_rate stable at 31%**, gap is
+  dominated by compositional recipe failures, not verifier artifacts.
+- A/B/C prompt diagnostic results (§3) — those tests did not hit the
+  DIFFERENCE+DISTINGUISHABLE path and remain valid.
+- The pass-by-accident pathology (§4.2) — now quantified at 13/55 (24%)
+  in v2, up from 11/55 (20%) in v1. Still the most worrying bucket.
+
+### 9.10 Canonicality rule
+
+From this date forward:
+
+- **v2** is the canonical Suite 2 compiler baseline. Cite v2 counts.
+- **v1** remains pinned here for traceability of the 2026-04-14 analysis
+  (the A/B/C diagnostic and narrative in §§1–8 were produced against it).
+- **Never conflate.** When citing bucket counts or IDs, state which
+  baseline you mean.

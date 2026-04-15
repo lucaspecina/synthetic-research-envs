@@ -203,6 +203,7 @@ experiments/*/
 # Claude Code local settings
 .claude/settings.local.json
 .claude/projects/
+.claude/scheduled_tasks.lock
 
 # Research seed (local only, may contain proprietary data)
 research_seed.md

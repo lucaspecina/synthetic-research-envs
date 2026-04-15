@@ -798,10 +798,22 @@ def _assert(
         return not bool(val), bool(val)
 
     if kind in (AssertionKind.DISTINGUISHABLE, AssertionKind.NOT_DISTINGUISHABLE):
-        val = comparison_result.get("value", False)
+        # Two valid pairings:
+        # (a) IDENTITY + IDENTIFIABILITY_CHECK → comparison_result has bool "value".
+        # (b) DIFFERENCE / GAP / CONTRAST_DIFF → comparison_result has a scalar under
+        #     "difference" / "gap" / "contrast_diff". Distinguishable means the
+        #     scalar's magnitude exceeds tolerance (direction-agnostic).
+        val = comparison_result.get("value")
+        if isinstance(val, bool):
+            is_distinguishable = val
+            ground_truth: float | bool = val
+        else:
+            scalar = _extract_scalar(comparison_result)
+            is_distinguishable = abs(scalar) > tol
+            ground_truth = scalar
         if kind == AssertionKind.DISTINGUISHABLE:
-            return bool(val), bool(val)
-        return not bool(val), bool(val)
+            return is_distinguishable, ground_truth
+        return not is_distinguishable, ground_truth
 
     return False, "unknown_assertion"
 

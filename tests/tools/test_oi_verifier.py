@@ -26,6 +26,7 @@ from sreg.models.open_investigation import (
 )
 from sreg.solver.scm_solver import SCMSolver
 from sreg.tools.oi_verifier import (
+    _assert,
     _filter_condition,
     _find_backdoor_set,
     _measure_from_samples,
@@ -492,6 +493,59 @@ class TestVerifyAtom:
         verdict = verify_atom(spec, world, solver, n_mc=20_000, seed=42)
         # hi is positive mean, lo is negative mean -> ratio is negative -> < 0
         assert verdict.solver_assertion_holds is True
+
+
+# ---------------------------------------------------------------------------
+# _assert — DISTINGUISHABLE contract with scalar comparisons (I-027 item 5)
+# ---------------------------------------------------------------------------
+
+
+class TestAssertDistinguishable:
+    """Regression tests for verifier bug: DISTINGUISHABLE previously read the
+    'value' key which is absent in DIFFERENCE / GAP / CONTRAST_DIFF comparison
+    results. Fix: fall back to _extract_scalar and compare |scalar| > tol.
+    Bool fast-path preserved for IDENTITY + IDENTIFIABILITY_CHECK pairing.
+    """
+
+    def test_distinguishable_with_difference_positive(self):
+        """DIFFERENCE + DISTINGUISHABLE: non-zero magnitude → holds=True.
+
+        Mimics SQ-A1 W1_F05 (ATE=0.68) which was incorrectly bucketed as
+        verdict_fail under the old contract.
+        """
+        comparison_result = {"difference": 0.68, "ref": 0.12, "other": 0.80}
+        assertion = Assertion(kind=AssertionKind.DISTINGUISHABLE, tolerance=0.0)
+        holds, ground_truth = _assert(assertion, comparison_result)
+        assert holds is True
+        assert ground_truth == pytest.approx(0.68)
+
+    def test_not_distinguishable_with_small_difference_below_tol(self):
+        """NOT_DISTINGUISHABLE + small magnitude below tol → holds=True."""
+        comparison_result = {"difference": 0.01, "ref": 0.50, "other": 0.51}
+        assertion = Assertion(kind=AssertionKind.NOT_DISTINGUISHABLE, tolerance=0.05)
+        holds, ground_truth = _assert(assertion, comparison_result)
+        assert holds is True
+        assert ground_truth == pytest.approx(0.01)
+
+    def test_distinguishable_with_identity_bool_preserves_semantics(self):
+        """IDENTITY + bool value → bool fast-path: holds and ground_truth are bool.
+
+        This is the Suite 1 core-correctness pairing (IDENTIFIABILITY_CHECK +
+        IDENTITY). The fix must not regress it.
+        """
+        comparison_result = {"value": True}
+        assertion = Assertion(kind=AssertionKind.DISTINGUISHABLE)
+        holds, ground_truth = _assert(assertion, comparison_result)
+        assert holds is True
+        assert ground_truth is True  # preserved as bool, not cast to 1.0
+
+    def test_distinguishable_is_magnitude_based_not_sign_based(self):
+        """DIFFERENCE with negative value above tol magnitude → still distinguishable."""
+        comparison_result = {"difference": -0.68, "ref": 0.80, "other": 0.12}
+        assertion = Assertion(kind=AssertionKind.DISTINGUISHABLE, tolerance=0.05)
+        holds, ground_truth = _assert(assertion, comparison_result)
+        assert holds is True
+        assert ground_truth == pytest.approx(-0.68)
 
 
 # ---------------------------------------------------------------------------

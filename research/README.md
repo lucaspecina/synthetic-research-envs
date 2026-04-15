@@ -32,7 +32,11 @@
 | `synthesis/sq_v2_matching_spec.md` | **CANON matching.** Spec de SQ matching v2 (compile + match + agg) |
 | `synthesis/eval_suite_framework.md` | **CANON evaluation.** 4 suites de evaluacion sistematica de SREG v1 |
 | `synthesis/eval_suite_translation.md` | **CANON evaluation.** Suite 2: Translation/Compilation — design doc |
-| `synthesis/suite2_compiler_baseline.md` | **CANON evaluation result.** Suite 2 baseline 2026-04-14 (31% pass, recipe gap diagnosed) |
+| `synthesis/suite2_compiler_baseline.md` | **CANON evaluation result.** Suite 2 baseline (v1 2026-04-14, v2 post-verifier-fix 2026-04-15). Effective 31% / strict 13%. §9 documenta delta v1→v2. |
+| `synthesis/suite2_pattern_breakdown.md` | **CANON breakdown (v2).** Per-family bucket breakdown 2026-04-15 — actuals sobre 55 targets, no upper-bound. Zero-strict-pass families enumerados. |
+| `synthesis/compiler_baseline_full_dump_v2.json` | **CANON raw data (v2).** 55 targets, 5 buckets, round-trip-safe AtomicSpec dump. Fuente de todos los números v2. |
+| `synthesis/suite2_compiler_improvement_strategy.md` | **CANON plan.** Recipe gap duro + 6 opciones de mejora + diagnostic battery (D1-D7) para refinar hipótesis antes de atacar con exemplars. |
+| `synthesis/suite2_fail_audit_recipe_patterns.md` | Manual audit of 10 zero-candidate verdict-fails (#11a). Failure-mode taxonomy per family (2026-04-15) |
 | `synthesis/eval_suite_science_coverage.md` | **CANON evaluation.** Suite 3: Science Coverage — corpus, mundos, harness |
 | `synthesis/scoring_relevance_design.md` | **CANON relevance.** Verdad vs relevancia, opciones de matching |
 | `synthesis/a27_answer_key_contract.md` | **CANON answer key.** Contrato del answer key rico |
