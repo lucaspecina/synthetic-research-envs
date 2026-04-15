@@ -5,6 +5,33 @@
 
 ## [Unreleased]
 
+### 2026-04-15 — harden recovery path + fix step_count diagnostics
+
+**Review critico de Codex post-#25**: el recovery path del env bridge
+reutilizaba cualquier score del runner cuando veia `"already submitted"`,
+sin verificar que los claims del retry coincidieran con los que
+realmente commitearon en background. Bajo un retry con claims
+modificados, eso atribuia silenciosamente el score viejo al tool call
+nuevo — un bug de correctness disfrazado de recuperacion.
+
+- Nueva exception tipada `AlreadySubmittedError(RuntimeError)` en
+  `oi_runner.py` con atributo `last_claims`. Subclass de `RuntimeError`
+  por backward-compat.
+- `submit_claims` tira la exception tipada en vez de `RuntimeError`
+  plano; expone los claims commiteados para fingerprint.
+- `training/tools.py` atrapa `AlreadySubmittedError` especificamente y
+  compara el payload del retry (helper `_claims_match`, pydantic
+  equality con orden preservado) antes de recuperar. En mismatch:
+  retorna error explicito `already_submitted_payload_mismatch` en vez
+  de silenciosamente usar el score viejo.
+- `submit_claims` ahora incrementa `state["step_count"]` como hacen
+  `python_exec` y `think`. Sin esto, las diagnostics de tool-count y
+  cualquier per-step penalty futuro estaban sesgadas.
+- Tests: 3 nuevos (total 51 passed). Runner: exception carga
+  `last_claims` y mantiene `isinstance(RuntimeError)`. Env:
+  (a) retry con claims modificados NO recupera, reporta mismatch;
+  (b) submit_claims incrementa step_count.
+
 ### 2026-04-14 — env bridge async race fix (cierre #25)
 
 **Complemento del fix transaccional anterior**: `asyncio.wait_for` cancela

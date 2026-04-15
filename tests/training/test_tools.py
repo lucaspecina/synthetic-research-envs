@@ -34,7 +34,7 @@ from sreg.models.open_investigation import (
 )
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_runner import OIEpisodeRunner
-from sreg.training.tools import submit_claims
+from sreg.training.tools import _parse_claim, submit_claims
 
 
 # ---------------------------------------------------------------------------
@@ -233,24 +233,24 @@ class TestEnvBridgeTimeoutRace:
         """Tricky case: the worker thread finished its commit BEFORE the
         env could set cancel_event (or before the retry's check). The retry
         must recover the score from the runner rather than returning an
-        'already submitted' error to the agent."""
-        # We simulate this by committing the runner manually (as if a
-        # previous thread had finished). The env's own timeout plumbing is
-        # irrelevant here — what matters is the RuntimeError handler.
+        'already submitted' error to the agent — BUT only if the retry's
+        claims match the committed payload (fingerprint check)."""
         runner = _build_runner()
 
-        # Pre-commit: pretend the first call's thread succeeded after the
-        # env timed out. Use the runner's real commit helper so the state
-        # mirrors a genuine committed runner.
+        # Pre-commit with the SAME claim the retry will send. Mirrors the
+        # race where the background thread finished scoring the agent's
+        # claims; the retry happens to send the same claims.
+        claim_card = _parse_claim(_claim_dict())
         bundle = (_dummy_score(0.9), {}, [], [])
         runner._commit_scoring_result(
-            compiled=[], claims=[], bundle=bundle, record_claim_steps=False,
+            compiled=[], claims=[claim_card],
+            bundle=bundle, record_claim_steps=False,
         )
         assert runner.is_submitted
 
         # Now the retry happens. state.submitted is False (env never saw
-        # the success). runner raises "already submitted". Env should
-        # recover the score rather than failing.
+        # the success). runner raises AlreadySubmittedError. Env should
+        # recover the score because payloads match.
         state: dict = {}
 
         async def run():
@@ -264,6 +264,61 @@ class TestEnvBridgeTimeoutRace:
         assert state.get("submitted") is True
         assert state.get("submit_error") is None
         assert state.get("score") is runner.get_score()
+
+    def test_recovery_refuses_mismatched_claims(self):
+        """Safety check: if the retry sends DIFFERENT claims than the ones
+        that actually committed in the background, the env must NOT silently
+        award the old score. Correctness > convenience."""
+        runner = _build_runner()
+
+        # Background thread committed claim c1 with score 0.9.
+        original_claim = _parse_claim(_claim_dict("c1"))
+        bundle = (_dummy_score(0.9), {}, [], [])
+        runner._commit_scoring_result(
+            compiled=[], claims=[original_claim],
+            bundle=bundle, record_claim_steps=False,
+        )
+
+        # Agent retries with a MODIFIED claim (different id + different text).
+        modified_claim_dict = {
+            "claim_id": "c2",
+            "claim_text": "A has no effect on Y",  # opposite finding
+            "focus_variables": ["A", "Y"],
+            "confidence": 0.3,
+            "evidence_basis": [
+                {"artifact_id": "dataset_bg", "rationale": "second look"},
+            ],
+        }
+        state: dict = {}
+
+        async def run():
+            return await submit_claims(
+                [modified_claim_dict], runner=runner, state=state,
+            )
+
+        result = asyncio.run(run())
+
+        # Must NOT recover: the score on runner belongs to the ORIGINAL
+        # claims, not the retry's modified payload.
+        assert "different claims" in result.lower(), result
+        assert state.get("submit_error") == "already_submitted_payload_mismatch"
+        assert "score" not in state  # no silent attribution
+        assert not state.get("submitted")
+
+    def test_submit_claims_increments_step_count(self):
+        """Low-severity diagnostics fix: submit_claims must count as a
+        tool call in state['step_count'], same as python_exec and think."""
+        runner = _build_runner()
+        runner._score_with_judge = lambda c, co: (_dummy_score(0.5), {}, [], [])
+        state: dict = {"step_count": 3}  # simulate prior tool calls
+
+        async def run():
+            return await submit_claims(
+                [_claim_dict()], runner=runner, state=state,
+            )
+
+        asyncio.run(run())
+        assert state["step_count"] == 4, state
 
     def test_fast_scoring_commits_normally(self, monkeypatch):
         """Sanity: when scoring is faster than the timeout, no race path

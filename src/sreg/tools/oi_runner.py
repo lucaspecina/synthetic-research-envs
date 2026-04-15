@@ -60,6 +60,23 @@ class SubmissionCancelled(Exception):
     pass
 
 
+class AlreadySubmittedError(RuntimeError):
+    """Raised when submit_claims is called on a runner that already committed.
+
+    Subclasses RuntimeError for backward compatibility (existing callers
+    that catch RuntimeError still work).
+
+    Carries `last_claims` so the env bridge can verify that a recovery
+    path (see issue #25 residual race) is attributing the committed score
+    to the SAME claim payload that produced it — not silently binding the
+    old score to a retry that modified its claims.
+    """
+
+    def __init__(self, message: str, last_claims: list[ClaimCard] | None = None):
+        super().__init__(message)
+        self.last_claims = list(last_claims) if last_claims is not None else []
+
+
 # ---------------------------------------------------------------------------
 # Evidence-basis validation helper (#25)
 # ---------------------------------------------------------------------------
@@ -379,7 +396,10 @@ class OIEpisodeRunner:
         # --- Pre-flight validation (no mutation) ---
 
         if self._submitted:
-            raise RuntimeError("Claims already submitted for this episode")
+            raise AlreadySubmittedError(
+                "Claims already submitted for this episode",
+                last_claims=self._last_claims,
+            )
 
         logger.info(
             "submit_claims: claim_cap=%d, received=%d",
@@ -910,6 +930,7 @@ class OIEpisodeRunner:
 
 
 __all__ = [
+    "AlreadySubmittedError",
     "ArtifactCatalog",
     "OIEpisodeRunner",
     "SubmissionCancelled",

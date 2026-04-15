@@ -18,7 +18,11 @@ import logging
 import threading
 
 from sreg.models.open_investigation import ClaimCard, EvidenceRef
-from sreg.tools.oi_runner import OIEpisodeRunner, SubmissionCancelled
+from sreg.tools.oi_runner import (
+    AlreadySubmittedError,
+    OIEpisodeRunner,
+    SubmissionCancelled,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +93,10 @@ async def submit_claims(
     if runner is None or state is None:
         return "Error: environment not initialized."
 
+    # Count the tool call regardless of outcome (matches python_exec / think).
+    # Reward diagnostics and any per-step penalty need this to be accurate.
+    state["step_count"] = state.get("step_count", 0) + 1
+
     if state.get("submitted"):
         return "Error: you already submitted claims."
 
@@ -133,27 +141,25 @@ async def submit_claims(
         state["submit_error"] = f"validation_error: {e}"
         logger.warning("submit_claims validation error: %s", e)
         return f"Submission error: {e}"
-    except RuntimeError as e:
+    except AlreadySubmittedError as e:
         # Race recovery: a previous call's worker thread may have committed
         # the runner AFTER that call's timeout returned an error to the
         # agent. In that case, the current retry's `runner.submit_claims`
-        # sees `_submitted=True` and raises "already submitted". Rather
+        # sees `_submitted=True` and raises AlreadySubmittedError. Rather
         # than losing the episode, reuse the score that is already on the
-        # runner. This is the complement of `cancel_event`: the event
-        # closes most of the race window, this handles the residual case
-        # where the thread committed before we could signal cancellation.
-        if (
-            "already submitted" in str(e)
-            and runner.is_submitted
-            and runner.get_score() is not None
-        ):
-            recovered = runner.get_score()
+        # runner — but ONLY if the retry's claims match the payload that
+        # actually committed. Otherwise we would silently award an old
+        # score to a modified retry, which is a correctness bug masquerading
+        # as recovery (Codex review finding, 2026-04-15).
+        recovered = runner.get_score()
+        if recovered is not None and _claims_match(claim_cards, e.last_claims):
             state["score"] = recovered
             state["submitted"] = True
             state["submit_error"] = None
             logger.warning(
                 "submit_claims retry recovered score from background-committed "
-                "runner (previous timeout's worker finished after env gave up)"
+                "runner (previous timeout's worker finished after env gave up); "
+                "claim payloads matched."
             )
             return (
                 f"Claims submitted successfully (recovered from background "
@@ -161,6 +167,20 @@ async def submit_claims(
                 f"Coverage: {recovered.weighted_coverage:.3f}, "
                 f"Total: {recovered.total:.3f}"
             )
+        # Either no score on the runner (shouldn't happen if _submitted=True
+        # but defensive) OR the retry sent different claims. Do NOT silently
+        # recover; surface it so the agent/operator can see what happened.
+        state["submit_error"] = "already_submitted_payload_mismatch"
+        logger.error(
+            "submit_claims AlreadySubmittedError with claim mismatch: "
+            "retry sent %d claims, runner committed %d. Refusing silent recovery.",
+            len(claim_cards), len(e.last_claims),
+        )
+        return (
+            "Error: an earlier submission already committed with different "
+            "claims; cannot silently attribute that score to this retry."
+        )
+    except RuntimeError as e:
         state["submit_error"] = f"runtime_error: {e}"
         logger.error("submit_claims runtime error: %s", e)
         return f"Error: {e}"
@@ -201,3 +221,20 @@ def _parse_claim(d: dict) -> ClaimCard:
         confidence=d.get("confidence", 0.5),
         evidence_basis=evidence,
     )
+
+
+def _claims_match(a: list[ClaimCard], b: list[ClaimCard]) -> bool:
+    """Check if two claim payloads are equivalent for recovery purposes.
+
+    Used by the AlreadySubmittedError handler to decide whether a retry's
+    claims match the claims that actually committed in the background.
+    Full pydantic equality (claim_id + text + focus_variables + confidence
+    + evidence_basis) — anything less would let a modified retry silently
+    inherit an old score.
+    """
+    if len(a) != len(b):
+        return False
+    # Order matters: the runner stores claims in submit order, and the
+    # compiler/judge ran on that order. A reordered retry should not
+    # implicitly match.
+    return all(ac == bc for ac, bc in zip(a, b))

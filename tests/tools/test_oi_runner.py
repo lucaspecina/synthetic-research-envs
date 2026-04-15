@@ -719,6 +719,41 @@ class TestRunnerTransactionality:
         assert score is _dummy_score
         assert runner.is_submitted
 
+    def test_already_submitted_error_carries_last_claims(self):
+        """The typed AlreadySubmittedError must expose the claims that
+        actually committed. The env bridge uses this to verify the retry's
+        payload matches before attributing the old score (fingerprint
+        recovery, Codex review 2026-04-15)."""
+        from sreg.tools.oi_runner import AlreadySubmittedError
+
+        problem = _make_problem()
+        world = _make_scm_world()
+        runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        runner.set_subquestions_v2([self._make_sq()])
+        runner._namespace["load_artifact"]("dataset_bg")
+
+        _dummy_score = EpisodeSubQuestionScore(
+            sq_scores=[], coverage=0.0, weighted_coverage=0.0,
+            correctness=0.0, novel_bonus=0.0, total=0.0,
+        )
+        runner._score_with_judge = lambda claims, compiled: (
+            _dummy_score, {}, [], [],
+        )
+
+        original = _make_claim()
+        runner.submit_claims([original])
+        assert runner.is_submitted
+
+        # Second submit raises typed error; exception still is RuntimeError
+        # for backward compat, and carries last_claims with the committed
+        # payload.
+        with pytest.raises(AlreadySubmittedError) as exc_info:
+            runner.submit_claims([_make_claim()])
+
+        assert isinstance(exc_info.value, RuntimeError)
+        assert len(exc_info.value.last_claims) == 1
+        assert exc_info.value.last_claims[0] == original
+
 
 # ---------------------------------------------------------------------------
 # OIEpisodeRunner — prompt context
