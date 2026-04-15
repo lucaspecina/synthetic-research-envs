@@ -28,6 +28,19 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.5",
 ]
+# Training harness dependencies. Pinned so the smoke test / eval / first RL
+# run reproduce from a clean env. `verifiers` is pinned exactly because its
+# public API (StatefulToolEnv, evaluate_sync, state_columns) is still
+# pre-1.0 and minor bumps have broken our imports before. `datasets` has
+# a much more stable API so a minimum floor is enough.
+#
+# NOT included: `verifiers-rl` (Linux + CUDA only — would break Windows
+# dev env). Will land in a separate `rl` extra when the training script
+# lives next to it.
+training = [
+    "verifiers==0.1.11",
+    "datasets>=2.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
