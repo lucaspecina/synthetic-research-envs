@@ -5,6 +5,35 @@
 
 ## [Unreleased]
 
+### 2026-04-15 — eval harness reporting: percentiles, per-case breakdown, run metadata
+
+**Paso 2 de Codex sobre eval_oi.py**: el batch mean esconde la cola, un
+caso envenenado arrastra el promedio sin alerta, y dos output JSONs no
+son diffeables sin saber SHA/version. Tres cosas que hay que fixear
+antes de tirar el primer batch de 10-12 SRCs.
+
+- Nuevo modulo `src/sreg/training/eval_report.py` (helpers puros,
+  testeables sin CLI glue):
+  - `summarize_values(vals)`: mean + p50/p90/p95/max. p99 solo con
+    N>=50 (sub-50 samples dan un p99 dominado por un datapoint unico,
+    mejor omitir que misleadear).
+  - `per_case_breakdown(outputs)`: agrupa rollouts por `problem_id`,
+    reporta reward_mean/max y mean de cada metric. Rollouts sin
+    problem_id caen en "_unknown" en vez de perderse silenciosamente
+    (un drop silencioso ocultaria un bug de state_columns).
+  - `run_metadata()`: timestamp UTC, python/platform, verifiers version,
+    git SHA, git_dirty. Todos best-effort con fallback a "unknown"
+    para que un eval desde un tarball no-git no reviente.
+- `scripts/eval_oi.py`: imprime "Distributions" (reward + wall_clock),
+  "Per-case breakdown" despues de los metrics globales. Dump JSON
+  ahora incluye `run_metadata`, `reward_summary`, `wall_clock_summary`,
+  `per_case_breakdown`. Los helpers inlineados se borraron —
+  ahora solo importa del modulo.
+- Tests: +17 (`test_eval_report.py`) cubren empty list, single value,
+  thresholds del p99 (49/50), ordering de percentiles, grupos multi-case,
+  rollouts sin problem_id, metrics con keys faltantes, metadata con
+  repo_root valido e invalido. Total 42/42 en `tests/training/`.
+
 ### 2026-04-15 — eval harness policy/scorer split + problem_id threading
 
 **Pre-H100 critical**: `scripts/eval_oi.py` tenia los dos roles (policy

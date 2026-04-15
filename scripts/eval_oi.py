@@ -34,7 +34,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
 import time
 from pathlib import Path
@@ -60,6 +59,11 @@ from sreg.training import (  # noqa: E402
     load_srcs,
     load_srcs_from_paths,
     resolve_role_config,
+)
+from sreg.training.eval_report import (  # noqa: E402
+    per_case_breakdown,
+    run_metadata,
+    summarize_values,
 )
 
 
@@ -295,20 +299,59 @@ def main():
         unique_pids = sorted({p for p in problem_ids if p})
         print(f"Problem IDs: {len(unique_pids)} unique ({unique_pids[:5]}{'...' if len(unique_pids) > 5 else ''})")
 
+    # Distribution summaries — mean hides the tail. For reward and
+    # scoring wall clock the tail is where the real story lives
+    # (rate-limit slowdowns, broken rollouts dragging the average).
+    reward_summary = summarize_values(rewards)
+    wall_clock_vals = [
+        (o.get("metrics") or {}).get("scoring_wall_clock_metric") for o in outputs
+    ]
+    wall_clock_vals = [float(w) for w in wall_clock_vals if w is not None]
+    wall_clock_summary = summarize_values(wall_clock_vals)
+
+    def _fmt_summary(label: str, summ: dict) -> str:
+        if not summ:
+            return f"  {label}: (no data)"
+        p99 = f", p99={summ['p99']:.3f}" if "p99" in summ else ""
+        return (
+            f"  {label}: n={summ['n']} mean={summ['mean']:.3f} "
+            f"p50={summ['p50']:.3f} p90={summ['p90']:.3f} "
+            f"p95={summ['p95']:.3f}{p99} max={summ['max']:.3f}"
+        )
+
+    print("\nDistributions:")
+    print(_fmt_summary("reward", reward_summary))
+    print(_fmt_summary("scoring_wall_clock_s", wall_clock_summary))
+
     # Aggregate metrics across rollouts
     all_metric_keys = set()
     for o in outputs:
         all_metric_keys.update((o.get("metrics") or {}).keys())
     if all_metric_keys:
-        print("\nMetrics (per rollout):")
+        print("\nMetrics (per rollout, batch mean):")
         for k in sorted(all_metric_keys):
             vals = [(o.get("metrics") or {}).get(k) for o in outputs]
             vals = [v for v in vals if v is not None]
             if vals:
                 try:
-                    print(f"  {k}: mean={statistics.mean(vals):.4f}, vals={vals}")
+                    print(f"  {k}: mean={statistics.mean(vals):.4f}")
                 except Exception:
                     print(f"  {k}: {vals}")
+
+    # Per-case breakdown — which SRCs are outliers vs systemic issues
+    breakdown = per_case_breakdown(outputs)
+    if breakdown:
+        print("\nPer-case breakdown:")
+        for pid, stats in sorted(breakdown.items()):
+            m = stats["metrics_mean"]
+            wc = m.get("scoring_wall_clock_metric", 0.0)
+            sub = m.get("submitted_metric", 0.0)
+            to = m.get("timeout_rate_metric", 0.0)
+            print(
+                f"  {pid}: n={stats['n_rollouts']}, "
+                f"reward={stats['reward_mean']:.3f} (max={stats['reward_max']:.3f}), "
+                f"submitted={sub:.2f}, timeout={to:.2f}, wall={wc:.1f}s"
+            )
 
     # Print first rollout trajectory summary
     print("\n=== Rollout 0 trajectory ===")
@@ -326,6 +369,7 @@ def main():
     # Save full results if requested
     if args.output:
         output_data = {
+            "run_metadata": run_metadata(),
             "config": {
                 "args": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
                 "policy": _redact_config(policy_cfg),
@@ -335,12 +379,15 @@ def main():
             "num_examples": args.num_examples,
             "rollouts_per_example": args.rollouts,
             "rewards": rewards,
+            "reward_summary": reward_summary,
+            "wall_clock_summary": wall_clock_summary,
             "completed": completed,
             "truncated": truncated,
             "stop_conditions": stop_conditions,
             "errors": errors,
             "problem_ids": problem_ids,
             "metrics_per_rollout": [o.get("metrics") or {} for o in outputs],
+            "per_case_breakdown": breakdown,
         }
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with open(args.output, "w", encoding="utf-8") as f:
