@@ -1,23 +1,33 @@
 # Suite 2 — Compiler Improvement Strategy
 
 > **Status:** CANON plan de ataque al recipe gap del claim compiler.
-> **Date:** 2026-04-15.
+> **Date:** 2026-04-15 (diagnostics D1/D2/D4 + stage1_split corridos).
 > **Context:** baseline v2 estable (`suite2_compiler_baseline.md` §9),
 > effective_pass_rate = 31%, strict_full_pass_rate = 13%, 5 familias en
 > 0% strict pass. Qué hacer ahora y cómo medir el progreso.
 > **Related:** I-026 (recipe exemplars), I-027 (baseline hygiene), I-028
-> (sweep_values bug).
+> (sweep_values bug), I-029 (abstain decision broken — ver §8.2).
 
 ## TL;DR
 
 El bottleneck del compiler es **recipe gap duro**: el LLM reconoce el
-patrón por vocabulario pero no sabe componer el spec. No es capability
-ceiling — es falta de recipes operacionales en el prompt.
+patrón por vocabulario (D1 = 69%) pero no sabe componer el spec — en
+particular falla al elegir **arm_kinds** (50% slot acc, D2). No es
+capability ceiling — es falta de recipes operacionales en el prompt.
 
-Antes de atacar con exemplars (I-026), nos faltan **6 diagnostics
-específicos** que aíslan mejor el problema. D4 (equivalence formal de
-adjust-swap) es **gratis** y solo subiría `strict_full_pass_rate` de
-13% → 31% si se sostiene. Es la primera acción obligatoria.
+**Post-diagnostics (§8):** los findings revisan el plan:
+- D4 pasa **6/10** (no 10/10): upper-bound de formalización es 13% →
+  **24%** strict_pass, no 31%.
+- Los 4 pass-by-accident de D4 deben reclasificarse de `adjust_swap` a
+  `real_struct_err` (compiler elige values de percentiles extremos, el
+  signo se preserva por casualidad).
+- **Hint nuevo #1 (abstain broken):** compiler acierta 0/4 abstain
+  decisions. Siempre compila cuando debería abstenerse.
+- **Hint nuevo #4 (arm_kinds es el cuello):** 50% slot accuracy en D2;
+  los otros 6 slots están en 68-96%. Attacar `intervene vs observe vs
+  adjust` es la intervención de máximo apalancamiento.
+- **Recognition gap puro solo en CC-B5** (0% D1). El resto de las 5
+  familias 0%-pass es composition gap.
 
 ## 1. Definición operacional: "recipe gap duro"
 
@@ -57,14 +67,25 @@ relacionada. No tiene el recipe operacional.
 | 5 | **Defensive post-processing** (patch quirúrgico para I-028) | Bajo | Mínimo | No |
 | 6 | **Dar DAG al compiler** (I-025, controversial) | Desconocido | Medio | Sí (rompe invariante de blind compiler) |
 
-### Recomendación primera acción: **#3 primero, después #1**
+### Recomendación primera acción (post-diagnostics): **Abstain fix + #3 parcial + #1 targetizado**
 
-- **#3 es gratis** (ver §3 diagnostic D4) y solo formalizar — si la
-  equivalencia se sostiene empíricamente sobre los 10 `adjust_swap`
-  observados, ya subimos strict_pass de 13% → 31% sin tocar el LLM.
-- **#1 (exemplars)** ataca las 5 familias 0%-pass con evidencia concreta
-  del A/B/C test. Pero antes necesita el diagnostic battery (§3) para
-  no overfitear.
+**Orden concreto (ver §8 para justificación empírica):**
+
+1. **Fix abstain decision** (nuevo, ver I-029). D1 muestra que SQ-C1 y
+   CC-E3 se reconocen al 100% en el clasificador, pero en D2 el compiler
+   trata de compilar (status=compile) en 4/6 cases. Es un bug de
+   **decision-policy**, no de recognition ni de composition. Arreglarlo
+   sube 6 stage1_fail → (estimado) 4-5 clean passes.
+2. **#3 parcial**: formalizar equivalencia solo para los **6 pares
+   probados equivalentes** en D4 (no los 10). Los otros 4 se reclasifican
+   a real_struct_err. Strict_pass: 13% → 24%.
+3. **#1 (exemplars)** targetizados por slot:
+   - CC-B5: scaffolding de **recognition** (doubles, large effect →
+     CC-B5, no CC-A4).
+   - CC-A3, CC-A4, CC-A5, SQ-A1: scaffolding de **arm_kinds** (la recipe
+     canónica para mediation/heterogeneity/confounding).
+   - CC-D1, CC-D2: decision boundary — cómo distinguir intervene
+     (causal) vs observe (associational) vs adjust (backdoor).
 
 #2, #4, #6 se consideran después del baseline post-#3+#1. No son de
 arranque.
@@ -222,24 +243,207 @@ puede correr directamente sobre `compiler_baseline_full_dump_v2.json`.
   listo y es reproducible).
 - Encoding de equivalencias estructurales en `alternative_atoms`.
 
-## 7. Próximos pasos concretos
+## 7. Findings (2026-04-15, post-diagnostics)
 
-1. **Correr D4** (0 LLM calls) — `scripts/suite2_diag_d4_adjust_swap_equivalence.py`.
-2. Según resultado D4 → implementar `alternative_atoms` o investigar edge cases.
-3. **Correr D1 + D2** (aislación recognition vs composition) —
-   definen la forma de los exemplars.
-4. Iterar I-026 con exemplars diseñados a partir de D1+D2.
-5. Re-run baseline v2 script para medir strict_pass y effective_pass
-   después del cambio.
-6. Documentar hallazgos en un `suite2_compiler_improvement_findings.md`
-   (sucesor de este doc, o §8 acá).
+Esta sección documenta los hints empíricos que nos da la diagnostic
+battery. Los scripts viven en `scripts/suite2_diag_*.py` y las tablas
+crudas en `research/synthesis/suite2_diag_*_results.json`.
+
+### 7.1 D4 — adjust_swap equivalence (0 LLM calls)
+
+Procesó los 10 pares (gold_spec, compiler_spec) del bucket
+`adjust_swap`. Criterio: mismo n_atoms, mismas measurement/comparison/
+assertion kinds, mismo `solver_assertion_holds`, y |Δ ground_truth| ≤
+0.05 — todo bajo **verifier actual**, no equivalencia causal abstracta.
+
+| Resultado | Count |
+|---|---|
+| equivalent | 6 |
+| numerical_diff (holds se preserva pero gt difiere > 0.05) | 4 |
+
+**Los 4 numerical_diff son pass-by-accident**: el compiler elige
+`values` desde los percentiles extremos del sample empírico (~±0.87,
+±0.99), no del contraste unitario 0/1 del gold. El signo coincide por
+casualidad; `ground_truth` se infla proporcional al rango.
+
+**Upper-bound revisado:** formalizar equivalencia solo para los 6
+probados sube strict_pass de **13% → 24%** (7+6/55), **no** 31%. Los
+otros 4 deben reclasificarse de `adjust_swap` a `real_struct_err`.
+
+**Hint #2 (value-scale bias):** el compiler tiene una preferencia por
+decodar `values` de sample statistics (min/max, percentiles) cuando la
+claim pide un contraste binario (0/1). En el current SCM esto compensa
+por linealidad; en un SCM no-lineal o con sign flip por región, la
+misma receta rompe.
+
+### 7.2 Stage1 split (0 LLM calls)
+
+Re-clasifica los 6 `stage1_fail` en sub-modos:
+
+| Sub-modo | Count | Definición |
+|---|---|---|
+| decision_fail | 4 | compiled cuando gold=abstain (o versa) |
+| crash | 2 | no compiled pero gold=compile (I-028 sweep_values) |
+
+**Hint #1 (ABSTAIN BROKEN):** compiler acierta **0/4** abstain
+decisions. Las 4 claims con gold=abstain (non_expressible, latent,
+temporal) se compilan igual — con specs estructuralmente razonables
+pero semánticamente inválidos. La decision-policy del compiler no
+tiene puerta de abstain funcional.
+
+Este bug no es D1-level (recognition) ni D2-level (composition). Es
+una policy missing: el compiler asume "si me dieron una claim,
+compilarla". Arreglarlo debe ser intervención #0 porque es cheap y
+no requiere exemplars — solo un prompt clause y un classifier-head
+explícito.
+
+### 7.3 D1 — Pattern recognition (55 LLM calls, 69.1% overall)
+
+Clasificación de los 55 claims en 33 familias, sin compilar. Match
+exacto con `fact.families[0]`.
+
+| Familia | D1 acc | n | Comportamiento |
+|---|---|---|---|
+| CC-A4 (heterogeneity) | 100% | 3 | Reconoce ok |
+| CC-C2 (negation) | 100% | 3 | Reconoce ok |
+| CC-A7 (tail risk) | 100% | 2 | Reconoce ok |
+| CC-A8 (variance) | 100% | 2 | Reconoce ok |
+| CC-E1 (temporal) | 100% | 1 | Reconoce ok |
+| SQ-A1 (direct causal Q) | 100% | 3 | Reconoce ok |
+| SQ-A3 (identifiability Q) | 100% | 2 | Reconoce ok |
+| SQ-C1 (non-expressible) | 100% | 2 | Reconoce ok |
+| CC-A3 (mediation) | 88% | 8 | Fuerte |
+| CC-A1 (causal effect) | 67% | 9 | Mediano |
+| CC-A5 (confounding) | 67% | 3 | Mediano |
+| CC-E2 (latent) | 67% | 3 | Mediano |
+| CC-E3 (non-expressible) | 50% | 2 | Mediano |
+| CC-A2 (observational) | 40% | 5 | Débil |
+| **CC-B5** (quantitative) | **0%** | 3 | **Recognition gap** |
+| **CC-D1** (causal-vs-obs) | **0%** | 2 | Colapsa a CC-A1 |
+| **CC-D2** (med-vs-conf) | **0%** | 2 | Colapsa a CC-E3/A5 |
+
+**Hint #3 (recognition vs composition):** de las 5 familias 0%-strict-
+pass en el baseline:
+- **CC-A3, CC-A4, SQ-A1** reconocen ≥88% pero fallan compose →
+  **composition gap puro**.
+- **CC-A5** mixed (67%).
+- **CC-B5** 0% reconoce → **recognition gap puro**. Exemplars sin un
+  pattern-recognition preface no van a funcionar para esta familia.
+
+**Familias de decision boundary (CC-D1, CC-D2) caen al patrón más
+simple.** Esto confirma que el compiler no tiene señal para elegir
+entre recetas parecidas — es exactamente el bottleneck que D2 destapa
+(arm_kinds 50%).
+
+### 7.4 D2 — Recipe slot elicitation (55 LLM calls, 75.5% overall)
+
+Por target, pedir al LLM un JSON cerrado con 7 slots (status, n_atoms,
+arm_kinds, role_vars, measurement_kind, comparison_kind,
+assertion_polarity). Match determinista contra gold
+`StructuralContract`. Prompt incluye las variables del mundo.
+
+| Slot | Accuracy | Nota |
+|---|---|---|
+| role_vars | 96% (48/50) | **No es el cuello** (con world context) |
+| status | 93% (51/55) | Falla en 4 abstain cases (consistente con Hint #1) |
+| n_atoms | 78% (39/50) | Mediation/heterogeneity suele emitirse como 1 atom |
+| measurement_kind | 74% (37/50) | Razonablemente robusto |
+| comparison_kind | 68% (34/50) | Débil en difference vs identity |
+| assertion_polarity | 68% (34/50) | SQ-A1 siempre falla (emite "greater_than" cuando gold es "positive") |
+| **arm_kinds** | **50% (25/50)** | **CUELLO DE LA COMPOSICIÓN** |
+
+**Confusiones top de arm_kinds** (gold → pred):
+- `[intervene]` → `[condition, intervene]` (5×): añade `condition` innecesariamente cuando se menciona "adjusting for Z".
+- `[baseline]` → `[observe]` (4×): dos etiquetas semánticamente casi equivalentes para el LLM.
+- `[intervene, observe]` → `[adjust, observe]` (3×): la misma forma del adjust-swap, pero ahora al nivel de recipe — el LLM prefiere `adjust` aún cuando el gold pide un contraste observe-vs-intervene.
+- `[baseline]` → `[adjust, observe]` / `[intervene]` (4× combinados): el LLM inventa arms cuando la claim solo pide una medición single-arm.
+
+**D2a addendum (antes de arreglar world context):** al no pasar las
+variables del mundo, role_vars caía a 10% (el LLM inventaba nombres
+como "Treatment" en vez de "T"). Es señal independiente: el compiler
+real obtiene el vocab via `build_world_summary`, pero el hallazgo
+confirma que **variable-grounding es 100% context-dependent**.
+Archivado en `suite2_diag_d2a_no_world_context_results.json`.
+
+**Hint #4 (arm_kinds es el bottleneck real de composición):** con
+world context, los demás slots están en 68-96%. Solo arm_kinds está
+en 50%. La intervención de máximo apalancamiento es enseñar al
+compiler cuándo usar `intervene` vs `observe` vs `adjust` —
+específicamente, cuándo **no** usar `condition` y cuándo el par
+`[intervene, observe]` es el contraste canónico.
+
+### 7.5 Síntesis
+
+| Dimensión | Estado post-diagnostics |
+|---|---|
+| Abstain decision | **Completamente rota** (0/4). Fix independiente. |
+| Pattern recognition | **69%**. Grueso aceptable, decision boundaries y CC-B5 fallan. |
+| Recipe knowledge — n_atoms, role_vars, measurement, comparison, assertion | **68-96%**. Variabilidad por familia. |
+| Recipe knowledge — **arm_kinds** | **50%**. El bottleneck duro. |
+| adjust_swap formalization | Upper bound 13→**24%** (no 31%). |
+
+## 8. Próximos pasos concretos (post-diagnostics)
+
+Plan revisado con el aprendizaje empírico. Tres ramas paralelas,
+todas chicas, ninguna requiere cambio arquitectural del compiler:
+
+### 8.1 Rama A — Abstain policy (I-029, nueva)
+
+1. Crear I-029: "Compiler abstain decision missing / broken."
+2. Agregar al prompt del compiler una cláusula "If the claim mentions
+   X/Y/Z (latent variables, temporal-only, non-expressible
+   methodological) → status=abstain with code".
+3. Test: los 6 stage1_fail deberían caer a 2 (solo los crashes de
+   I-028).
+
+### 8.2 Rama B — Adjust-swap formalization parcial
+
+1. Encoding de `alternative_atoms` en gold_targets solo para los **6
+   pares equivalentes probados** (lista en
+   `suite2_diag_d4_results.equivalent_ids`).
+2. Los **4 numerical_diff** NO se codifican — quedan como
+   real_struct_err correctamente.
+3. Re-run baseline v2: strict_pass sube 13% → 24%.
+
+### 8.3 Rama C — Exemplars targetizados (I-026 refinado)
+
+Contenido del exemplar diseñado por slot, no por familia:
+
+- **Recognition preface** (solo para CC-B5): explicar que "doubles",
+  "halves", "large positive", "small negative" son señales de
+  **quantitative commitment** (CC-B5), no de heterogeneity (CC-A4).
+- **arm_kinds recipes** — 3 exemplars compactos:
+  - Recipe "causal effect" (simple): `[intervene]` × treatment
+    binarios 0/1, measurement=mean, comparison=difference.
+  - Recipe "observational association": `[baseline]` sin segundo
+    arm, measurement=correlation, comparison=identity. **No** usar
+    `[observe]`.
+  - Recipe "confounding detection" (CC-A5): pair `[intervene,
+    observe]`, measurement=mean, comparison=difference. La diferencia
+    entre los brazos **es** el sesgo.
+- **Decision boundary** (CC-D1, CC-D2): un exemplar en contraste
+  explícito, "si la claim dice X usar recipe A; si dice Y usar recipe B".
+
+### 8.4 Después: re-run baseline y medir
+
+1. Re-run `suite2_full_dump_v2.py` con el compiler modificado.
+2. Meta: strict_full_pass_rate ≥ 40% (desde 13% actual). Si no llega a
+   40% con las 3 ramas, escalar a compiler-en-2-pasos (#2 en la tabla
+   de §2).
+3. Actualizar `suite2_compiler_baseline.md` §10 (v3).
 
 ## Links
 
 - `research/synthesis/suite2_compiler_baseline.md` §9 — baseline v2
 - `research/synthesis/suite2_pattern_breakdown.md` — per-family bucket counts
 - `research/synthesis/suite2_fail_audit_recipe_patterns.md` — audit #11a
-- `research/synthesis/compiler_baseline_full_dump_v2.json` — fuente para D4
+- `research/synthesis/compiler_baseline_full_dump_v2.json` — fuente
+- `research/synthesis/suite2_diag_d1_results.json` — D1 raw
+- `research/synthesis/suite2_diag_d2_results.json` — D2 raw (con world context)
+- `research/synthesis/suite2_diag_d2a_no_world_context_results.json` — D2a (variable grounding test)
+- `research/synthesis/suite2_diag_d4_results.json` — D4 raw (equivalence)
+- `research/synthesis/suite2_stage1_split.json` — stage1 sub-modes
 - I-026 — recipe exemplars (este doc informa su diseño)
 - I-027 — baseline hygiene (closed except item 7)
 - I-028 — sweep_values schema violation
+- I-029 — compiler abstain decision broken (nuevo)

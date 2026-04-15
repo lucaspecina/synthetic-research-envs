@@ -1,0 +1,80 @@
+{
+  "generated_by": "scripts/suite2_diag_stage1_split.py",
+  "source": "research\\synthesis\\compiler_baseline_full_dump_v2.json",
+  "stage1_fail_total": 6,
+  "decision_fail": {
+    "count": 4,
+    "definition": "compiler_compiled did not match gold_status (most commonly: compiled when gold said abstain)",
+    "entries": [
+      {
+        "id": "SQ_F07_s1",
+        "fact_id": "SQ_F07",
+        "world": "w1_comparative_effectiveness",
+        "gold_status": "abstain",
+        "compiler_compiled": true,
+        "compiler_abstain_reason": null,
+        "difficulty": "hard"
+      },
+      {
+        "id": "W3_F11_s0",
+        "fact_id": "W3_F11",
+        "world": "w3_environmental_health",
+        "gold_status": "abstain",
+        "compiler_compiled": true,
+        "compiler_abstain_reason": null,
+        "difficulty": "medium"
+      },
+      {
+        "id": "W3_F12_s0",
+        "fact_id": "W3_F12",
+        "world": "w3_environmental_health",
+        "gold_status": "abstain",
+        "compiler_compiled": true,
+        "compiler_abstain_reason": null,
+        "difficulty": "medium"
+      },
+      {
+        "id": "W3_F12_s1",
+        "fact_id": "W3_F12",
+        "world": "w3_environmental_health",
+        "gold_status": "abstain",
+        "compiler_compiled": true,
+        "compiler_abstain_reason": null,
+        "difficulty": "hard"
+      }
+    ]
+  },
+  "crash": {
+    "count": 2,
+    "definition": "compiler_compiled=False but gold_status=compile; runtime/schema failure",
+    "entries": [
+      {
+        "id": "W3_F03_s0",
+        "fact_id": "W3_F03",
+        "world": "w3_environmental_health",
+        "gold_status": "compile",
+        "compiler_compiled": false,
+        "compiler_abstain_reason": null,
+        "difficulty": "easy"
+      },
+      {
+        "id": "W3_F03_s2",
+        "fact_id": "W3_F03",
+        "world": "w3_environmental_health",
+        "gold_status": "compile",
+        "compiler_compiled": false,
+        "compiler_abstain_reason": null,
+        "difficulty": "hard"
+      }
+    ],
+    "cross_ref": "I-028 (sweep_values as list inside arm.values)"
+  },
+  "unknown": {
+    "count": 0,
+    "entries": []
+  },
+  "interpretation": {
+    "before_split": "stage1_fail conflates 6 entries of two different failure modes.",
+    "after_split": "4 decision errors + 2 runtime crashes. Downstream analyses should treat them separately."
+  }
+}

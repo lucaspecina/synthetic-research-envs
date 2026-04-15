@@ -1,0 +1,628 @@
+{
+  "generated_by": "scripts/suite2_diag_d1_pattern_recognition.py",
+  "model": "gpt-5.4",
+  "n_targets": 55,
+  "correct": 38,
+  "overall_accuracy": 0.6909090909090909,
+  "elapsed_seconds": 77.9,
+  "per_family_accuracy": {
+    "CC-A1": {
+      "correct": 6,
+      "total": 9,
+      "acc": 0.6666666666666666
+    },
+    "CC-A2": {
+      "correct": 2,
+      "total": 5,
+      "acc": 0.4
+    },
+    "CC-A3": {
+      "correct": 7,
+      "total": 8,
+      "acc": 0.875
+    },
+    "CC-A4": {
+      "correct": 3,
+      "total": 3,
+      "acc": 1.0
+    },
+    "CC-A5": {
+      "correct": 2,
+      "total": 3,
+      "acc": 0.6666666666666666
+    },
+    "CC-A7": {
+      "correct": 2,
+      "total": 2,
+      "acc": 1.0
+    },
+    "CC-A8": {
+      "correct": 2,
+      "total": 2,
+      "acc": 1.0
+    },
+    "CC-B5": {
+      "correct": 0,
+      "total": 3,
+      "acc": 0.0
+    },
+    "CC-C2": {
+      "correct": 3,
+      "total": 3,
+      "acc": 1.0
+    },
+    "CC-D1": {
+      "correct": 0,
+      "total": 2,
+      "acc": 0.0
+    },
+    "CC-D2": {
+      "correct": 0,
+      "total": 2,
+      "acc": 0.0
+    },
+    "CC-E1": {
+      "correct": 1,
+      "total": 1,
+      "acc": 1.0
+    },
+    "CC-E2": {
+      "correct": 2,
+      "total": 3,
+      "acc": 0.6666666666666666
+    },
+    "CC-E3": {
+      "correct": 1,
+      "total": 2,
+      "acc": 0.5
+    },
+    "SQ-A1": {
+      "correct": 3,
+      "total": 3,
+      "acc": 1.0
+    },
+    "SQ-A3": {
+      "correct": 2,
+      "total": 2,
+      "acc": 1.0
+    },
+    "SQ-C1": {
+      "correct": 2,
+      "total": 2,
+      "acc": 1.0
+    }
+  },
+  "miss_confusion": {
+    "CC-A1": {
+      "CC-C3": 2,
+      "CC-B4": 1
+    },
+    "CC-A3": {
+      "CC-C5": 1
+    },
+    "CC-A5": {
+      "CC-B2": 1
+    },
+    "CC-A2": {
+      "CC-D1": 1,
+      "CC-C5": 1,
+      "CC-A5": 1
+    },
+    "CC-D2": {
+      "CC-E3": 1,
+      "CC-A5": 1
+    },
+    "CC-D1": {
+      "CC-A1": 2
+    },
+    "CC-B5": {
+      "CC-E3": 1,
+      "CC-A4": 1,
+      "CC-B4": 1
+    },
+    "CC-E2": {
+      "SQ-A3": 1
+    },
+    "CC-E3": {
+      "SQ-A3": 1
+    }
+  },
+  "interpretation": "Recognition MIXED (69%). Look at per-family accuracy: some families are recognized, others are not. Targeted recognition scaffolding is likely needed for the weak families.",
+  "results": [
+    {
+      "id": "W1_F01_s0",
+      "fact_id": "W1_F01",
+      "claim": "Treatment has a positive causal effect on outcome.",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-A1",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A1"
+    },
+    {
+      "id": "W1_F01_s1",
+      "fact_id": "W1_F01",
+      "claim": "Intervening to increase treatment dosage improves patient outcomes.",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-A1",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A1"
+    },
+    {
+      "id": "W1_F01_s2",
+      "fact_id": "W1_F01",
+      "claim": "The causal effect of treatment on outcome, accounting for all pathways including through compliance, is approximately 0.7 per unit increase.",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-A1",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A1"
+    },
+    {
+      "id": "W1_F03_s0",
+      "fact_id": "W1_F03",
+      "claim": "Treatment causes side effects.",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-A1",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A1"
+    },
+    {
+      "id": "W1_F03_s1",
+      "fact_id": "W1_F03",
+      "claim": "Treatment improves the primary outcome but also increases the risk of side effects.",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-C3",
+      "correct": false,
+      "raw_response": "FAMILY: CC-C3"
+    },
+    {
+      "id": "W1_F03_s2",
+      "fact_id": "W1_F03",
+      "claim": "The treatment faces a trade-off: it improves outcome (effect ~0.7) but causes side effects of similar magnitude (~0.7).",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-C3",
+      "correct": false,
+      "raw_response": "FAMILY: CC-C3"
+    },
+    {
+      "id": "W1_F04_s0",
+      "fact_id": "W1_F04",
+      "claim": "Treatment has a direct effect on outcome beyond its effect through compliance.",
+      "gold_family": "CC-A3",
+      "predicted_family": "CC-A3",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A3"
+    },
+    {
+      "id": "W1_F04_s1",
+      "fact_id": "W1_F04",
+      "claim": "Even if compliance were held constant, treatment would still improve outcomes.",
+      "gold_family": "CC-A3",
+      "predicted_family": "CC-C5",
+      "correct": false,
+      "raw_response": "FAMILY: CC-C5"
+    },
+    {
+      "id": "W1_F04_s2",
+      "fact_id": "W1_F04",
+      "claim": "The direct causal effect of treatment on outcome, controlling for compliance, is approximately 0.5.",
+      "gold_family": "CC-A3",
+      "predicted_family": "CC-A3",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A3"
+    },
+    {
+      "id": "W1_F05_s0",
+      "fact_id": "W1_F05",
+      "claim": "Part of treatment's benefit comes through improved compliance.",
+      "gold_family": "CC-A3",
+      "predicted_family": "CC-A3",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A3"
+    },
+    {
+      "id": "W1_F05_s1",
+      "fact_id": "W1_F05",
+      "claim": "Compliance mediates the relationship between treatment and outcome.",
+      "gold_family": "CC-A3",
+      "predicted_family": "CC-A3",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A3"
+    },
+    {
+      "id": "W1_F05_s2",
+      "fact_id": "W1_F05",
+      "claim": "The indirect effect of treatment on outcome through compliance is positive but smaller than the direct effect.",
+      "gold_family": "CC-A3",
+      "predicted_family": "CC-A3",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A3"
+    },
+    {
+      "id": "W1_F06_s0",
+      "fact_id": "W1_F06",
+      "claim": "The effect of treatment on outcome depends on the patient's biomarker level.",
+      "gold_family": "CC-A4",
+      "predicted_family": "CC-A4",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A4"
+    },
+    {
+      "id": "W1_F06_s1",
+      "fact_id": "W1_F06",
+      "claim": "Patients with high biomarker levels benefit more from treatment than those with low biomarker levels.",
+      "gold_family": "CC-A4",
+      "predicted_family": "CC-A4",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A4"
+    },
+    {
+      "id": "W1_F06_s2",
+      "fact_id": "W1_F06",
+      "claim": "Among patients with biomarker one standard deviation above the mean, the treatment effect is approximately 1.0, while for those one standard deviation below, it is approximately 0.3.",
+      "gold_family": "CC-A4",
+      "predicted_family": "CC-A4",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A4"
+    },
+    {
+      "id": "W1_F07_s0",
+      "fact_id": "W1_F07",
+      "claim": "Disease severity confounds the relationship between treatment and outcome.",
+      "gold_family": "CC-A5",
+      "predicted_family": "CC-A5",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A5"
+    },
+    {
+      "id": "W1_F07_s1",
+      "fact_id": "W1_F07",
+      "claim": "Without adjusting for severity, the observed association between treatment and outcome is biased.",
+      "gold_family": "CC-A5",
+      "predicted_family": "CC-A5",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A5"
+    },
+    {
+      "id": "W1_F07_s2",
+      "fact_id": "W1_F07",
+      "claim": "Severity is a confounder, not a mediator, of the treatment-outcome relationship: it causes both the treatment decision and the outcome independently.",
+      "gold_family": "CC-A5",
+      "predicted_family": "CC-B2",
+      "correct": false,
+      "raw_response": "FAMILY: CC-B2"
+    },
+    {
+      "id": "W1_F09_s0",
+      "fact_id": "W1_F09",
+      "claim": "Treated patients show more variable outcomes than untreated patients.",
+      "gold_family": "CC-A8",
+      "predicted_family": "CC-A8",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A8"
+    },
+    {
+      "id": "W1_F09_s1",
+      "fact_id": "W1_F09",
+      "claim": "Treatment increases not just the mean outcome but also its spread, because patients with different biomarker levels respond differently.",
+      "gold_family": "CC-A8",
+      "predicted_family": "CC-A8",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A8"
+    },
+    {
+      "id": "W2_F01_s0",
+      "fact_id": "W2_F01",
+      "claim": "Exposure reduces the risk of disease.",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-A1",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A1"
+    },
+    {
+      "id": "W2_F01_s1",
+      "fact_id": "W2_F01",
+      "claim": "The causal effect of exposure on disease is protective: increasing exposure decreases disease risk.",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-B4",
+      "correct": false,
+      "raw_response": "FAMILY: CC-B4"
+    },
+    {
+      "id": "W2_F01_s2",
+      "fact_id": "W2_F01",
+      "claim": "Intervening to increase exposure by one unit reduces disease risk by approximately 0.2 units.",
+      "gold_family": "CC-A1",
+      "predicted_family": "CC-A1",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A1"
+    },
+    {
+      "id": "W2_F02_s0",
+      "fact_id": "W2_F02",
+      "claim": "Exposure is positively associated with disease in the population.",
+      "gold_family": "CC-A2",
+      "predicted_family": "CC-A2",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A2"
+    },
+    {
+      "id": "W2_F02_s1",
+      "fact_id": "W2_F02",
+      "claim": "People with higher exposure tend to have higher disease rates.",
+      "gold_family": "CC-A2",
+      "predicted_family": "CC-A2",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A2"
+    },
+    {
+      "id": "W2_F02_s2",
+      "fact_id": "W2_F02",
+      "claim": "The observational correlation between exposure and disease is positive, even though the causal effect is protective.",
+      "gold_family": "CC-A2",
+      "predicted_family": "CC-D1",
+      "correct": false,
+      "raw_response": "FAMILY: CC-D1"
+    },
+    {
+      "id": "W2_F04_s0",
+      "fact_id": "W2_F04",
+      "claim": "Exposure increases disease risk indirectly through the mediator.",
+      "gold_family": "CC-A3",
+      "predicted_family": "CC-A3",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A3"
+    },
+    {
+      "id": "W2_F04_s1",
+      "fact_id": "W2_F04",
+      "claim": "The indirect pathway (exposure -> mediator -> disease) works in the opposite direction from the direct effect: exposure increases the mediator, which increases disease.",
+      "gold_family": "CC-A3",
+      "predicted_family": "CC-A3",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A3"
+    },
+    {
+      "id": "W2_F06_s0",
+      "fact_id": "W2_F06",
+      "claim": "After adjusting for the confounder, exposure is negatively associated with disease.",
+      "gold_family": "CC-A2",
+      "predicted_family": "CC-C5",
+      "correct": false,
+      "raw_response": "FAMILY: CC-C5"
+    },
+    {
+      "id": "W2_F06_s1",
+      "fact_id": "W2_F06",
+      "claim": "Controlling for the confounder reverses the direction of the exposure-disease association: from positive (crude) to negative (adjusted).",
+      "gold_family": "CC-A2",
+      "predicted_family": "CC-A5",
+      "correct": false,
+      "raw_response": "FAMILY: CC-A5"
+    },
+    {
+      "id": "W2_F07_s0",
+      "fact_id": "W2_F07",
+      "claim": "Adjusting for the collider variable introduces bias in the exposure-disease estimate.",
+      "gold_family": "CC-D2",
+      "predicted_family": "CC-E3",
+      "correct": false,
+      "raw_response": "FAMILY: CC-E3"
+    },
+    {
+      "id": "W2_F07_s1",
+      "fact_id": "W2_F07",
+      "claim": "The collider is caused by both exposure and disease; conditioning on it opens a spurious path and distorts the estimate of the causal effect.",
+      "gold_family": "CC-D2",
+      "predicted_family": "CC-A5",
+      "correct": false,
+      "raw_response": "FAMILY: CC-A5"
+    },
+    {
+      "id": "W2_F09_s0",
+      "fact_id": "W2_F09",
+      "claim": "Can we estimate the causal effect of exposure on disease?",
+      "gold_family": "SQ-A3",
+      "predicted_family": "SQ-A3",
+      "correct": true,
+      "raw_response": "FAMILY: SQ-A3"
+    },
+    {
+      "id": "W2_F09_s1",
+      "fact_id": "W2_F09",
+      "claim": "Is the causal effect of exposure on disease identifiable from observational data, given that we can measure the confounder?",
+      "gold_family": "SQ-A3",
+      "predicted_family": "SQ-A3",
+      "correct": true,
+      "raw_response": "FAMILY: SQ-A3"
+    },
+    {
+      "id": "W2_F11_s0",
+      "fact_id": "W2_F11",
+      "claim": "Exposure causes an increase in disease.",
+      "gold_family": "CC-D1",
+      "predicted_family": "CC-A1",
+      "correct": false,
+      "raw_response": "FAMILY: CC-A1"
+    },
+    {
+      "id": "W2_F11_s1",
+      "fact_id": "W2_F11",
+      "claim": "Increasing exposure leads to higher disease risk.",
+      "gold_family": "CC-D1",
+      "predicted_family": "CC-A1",
+      "correct": false,
+      "raw_response": "FAMILY: CC-A1"
+    },
+    {
+      "id": "W3_F03_s0",
+      "fact_id": "W3_F03",
+      "claim": "There is a threshold in the temperature-health relationship.",
+      "gold_family": "CC-B5",
+      "predicted_family": "CC-E3",
+      "correct": false,
+      "raw_response": "FAMILY: CC-E3"
+    },
+    {
+      "id": "W3_F03_s1",
+      "fact_id": "W3_F03",
+      "claim": "The effect of temperature on health changes sharply at a threshold near zero: mild below, severe above.",
+      "gold_family": "CC-B5",
+      "predicted_family": "CC-A4",
+      "correct": false,
+      "raw_response": "FAMILY: CC-A4"
+    },
+    {
+      "id": "W3_F03_s2",
+      "fact_id": "W3_F03",
+      "claim": "The temperature-health dose-response curve has a changepoint at approximately zero degrees, where the slope changes from -0.2 to -1.0.",
+      "gold_family": "CC-B5",
+      "predicted_family": "CC-B4",
+      "correct": false,
+      "raw_response": "FAMILY: CC-B4"
+    },
+    {
+      "id": "W3_F04_s0",
+      "fact_id": "W3_F04",
+      "claim": "Extreme heat creates a significant risk of very poor health outcomes.",
+      "gold_family": "CC-A7",
+      "predicted_family": "CC-A7",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A7"
+    },
+    {
+      "id": "W3_F04_s1",
+      "fact_id": "W3_F04",
+      "claim": "The probability of health falling below a critical threshold is much higher at elevated temperatures than at low temperatures.",
+      "gold_family": "CC-A7",
+      "predicted_family": "CC-A7",
+      "correct": true,
+      "raw_response": "FAMILY: CC-A7"
+    },
+    {
+      "id": "W3_F05_s0",
+      "fact_id": "W3_F05",
+      "claim": "Can we estimate the causal effect of pollution on health?",
+      "gold_family": "CC-E2",
+      "predicted_family": "SQ-A3",
+      "correct": false,
+      "raw_response": "FAMILY: SQ-A3"
+    },
+    {
+      "id": "W3_F05_s1",
+      "fact_id": "W3_F05",
+      "claim": "The causal effect of pollution on health cannot be determined from the available data because an unmeasured factor affects both.",
+      "gold_family": "CC-E2",
+      "predicted_family": "CC-E2",
+      "correct": true,
+      "raw_response": "FAMILY: CC-E2"
+    },
+    {
+      "id": "W3_F05_s2",
+      "fact_id": "W3_F05",
+      "claim": "No set of measured variables is sufficient to block the backdoor path from pollution to health through the hidden confounding factor.",
+      "gold_family": "CC-E2",
+      "predicted_family": "CC-E2",
+      "correct": true,
+      "raw_response": "FAMILY: CC-E2"
+    },
+    {
+      "id": "W3_F08_s0",
+      "fact_id": "W3_F08",
+      "claim": "Wind speed does not affect health.",
+      "gold_family": "CC-C2",
+      "predicted_family": "CC-C2",
+      "correct": true,
+      "raw_response": "FAMILY: CC-C2"
+    },
+    {
+      "id": "W3_F08_s1",
+      "fact_id": "W3_F08",
+      "claim": "There is no causal relationship between wind speed and health outcomes.",
+      "gold_family": "CC-C2",
+      "predicted_family": "CC-C2",
+      "correct": true,
+      "raw_response": "FAMILY: CC-C2"
+    },
+    {
+      "id": "W3_F08_s2",
+      "fact_id": "W3_F08",
+      "claim": "Wind speed is not associated with health, neither causally nor observationally.",
+      "gold_family": "CC-C2",
+      "predicted_family": "CC-C2",
+      "correct": true,
+      "raw_response": "FAMILY: CC-C2"
+    },
+    {
+      "id": "W3_F11_s0",
+      "fact_id": "W3_F11",
+      "claim": "Temperature changes precede health effects by several days.",
+      "gold_family": "CC-E1",
+      "predicted_family": "CC-E1",
+      "correct": true,
+      "raw_response": "FAMILY: CC-E1"
+    },
+    {
+      "id": "W3_F12_s0",
+      "fact_id": "W3_F12",
+      "claim": "A randomized controlled trial would be needed to establish the causal effect of pollution on health.",
+      "gold_family": "CC-E3",
+      "predicted_family": "SQ-A3",
+      "correct": false,
+      "raw_response": "FAMILY: SQ-A3"
+    },
+    {
+      "id": "W3_F12_s1",
+      "fact_id": "W3_F12",
+      "claim": "The sample size is insufficient to detect a small effect of wind speed on health.",
+      "gold_family": "CC-E3",
+      "predicted_family": "CC-E3",
+      "correct": true,
+      "raw_response": "FAMILY: CC-E3"
+    },
+    {
+      "id": "SQ_F01_s0",
+      "fact_id": "SQ_F01",
+      "claim": "Does treatment affect outcome?",
+      "gold_family": "SQ-A1",
+      "predicted_family": "SQ-A1",
+      "correct": true,
+      "raw_response": "FAMILY: SQ-A1"
+    },
+    {
+      "id": "SQ_F01_s1",
+      "fact_id": "SQ_F01",
+      "claim": "What is the causal effect of treatment on patient outcomes?",
+      "gold_family": "SQ-A1",
+      "predicted_family": "SQ-A1",
+      "correct": true,
+      "raw_response": "FAMILY: SQ-A1"
+    },
+    {
+      "id": "SQ_F01_s2",
+      "fact_id": "SQ_F01",
+      "claim": "If we were to intervene and change the treatment level, would we observe a change in outcome?",
+      "gold_family": "SQ-A1",
+      "predicted_family": "SQ-A1",
+      "correct": true,
+      "raw_response": "FAMILY: SQ-A1"
+    },
+    {
+      "id": "SQ_F07_s0",
+      "fact_id": "SQ_F07",
+      "claim": "What is the optimal treatment dose?",
+      "gold_family": "SQ-C1",
+      "predicted_family": "SQ-C1",
+      "correct": true,
+      "raw_response": "FAMILY: SQ-C1"
+    },
+    {
+      "id": "SQ_F07_s1",
+      "fact_id": "SQ_F07",
+      "claim": "What treatment level maximizes outcome while minimizing side effects?",
+      "gold_family": "SQ-C1",
+      "predicted_family": "SQ-C1",
+      "correct": true,
+      "raw_response": "FAMILY: SQ-C1"
+    }
+  ]
+}

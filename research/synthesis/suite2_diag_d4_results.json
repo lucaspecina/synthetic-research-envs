@@ -1,0 +1,498 @@
+{
+  "generated_by": "scripts/suite2_diag_d4_adjust_swap_equivalence.py",
+  "source": "research\\synthesis\\compiler_baseline_full_dump_v2.json",
+  "criterion": {
+    "n_atoms_match": true,
+    "measurement_kind_match": true,
+    "comparison_kind_match": true,
+    "assertion_kind_match": true,
+    "solver_assertion_holds_match": true,
+    "ground_truth_within_tol": 0.05,
+    "scope_note": "Equivalence is under the CURRENT verifier semantics, not abstract causal equivalence."
+  },
+  "counts": {
+    "equivalent": 6,
+    "numerical_diff": 4
+  },
+  "equivalent_ids": [
+    "W1_F01_s0",
+    "W1_F01_s1",
+    "W2_F01_s1",
+    "W2_F11_s1",
+    "W3_F08_s0",
+    "W3_F08_s1"
+  ],
+  "non_equivalent_ids": [
+    "W1_F03_s0",
+    "W1_F03_s1",
+    "W2_F01_s0",
+    "W2_F11_s0"
+  ],
+  "n_mc": 50000,
+  "seed": 42,
+  "interpretation": "Only 6/10 adjust_swap entries are equivalent. The remaining 4 reveal hidden compiler errors previously masked by the adjust_swap label. They should be reclassified as real_struct_err.",
+  "per_entry": [
+    {
+      "id": "W1_F01_s0",
+      "world": "w1_comparative_effectiveness",
+      "overall": "equivalent",
+      "arm_kinds_differ": true,
+      "reasons": [],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": 0.679194609493776,
+            "compiler_ground_truth": 0.6801405674643339,
+            "gt_diff": 0.0009459579705579646,
+            "same_gt_within_tol": true
+          },
+          "classification": "equivalent"
+        }
+      ]
+    },
+    {
+      "id": "W1_F01_s1",
+      "world": "w1_comparative_effectiveness",
+      "overall": "equivalent",
+      "arm_kinds_differ": true,
+      "reasons": [],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": 0.679194609493776,
+            "compiler_ground_truth": 0.6801405674643339,
+            "gt_diff": 0.0009459579705579646,
+            "same_gt_within_tol": true
+          },
+          "classification": "equivalent"
+        }
+      ]
+    },
+    {
+      "id": "W1_F03_s0",
+      "world": "w1_comparative_effectiveness",
+      "overall": "numerical_diff",
+      "arm_kinds_differ": true,
+      "reasons": [
+        "atom0: numerical_diff"
+      ],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": 0.6979805086784086,
+            "compiler_ground_truth": 1.2333194913215915,
+            "gt_diff": 0.5353389826431829,
+            "same_gt_within_tol": false
+          },
+          "classification": "numerical_diff"
+        }
+      ]
+    },
+    {
+      "id": "W1_F03_s1",
+      "world": "w1_comparative_effectiveness",
+      "overall": "numerical_diff",
+      "arm_kinds_differ": true,
+      "reasons": [
+        "atom0: numerical_diff",
+        "atom1: numerical_diff"
+      ],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": 0.679194609493776,
+            "compiler_ground_truth": 1.1963360065836646,
+            "gt_diff": 0.5171413970898886,
+            "same_gt_within_tol": false
+          },
+          "classification": "numerical_diff"
+        },
+        {
+          "atom_idx": 1,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": 0.6979805086784086,
+            "compiler_ground_truth": 1.2333194913215915,
+            "gt_diff": 0.5353389826431829,
+            "same_gt_within_tol": false
+          },
+          "classification": "numerical_diff"
+        }
+      ]
+    },
+    {
+      "id": "W2_F01_s0",
+      "world": "w2_observational_epidemiology",
+      "overall": "numerical_diff",
+      "arm_kinds_differ": true,
+      "reasons": [
+        "atom0: numerical_diff"
+      ],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "negative"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "negative"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": -0.2020086925295028,
+            "compiler_ground_truth": -0.3917913074704972,
+            "gt_diff": 0.18978261494099438,
+            "same_gt_within_tol": false
+          },
+          "classification": "numerical_diff"
+        }
+      ]
+    },
+    {
+      "id": "W2_F01_s1",
+      "world": "w2_observational_epidemiology",
+      "overall": "equivalent",
+      "arm_kinds_differ": true,
+      "reasons": [],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "negative"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "negative"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": -0.2020086925295028,
+            "compiler_ground_truth": -0.1979913074704972,
+            "gt_diff": 0.00401738505900559,
+            "same_gt_within_tol": true
+          },
+          "classification": "equivalent"
+        }
+      ]
+    },
+    {
+      "id": "W2_F11_s0",
+      "world": "w2_observational_epidemiology",
+      "overall": "numerical_diff",
+      "arm_kinds_differ": true,
+      "reasons": [
+        "atom0: numerical_diff"
+      ],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "verdict_cmp": {
+            "gold_holds": false,
+            "compiler_holds": false,
+            "same_holds": true,
+            "gold_ground_truth": -0.2020086925295028,
+            "compiler_ground_truth": -0.31799130747049725,
+            "gt_diff": 0.11598261494099446,
+            "same_gt_within_tol": false
+          },
+          "classification": "numerical_diff"
+        }
+      ]
+    },
+    {
+      "id": "W2_F11_s1",
+      "world": "w2_observational_epidemiology",
+      "overall": "equivalent",
+      "arm_kinds_differ": true,
+      "reasons": [],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "positive"
+          },
+          "verdict_cmp": {
+            "gold_holds": false,
+            "compiler_holds": false,
+            "same_holds": true,
+            "gold_ground_truth": -0.2020086925295028,
+            "compiler_ground_truth": -0.1979913074704972,
+            "gt_diff": 0.00401738505900559,
+            "same_gt_within_tol": true
+          },
+          "classification": "equivalent"
+        }
+      ]
+    },
+    {
+      "id": "W3_F08_s0",
+      "world": "w3_environmental_health",
+      "overall": "equivalent",
+      "arm_kinds_differ": true,
+      "reasons": [],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "near_zero"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "near_zero"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": 0.002080425985139772,
+            "compiler_ground_truth": -0.002080425985139772,
+            "gt_diff": 0.004160851970279544,
+            "same_gt_within_tol": true
+          },
+          "classification": "equivalent"
+        }
+      ]
+    },
+    {
+      "id": "W3_F08_s1",
+      "world": "w3_environmental_health",
+      "overall": "equivalent",
+      "arm_kinds_differ": true,
+      "reasons": [],
+      "per_atom": [
+        {
+          "atom_idx": 0,
+          "gold_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "intervene",
+              "intervene"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "near_zero"
+          },
+          "compiler_summary": {
+            "n_atoms": 1,
+            "arm_kinds": [
+              "adjust",
+              "adjust"
+            ],
+            "measurement": "mean",
+            "comparison": "difference",
+            "assertion": "near_zero"
+          },
+          "verdict_cmp": {
+            "gold_holds": true,
+            "compiler_holds": true,
+            "same_holds": true,
+            "gold_ground_truth": 0.002080425985139772,
+            "compiler_ground_truth": -0.002080425985139772,
+            "gt_diff": 0.004160851970279544,
+            "same_gt_within_tol": true
+          },
+          "classification": "equivalent"
+        }
+      ]
+    }
+  ]
+}

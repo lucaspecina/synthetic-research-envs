@@ -40,6 +40,7 @@
 - [ ] I-023: Compiler benchmark offline (200+ claims)
 - [ ] I-027: Suite 2 baseline — artifact inconsistencies + repro gap (items 1-6 done, item 7 open)
 - [ ] I-028: Compiler emits sweep_values as list inside arm.values (schema violation)
+- [ ] I-029: Compiler never abstains (0/4 abstain decisions) — Suite 2 diagnostics hint #1
 
 **Training**
 - [ ] I-011: CausalReasoningBenchmark integration (T2)

@@ -1,0 +1,5575 @@
+{
+  "generated_by": "scripts/suite2_diag_d2_recipe_slots.py",
+  "model": "gpt-5.4",
+  "n_targets": 55,
+  "overall_slot_accuracy": 0.7549295774647887,
+  "per_slot_accuracy": {
+    "status": {
+      "matched": 51,
+      "total": 55,
+      "acc": 0.9272727272727272
+    },
+    "n_atoms": {
+      "matched": 39,
+      "total": 50,
+      "acc": 0.78
+    },
+    "arm_kinds": {
+      "matched": 25,
+      "total": 50,
+      "acc": 0.5
+    },
+    "role_vars": {
+      "matched": 48,
+      "total": 50,
+      "acc": 0.96
+    },
+    "measurement_kind": {
+      "matched": 37,
+      "total": 50,
+      "acc": 0.74
+    },
+    "comparison_kind": {
+      "matched": 34,
+      "total": 50,
+      "acc": 0.68
+    },
+    "assertion_polarity": {
+      "matched": 34,
+      "total": 50,
+      "acc": 0.68
+    }
+  },
+  "per_family_accuracy": {
+    "CC-A1": {
+      "matched": 61,
+      "total": 63,
+      "acc": 0.9682539682539683
+    },
+    "CC-A2": {
+      "matched": 22,
+      "total": 35,
+      "acc": 0.6285714285714286
+    },
+    "CC-A3": {
+      "matched": 42,
+      "total": 56,
+      "acc": 0.75
+    },
+    "CC-A4": {
+      "matched": 11,
+      "total": 21,
+      "acc": 0.5238095238095238
+    },
+    "CC-A5": {
+      "matched": 10,
+      "total": 21,
+      "acc": 0.47619047619047616
+    },
+    "CC-A7": {
+      "matched": 10,
+      "total": 14,
+      "acc": 0.7142857142857143
+    },
+    "CC-A8": {
+      "matched": 13,
+      "total": 14,
+      "acc": 0.9285714285714286
+    },
+    "CC-B5": {
+      "matched": 18,
+      "total": 21,
+      "acc": 0.8571428571428571
+    },
+    "CC-C2": {
+      "matched": 18,
+      "total": 21,
+      "acc": 0.8571428571428571
+    },
+    "CC-D1": {
+      "matched": 14,
+      "total": 14,
+      "acc": 1.0
+    },
+    "CC-D2": {
+      "matched": 6,
+      "total": 14,
+      "acc": 0.42857142857142855
+    },
+    "CC-E1": {
+      "matched": 1,
+      "total": 1,
+      "acc": 1.0
+    },
+    "CC-E2": {
+      "matched": 11,
+      "total": 21,
+      "acc": 0.5238095238095238
+    },
+    "CC-E3": {
+      "matched": 1,
+      "total": 2,
+      "acc": 0.5
+    },
+    "SQ-A1": {
+      "matched": 18,
+      "total": 21,
+      "acc": 0.8571428571428571
+    },
+    "SQ-A3": {
+      "matched": 12,
+      "total": 14,
+      "acc": 0.8571428571428571
+    },
+    "SQ-C1": {
+      "matched": 0,
+      "total": 2,
+      "acc": 0.0
+    }
+  },
+  "weak_slots_lt_50": [],
+  "strong_slots_ge_70": [
+    "status",
+    "n_atoms",
+    "role_vars",
+    "measurement_kind"
+  ],
+  "elapsed_seconds": 104.9,
+  "interpretation": "Recipe knowledge MIXED (overall 75%). Weak: none. Strong: ['status', 'n_atoms', 'role_vars', 'measurement_kind']. Target exemplars at the weak slots per family.",
+  "results": [
+    {
+      "id": "W1_F01_s0",
+      "fact_id": "W1_F01",
+      "claim": "Treatment has a positive causal effect on outcome.",
+      "family": "CC-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F01_s1",
+      "fact_id": "W1_F01",
+      "claim": "Intervening to increase treatment dosage improves patient outcomes.",
+      "family": "CC-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F01_s2",
+      "fact_id": "W1_F01",
+      "claim": "The causal effect of treatment on outcome, accounting for all pathways including through compliance, is approximately 0.7 per unit increase.",
+      "family": "CC-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "greater_than"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "greater_than",
+            "match": false
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"greater_than\"}}"
+    },
+    {
+      "id": "W1_F03_s0",
+      "fact_id": "W1_F03",
+      "claim": "Treatment causes side effects.",
+      "family": "CC-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "SE"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "SE",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "SE"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "SE",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"SE\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F03_s1",
+      "fact_id": "W1_F03",
+      "claim": "Treatment improves the primary outcome but also increases the risk of side effects.",
+      "family": "CC-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 2,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 2,
+            "pred": 2,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F03_s2",
+      "fact_id": "W1_F03",
+      "claim": "The treatment faces a trade-off: it improves outcome (effect ~0.7) but causes side effects of similar magnitude (~0.7).",
+      "family": "CC-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 2,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 2,
+            "pred": 2,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F04_s0",
+      "fact_id": "W1_F04",
+      "claim": "Treatment has a direct effect on outcome beyond its effect through compliance.",
+      "family": "CC-A3",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": "M",
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": "M",
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": "M",
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":\"M\",\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F04_s1",
+      "fact_id": "W1_F04",
+      "claim": "Even if compliance were held constant, treatment would still improve outcomes.",
+      "family": "CC-A3",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": "M",
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene",
+            "condition"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "M"
+            ]
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "M"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\",\"condition\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"M\"]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F04_s2",
+      "fact_id": "W1_F04",
+      "claim": "The direct causal effect of treatment on outcome, controlling for compliance, is approximately 0.5.",
+      "family": "CC-A3",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": "M",
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene",
+            "condition"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "M"
+            ]
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "greater_than"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "M"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "greater_than",
+            "match": false
+          }
+        },
+        "n_matched": 5,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\",\"condition\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"M\"]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"greater_than\"}}"
+    },
+    {
+      "id": "W1_F05_s0",
+      "fact_id": "W1_F05",
+      "claim": "Part of treatment's benefit comes through improved compliance.",
+      "family": "CC-A3",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "positive",
+        "mediator": "M",
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": "M",
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": "M",
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 5,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":\"M\",\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F05_s1",
+      "fact_id": "W1_F05",
+      "claim": "Compliance mediates the relationship between treatment and outcome.",
+      "family": "CC-A3",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "positive",
+        "mediator": "M",
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": "M",
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": "M",
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 5,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":\"M\",\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F05_s2",
+      "fact_id": "W1_F05",
+      "claim": "The indirect effect of treatment on outcome through compliance is positive but smaller than the direct effect.",
+      "family": "CC-A3",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 2,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "positive",
+        "mediator": "M",
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": "M",
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 2,
+            "pred": 2,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": "M",
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":\"M\",\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F06_s0",
+      "fact_id": "W1_F06",
+      "claim": "The effect of treatment on outcome depends on the patient's biomarker level.",
+      "family": "CC-A4",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "gap_material",
+        "mediator": null,
+        "modifier": "B",
+        "condition_vars": [
+          "B"
+        ],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene",
+            "condition"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": "B",
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "sign_flip"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": "B",
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "gap_material",
+            "pred": "sign_flip",
+            "match": false
+          }
+        },
+        "n_matched": 3,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\",\"condition\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":\"B\",\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"sign_flip\"}}"
+    },
+    {
+      "id": "W1_F06_s1",
+      "fact_id": "W1_F06",
+      "claim": "Patients with high biomarker levels benefit more from treatment than those with low biomarker levels.",
+      "family": "CC-A4",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": "B",
+        "condition_vars": [
+          "B"
+        ],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene",
+            "condition"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": "B",
+            "condition_on": [
+              "B"
+            ]
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": "B",
+              "condition_on": [
+                "B"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 4,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\",\"condition\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":\"B\",\"condition_on\":[\"B\"]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F06_s2",
+      "fact_id": "W1_F06",
+      "claim": "Among patients with biomarker one standard deviation above the mean, the treatment effect is approximately 1.0, while for those one standard deviation below, it is approximately 0.3.",
+      "family": "CC-A4",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 2,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": "B",
+        "condition_vars": [
+          "B"
+        ],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene",
+            "condition"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": "B",
+            "condition_on": [
+              "B"
+            ]
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "piecewise_fit",
+          "assertion_polarity": "distinguishable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 2,
+            "pred": 2,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": "B",
+              "condition_on": [
+                "B"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "piecewise_fit",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "distinguishable",
+            "match": false
+          }
+        },
+        "n_matched": 4,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\",\"condition\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":\"B\",\"condition_on\":[\"B\"]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"piecewise_fit\",\"assertion_polarity\":\"distinguishable\"}}"
+    },
+    {
+      "id": "W1_F07_s0",
+      "fact_id": "W1_F07",
+      "claim": "Disease severity confounds the relationship between treatment and outcome.",
+      "family": "CC-A5",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene",
+          "observe"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "gap_material",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "adjust",
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "S"
+            ]
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "identity",
+          "assertion_polarity": "not_distinguishable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene",
+              "observe"
+            ],
+            "pred": [
+              "adjust",
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "S"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "identity",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "gap_material",
+            "pred": "not_distinguishable",
+            "match": false
+          }
+        },
+        "n_matched": 3,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"adjust\",\"observe\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"S\"]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"not_distinguishable\"}}"
+    },
+    {
+      "id": "W1_F07_s1",
+      "fact_id": "W1_F07",
+      "claim": "Without adjusting for severity, the observed association between treatment and outcome is biased.",
+      "family": "CC-A5",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene",
+          "observe"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "gap_material",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe",
+            "adjust"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "S"
+            ]
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "gap",
+          "assertion_polarity": "gap_material"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene",
+              "observe"
+            ],
+            "pred": [
+              "adjust",
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "S"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "gap",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "gap_material",
+            "pred": "gap_material",
+            "match": true
+          }
+        },
+        "n_matched": 4,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"observe\",\"adjust\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"S\"]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"gap\",\"assertion_polarity\":\"gap_material\"}}"
+    },
+    {
+      "id": "W1_F07_s2",
+      "fact_id": "W1_F07",
+      "claim": "Severity is a confounder, not a mediator, of the treatment-outcome relationship: it causes both the treatment decision and the outcome independently.",
+      "family": "CC-A5",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene",
+          "observe"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "gap_material",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "adjust",
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "S"
+            ]
+          },
+          "measurement_kind": "partial_correlation",
+          "comparison_kind": "identity",
+          "assertion_polarity": "near_zero"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene",
+              "observe"
+            ],
+            "pred": [
+              "adjust",
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "S"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "partial_correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "identity",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "gap_material",
+            "pred": "near_zero",
+            "match": false
+          }
+        },
+        "n_matched": 3,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"adjust\",\"observe\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"S\"]},\"measurement_kind\":\"partial_correlation\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"near_zero\"}}"
+    },
+    {
+      "id": "W1_F09_s0",
+      "fact_id": "W1_F09",
+      "claim": "Treated patients show more variable outcomes than untreated patients.",
+      "family": "CC-A8",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "variance",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "variance",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "variance",
+            "pred": "variance",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"variance\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W1_F09_s1",
+      "fact_id": "W1_F09",
+      "claim": "Treatment increases not just the mean outcome but also its spread, because patients with different biomarker levels respond differently.",
+      "family": "CC-A8",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "variance",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "variance",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "variance",
+            "pred": "variance",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"variance\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W2_F01_s0",
+      "fact_id": "W2_F01",
+      "claim": "Exposure reduces the risk of disease.",
+      "family": "CC-A1",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "negative",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "prob",
+          "comparison_kind": "difference",
+          "assertion_polarity": "negative"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "prob",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "negative",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"prob\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"negative\"}}"
+    },
+    {
+      "id": "W2_F01_s1",
+      "fact_id": "W2_F01",
+      "claim": "The causal effect of exposure on disease is protective: increasing exposure decreases disease risk.",
+      "family": "CC-A1",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "negative",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "negative"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "negative",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"negative\"}}"
+    },
+    {
+      "id": "W2_F01_s2",
+      "fact_id": "W2_F01",
+      "claim": "Intervening to increase exposure by one unit reduces disease risk by approximately 0.2 units.",
+      "family": "CC-A1",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "negative",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "negative"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "negative",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"negative\"}}"
+    },
+    {
+      "id": "W2_F02_s0",
+      "fact_id": "W2_F02",
+      "claim": "Exposure is positively associated with disease in the population.",
+      "family": "CC-A2",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "lhs": "E",
+          "rhs": "D"
+        },
+        "measurement_kind": "partial_correlation",
+        "comparison_kind": "identity",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "identity",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "lhs": "E",
+              "rhs": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": []
+          },
+          "measurement_kind": {
+            "gold": "partial_correlation",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 5,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"observe\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W2_F02_s1",
+      "fact_id": "W2_F02",
+      "claim": "People with higher exposure tend to have higher disease rates.",
+      "family": "CC-A2",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "lhs": "E",
+          "rhs": "D"
+        },
+        "measurement_kind": "partial_correlation",
+        "comparison_kind": "identity",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "identity",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "lhs": "E",
+              "rhs": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": []
+          },
+          "measurement_kind": {
+            "gold": "partial_correlation",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 5,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"observe\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W2_F02_s2",
+      "fact_id": "W2_F02",
+      "claim": "The observational correlation between exposure and disease is positive, even though the causal effect is protective.",
+      "family": "CC-A2",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "lhs": "E",
+          "rhs": "D"
+        },
+        "measurement_kind": "partial_correlation",
+        "comparison_kind": "identity",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "identity",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "lhs": "E",
+              "rhs": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": []
+          },
+          "measurement_kind": {
+            "gold": "partial_correlation",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 4,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"observe\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W2_F04_s0",
+      "fact_id": "W2_F04",
+      "claim": "Exposure increases disease risk indirectly through the mediator.",
+      "family": "CC-A3",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "positive",
+        "mediator": "M",
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": "M",
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": "M",
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 5,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":\"M\",\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W2_F04_s1",
+      "fact_id": "W2_F04",
+      "claim": "The indirect pathway (exposure -> mediator -> disease) works in the opposite direction from the direct effect: exposure increases the mediator, which increases disease.",
+      "family": "CC-A3",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "contrast_diff",
+        "assertion_polarity": "positive",
+        "mediator": "M",
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "M",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "M",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": false,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 4,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"M\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W2_F06_s0",
+      "fact_id": "W2_F06",
+      "claim": "After adjusting for the confounder, exposure is negatively associated with disease.",
+      "family": "CC-A2",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "lhs": "E",
+          "rhs": "D"
+        },
+        "measurement_kind": "partial_correlation",
+        "comparison_kind": "identity",
+        "assertion_polarity": "negative",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": [
+          "C"
+        ]
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "adjust",
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "C"
+            ]
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "identity",
+          "assertion_polarity": "negative"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "adjust",
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "lhs": "E",
+              "rhs": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "C"
+              ]
+            },
+            "match": true,
+            "critical_roles": []
+          },
+          "measurement_kind": {
+            "gold": "partial_correlation",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "negative",
+            "match": true
+          }
+        },
+        "n_matched": 5,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"adjust\",\"observe\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"C\"]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"negative\"}}"
+    },
+    {
+      "id": "W2_F06_s1",
+      "fact_id": "W2_F06",
+      "claim": "Controlling for the confounder reverses the direction of the exposure-disease association: from positive (crude) to negative (adjusted).",
+      "family": "CC-A2",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "lhs": "E",
+          "rhs": "D"
+        },
+        "measurement_kind": "partial_correlation",
+        "comparison_kind": "identity",
+        "assertion_polarity": "negative",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": [
+          "C"
+        ]
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 2,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "identity",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "lhs": "E",
+              "rhs": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": []
+          },
+          "measurement_kind": {
+            "gold": "partial_correlation",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "positive",
+            "match": false
+          }
+        },
+        "n_matched": 3,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":2,\"primary_atom\":{\"arm_kinds\":[\"observe\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W2_F07_s0",
+      "fact_id": "W2_F07",
+      "claim": "Adjusting for the collider variable introduces bias in the exposure-disease estimate.",
+      "family": "CC-D2",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "identifiability_check",
+        "comparison_kind": "identity",
+        "assertion_polarity": "not_identifiable",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "adjust",
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "C"
+            ]
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "gap",
+          "assertion_polarity": "gap_material"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "adjust",
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "C"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "identifiability_check",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "gap",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "not_identifiable",
+            "pred": "gap_material",
+            "match": false
+          }
+        },
+        "n_matched": 3,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"adjust\",\"observe\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"C\"]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"gap\",\"assertion_polarity\":\"gap_material\"}}"
+    },
+    {
+      "id": "W2_F07_s1",
+      "fact_id": "W2_F07",
+      "claim": "The collider is caused by both exposure and disease; conditioning on it opens a spurious path and distorts the estimate of the causal effect.",
+      "family": "CC-D2",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "identifiability_check",
+        "comparison_kind": "identity",
+        "assertion_polarity": "not_identifiable",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "condition",
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "C"
+            ]
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "distinguishable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "C"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "identifiability_check",
+            "pred": "mean",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "not_identifiable",
+            "pred": "distinguishable",
+            "match": false
+          }
+        },
+        "n_matched": 3,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"condition\",\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"C\"]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"distinguishable\"}}"
+    },
+    {
+      "id": "W2_F09_s0",
+      "fact_id": "W2_F09",
+      "claim": "Can we estimate the causal effect of exposure on disease?",
+      "family": "SQ-A3",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "identifiability_check",
+        "comparison_kind": "identity",
+        "assertion_polarity": "identifiable",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "identifiability_check",
+          "comparison_kind": "identity",
+          "assertion_polarity": "identifiable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "identifiability_check",
+            "pred": "identifiability_check",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "identifiable",
+            "pred": "identifiable",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"identifiability_check\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"identifiable\"}}"
+    },
+    {
+      "id": "W2_F09_s1",
+      "fact_id": "W2_F09",
+      "claim": "Is the causal effect of exposure on disease identifiable from observational data, given that we can measure the confounder?",
+      "family": "SQ-A3",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "identifiability_check",
+        "comparison_kind": "identity",
+        "assertion_polarity": "identifiable",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "adjust",
+            "intervene",
+            "observe"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": [
+              "C"
+            ]
+          },
+          "measurement_kind": "identifiability_check",
+          "comparison_kind": "identity",
+          "assertion_polarity": "identifiable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "adjust",
+              "intervene",
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": [
+                "C"
+              ]
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "identifiability_check",
+            "pred": "identifiability_check",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "identifiable",
+            "pred": "identifiable",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"adjust\",\"intervene\",\"observe\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[\"C\"]},\"measurement_kind\":\"identifiability_check\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"identifiable\"}}"
+    },
+    {
+      "id": "W2_F11_s0",
+      "fact_id": "W2_F11",
+      "claim": "Exposure causes an increase in disease.",
+      "family": "CC-D1",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W2_F11_s1",
+      "fact_id": "W2_F11",
+      "claim": "Increasing exposure leads to higher disease risk.",
+      "family": "CC-D1",
+      "world": "w2_observational_epidemiology",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "E",
+          "outcome": "D"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "E",
+            "outcome": "D",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "D",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "positive",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"E\",\"outcome\":\"D\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W3_F03_s0",
+      "fact_id": "W3_F03",
+      "claim": "There is a threshold in the temperature-health relationship.",
+      "family": "CC-B5",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "sweep"
+        ],
+        "role_vars": {
+          "sweep_var": "Temp",
+          "outcome": "H"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "piecewise_fit",
+        "assertion_polarity": "changepoint_exists",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe",
+            "sweep"
+          ],
+          "role_vars": {
+            "treatment": "Temp",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "piecewise_fit",
+          "assertion_polarity": "changepoint_exists"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "sweep"
+            ],
+            "pred": [
+              "observe",
+              "sweep"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "sweep_var": "Temp",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "Temp",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "piecewise_fit",
+            "pred": "piecewise_fit",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "changepoint_exists",
+            "pred": "changepoint_exists",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"observe\",\"sweep\"],\"role_vars\":{\"treatment\":\"Temp\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"piecewise_fit\",\"assertion_polarity\":\"changepoint_exists\"}}"
+    },
+    {
+      "id": "W3_F03_s1",
+      "fact_id": "W3_F03",
+      "claim": "The effect of temperature on health changes sharply at a threshold near zero: mild below, severe above.",
+      "family": "CC-B5",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "sweep"
+        ],
+        "role_vars": {
+          "sweep_var": "Temp",
+          "outcome": "H"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "piecewise_fit",
+        "assertion_polarity": "changepoint_exists",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene",
+            "sweep"
+          ],
+          "role_vars": {
+            "treatment": "Temp",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "piecewise_fit",
+          "assertion_polarity": "changepoint_exists"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "sweep"
+            ],
+            "pred": [
+              "intervene",
+              "sweep"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "sweep_var": "Temp",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "Temp",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "piecewise_fit",
+            "pred": "piecewise_fit",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "changepoint_exists",
+            "pred": "changepoint_exists",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\",\"sweep\"],\"role_vars\":{\"treatment\":\"Temp\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"piecewise_fit\",\"assertion_polarity\":\"changepoint_exists\"}}"
+    },
+    {
+      "id": "W3_F03_s2",
+      "fact_id": "W3_F03",
+      "claim": "The temperature-health dose-response curve has a changepoint at approximately zero degrees, where the slope changes from -0.2 to -1.0.",
+      "family": "CC-B5",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "sweep"
+        ],
+        "role_vars": {
+          "sweep_var": "Temp",
+          "outcome": "H"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "piecewise_fit",
+        "assertion_polarity": "changepoint_exists",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe",
+            "sweep"
+          ],
+          "role_vars": {
+            "treatment": "Temp",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "piecewise_fit",
+          "assertion_polarity": "changepoint_exists"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "sweep"
+            ],
+            "pred": [
+              "observe",
+              "sweep"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "sweep_var": "Temp",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "Temp",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "piecewise_fit",
+            "pred": "piecewise_fit",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "changepoint_exists",
+            "pred": "changepoint_exists",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"observe\",\"sweep\"],\"role_vars\":{\"treatment\":\"Temp\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"piecewise_fit\",\"assertion_polarity\":\"changepoint_exists\"}}"
+    },
+    {
+      "id": "W3_F04_s0",
+      "fact_id": "W3_F04",
+      "claim": "Extreme heat creates a significant risk of very poor health outcomes.",
+      "family": "CC-A7",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "Temp",
+          "outcome": "H"
+        },
+        "measurement_kind": "tail_prob",
+        "comparison_kind": "difference",
+        "assertion_polarity": "negative",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "Temp",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "tail_prob",
+          "comparison_kind": "difference",
+          "assertion_polarity": "positive"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "Temp",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "Temp",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "tail_prob",
+            "pred": "tail_prob",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "positive",
+            "match": false
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"Temp\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"tail_prob\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"positive\"}}"
+    },
+    {
+      "id": "W3_F04_s1",
+      "fact_id": "W3_F04",
+      "claim": "The probability of health falling below a critical threshold is much higher at elevated temperatures than at low temperatures.",
+      "family": "CC-A7",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "Temp",
+          "outcome": "H"
+        },
+        "measurement_kind": "tail_prob",
+        "comparison_kind": "difference",
+        "assertion_polarity": "negative",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe",
+            "condition"
+          ],
+          "role_vars": {
+            "treatment": "Temp",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "tail_prob",
+          "comparison_kind": "gap",
+          "assertion_polarity": "greater_than"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "Temp",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "Temp",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "tail_prob",
+            "pred": "tail_prob",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "gap",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "greater_than",
+            "match": false
+          }
+        },
+        "n_matched": 4,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"observe\",\"condition\"],\"role_vars\":{\"treatment\":\"Temp\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"tail_prob\",\"comparison_kind\":\"gap\",\"assertion_polarity\":\"greater_than\"}}"
+    },
+    {
+      "id": "W3_F05_s0",
+      "fact_id": "W3_F05",
+      "claim": "Can we estimate the causal effect of pollution on health?",
+      "family": "CC-E2",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "treatment": "P",
+          "outcome": "H"
+        },
+        "measurement_kind": "identifiability_check",
+        "comparison_kind": "identity",
+        "assertion_polarity": "not_identifiable",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "P",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "identifiability_check",
+          "comparison_kind": "identity",
+          "assertion_polarity": "identifiable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "P",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "P",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "identifiability_check",
+            "pred": "identifiability_check",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "not_identifiable",
+            "pred": "identifiable",
+            "match": false
+          }
+        },
+        "n_matched": 5,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"P\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"identifiability_check\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"identifiable\"}}"
+    },
+    {
+      "id": "W3_F05_s1",
+      "fact_id": "W3_F05",
+      "claim": "The causal effect of pollution on health cannot be determined from the available data because an unmeasured factor affects both.",
+      "family": "CC-E2",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "treatment": "P",
+          "outcome": "H"
+        },
+        "measurement_kind": "identifiability_check",
+        "comparison_kind": "identity",
+        "assertion_polarity": "not_identifiable",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "abstain",
+        "abstain_reason": "latent"
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "abstain",
+            "match": false
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": null,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": null,
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "P",
+              "outcome": "H"
+            },
+            "pred": null,
+            "match": false
+          },
+          "measurement_kind": {
+            "gold": "identifiability_check",
+            "pred": null,
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": null,
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "not_identifiable",
+            "pred": null,
+            "match": false
+          }
+        },
+        "n_matched": 0,
+        "n_total": 7,
+        "overall": "status_mismatch"
+      },
+      "raw_response": "{\"status\":\"abstain\",\"abstain_reason\":\"latent\"}"
+    },
+    {
+      "id": "W3_F05_s2",
+      "fact_id": "W3_F05",
+      "claim": "No set of measured variables is sufficient to block the backdoor path from pollution to health through the hidden confounding factor.",
+      "family": "CC-E2",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "baseline"
+        ],
+        "role_vars": {
+          "treatment": "P",
+          "outcome": "H"
+        },
+        "measurement_kind": "identifiability_check",
+        "comparison_kind": "identity",
+        "assertion_polarity": "not_identifiable",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "adjust",
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "P",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "identifiability_check",
+          "comparison_kind": "identity",
+          "assertion_polarity": "not_identifiable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "adjust",
+              "intervene"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "P",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "P",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "identifiability_check",
+            "pred": "identifiability_check",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "identity",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "not_identifiable",
+            "pred": "not_identifiable",
+            "match": true
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"adjust\",\"intervene\"],\"role_vars\":{\"treatment\":\"P\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"identifiability_check\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"not_identifiable\"}}"
+    },
+    {
+      "id": "W3_F08_s0",
+      "fact_id": "W3_F08",
+      "claim": "Wind speed does not affect health.",
+      "family": "CC-C2",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "WindSpeed",
+          "outcome": "H"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "near_zero",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "WindSpeed",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "near_zero"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "WindSpeed",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "WindSpeed",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "near_zero",
+            "pred": "near_zero",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"WindSpeed\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"near_zero\"}}"
+    },
+    {
+      "id": "W3_F08_s1",
+      "fact_id": "W3_F08",
+      "claim": "There is no causal relationship between wind speed and health outcomes.",
+      "family": "CC-C2",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "WindSpeed",
+          "outcome": "H"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "near_zero",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "WindSpeed",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "near_zero"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "WindSpeed",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "WindSpeed",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "near_zero",
+            "pred": "near_zero",
+            "match": true
+          }
+        },
+        "n_matched": 7,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"WindSpeed\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"near_zero\"}}"
+    },
+    {
+      "id": "W3_F08_s2",
+      "fact_id": "W3_F08",
+      "claim": "Wind speed is not associated with health, neither causally nor observationally.",
+      "family": "CC-C2",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "WindSpeed",
+          "outcome": "H"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "near_zero",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "observe",
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "WindSpeed",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "correlation",
+          "comparison_kind": "identity",
+          "assertion_polarity": "near_zero"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene",
+              "observe"
+            ],
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "WindSpeed",
+              "outcome": "H"
+            },
+            "pred": {
+              "treatment": "WindSpeed",
+              "outcome": "H",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "identity",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "near_zero",
+            "pred": "near_zero",
+            "match": true
+          }
+        },
+        "n_matched": 4,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"observe\",\"intervene\"],\"role_vars\":{\"treatment\":\"WindSpeed\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"correlation\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"near_zero\"}}"
+    },
+    {
+      "id": "W3_F11_s0",
+      "fact_id": "W3_F11",
+      "claim": "Temperature changes precede health effects by several days.",
+      "family": "CC-E1",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "abstain",
+        "abstain_reason_code": "temporal_nonexpressible"
+      },
+      "predicted": {
+        "status": "abstain",
+        "abstain_reason": "temporal"
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "abstain",
+            "pred": "abstain",
+            "match": true
+          }
+        },
+        "n_matched": 1,
+        "n_total": 1,
+        "overall": "abstain_case"
+      },
+      "raw_response": "{\"status\":\"abstain\",\"abstain_reason\":\"temporal\"}"
+    },
+    {
+      "id": "W3_F12_s0",
+      "fact_id": "W3_F12",
+      "claim": "A randomized controlled trial would be needed to establish the causal effect of pollution on health.",
+      "family": "CC-E3",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "abstain",
+        "abstain_reason_code": "methodological_nonexpressible"
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "P",
+            "outcome": "H",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "identifiability_check",
+          "comparison_kind": "identity",
+          "assertion_polarity": "not_identifiable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "abstain",
+            "pred": "compile",
+            "match": false
+          }
+        },
+        "n_matched": 0,
+        "n_total": 1,
+        "overall": "abstain_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"P\",\"outcome\":\"H\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"identifiability_check\",\"comparison_kind\":\"identity\",\"assertion_polarity\":\"not_identifiable\"}}"
+    },
+    {
+      "id": "W3_F12_s1",
+      "fact_id": "W3_F12",
+      "claim": "The sample size is insufficient to detect a small effect of wind speed on health.",
+      "family": "CC-E3",
+      "world": "w3_environmental_health",
+      "gold": {
+        "status": "abstain",
+        "abstain_reason_code": "statistical_nonexpressible"
+      },
+      "predicted": {
+        "status": "abstain",
+        "abstain_reason": "non_expressible"
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "abstain",
+            "pred": "abstain",
+            "match": true
+          }
+        },
+        "n_matched": 1,
+        "n_total": 1,
+        "overall": "abstain_case"
+      },
+      "raw_response": "{\"status\":\"abstain\",\"abstain_reason\":\"non_expressible\"}"
+    },
+    {
+      "id": "SQ_F01_s0",
+      "fact_id": "SQ_F01",
+      "claim": "Does treatment affect outcome?",
+      "family": "SQ-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "distinguishable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "distinguishable",
+            "match": false
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"distinguishable\"}}"
+    },
+    {
+      "id": "SQ_F01_s1",
+      "fact_id": "SQ_F01",
+      "claim": "What is the causal effect of treatment on patient outcomes?",
+      "family": "SQ-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "identifiable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "identifiable",
+            "match": false
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"identifiable\"}}"
+    },
+    {
+      "id": "SQ_F01_s2",
+      "fact_id": "SQ_F01",
+      "claim": "If we were to intervene and change the treatment level, would we observe a change in outcome?",
+      "family": "SQ-A1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "compile",
+        "n_atoms": 1,
+        "arm_kinds": [
+          "intervene"
+        ],
+        "role_vars": {
+          "treatment": "T",
+          "outcome": "Y"
+        },
+        "measurement_kind": "mean",
+        "comparison_kind": "difference",
+        "assertion_polarity": "positive",
+        "mediator": null,
+        "modifier": null,
+        "condition_vars": [],
+        "cond_set": []
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "difference",
+          "assertion_polarity": "distinguishable"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "compile",
+            "pred": "compile",
+            "match": true
+          },
+          "n_atoms": {
+            "gold": 1,
+            "pred": 1,
+            "match": true
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": true
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "T",
+              "outcome": "Y"
+            },
+            "pred": {
+              "treatment": "T",
+              "outcome": "Y",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": true,
+            "critical_roles": [
+              "treatment",
+              "outcome"
+            ]
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "mean",
+            "match": true
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "difference",
+            "match": true
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "distinguishable",
+            "match": false
+          }
+        },
+        "n_matched": 6,
+        "n_total": 7,
+        "overall": "compile_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"difference\",\"assertion_polarity\":\"distinguishable\"}}"
+    },
+    {
+      "id": "SQ_F07_s0",
+      "fact_id": "SQ_F07",
+      "claim": "What is the optimal treatment dose?",
+      "family": "SQ-C1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "abstain",
+        "abstain_reason_code": "optimization_nonexpressible"
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "sweep",
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "ranking",
+          "assertion_polarity": "rank_order"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "abstain",
+            "pred": "compile",
+            "match": false
+          }
+        },
+        "n_matched": 0,
+        "n_total": 1,
+        "overall": "abstain_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"sweep\",\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"ranking\",\"assertion_polarity\":\"rank_order\"}}"
+    },
+    {
+      "id": "SQ_F07_s1",
+      "fact_id": "SQ_F07",
+      "claim": "What treatment level maximizes outcome while minimizing side effects?",
+      "family": "SQ-C1",
+      "world": "w1_comparative_effectiveness",
+      "gold": {
+        "status": "abstain",
+        "abstain_reason_code": "optimization_nonexpressible"
+      },
+      "predicted": {
+        "status": "compile",
+        "n_atoms": 1,
+        "primary_atom": {
+          "arm_kinds": [
+            "sweep",
+            "intervene"
+          ],
+          "role_vars": {
+            "treatment": "T",
+            "outcome": "Y",
+            "mediator": null,
+            "modifier": null,
+            "condition_on": []
+          },
+          "measurement_kind": "mean",
+          "comparison_kind": "ranking",
+          "assertion_polarity": "rank_order"
+        }
+      },
+      "verdict": {
+        "slots": {
+          "status": {
+            "gold": "abstain",
+            "pred": "compile",
+            "match": false
+          }
+        },
+        "n_matched": 0,
+        "n_total": 1,
+        "overall": "abstain_case"
+      },
+      "raw_response": "{\"status\":\"compile\",\"n_atoms\":1,\"primary_atom\":{\"arm_kinds\":[\"sweep\",\"intervene\"],\"role_vars\":{\"treatment\":\"T\",\"outcome\":\"Y\",\"mediator\":null,\"modifier\":null,\"condition_on\":[]},\"measurement_kind\":\"mean\",\"comparison_kind\":\"ranking\",\"assertion_polarity\":\"rank_order\"}}"
+    }
+  ]
+}

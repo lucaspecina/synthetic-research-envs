@@ -5,6 +5,51 @@
 
 ## [Unreleased]
 
+### 2026-04-15 (PM2) — Suite 2 diagnostic battery (D1/D2/D4 + stage1 split)
+
+**Antes de atacar con exemplars, corrimos 4 diagnostics para aislar el
+bottleneck real del compiler. 4 hints concretos, plan revisado.**
+
+- **D4 — adjust_swap equivalence** (0 LLM calls,
+  `scripts/suite2_diag_d4_adjust_swap_equivalence.py`). Criterio:
+  mismos kinds + `holds` + |Δgt| ≤ 0.05 bajo verifier actual. Resultado:
+  **6/10 equivalentes, 4/10 numerical_diff**. Los 4 son pass-by-accident
+  (compiler usa values de percentiles extremos). Upper-bound revisado
+  de formalización: 13% → **24%** strict_pass, no 31%.
+- **Stage1_fail split** (0 LLM calls,
+  `scripts/suite2_diag_stage1_split.py`). 6 entries → 4 decision_fail +
+  2 crash. **Hint #1 (ABSTAIN BROKEN):** compiler acierta 0/4 abstain
+  decisions. Gatillo I-029.
+- **D1 — pattern recognition** (55 LLM calls,
+  `scripts/suite2_diag_d1_pattern_recognition.py`). 69% overall. 8
+  familias al 100%, 3 al 0% (CC-B5, CC-D1, CC-D2). CC-D1 colapsa a
+  CC-A1; CC-D2 a CC-E3/A5. **Hint #3:** las 5 familias 0%-strict-pass
+  son mayormente composition gap (reconocen ≥88%). CC-B5 es la única
+  con recognition gap puro.
+- **D2 — recipe slot elicitation** (55 LLM calls × 2 runs,
+  `scripts/suite2_diag_d2_recipe_slots.py`). JSON cerrado con 7 slots,
+  match determinista contra `StructuralContract`. 75.5% overall (v2 con
+  world context). **Slot accuracies:** role_vars 96%, status 93%,
+  n_atoms 78%, measurement 74%, comparison 68%, assertion 68%,
+  **arm_kinds 50%**. **Hint #4:** arm_kinds es el bottleneck duro de la
+  composición. Confusiones top: `[intervene] → [condition, intervene]`
+  (5×), `[baseline] → [observe]` (4×), `[intervene, observe] →
+  [adjust, observe]` (3×).
+- **D2a — sin world context** (D2v1 archivado en
+  `suite2_diag_d2a_no_world_context_results.json`). role_vars = 10%
+  sin variables del mundo. Confirma que variable grounding es 100%
+  context-dependent (el compiler real las recibe via
+  `build_world_summary`).
+- **I-029 creado**: compiler abstain decision broken. Fix esperado:
+  stage1_fail 6 → 2, effective_pass 31% → ~38%.
+- **Strategy doc actualizado**:
+  `research/synthesis/suite2_compiler_improvement_strategy.md` §7
+  Findings + §8 plan post-diagnostics con 3 ramas paralelas (abstain
+  fix, adjust-swap parcial, exemplars targetizados por slot no por
+  familia).
+- **Research index updated**: 5 nuevos artefactos diagnostic en
+  `research/README.md`.
+
 ### 2026-04-15 (PM) — Suite 2 v2 re-baseline + verifier fix + improvement strategy
 
 **Fix del verifier (ground truth) + full re-baseline con 5 buckets + plan de

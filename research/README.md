@@ -35,8 +35,13 @@
 | `synthesis/suite2_compiler_baseline.md` | **CANON evaluation result.** Suite 2 baseline (v1 2026-04-14, v2 post-verifier-fix 2026-04-15). Effective 31% / strict 13%. §9 documenta delta v1→v2. |
 | `synthesis/suite2_pattern_breakdown.md` | **CANON breakdown (v2).** Per-family bucket breakdown 2026-04-15 — actuals sobre 55 targets, no upper-bound. Zero-strict-pass families enumerados. |
 | `synthesis/compiler_baseline_full_dump_v2.json` | **CANON raw data (v2).** 55 targets, 5 buckets, round-trip-safe AtomicSpec dump. Fuente de todos los números v2. |
-| `synthesis/suite2_compiler_improvement_strategy.md` | **CANON plan.** Recipe gap duro + 6 opciones de mejora + diagnostic battery (D1-D7) para refinar hipótesis antes de atacar con exemplars. |
+| `synthesis/suite2_compiler_improvement_strategy.md` | **CANON plan.** Recipe gap duro + 6 opciones de mejora + diagnostic battery (D1-D7). §7 Findings actualizada 2026-04-15 con D1/D2/D4 + stage1_split reales. §8 plan post-diagnostics (fix abstain, formalize 6/10 adjust-swap, exemplars por slot). |
 | `synthesis/suite2_fail_audit_recipe_patterns.md` | Manual audit of 10 zero-candidate verdict-fails (#11a). Failure-mode taxonomy per family (2026-04-15) |
+| `synthesis/suite2_diag_d1_results.json` | **CANON diag.** D1 pattern recognition raw results (55 LLM calls, 69% acc). Per-family breakdown + confusion matrix. |
+| `synthesis/suite2_diag_d2_results.json` | **CANON diag.** D2 recipe slot elicitation (55 LLM calls, 75% acc). 7 slots × 50-55 targets. arm_kinds = bottleneck real. |
+| `synthesis/suite2_diag_d2a_no_world_context_results.json` | **Diag archived.** D2 sin world-variable context (63% acc). role_vars cae a 10% — confirma que variable grounding es context-dependent. |
+| `synthesis/suite2_diag_d4_results.json` | **CANON diag.** D4 adjust-swap equivalence bajo verifier actual (0 LLM calls). 6/10 equivalentes, 4/10 numerical_diff (pass-by-accident). |
+| `synthesis/suite2_stage1_split.json` | **CANON diag.** Stage1_fail split: 4 decision_fail + 2 crash. Hint #1: compiler nunca abstiene. |
 | `synthesis/eval_suite_science_coverage.md` | **CANON evaluation.** Suite 3: Science Coverage — corpus, mundos, harness |
 | `synthesis/scoring_relevance_design.md` | **CANON relevance.** Verdad vs relevancia, opciones de matching |
 | `synthesis/a27_answer_key_contract.md` | **CANON answer key.** Contrato del answer key rico |
