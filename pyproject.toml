@@ -34,12 +34,25 @@ dev = [
 # pre-1.0 and minor bumps have broken our imports before. `datasets` has
 # a much more stable API so a minimum floor is enough.
 #
-# NOT included: `verifiers-rl` (Linux + CUDA only — would break Windows
-# dev env). Will land in a separate `rl` extra when the training script
-# lives next to it.
+# NOT included here: `verifiers-rl` (Linux + CUDA only — would break
+# Windows dev env). That lives in the `rl` extra below.
 training = [
     "verifiers==0.1.11",
     "datasets>=2.0",
+]
+
+# RL trainer extra. Install on the H100 host only: `pip install -e ".[rl]"`.
+# Pulls `verifiers-rl` (GRPO trainer on top of transformers/accelerate/vllm/peft).
+# Intentionally installed via git+subdirectory so we track the same commit
+# as the pinned `verifiers==0.1.11` — both packages live in the same
+# monorepo and need to be compatible. Switch to pypi `verifiers-rl==x.y`
+# once the trainer API stabilizes.
+#
+# Windows compat: do NOT install this on dev. The underlying deps
+# (deepspeed, bitsandbytes via peft, vllm, triton) assume Linux+CUDA.
+# That's why we keep `training` and `rl` as separate extras.
+rl = [
+    "verifiers-rl @ git+https://github.com/willccbb/verifiers.git@main#subdirectory=packages/verifiers-rl",
 ]
 
 [tool.setuptools.packages.find]

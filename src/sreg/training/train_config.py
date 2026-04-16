@@ -20,9 +20,14 @@ from typing import Any
 
 import yaml
 
-
 # Required fields and their expected types. Nested as tuple paths so the
 # same table drives both the validation loop and error messages.
+#
+# Note: the `training:` section is required even for --dry-run. The
+# dry-run only uses `dataset:` and `rollout:`, but a config without
+# `training:` is not a real training config — it has no reason to exist.
+# Keeping a single schema avoids "works for dry-run, blows up on
+# --train" surprises.
 _REQUIRED: dict[tuple[str, ...], type | tuple[type, ...]] = {
     ("dataset", "dir"): str,
     ("dataset", "train_cases"): list,
@@ -31,10 +36,34 @@ _REQUIRED: dict[tuple[str, ...], type | tuple[type, ...]] = {
     ("rollout", "max_turns"): int,
     ("rollout", "claim_cap"): int,
     ("rollout", "n_mc"): int,
+    # training: run identity
+    ("training", "model"): str,
+    ("training", "run_name"): str,
+    # training: GRPO batch structure
     ("training", "rollouts_per_example"): int,
+    ("training", "batch_size"): int,
+    ("training", "micro_batch_size"): int,
     ("training", "max_concurrent"): int,
+    # training: steps + seed
     ("training", "total_steps"): int,
     ("training", "seed"): int,
+    # training: sequence / sampling limits
+    ("training", "max_tokens"): int,
+    ("training", "max_seq_len"): int,
+    # training: optimizer
+    ("training", "learning_rate"): (int, float),
+    # training: LoRA
+    ("training", "use_lora"): bool,
+    ("training", "lora_rank"): int,
+    ("training", "lora_alpha"): int,
+    # training: vLLM server (policy inference during --train)
+    ("training", "vllm_server_host"): str,
+    ("training", "vllm_server_port"): int,
+    # training: logging + checkpointing
+    ("training", "save_steps"): int,
+    ("training", "logging_steps"): int,
+    # report_to is str | None so the smoke can run without wandb
+    ("training", "report_to"): (str, type(None)),
 }
 
 
@@ -152,12 +181,66 @@ def validate_config(cfg: dict) -> None:
             f"rollout.temperature out of [0, 2]: "
             f"{cfg['rollout']['temperature']}"
         )
-    if cfg["training"]["rollouts_per_example"] < 1:
-        raise ValueError("training.rollouts_per_example must be >= 1")
+    # RLConfig asserts rollouts_per_example > 1 (GRPO variance requirement).
+    # Keep it as >= 2 at config-time so the trainer doesn't blow up
+    # halfway through setup.
+    if cfg["training"]["rollouts_per_example"] < 2:
+        raise ValueError(
+            "training.rollouts_per_example must be >= 2 "
+            "(GRPO requires variance within a group; RLConfig asserts this)"
+        )
     if cfg["training"]["max_concurrent"] < 1:
         raise ValueError("training.max_concurrent must be >= 1")
     if cfg["training"]["total_steps"] < 1:
         raise ValueError("training.total_steps must be >= 1")
+    if cfg["training"]["batch_size"] < 1:
+        raise ValueError("training.batch_size must be >= 1")
+    if cfg["training"]["micro_batch_size"] < 1:
+        raise ValueError("training.micro_batch_size must be >= 1")
+
+    # batch_size counts TOTAL rollouts, not prompts. prompts_per_step is
+    # derived as batch_size / rollouts_per_example and must be an integer
+    # >= 1. A non-integer ratio means the orchestrator will silently drop
+    # rollouts; catch it here.
+    g = cfg["training"]["rollouts_per_example"]
+    bs = cfg["training"]["batch_size"]
+    if bs < g:
+        raise ValueError(
+            f"training.batch_size ({bs}) must be >= rollouts_per_example ({g}) "
+            f"(need at least 1 prompt per step)"
+        )
+    if bs % g != 0:
+        raise ValueError(
+            f"training.batch_size ({bs}) must be divisible by "
+            f"rollouts_per_example ({g}); got remainder {bs % g}"
+        )
+
+    # Sequence limits — max_seq_len must fit at least one full generation.
+    if cfg["training"]["max_tokens"] < 1:
+        raise ValueError("training.max_tokens must be >= 1")
+    if cfg["training"]["max_seq_len"] < cfg["training"]["max_tokens"]:
+        raise ValueError(
+            f"training.max_seq_len ({cfg['training']['max_seq_len']}) must be "
+            f">= max_tokens ({cfg['training']['max_tokens']})"
+        )
+
+    if cfg["training"]["learning_rate"] <= 0:
+        raise ValueError("training.learning_rate must be > 0")
+
+    if cfg["training"]["use_lora"]:
+        if cfg["training"]["lora_rank"] < 1:
+            raise ValueError("training.lora_rank must be >= 1 when use_lora=true")
+        if cfg["training"]["lora_alpha"] < 1:
+            raise ValueError("training.lora_alpha must be >= 1 when use_lora=true")
+
+    port = cfg["training"]["vllm_server_port"]
+    if not (1 <= port <= 65535):
+        raise ValueError(f"training.vllm_server_port out of range: {port}")
+
+    if cfg["training"]["save_steps"] < 1:
+        raise ValueError("training.save_steps must be >= 1")
+    if cfg["training"]["logging_steps"] < 1:
+        raise ValueError("training.logging_steps must be >= 1")
 
 
 __all__ = ["load_config", "validate_config"]

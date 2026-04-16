@@ -8,27 +8,24 @@ Two modes:
                 for a real training run: if the wiring is broken, it
                 surfaces here in ~3 min instead of 30 hours into a job.
 
-    --train     Actual GRPO training loop. Requires verifiers-rl
-                (Linux + CUDA). Currently a scaffold that raises
-                NotImplementedError — the loop lands once the `rl`
-                extra is defined and a Qwen3-8B LoRA config is wired.
+    --train     GRPO training loop via verifiers_rl.RLTrainer.
+                Requires `pip install -e ".[rl]"` on a Linux+CUDA host
+                AND a vLLM server running at the host:port specified in
+                `training.vllm_server_*`. Fails fast with a clear
+                message on Windows dev or if vLLM is unreachable.
 
 Config:
     configs/smoke_rl.yaml (or whatever path is passed via --config)
     See src/sreg/training/train_config.py for the accepted schema.
 
 Usage:
-    # Windows dev / Azure scorer smoke
+    # Windows dev / Azure scorer smoke (gate — always run before --train)
     export SREG_P05_BATCH="/path/to/results/p05_canonical_batch"
     python scripts/train_sreg.py --config configs/smoke_rl.yaml --dry-run
 
     # H100 smoke — policy on local vLLM, scorer on Azure
-    python scripts/train_sreg.py --config configs/smoke_rl.yaml --dry-run \\
-        --policy-base-url http://localhost:8000/v1 \\
-        --policy-model Qwen/Qwen3-8B \\
-        --policy-api-key-var VLLM_API_KEY
-
-    # H100 real training (pending verifiers-rl)
+    # Step 1 (separate pane): vf-vllm serve Qwen/Qwen3-8B ...
+    # Step 2:
     python scripts/train_sreg.py --config configs/smoke_rl.yaml --train
 """
 
@@ -209,35 +206,150 @@ def dry_run(cfg: dict, policy_cfg: RoleConfig, scorer_cfg: RoleConfig) -> bool:
     return ok
 
 
-def train(cfg: dict, policy_cfg: RoleConfig, scorer_cfg: RoleConfig) -> None:
-    """Run the actual GRPO training loop. Requires verifiers-rl.
+def _build_rl_config(cfg: dict):
+    """Map our YAML `training:` section to `verifiers_rl.RLConfig`.
 
-    Currently a scaffold: the trainer integration lands when the `rl`
-    extra is defined on a Linux+CUDA host. Use --dry-run until then.
+    We keep a YAML schema (not TOML as the upstream `vf-rl` convention
+    expects) because the same file drives the `--dry-run` gate + dataset
+    split + role configs, none of which fit into `RLConfig` cleanly.
+    Price paid: this mapping function. Cheap.
+
+    Fields NOT mapped here use RLConfig defaults (lora_dropout, bf16,
+    lr_scheduler_type, save_strategy, mask_env_responses, etc.). That
+    keeps the YAML focused on decisions we've actually made.
+    """
+    from verifiers_rl.rl.trainer import RLConfig
+
+    t = cfg["training"]
+    return RLConfig(
+        # run identity
+        run_name=t["run_name"],
+        output_dir=f"outputs/{t['run_name']}",
+        # batch structure — see configs/smoke_rl.yaml for semantics
+        rollouts_per_example=t["rollouts_per_example"],
+        batch_size=t["batch_size"],
+        micro_batch_size=t["micro_batch_size"],
+        max_concurrent=t["max_concurrent"],
+        # steps
+        max_steps=t["total_steps"],
+        seed=t["seed"],
+        # sampling / sequence
+        max_tokens=t["max_tokens"],
+        max_seq_len=t["max_seq_len"],
+        temperature=cfg["rollout"]["temperature"],
+        # optimizer
+        learning_rate=t["learning_rate"],
+        # LoRA
+        use_lora=t["use_lora"],
+        lora_rank=t["lora_rank"],
+        lora_alpha=t["lora_alpha"],
+        # vLLM server
+        vllm_server_host=t["vllm_server_host"],
+        vllm_server_port=t["vllm_server_port"],
+        # logging / checkpointing
+        save_steps=t["save_steps"],
+        logging_steps=t["logging_steps"],
+        report_to=t["report_to"] if t["report_to"] is not None else "none",
+    )
+
+
+def _dump_config_snapshot(cfg: dict, rl_config, output_dir: Path) -> None:
+    """Dump resolved YAML + RLConfig to the run's output dir.
+
+    Reproducibility: the run YAML is env-var-expanded and maps into
+    RLConfig with defaults filled in. A year from now nobody remembers
+    what RLConfig defaults were on this date. Snapshot both so the
+    training run is self-describing.
+    """
+    import json
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(output_dir / "config_resolved.json", "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2, default=str)
+
+    # RLConfig is a dataclass extending TrainingArguments — not trivially
+    # json-serializable (has Path, dtype, enum). to_dict() on
+    # TrainingArguments handles it.
+    try:
+        rl_dict = rl_config.to_dict()
+    except Exception:
+        rl_dict = {"_note": "rl_config.to_dict() failed; see RLConfig source"}
+    with open(output_dir / "rl_config.json", "w", encoding="utf-8") as f:
+        json.dump(rl_dict, f, indent=2, default=str)
+
+
+def train(cfg: dict, policy_cfg: RoleConfig, scorer_cfg: RoleConfig) -> None:
+    """Run the GRPO training loop via verifiers_rl.RLTrainer.
+
+    Requires verifiers-rl (Linux+CUDA). Before calling this, a vLLM
+    server must be serving the model at `training.vllm_server_host:port`
+    — typically launched via `vf-vllm` or `vf-rl` in a separate tmux
+    pane. We do NOT start vLLM from here because it needs its own GPUs.
+
+    Flow:
+      1. Import verifiers_rl (fails hard w/ clear error on Windows dev)
+      2. Build env + train dataset (same wiring as dry-run)
+      3. Build RLConfig from YAML
+      4. Snapshot resolved config to outputs/<run_name>/
+      5. RLTrainer(model, env, args).train()
+
+    The scorer is still on Azure — embedded in SregEnv via `llm_call`.
+    On H100 the policy rollouts (vLLM) are fast; the Azure scorer is the
+    bottleneck. See smoke_rl.yaml for the tuning tradeoff.
     """
     try:
-        import verifiers_rl  # noqa: F401
-    except ImportError:
+        from verifiers_rl.rl.trainer import RLTrainer
+    except ImportError as e:
         print(
             "\nERROR: verifiers-rl is not installed.\n"
             "  This extra is Linux+CUDA only; it intentionally is NOT "
             "part of the `training` extra\n"
             "  because importing it on Windows dev would break the env.\n"
-            "  On the training host: pip install verifiers-rl\n"
-            "  (The `rl` extra in pyproject.toml will be added with the "
-            "full trainer wiring.)\n"
-            "  For now, only --dry-run is supported.",
+            f"  Import error: {e}\n"
+            "  On the H100 host: pip install -e \".[rl]\"\n"
+            "  Then make sure a vLLM server is running at "
+            "training.vllm_server_host:port before calling --train.",
             file=sys.stderr,
         )
         sys.exit(3)
 
-    # Intentional: fail loud if someone runs --train before the trainer
-    # integration is wired. Better to error here than silently no-op.
-    raise NotImplementedError(
-        "train() scaffold: needs verifiers-rl trainer API confirmed, "
-        "Qwen3-8B LoRA config wired, and smoke on H100. Use --dry-run "
-        "to validate the env/dataset/client wiring."
-    )
+    print("\n=== TRAIN ===")
+    print(f"  Model:   {cfg['training']['model']}")
+    print(f"  Run:     {cfg['training']['run_name']}")
+    print(f"  Steps:   {cfg['training']['total_steps']}")
+    print(f"  G:       {cfg['training']['rollouts_per_example']}")
+    print(f"  Batch:   {cfg['training']['batch_size']} rollouts/step "
+          f"({cfg['training']['batch_size'] // cfg['training']['rollouts_per_example']} "
+          f"prompts/step)")
+
+    # Same wiring as dry-run: SregEnv + HF train dataset built from YAML.
+    # Note: the policy_cfg is ignored at train time — the trainer reads
+    # the model name from YAML and connects to the vLLM server directly.
+    # policy_cfg is still resolved up in main() because it's needed for
+    # eval hooks (if we add them later) and for symmetry with --dry-run.
+    env, train_ds = _build_env_and_dataset(cfg, scorer_cfg)
+    print(f"  Dataset rows: {len(train_ds)}")
+    print(f"  Scorer:  {scorer_cfg.model} @ {scorer_cfg.base_url[:50]}...")
+    print(f"  vLLM:    http://{cfg['training']['vllm_server_host']}:"
+          f"{cfg['training']['vllm_server_port']}")
+
+    rl_config = _build_rl_config(cfg)
+    output_dir = Path(rl_config.output_dir)
+    _dump_config_snapshot(cfg, rl_config, output_dir)
+    print(f"  Output:  {output_dir.resolve()}")
+
+    # RLTrainer instantiation triggers:
+    #   - model + tokenizer load
+    #   - LoRA wrap (if use_lora)
+    #   - vLLM client init (requires server to be up)
+    #   - Orchestrator start + first batch submit
+    # If vLLM is down this is where we fail fast.
+    trainer = RLTrainer(model=cfg["training"]["model"], env=env, args=rl_config)
+
+    print("\n  Starting trainer.train() — this blocks until max_steps hit.")
+    trainer.train()
+    print("\n=== TRAIN COMPLETE ===")
 
 
 def main():
@@ -262,9 +374,10 @@ def main():
     mode.add_argument(
         "--train", action="store_true",
         help=(
-            "GRPO training loop. Requires verifiers-rl (Linux+CUDA). "
-            "Currently a scaffold — raises NotImplementedError until "
-            "the trainer integration lands."
+            "GRPO training loop via verifiers_rl.RLTrainer. Requires "
+            "verifiers-rl installed (Linux+CUDA host) AND a vLLM server "
+            "up at training.vllm_server_host:port. Fails fast with exit "
+            "code 3 if the import fails (e.g. running on Windows dev)."
         ),
     )
     # Role overrides — same names as eval_oi.py so muscle memory carries.

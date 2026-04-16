@@ -49,10 +49,57 @@ rollout:
 # Training loop config. Smoke values — the canonical run lifts most of
 # these (see research/synthesis/sreg_training_transfer_protocol.md
 # "Lo que todavia falta fijar").
+#
+# IMPORTANT — batch_size semantics in RLConfig:
+#   batch_size           = total ROLLOUTS per global step (NOT prompts)
+#   rollouts_per_example = G (rollouts per prompt; >= 2 for GRPO variance)
+#   prompts_per_step     = batch_size / rollouts_per_example  (derived)
+#   micro_batch_size     = rollouts per GPU per grad-accum step
+#   assert batch_size % (micro_batch_size * num_processes) == 0
+#
+# Smoke numbers (2026-04-15, Codex-calibrated):
+#   batch_size=8, G=4         -> 2 prompts per step, 8 rollouts
+#   max_steps=10              -> 80 rollouts total for the smoke
+#   max_concurrent=8          -> vLLM parallelism on H100
+#   scorer Azure concurrency  -> raised to 2 for training (was 1 for dry-run)
+#                                to keep scoring out of the critical path.
+#                                Canonical: revisit once vLLM is the
+#                                bottleneck, not Azure.
+#
+# The dry-run gate ignores most of these (it hardcodes num_examples=1,
+# rollouts=1). They only matter for --train.
 training:
-  rollouts_per_example: 2  # G for GRPO. Smoke: 2 to keep wall-clock
-                           # bounded. Canonical: 4-8 for usable variance.
-  max_concurrent: 1        # Azure scorer rate-limit. vLLM local: 4-8.
-  total_steps: 50          # smoke. Canonical: 500-2000.
-  seed: 42                 # = v1 canonical seed.
-  # learning_rate: TBD    # wires up when verifiers-rl lands.
+  # Model + run identity
+  model: Qwen/Qwen3-8B
+  run_name: smoke_sreg_rl_0
+
+  # GRPO batch structure
+  rollouts_per_example: 4    # G. RLConfig asserts >= 2. Canonical: 8-16.
+  batch_size: 8              # rollouts per step (2 prompts x G=4)
+  micro_batch_size: 1        # H100 80GB + Qwen3-8B LoRA entra con mb=1
+  max_concurrent: 8          # policy rollouts to vLLM. Canonical: 16-32.
+
+  # Training steps
+  total_steps: 10            # smoke. Canonical: 500-2000.
+  seed: 42                   # = v1 canonical.
+
+  # Sequence / sampling limits — OI is multi-turn, defaults truncate
+  max_tokens: 1024           # per-turn cap. Canonical: 2048 if truncation hurts.
+  max_seq_len: 8192          # full sequence. OI typical: 10-15 turns.
+
+  # Optimizer
+  learning_rate: 1.0e-5      # RLConfig default; safe starting point for LoRA.
+
+  # LoRA (Qwen3-8B uses LLaMA-style attention so default target_modules work)
+  use_lora: true
+  lora_rank: 16              # RLConfig default is 8; 16 is typical for 8B.
+  lora_alpha: 32             # 2x rank is the "stable" ratio.
+
+  # vLLM server (must be up BEFORE `--train` — `vf-rl` or manual `vf-vllm`)
+  vllm_server_host: 0.0.0.0
+  vllm_server_port: 8000
+
+  # Logging + checkpointing (conservative for smoke)
+  save_steps: 10             # 1 checkpoint at end of smoke.
+  logging_steps: 1           # every step — smoke visibility.
+  report_to: null            # set to "wandb" on H100 if WANDB_API_KEY set.

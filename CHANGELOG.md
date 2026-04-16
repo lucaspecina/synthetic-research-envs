@@ -5,6 +5,80 @@
 
 ## [Unreleased]
 
+### 2026-04-15 — training harness: `--train` implemented (GRPO via verifiers-rl)
+
+**Por que**: el commit anterior (`--dry-run` gate) validaba el wiring pero
+dejaba `--train` como scaffold con `NotImplementedError`. Este commit
+completa el loop: `--train` ahora instancia `verifiers_rl.RLTrainer` y
+llama `trainer.train()`. **Se puede entrenar en H100.**
+
+Investigacion antes de codear: lei la source de `verifiers-rl` en
+`willccbb/verifiers` monorepo (`packages/verifiers-rl/verifiers_rl/rl/trainer/`).
+Confirmaciones clave:
+- `RLTrainer(model, env, args)` — env es el objeto, no un slug; no hay
+  que registrar SregEnv como entry_point.
+- `RLConfig` extiende `TrainingArguments`. Asserts: `batch_size %
+  (micro_batch_size * num_processes) == 0` y `rollouts_per_example > 1`.
+- `batch_size` cuenta ROLLOUTS totales, no prompts. `prompts_per_step =
+  batch_size / rollouts_per_example` (linea 81 de orchestrator).
+- Orchestrator llama `env.get_dataset()` + `env.generate()` async.
+  SregEnv ya satisface esto (hereda de Environment).
+
+**Decisiones (consultadas con Codex thread 019d8842...):**
+- **YAML como source of truth** + mapping manual a `RLConfig`, no TOML.
+  Nuestro YAML captura cosas que `RLConfig` no cubre (split train/holdout,
+  dual role policy/scorer) y evita atarnos al CLI `vf-rl`.
+- **Env instanciado directo** (no entry_point). Mas simple.
+- **Smoke conservador** (Codex empujo fuerte acá vs. mi propuesta inicial):
+  `batch_size=8, G=4, max_steps=10` → 80 rollouts totales para el
+  primer encendido. Mi plan original (`batch_size=16, max_steps=50`)
+  era demasiado para un smoke con scorer Azure.
+- **LoRA 16/32** (rank=16, alpha=32) — mas sano que el default RLConfig
+  (8/32) para un modelo de 8B.
+- **`max_seq_len=8192, max_tokens=1024`** — OI es multi-turn, el default
+  2048 truncaria. `max_tokens=1024` per-turn para acotar costo/latencia.
+- **`max_concurrent=8`** para vLLM (no 64, no 1024). Subir solo despues
+  de medir.
+
+**Cambios:**
+- Nuevo extra `rl` en `pyproject.toml`: `verifiers-rl @ git+...
+  @main#subdirectory=packages/verifiers-rl`. Intencionalmente separado
+  del extra `training` — `verifiers-rl` pulls deepspeed/vllm/triton
+  que rompen el env en Windows dev. Install solo en el host H100:
+  `pip install -e ".[rl]"`.
+- `configs/smoke_rl.yaml` extendido: nueva seccion `training:` con todos
+  los params del trainer (model, run_name, batch sizes, LoRA, vLLM
+  server, logging). Comentarios explicitos sobre semantica de
+  `batch_size` (rollouts, no prompts).
+- `src/sreg/training/train_config.py`: 14 fields nuevos required en
+  `training:` section + validaciones semanticas (`batch_size % G == 0`,
+  `max_seq_len >= max_tokens`, `lora_rank >= 1 if use_lora`, etc.).
+- `scripts/train_sreg.py::train()`: implementacion real. Lazy-importa
+  `verifiers_rl.rl.trainer.RLTrainer`, exit 3 + mensaje claro si falta.
+  Si esta, mapea YAML → `RLConfig` via `_build_rl_config()`, dumpea
+  snapshot JSON a `outputs/<run_name>/` para reproducibilidad, y llama
+  `trainer.train()`. El vLLM server debe estar levantado antes (no lo
+  lanzamos desde aca — necesita GPUs propias).
+- Tests: +13 (`test_rollouts_per_example_min_2`,
+  `test_batch_size_not_divisible_by_G`, `test_batch_size_smaller_than_G`,
+  `test_max_seq_len_smaller_than_max_tokens`, `test_zero_max_tokens`,
+  `test_negative_learning_rate`, `test_zero_learning_rate`,
+  `test_lora_rank_zero_when_use_lora`, `test_lora_rank_zero_ok_when_use_lora_false`,
+  `test_vllm_port_out_of_range`, `test_zero_micro_batch_size`,
+  `test_report_to_none_is_ok`, `test_report_to_wandb_is_ok`). Total
+  36/36 en `test_train_config.py`.
+- `--dry-run` verificado que sigue funcionando contra el nuevo YAML
+  (load + validate en Python OK; el rollout real se corrio en el commit
+  anterior y no cambio).
+
+**Lo que todavia falta para correr en H100 (fuera de scope este commit):**
+- Levantar la maquina H100 + `pip install -e ".[rl]"`.
+- Correr `vf-vllm` (o `vf-rl` que lanza todo junto) para servir
+  Qwen3-8B al `vllm_server_host:port` del YAML.
+- `python scripts/train_sreg.py --config configs/smoke_rl.yaml --train`.
+- Medir BEFORE (`eval_oi.py` sobre held-out) y AFTER (mismo eval con
+  checkpoint LoRA) — este es el test del paper, no la suite.
+
 ### 2026-04-15 — training harness: config-driven dry-run gate
 
 **Por que**: `scripts/train_sreg.py` es la puerta al loop GRPO real, pero

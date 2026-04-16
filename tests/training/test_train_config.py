@@ -30,7 +30,11 @@ def _write_yaml(tmp_path: Path, body: str) -> Path:
 
 
 def _valid_cfg(dataset_dir: Path) -> dict:
-    """Minimal valid cfg dict. Mutate in individual tests to trigger failures."""
+    """Minimal valid cfg dict. Mutate in individual tests to trigger failures.
+
+    Keep this in sync with `_REQUIRED` in train_config.py — every required
+    field must be present here or every test blows up on MissingKey.
+    """
     return {
         "dataset": {
             "dir": str(dataset_dir),
@@ -44,10 +48,25 @@ def _valid_cfg(dataset_dir: Path) -> dict:
             "n_mc": 10000,
         },
         "training": {
-            "rollouts_per_example": 2,
-            "max_concurrent": 1,
-            "total_steps": 50,
+            "model": "Qwen/Qwen3-8B",
+            "run_name": "test_run",
+            "rollouts_per_example": 4,
+            "batch_size": 8,
+            "micro_batch_size": 1,
+            "max_concurrent": 8,
+            "total_steps": 10,
             "seed": 42,
+            "max_tokens": 1024,
+            "max_seq_len": 8192,
+            "learning_rate": 1.0e-5,
+            "use_lora": True,
+            "lora_rank": 16,
+            "lora_alpha": 32,
+            "vllm_server_host": "0.0.0.0",
+            "vllm_server_port": 8000,
+            "save_steps": 10,
+            "logging_steps": 1,
+            "report_to": None,
         },
     }
 
@@ -222,4 +241,107 @@ class TestValidateConfig:
         cfg = _valid_cfg(d)
         cfg["dataset"]["train_cases"] = ["a"]
         cfg["dataset"]["holdout_cases"] = []
+        validate_config(cfg)  # no raise
+
+    # --- trainer-specific invariants ---
+
+    def test_rollouts_per_example_min_2(self, tmp_path):
+        """GRPO requires G >= 2. RLConfig asserts this too — catch at config."""
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["rollouts_per_example"] = 1
+        cfg["training"]["batch_size"] = 8  # divisible so we hit the G check
+        with pytest.raises(ValueError, match="rollouts_per_example.*>= 2"):
+            validate_config(cfg)
+
+    def test_batch_size_not_divisible_by_G(self, tmp_path):
+        """batch_size / G must be an integer (prompts_per_step)."""
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["batch_size"] = 7
+        cfg["training"]["rollouts_per_example"] = 4
+        with pytest.raises(ValueError, match="divisible by"):
+            validate_config(cfg)
+
+    def test_batch_size_smaller_than_G(self, tmp_path):
+        """Need at least 1 prompt per step, so batch_size >= G."""
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["batch_size"] = 2
+        cfg["training"]["rollouts_per_example"] = 4
+        with pytest.raises(ValueError, match=">= rollouts_per_example"):
+            validate_config(cfg)
+
+    def test_max_seq_len_smaller_than_max_tokens(self, tmp_path):
+        """max_seq_len has to fit at least one generation."""
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["max_tokens"] = 2048
+        cfg["training"]["max_seq_len"] = 1024
+        with pytest.raises(ValueError, match="max_seq_len.*>= max_tokens"):
+            validate_config(cfg)
+
+    def test_zero_max_tokens(self, tmp_path):
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["max_tokens"] = 0
+        with pytest.raises(ValueError, match="max_tokens"):
+            validate_config(cfg)
+
+    def test_negative_learning_rate(self, tmp_path):
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["learning_rate"] = -1.0e-5
+        with pytest.raises(ValueError, match="learning_rate"):
+            validate_config(cfg)
+
+    def test_zero_learning_rate(self, tmp_path):
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["learning_rate"] = 0
+        with pytest.raises(ValueError, match="learning_rate"):
+            validate_config(cfg)
+
+    def test_lora_rank_zero_when_use_lora(self, tmp_path):
+        """If use_lora=True, rank must be >= 1. If use_lora=False we skip."""
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["use_lora"] = True
+        cfg["training"]["lora_rank"] = 0
+        with pytest.raises(ValueError, match="lora_rank"):
+            validate_config(cfg)
+
+    def test_lora_rank_zero_ok_when_use_lora_false(self, tmp_path):
+        """LoRA disabled -> the LoRA knobs don't matter, don't block."""
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["use_lora"] = False
+        cfg["training"]["lora_rank"] = 0  # stale but ignored
+        validate_config(cfg)  # no raise
+
+    def test_vllm_port_out_of_range(self, tmp_path):
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["vllm_server_port"] = 70000
+        with pytest.raises(ValueError, match="vllm_server_port"):
+            validate_config(cfg)
+
+    def test_zero_micro_batch_size(self, tmp_path):
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["micro_batch_size"] = 0
+        with pytest.raises(ValueError, match="micro_batch_size"):
+            validate_config(cfg)
+
+    def test_report_to_none_is_ok(self, tmp_path):
+        """Smoke can run without wandb — report_to: null in YAML."""
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["report_to"] = None
+        validate_config(cfg)  # no raise
+
+    def test_report_to_wandb_is_ok(self, tmp_path):
+        d = _valid_dir_with_cases(tmp_path, ["a", "b", "c"])
+        cfg = _valid_cfg(d)
+        cfg["training"]["report_to"] = "wandb"
         validate_config(cfg)  # no raise
