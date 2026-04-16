@@ -390,9 +390,10 @@ específicamente, cuándo **no** usar `condition` y cuándo el par
 | Abstain decision | **Completamente rota** (0/4). Fix independiente. |
 | Pattern recognition | **69%**. Grueso aceptable, decision boundaries y CC-B5 fallan. |
 | Recipe knowledge — n_atoms, role_vars, measurement, comparison, assertion | **68-96%**. Variabilidad por familia. |
-| Recipe knowledge — **arm_kinds** | **50%**. El bottleneck duro. |
+| Recipe knowledge — **arm_kinds** | **50%** (bottleneck agregado). Split (§7.7): `single_causal` 79%, `multi_atom` 75%, `single_observational` **0/12**, `single_contrast_causal` **0/3**, `single_sweep` **0/3**. |
 | adjust_swap formalization | Upper bound 13→**24%** (no 31%). |
 | **Taxonomy consistency (arm.kind)** | **Contract bug** (§7.6): `baseline`/`observe` aliased inconsistentemente en 3 fuentes; `condition.values` documentado pero ignorado por verifier. **Prereq de Rama C** (I-030). |
+| **Cardinality (n_atoms)** | Hipótesis Codex refutada (§7.7 F7): 0/4 multi-atom collapse; opposite (10/45 single→multi raise). **No es blocker.** |
 
 ### 7.6 Taxonomy audit — `arm.kind` contract vs executor vs evaluator (0 LLM calls)
 
@@ -474,6 +475,403 @@ contradictorias; el audit confirma el bug y agrega más.
 - **Eliminar `values` del contrato de `condition`** en GRAMMAR_REF; dejarlo solo para `intervene`.
 - Reemplazar en `compile_claim_direct` el wording `"baseline (or observe)"` por regla discriminatoria por measurement: `correlation`/`partial_correlation` → baseline; filter point-value retrospectivo → observe; filter rich-predicate → condition.
 - Sync D2 diag prompt + strategy doc §8.3 con la spec unificada.
+
+### 7.7 D2 split analysis — arm_kinds bottleneck atribución (0 LLM calls)
+
+**Motivación.** D2 overall arm_kinds = 50%. Pero 50% uniforme vs 50% por
+dos modos muy distintos tiene implicancias opuestas para Rama C. Codex
+hipotetizó cardinality (multi-atom collapse) como driver secundario.
+Split el JSON de D2 por gold.n_atoms y por tipo de claim para refutar/
+confirmar la hipótesis y targetizar exemplares.
+
+Script: `scripts/suite2_diag_d2_split_analysis.py`. Output:
+`suite2_diag_d2_split_results.json`.
+
+**F7 — Cardinality collapse REFUTADA.**
+
+| Split | multi_atom_total | collapsed → 1 | kept multi | single_raised → multi |
+|---|---|---|---|---|
+| Valor | 4 | **0** | 4 | 10 |
+
+El compiler mantiene el n_atoms correcto en 100% de los 4 multi-atom
+golds. El error **opuesto** es más frecuente: 10/45 single-atom golds
+se predicen como multi-atom (split artificial). La hipótesis "exemplares
+Rama C deben enseñar bundle cardinality" es **rechazada** por los datos.
+Cardinality no es blocker secundario.
+
+**F8 — Arm_kinds bottleneck atribuido 100% a 3 buckets de claim:**
+
+| Bucket (gold) | n | arm_kinds acc | misses |
+|---|---|---|---|
+| `single_causal` (sola `[intervene]`) | 28 | **79%** | 6 |
+| `multi_atom` | 4 | **75%** | 1 |
+| `single_observational` (kinds ⊆ {baseline, observe, condition}) | 12 | **0%** | 12 |
+| `single_contrast_causal` (≥2 kinds con `intervene`, e.g. `[intervene, observe]`) | 3 | **0%** | 3 |
+| `single_sweep` | 3 | **0%** | 3 |
+
+→ **El 50% agregado esconde dos regímenes.** El compiler es
+razonablemente bueno (75-79%) en los modos que domina (intervene puro y
+multi-atom) y **completamente ciego** (0/18) en los otros tres.
+
+**F9 — F8 valida F1 empíricamente.**
+
+- `single_observational=0/12` es exactamente lo que predice F1: 3 voces
+  contradictorias sobre cuándo usar `baseline` vs `observe` vs
+  `condition`. Sin spec unificada, el LLM no converge en ninguno.
+- `single_contrast_causal=0/3` también depende de la misma decisión —
+  el segundo arm del par `[intervene, observe]` es el "observe" del
+  confounding contrast.
+- `single_sweep=0/3` es caso aparte: no hay exemplares ni definición
+  clara de cuándo "vary X" en la claim dispara sweep vs intervene
+  múltiples.
+
+**Implicancia para Rama C (scope reducido).** Los exemplares NO deben
+cubrir arm_kinds en general. Deben targetizar:
+- **12 `single_observational`** (post I-030, spec unificada): recipe
+  discriminatorio baseline vs observe vs condition según measurement y
+  tipo de filter.
+- **3 `single_contrast_causal`**: recipe del par intervene+observe para
+  confounding detection (CC-A5 y similar).
+- **3 `single_sweep`**: recipe sweep explícito + cuándo no usarlo.
+
+Total: 18/46 single-atom claims. Si C levanta esos 18 al 70%+ (y
+single_causal se queda al 79%), arm_kinds overall sube a
+`(28·0.79 + 4·0.75 + 18·0.70) / 50 ≈ 76%`. Objetivo realista post-I-030
++ Rama C focused.
+
+**Hint secundario de F7 (single → multi raising).** 10/45 single-atom
+golds se predicen multi. No es el blocker primario pero sugiere que el
+prompt actual over-segmenta. Documentar; no priorizar.
+
+### 7.8 D2 × verdict zipper — slot-fail → verdict-fail attribution (0 LLM calls)
+
+**Motivación.** D2 elicitation da arm_kinds 50% agregado pero no dice si
+los slot-fails **son los que causan** los verdict-fails del baseline v2.
+Join por `id` de `suite2_diag_d2_results.json` × `compiler_baseline_full_dump_v2.json`
+para cruzar bucket de baseline (full_pass / adjust_swap / verdict_wrong /
+real_struct_err / stage1_fail) × per-slot match de D2.
+
+Script: `scripts/suite2_diag_d2_verdict_zipper.py`. Output:
+`suite2_diag_d2_verdict_zipper.json`.
+
+**Per-bucket slot accuracy (cross-tab):**
+
+| bucket | n | status | n_atoms | arm_kinds | role_vars | measurement | comparison | assertion |
+|---|---|---|---|---|---|---|---|---|
+| full_pass | 7 | 71% | 83% | **17%** | 83% | 67% | 83% | 83% |
+| adjust_swap | 10 | 100% | 100% | **100%** | 100% | 90% | 100% | 100% |
+| verdict_wrong | 19 | 100% | 68% | **42%** | 95% | 79% | 42% | 47% |
+| real_struct_err | 13 | 100% | 69% | 46% | 100% | 54% | 69% | 62% |
+| stage1_fail | 6 | 67% | 100% (n=2) | 0% (n=2) | 100% | 100% | 100% | 100% |
+
+**F10 — `adjust_swap` es composition bug puro, NO recognition bug.**
+
+Los 10 casos de `adjust_swap` tienen:
+- **D2 arm_kinds = 100%** (el LLM elicita `[intervene]` correcto)
+- **9/10 con 0 slots D2 mal** (solo un CC-A1 tiene measurement_kind 1-miss)
+
+Cuando el compiler escribe la spec completa (Flow A `compile_claim_direct`),
+pone `adjust`. Cuando se le pregunta por slot por separado, pone `intervene`.
+**Recognition OK, synthesis broken.** Este es el patrón textbook de
+composition-gap predicho por D1-vs-D2 (§7.3 + §7.4) manifestado en datos
+del baseline.
+
+→ Rama B (adjust-swap formalization) tiene **evidencia directa**: no hace
+falta enseñarle que `adjust` ≠ `intervene` en el prompt a nivel lexical;
+hace falta arreglar la composición (exemplar showing "when gold=intervene,
+write intervene, don't collapse to adjust").
+
+**F11 — Inversión `full_pass` vs `adjust_swap` en arm_kinds.**
+
+| Bucket | D2 arm_kinds | Interpretación |
+|---|---|---|
+| `full_pass` (7 compiled OK) | **17%** (5/6 misses) | Compile_direct acertó, D2 falla |
+| `adjust_swap` (10 compiled mal) | **100%** | Compile_direct falló, D2 acierta |
+
+Las dos vías divergen en direcciones opuestas. Hipótesis:
+- Los full_pass del baseline son mayormente causales (CC-A1 single_causal
+  con `[intervene]` gold) donde D2 sufre la inconsistencia F1 y elicita
+  `[observe]` o `[baseline]`.
+- Los adjust_swap son justamente los casos donde compile_direct tiene su
+  bias propio a `adjust`, independiente del slot elicitation.
+
+**Implicancia: D2 y Flow A tienen biases ORTOGONALES.** No se puede
+tratar D2 como "ground truth sobre capability del LLM". Es una elicitación
+con su propio bias (el prompt de D2 enseña `[observe]` para claims
+asociacionales, lo cual es consistente con verifier pero inconsistente
+con Flow A actual). Post I-030 + sync del D2 taxonomy block, esta
+divergencia debería cerrarse.
+
+**F12 — `verdict_wrong` es multi-fault.**
+
+Distribución de n_slots_wrong en D2 para los 19 verdict_wrong:
+
+| n_slots_wrong | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| count | 2 | 4 | 4 | 5 | 4 |
+
+Promedio ≈ 2.4 slots mal por caso. Los tres slots que más concentran los
+misses en este bucket:
+- `arm_kinds` (11/19)
+- `comparison_kind` (11/19)
+- `assertion_polarity` (10/19)
+
+→ Rama C (exemplars) **no debería targetizar solo arm_kinds**. Los
+exemplares deben mostrar la **spec completa bien formada** (con
+comparison y assertion coherentes), no slots aislados. Este es input
+directo para el diseño de exemplares en I-026.
+
+**F13 — D2 como oracle: ruidoso, no limpio.**
+
+6 de 7 `full_pass` (casos que compilaron PERFECTO según el verifier)
+tienen ≥1 slot D2 mal. Esto descalifica D2 como "proxy de capability
+máxima del LLM". D2 es una elicitación con un prompt específico que
+tiene su propio bias. Interpretación correcta:
+- D2 captura **la probabilidad de que el LLM, en modo recognition
+  guiado, elija el slot correcto**, dado el prompt actual.
+- No captura **la capability máxima del LLM bajo compile_direct**.
+- El verdadero oracle es el baseline v2 full_pass set (aún con ruido
+  del seed).
+
+**Implicancia para el plan.** Cuando post-fix midamos el delta:
+- Target primario: arm_kinds accuracy en **`suite2_full_dump_v2.py` re-run**
+  (no en D2).
+- Target secundario: D2 sync (cuando I-030 aplique a `suite2_diag_d2_recipe_slots.py:112`,
+  el D2 arm_kinds debería subir por la simple sincronización del bloque
+  taxonómico del prompt, sin tocar el compiler).
+
+**Síntesis del zipper.**
+
+1. Adjust_swap = composition (F10) → Rama B validada.
+2. Observacional single-arm = F1/F9 (taxonomy) → Rama A (I-030) valida fix.
+3. verdict_wrong multi-fault (F12) → exemplares deben enseñar spec
+   completa, no slot aislado.
+4. D2 es proxy ruidoso (F13) → medir delta post-fix con full_dump_v2,
+   no con D2.
+
+### 7.9 D1 × D2 joint-failure matrix (0 LLM calls)
+
+**Motivación.** D1 mide recognition (family), D2 mide composition (slots),
+pero ¿son la misma habilidad? Join los 3 datasets (D1 × D2 × baseline)
+para construir 2×2 y cuantificar ortogonalidad.
+
+Script: `scripts/suite2_diag_d1_d2_joint_matrix.py`. Output:
+`suite2_diag_d1_d2_joint_results.json`.
+
+**Marginals.** D1 pass=38/55 (69%), D2-critical pass=27/55 (49%),
+D2-strict pass=14/55 (25%). Las tres métricas divergen mucho; no es
+una única escala de "capability".
+
+**Matriz A — D1 × D2-critical (arm_kinds match):**
+
+|  | D2-crit pass | D2-crit fail | total |
+|---|---|---|---|
+| D1 pass | 22 | 16 | 38 |
+| D1 fail | 5 | 12 | 17 |
+| total | 27 | 28 | 55 |
+
+φ = 0.26 (correlación positiva leve).
+
+**Matriz B — D1 × D2-strict (todos los 7 slots match):**
+
+|  | D2-strict pass | D2-strict fail | total |
+|---|---|---|---|
+| D1 pass | 9 | 29 | 38 |
+| D1 fail | 5 | 12 | 17 |
+| total | 14 | 41 | 55 |
+
+φ = −0.06 (esencialmente **ortogonal**).
+
+**F14 — D1 ⟂ D2-strict (φ=−0.06); acople leve con D2-critical (φ=0.26).**
+
+Recognition (family) y composition-completa (los 7 slots) son
+habilidades **independientes** sobre esta suite. Con D2-critical
+(arm_kinds match) hay acople POSITIVO leve — reconocer family ayuda
+un poco a acertar arm_kinds, pero no es predictivo. NO se puede decir
+"si mejoramos recognition, mejora composition-completa"; sí hay
+transferencia chica a arm_kinds específicamente.
+
+**F15 — `adjust_swap` confirma F10 a nivel matricial.**
+
+Los 10 adjust_swap se reparten: 6 en `D1-pass+D2-crit-pass`, 4 en
+`D1-fail+D2-crit-pass`. **100% en la columna D2-crit pass** (el LLM
+SIEMPRE elicita arm_kinds correcto en D2). Cuando compile_direct
+compone la spec entera, pone `adjust`. Confirma F10 y agrega:
+4 adjust_swap tienen D1 fail (no reconocen family) pero D2 arm_kinds
+OK (el prompt guiado compensa el fallo de recognition a nivel slot).
+
+**F16 — F13 confirmado con fuerza matricial.**
+
+Los 7 `full_pass` (casos que compilaron perfecto) se reparten:
+1 en `D1-pass+D2-crit-pass`, **5 en `D1-pass+D2-crit-fail`**, 1 en
+`D1-fail+D2-crit-fail`. **5 de 7 pasaron el verifier pero en D2 el
+arm_kinds falla.** D2 no es ground truth: el prompt de D2 tiene su
+propio bias, y los "capability-max" targets vienen de full_dump_v2
+full_pass, no de D2.
+
+**F17 — `verdict_wrong` sorprendentemente disperso.**
+
+Los 19 verdict_wrong se reparten **casi uniformemente** entre
+cuadrantes: 7 en `D1-pass+D2-pass`, 7 en `D1-pass+D2-fail`, 1 en
+`D1-fail+D2-pass`, 4 en `D1-fail+D2-fail`. **7 están en `D1-pass+D2-pass`**
+— el LLM reconoce family Y elige slots correctamente (arm_kinds), pero
+ASÍ Y TODO la spec final está mal.
+
+→ Hay un **tercer nivel de fallo** más fino: valores numéricos,
+`cond_set`, `adjust_set`, `condition_on`, que ni D1 ni D2 capturan.
+Los exemplares de Rama C deben enseñar no solo qué slot elegir sino
+los detalles completos de la spec.
+
+**F18 — Composition-gap cell: top slots que rompen.**
+
+Celda `D1-pass + D2-crit-fail` (n=16, el bloque principal de
+composition-gap): top slot misses =
+- arm_kinds: 14
+- comparison_kind: 8
+- assertion_polarity: 6
+- measurement_kind: 6
+
+Coincide con F12. **Los 4 slots principales de composition-gap son
+los mismos que dominan verdict_wrong.** Los exemplares deben
+targetizar los 4 conjuntamente, no solo arm_kinds.
+
+**F19 — `D1-fail + D2-pass` es bloque REAL, no anecdótico (n=5).**
+
+4 adjust_swap + 1 verdict_wrong. El prompt guiado de D2 logra que el
+LLM elicite arm_kinds correcto pese a no reconocer la family. Sugiere
+que el prompt de Flow A podría beneficiarse de una mini-scaffolding
+equivalente al bloque taxonómico de D2 (una vez unificado post I-030).
+
+**F20 — `D1-pass + D2-pass + baseline-FAIL` (n=13/22).**
+
+De los 22 casos con D1 pass Y D2-critical pass, **13 (59%) fallan el
+baseline**: 6 real_struct_err, 6 adjust_swap, 7 verdict_wrong, 2
+stage1_fail, 1 full_pass. **D1 y D2 son proxies insuficientes para
+predecir compile success.** Incluso con recognition + critical
+elicitation OK, compile_direct falla 59% de las veces. El error
+vive en composition completa de la spec (detail binding, valores,
+cond_set, adjust_set) — zona que ni D1 ni D2 prueban.
+
+**Follow-up sugerido (no blocker, post-merge).** Diagnóstico acotado
+D8 solo sobre los 13 targets de este cuadrante: reconstrucción de
+spec completa contra `full_dump_v2` para aislar si el fallo es
+detail-binding, serialization, o prompt-flow del compile_direct.
+Scope chico (~13 LLM calls), alto valor. Tracked como follow-up
+explícito, no como blocker del merge.
+
+**Síntesis del joint matrix.**
+
+1. Recognition ≠ composition (F14 ortogonales) — fix de uno no implica
+   fix del otro. Ramas A/B/C atacan targets distintos, no apilados.
+2. adjust_swap es composition-pure (F15) — Rama B es necesaria y
+   suficiente para ese bucket.
+3. D2 no es oracle (F16) — target primario post-fix es full_dump_v2,
+   D2 como secundario.
+4. verdict_wrong tiene fallos "ocultos" en D1+D2 pass (F17, F20) — los
+   exemplares deben enseñar spec completa incluso en casos que
+   "parecen OK" a nivel recognition + slot.
+5. Los 4 slots que dominan composition-gap (F18) son el set que los
+   exemplares I-026 deben cubrir conjuntamente.
+6. D2 prompt taxonomy bloque es efectivo (F19) — una vez unificado
+   post I-030, es candidato para inyectar scaffolding similar en
+   Flow A.
+
+### 7.10 D2 per-family × per-slot (input directo para I-026)
+
+**Motivación.** La vista agregada per-family del §7.4 suma match/total
+sobre slots, lo que oculta qué slot específico rompe en qué family. Para
+diseñar exemplares I-026 targeting-exact, hace falta cruzar family × slot
++ bucket mix + failure rate.
+
+Script: `scripts/suite2_diag_d2_per_family_slots.py`. Output:
+`suite2_diag_d2_per_family_slots.{json,md}`. Orden: peor weakest-slot
+primero, tie-break por n_targets desc.
+
+| family | n | status | n_atoms | arm_kinds | role_vars | meas_kind | comp_kind | assert | top-2 weak | fail rate | bucket mix |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| CC-A2 | 5 | 100% | 60% | **0%** | 100% | 0% | 100% | 80% | `arm_kinds` 0%, `measurement_kind` 0% | 80% | real_struct_err=4, full_pass=1 |
+| CC-A4 | 3 | 100% | 33% | **0%** | 100% | 100% | 0% | 33% | `arm_kinds` 0%, `comparison_kind` 0% | 100% | verdict_wrong=3 |
+| CC-A5 | 3 | 100% | 100% | **0%** | 100% | 0% | 0% | 33% | `arm_kinds` 0%, `measurement_kind` 0% | 100% | verdict_wrong=3 |
+| CC-B5 | 3 | 100% | 100% | **0%** | 100% | 100% | 100% | 100% | `arm_kinds` 0%, `n_atoms` 100% | 100% | stage1_fail=2, verdict_wrong=1 |
+| CC-E2 | 3 | 66% | 66% | **0%** | 66% | 66% | 66% | 33% | `arm_kinds` 0%, `assertion_polarity` 33% | 33% | full_pass=2, verdict_wrong=1 |
+| SQ-A1 | 3 | 100% | 100% | **100%** | 100% | 100% | 100% | 0% | `assertion_polarity` 0%, `n_atoms` 100% | 100% | real_struct_err=3 |
+| CC-D2 | 2 | 100% | 100% | **0%** | 100% | 0% | 0% | 0% | `arm_kinds` 0%, `measurement_kind` 0% | 100% | real_struct_err=1, verdict_wrong=1 |
+| SQ-A3 | 2 | 100% | 100% | **0%** | 100% | 100% | 100% | 100% | `arm_kinds` 0%, `n_atoms` 100% | 0% | full_pass=2 |
+| CC-A7 | 2 | 100% | 100% | **50%** | 100% | 100% | 50% | 0% | `assertion_polarity` 0%, `arm_kinds` 50% | 100% | verdict_wrong=2 |
+| CC-A3 | 8 | 100% | 37% | **75%** | 87% | 100% | 37% | 87% | `n_atoms` 37%, `comparison_kind` 37% | 100% | verdict_wrong=5, real_struct_err=3 |
+| CC-A8 | 2 | 100% | 50% | **100%** | 100% | 100% | 100% | 100% | `n_atoms` 50%, `arm_kinds` 100% | 50% | full_pass=1, real_struct_err=1 |
+| CC-C2 | 3 | 100% | 100% | **66%** | 100% | 66% | 66% | 100% | `arm_kinds` 66%, `measurement_kind` 66% | 100% | adjust_swap=2, real_struct_err=1 |
+| CC-A1 | 9 | 100% | 100% | **100%** | 100% | 88% | 100% | 88% | `measurement_kind` 88%, `assertion_polarity` 88% | 100% | adjust_swap=6, verdict_wrong=3 |
+| CC-D1 | 2 | 100% | 100% | **100%** | 100% | 100% | 100% | 100% | `n_atoms` 100%, `arm_kinds` 100% | 100% | adjust_swap=2 |
+| CC-E3 | 2 | 50% | — | — | — | — | — | — | — | 100% | stage1_fail=2 |
+| SQ-C1 | 2 | 0% | — | — | — | — | — | — | — | 50% | full_pass=1, stage1_fail=1 |
+| CC-E1 | 1 | 100% | — | — | — | — | — | — | — | 100% | stage1_fail=1 |
+
+**F21 — Bloque arm_kinds=0% (7 families, ~21 targets).**
+
+CC-A2, CC-A4, CC-A5, CC-B5, CC-E2, CC-D2, SQ-A3 tienen D2 arm_kinds=0%.
+Bucket mix dominado por verdict_wrong + real_struct_err. **Son el
+target primario de I-030 + I-026 Rama C.** Si post-fix estos 21 suben
+a ≥70%, arm_kinds overall se mueve de 50% a ~75%.
+
+**F22 — CC-A1 y CC-D1: composition-gap puro confirmado a nivel family.**
+
+- **CC-A1** (9 targets): todos los slots D2 ≥88%, fail rate 100%
+  (6 adjust_swap + 3 verdict_wrong). El LLM sabe los 7 slots pero
+  compile_direct colapsa a `adjust` o rompe detalles.
+- **CC-D1** (2 targets): 7/7 slots al 100%, fail rate 100% (2
+  adjust_swap). Caso canónico — **Rama B (adjust-swap) tiene que
+  fixear específicamente este patrón**.
+
+**F23 — SQ-A1 es el outlier inverso.**
+
+arm_kinds=100%, measurement_kind=100%, comparison_kind=100% — todo bien
+excepto `assertion_polarity=0%` (0/3) y todos son real_struct_err.
+**El fail es la polaridad, no los arms.** Sugiere que una clase del
+bucket real_struct_err se debe a assertion_polarity flipping, no a
+estructura. Investigar post-fix (rama independiente, chica).
+
+**F24 — Priorización de exemplars I-026 (derivada directa).**
+
+Orden de impacto por target-count × weakest-slot-severity:
+
+1. **arm_kinds=0% targets (21)**: CC-A2, CC-A4, CC-A5, CC-B5, CC-E2,
+   CC-D2, SQ-A3. Exemplars con discriminación baseline/observe/
+   condition según measurement + filter predicate (post I-030).
+2. **CC-A1 + CC-D1 (11 targets)**: Exemplars anti-`adjust-swap` —
+   "cuando gold=intervene, escribir `kind: intervene`, no `adjust`".
+3. **CC-A7 + SQ-A1 (5 targets)**: Exemplars con assertion_polarity
+   explícita para claims ambigua/contra-intuitivas.
+
+Total targeting: 37/55 (67%) del suite con ~3 exemplars bien elegidos.
+
+### 7.11 TL;DR del diagnostic battery (F1-F24)
+
+Los 24 findings se agrupan en 3 causas raíz atribuidas a fixes
+específicos + 1 follow-up:
+
+- **Contract inconsistency (F1-F9, F11, F21)** → atribuido a **I-030**.
+  Fix del contrato baseline/observe/condition + sync del D2 taxonomy
+  block. Target: 21 targets con D2 arm_kinds=0% (CC-A2, CC-A4, CC-A5,
+  CC-B5, CC-E2, CC-D2, SQ-A3).
+- **Composition gap puro (F10, F15, F22)** → atribuido a **I-026 Rama B**.
+  El LLM reconoce slots (D2 ≥88%) pero compile_direct colapsa a `adjust`
+  o rompe detalles. Target: CC-A1 + CC-D1 (11 targets) anti-adjust-swap.
+- **Multi-slot composition (F12, F17, F18, F23, F24)** → atribuido a
+  **I-026 Rama C**. Exemplars targeting 3 buckets: arm_kinds=0% (21) +
+  anti-adjust-swap (11) + assertion-polarity (5 — CC-A7 + SQ-A1) =
+  **37/55 (67%) del suite** con ~3 exemplars bien elegidos.
+- **Detail-binding black-box (F20)** → follow-up **I-031** (D8 post-fix).
+  13 targets donde D1 y D2 pass pero compile_direct falla — fuera del
+  alcance de los 3 exemplars. Diagnóstico quirúrgico post-fix.
+
+Además:
+- **D2 es proxy ruidoso (F13, F16)** — post-fix medir delta con
+  `full_dump_v2`, no con D2. D2 captura recognition guiada, no
+  capability del compile_direct.
+- **D1 ⟂ D2-strict (F14)** — recognition y composition completa son
+  habilidades independientes; el fix tiene targets separados, no
+  apilados.
 
 ## 8. Próximos pasos concretos (post-diagnostics)
 

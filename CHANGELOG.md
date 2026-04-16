@@ -5,6 +5,62 @@
 
 ## [Unreleased]
 
+### 2026-04-16 — Suite 2 closure package 5/5 (F1-F24 + I-031 opened)
+
+**Cierre del diagnóstico del compiler (I-007). 5 items: audit taxonómico
+(ayer) + 3 surfaces nuevos (hoy) + §7.11 TL;DR que mapea F1-F24 a 3
+causas raíz accionables + 1 follow-up post-fix (I-031). Ready para merge.**
+
+- **§7.8 D2 × verdict zipper** agregado a strategy doc
+  (`scripts/suite2_diag_d2_verdict_zipper.py`,
+  `research/synthesis/suite2_diag_d2_verdict_zipper.json`). Findings
+  F10-F13: (F10) adjust_swap cases muestran 100% D2 arm_kinds accuracy
+  pero `compile_direct` escribe `adjust` → composition gap puro, no
+  recognition; (F11) verdict_wrong concentra misses en `arm_kinds`
+  (33%) y `n_atoms` (48%); (F12) distribución n_slots_wrong del
+  baseline-fail sesga a 1-2 slots → fix multi-slot simultáneo; (F13)
+  6/7 full_pass tienen ≥1 D2 slot incorrecto → D2 tiene ruido, no es
+  oracle.
+- **§7.9 D1 × D2 joint matrix** agregado
+  (`scripts/suite2_diag_d1_d2_joint_matrix.py`,
+  `research/synthesis/suite2_diag_d1_d2_joint_results.json`). Findings
+  F14-F20: (F14) D1⟂D2-strict con φ=-0.06 → recognition y composition
+  completa son skills independientes; (F15-F16) ruido bidireccional en
+  ambas direcciones → ningún diagnostic solo puede predecir baseline;
+  (F17-F19) D1-pass+D2-pass+baseline-fail cubre 13/22 (59%) → hay tercer
+  nivel de fallo; (F20) "D1+D2-crit no son proxies suficientes de
+  compile success" → motiva I-031 (D8 post-fix).
+- **§7.10 D2 per-family × per-slot** agregado
+  (`scripts/suite2_diag_d2_per_family_slots.py`,
+  `research/synthesis/suite2_diag_d2_per_family_slots.{json,md}`).
+  Findings F21-F24: (F21) CC-A1 tiene todos los slots ≥88% pero 100%
+  fail rate → confirmación a nivel family del composition gap; (F22)
+  CC-D1 100% en todos los slots y 2/2 adjust_swap → composition pura;
+  (F23) bottleneck real es arm_kinds (0% en 9/17 families con n≥2);
+  (F24) 3 exemplares cubren 37/55 (67%) del suite — anti-adjust-swap
+  (11 targets), arm_kinds=0% (21 targets), assertion_polarity (5 targets).
+- **§7.11 TL;DR** agregado. Mapeo F1-F24 → 4 causas:
+  - **Contract inconsistency** (F1-F9, F11, F21) → I-030
+  - **Composition gap puro** (F10, F15, F22) → I-026 Rama B
+  - **Multi-slot composition** (F12, F17, F18, F23, F24) → I-026 Rama C
+  - **Detail-binding black-box** (F20) → I-031 D8 post-fix
+  - Caveats: D2 noise (F13, F16) → usar `full_dump_v2`, no D2 aislado;
+    D1⟂D2-strict (F14) → fix por separado, no stack.
+- **I-031 abierto** (`issues/I-031-d8-composition-detail-binding.md`):
+  D8 diagnostic sobre 13 targets D1-pass+D2-critical-pass+baseline-fail.
+  NO blocker del merge. Corre post I-029/I-030/I-026 + baseline
+  re-medido. Scope ~13 LLM calls. Clasifica detail-binding vs
+  serialization vs prompt-flow.
+- **TODO.md:** I-031 agregado en LATER/Eval.
+- **Codex checkpoint** (threadId `019d9855`): GO para merge. Sugerencias
+  aplicadas: F14/F20 wording preciso, §7.11 TL;DR estructurado,
+  SQ-A1 se queda como follow-up bajo I-026 (no abrir I-032).
+
+**Ownership rule post-merge:** `scripts/suite2_*`,
+`tests/eval/suite2_translation/*`, `research/synthesis/suite2_*`
+freezan en eval-suite. Cambios al compiler se hacen en worktree
+`compiler-fix`, que pulls del freeze y re-corre baseline v3.
+
 ### 2026-04-15 (PM3) — Suite 2 taxonomy audit + I-030 (baseline/observe/condition contract bugs)
 
 **Pre-closure del diagnóstico: antes de escribir exemplares para el

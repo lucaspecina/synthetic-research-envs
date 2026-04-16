@@ -42,6 +42,7 @@
 - [ ] I-028: Compiler emits sweep_values as list inside arm.values (schema violation)
 - [ ] I-029: Compiler never abstains (0/4 abstain decisions) — Suite 2 diagnostics hint #1
 - [ ] I-030: Compiler taxonomy spec alignment — baseline/observe aliased, condition.values ignored (prereq de I-026 Rama C)
+- [ ] I-031: D8 diagnostic — compile_direct detail-binding (follow-up post compiler-fix, §7.9 F20)
 
 **Training**
 - [ ] I-011: CausalReasoningBenchmark integration (T2)

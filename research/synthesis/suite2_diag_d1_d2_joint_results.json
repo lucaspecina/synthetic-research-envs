@@ -1,0 +1,969 @@
+{
+  "generated_by": "scripts/suite2_diag_d1_d2_joint_matrix.py",
+  "sources": {
+    "baseline": "research\\synthesis\\compiler_baseline_full_dump_v2.json",
+    "d1": "research\\synthesis\\suite2_diag_d1_results.json",
+    "d2": "research\\synthesis\\suite2_diag_d2_results.json"
+  },
+  "n_joined": 55,
+  "marginals": {
+    "d1_pass": 38,
+    "d2_critical_pass": 27,
+    "d2_strict_pass": 14,
+    "total": 55
+  },
+  "correlation_phi": {
+    "critical": 0.2632938204498985,
+    "strict": -0.06076164442163866
+  },
+  "matrix_critical": {
+    "d1_pass_d2_pass": {
+      "n": 22,
+      "by_bucket": {
+        "real_struct_err": 6,
+        "adjust_swap": 6,
+        "verdict_wrong": 7,
+        "full_pass": 1,
+        "stage1_fail": 2
+      },
+      "slot_miss_count": {
+        "assertion_polarity": 5,
+        "n_atoms": 6,
+        "comparison_kind": 5,
+        "measurement_kind": 1,
+        "role_vars": 1
+      },
+      "ids": [
+        "SQ_F01_s0",
+        "SQ_F01_s1",
+        "SQ_F01_s2",
+        "W1_F01_s0",
+        "W1_F01_s1",
+        "W1_F01_s2",
+        "W1_F03_s0",
+        "W1_F04_s0",
+        "W1_F05_s0",
+        "W1_F05_s1",
+        "W1_F05_s2",
+        "W1_F09_s0",
+        "W1_F09_s1",
+        "W2_F01_s0",
+        "W2_F01_s2",
+        "W2_F04_s0",
+        "W2_F04_s1",
+        "W3_F04_s0",
+        "W3_F08_s0",
+        "W3_F08_s1",
+        "W3_F11_s0",
+        "W3_F12_s1"
+      ]
+    },
+    "d1_pass_d2_fail": {
+      "n": 16,
+      "by_bucket": {
+        "full_pass": 5,
+        "stage1_fail": 1,
+        "verdict_wrong": 7,
+        "real_struct_err": 3
+      },
+      "slot_miss_count": {
+        "status": 3,
+        "arm_kinds": 14,
+        "assertion_polarity": 6,
+        "n_atoms": 3,
+        "comparison_kind": 8,
+        "measurement_kind": 6,
+        "role_vars": 1
+      },
+      "ids": [
+        "SQ_F07_s0",
+        "SQ_F07_s1",
+        "W1_F04_s2",
+        "W1_F06_s0",
+        "W1_F06_s1",
+        "W1_F06_s2",
+        "W1_F07_s0",
+        "W1_F07_s1",
+        "W2_F02_s0",
+        "W2_F02_s1",
+        "W2_F09_s0",
+        "W2_F09_s1",
+        "W3_F04_s1",
+        "W3_F05_s1",
+        "W3_F05_s2",
+        "W3_F08_s2"
+      ]
+    },
+    "d1_fail_d2_pass": {
+      "n": 5,
+      "by_bucket": {
+        "adjust_swap": 4,
+        "verdict_wrong": 1
+      },
+      "slot_miss_count": {},
+      "ids": [
+        "W1_F03_s1",
+        "W1_F03_s2",
+        "W2_F01_s1",
+        "W2_F11_s0",
+        "W2_F11_s1"
+      ]
+    },
+    "d1_fail_d2_fail": {
+      "n": 12,
+      "by_bucket": {
+        "real_struct_err": 4,
+        "verdict_wrong": 4,
+        "full_pass": 1,
+        "stage1_fail": 3
+      },
+      "slot_miss_count": {
+        "arm_kinds": 11,
+        "measurement_kind": 6,
+        "comparison_kind": 3,
+        "assertion_polarity": 5,
+        "n_atoms": 2,
+        "status": 1
+      },
+      "ids": [
+        "W1_F04_s1",
+        "W1_F07_s2",
+        "W2_F02_s2",
+        "W2_F06_s0",
+        "W2_F06_s1",
+        "W2_F07_s0",
+        "W2_F07_s1",
+        "W3_F03_s0",
+        "W3_F03_s1",
+        "W3_F03_s2",
+        "W3_F05_s0",
+        "W3_F12_s0"
+      ]
+    }
+  },
+  "matrix_strict": {
+    "d1_pass_d2_pass": {
+      "n": 9,
+      "by_bucket": {
+        "adjust_swap": 5,
+        "full_pass": 1,
+        "verdict_wrong": 1,
+        "stage1_fail": 2
+      },
+      "slot_miss_count": {},
+      "ids": [
+        "W1_F01_s0",
+        "W1_F01_s1",
+        "W1_F03_s0",
+        "W1_F09_s0",
+        "W2_F01_s2",
+        "W3_F08_s0",
+        "W3_F08_s1",
+        "W3_F11_s0",
+        "W3_F12_s1"
+      ]
+    },
+    "d1_pass_d2_fail": {
+      "n": 29,
+      "by_bucket": {
+        "real_struct_err": 9,
+        "full_pass": 5,
+        "stage1_fail": 1,
+        "verdict_wrong": 13,
+        "adjust_swap": 1
+      },
+      "slot_miss_count": {
+        "assertion_polarity": 11,
+        "status": 3,
+        "n_atoms": 9,
+        "arm_kinds": 14,
+        "comparison_kind": 13,
+        "measurement_kind": 7,
+        "role_vars": 2
+      },
+      "ids": [
+        "SQ_F01_s0",
+        "SQ_F01_s1",
+        "SQ_F01_s2",
+        "SQ_F07_s0",
+        "SQ_F07_s1",
+        "W1_F01_s2",
+        "W1_F04_s0",
+        "W1_F04_s2",
+        "W1_F05_s0",
+        "W1_F05_s1",
+        "W1_F05_s2",
+        "W1_F06_s0",
+        "W1_F06_s1",
+        "W1_F06_s2",
+        "W1_F07_s0",
+        "W1_F07_s1",
+        "W1_F09_s1",
+        "W2_F01_s0",
+        "W2_F02_s0",
+        "W2_F02_s1",
+        "W2_F04_s0",
+        "W2_F04_s1",
+        "W2_F09_s0",
+        "W2_F09_s1",
+        "W3_F04_s0",
+        "W3_F04_s1",
+        "W3_F05_s1",
+        "W3_F05_s2",
+        "W3_F08_s2"
+      ]
+    },
+    "d1_fail_d2_pass": {
+      "n": 5,
+      "by_bucket": {
+        "adjust_swap": 4,
+        "verdict_wrong": 1
+      },
+      "slot_miss_count": {},
+      "ids": [
+        "W1_F03_s1",
+        "W1_F03_s2",
+        "W2_F01_s1",
+        "W2_F11_s0",
+        "W2_F11_s1"
+      ]
+    },
+    "d1_fail_d2_fail": {
+      "n": 12,
+      "by_bucket": {
+        "real_struct_err": 4,
+        "verdict_wrong": 4,
+        "full_pass": 1,
+        "stage1_fail": 3
+      },
+      "slot_miss_count": {
+        "arm_kinds": 11,
+        "measurement_kind": 6,
+        "comparison_kind": 3,
+        "assertion_polarity": 5,
+        "n_atoms": 2,
+        "status": 1
+      },
+      "ids": [
+        "W1_F04_s1",
+        "W1_F07_s2",
+        "W2_F02_s2",
+        "W2_F06_s0",
+        "W2_F06_s1",
+        "W2_F07_s0",
+        "W2_F07_s1",
+        "W3_F03_s0",
+        "W3_F03_s1",
+        "W3_F03_s2",
+        "W3_F05_s0",
+        "W3_F12_s0"
+      ]
+    }
+  },
+  "bucket_location": {
+    "full_pass": {
+      "critical": {
+        "d1_pass_d2_pass": 1,
+        "d1_pass_d2_fail": 5,
+        "d1_fail_d2_pass": 0,
+        "d1_fail_d2_fail": 1
+      },
+      "strict": {
+        "d1_pass_d2_pass": 1,
+        "d1_pass_d2_fail": 5,
+        "d1_fail_d2_pass": 0,
+        "d1_fail_d2_fail": 1
+      }
+    },
+    "adjust_swap": {
+      "critical": {
+        "d1_pass_d2_pass": 6,
+        "d1_pass_d2_fail": 0,
+        "d1_fail_d2_pass": 4,
+        "d1_fail_d2_fail": 0
+      },
+      "strict": {
+        "d1_pass_d2_pass": 5,
+        "d1_pass_d2_fail": 1,
+        "d1_fail_d2_pass": 4,
+        "d1_fail_d2_fail": 0
+      }
+    },
+    "verdict_wrong": {
+      "critical": {
+        "d1_pass_d2_pass": 7,
+        "d1_pass_d2_fail": 7,
+        "d1_fail_d2_pass": 1,
+        "d1_fail_d2_fail": 4
+      },
+      "strict": {
+        "d1_pass_d2_pass": 1,
+        "d1_pass_d2_fail": 13,
+        "d1_fail_d2_pass": 1,
+        "d1_fail_d2_fail": 4
+      }
+    },
+    "real_struct_err": {
+      "critical": {
+        "d1_pass_d2_pass": 6,
+        "d1_pass_d2_fail": 3,
+        "d1_fail_d2_pass": 0,
+        "d1_fail_d2_fail": 4
+      },
+      "strict": {
+        "d1_pass_d2_pass": 0,
+        "d1_pass_d2_fail": 9,
+        "d1_fail_d2_pass": 0,
+        "d1_fail_d2_fail": 4
+      }
+    },
+    "stage1_fail": {
+      "critical": {
+        "d1_pass_d2_pass": 2,
+        "d1_pass_d2_fail": 1,
+        "d1_fail_d2_pass": 0,
+        "d1_fail_d2_fail": 3
+      },
+      "strict": {
+        "d1_pass_d2_pass": 2,
+        "d1_pass_d2_fail": 1,
+        "d1_fail_d2_pass": 0,
+        "d1_fail_d2_fail": 3
+      }
+    }
+  },
+  "items": [
+    {
+      "id": "SQ_F01_s0",
+      "family": "SQ-A1",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "SQ_F01_s1",
+      "family": "SQ-A1",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "SQ_F01_s2",
+      "family": "SQ-A1",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "SQ_F07_s0",
+      "family": "SQ-C1",
+      "bucket": "full_pass",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "status"
+      ]
+    },
+    {
+      "id": "SQ_F07_s1",
+      "family": "SQ-C1",
+      "bucket": "stage1_fail",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "status"
+      ]
+    },
+    {
+      "id": "W1_F01_s0",
+      "family": "CC-A1",
+      "bucket": "adjust_swap",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W1_F01_s1",
+      "family": "CC-A1",
+      "bucket": "adjust_swap",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W1_F01_s2",
+      "family": "CC-A1",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W1_F03_s0",
+      "family": "CC-A1",
+      "bucket": "adjust_swap",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W1_F03_s1",
+      "family": "CC-A1",
+      "bucket": "adjust_swap",
+      "d1_pass": false,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W1_F03_s2",
+      "family": "CC-A1",
+      "bucket": "verdict_wrong",
+      "d1_pass": false,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W1_F04_s0",
+      "family": "CC-A3",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "n_atoms"
+      ]
+    },
+    {
+      "id": "W1_F04_s1",
+      "family": "CC-A3",
+      "bucket": "real_struct_err",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds"
+      ]
+    },
+    {
+      "id": "W1_F04_s2",
+      "family": "CC-A3",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W1_F05_s0",
+      "family": "CC-A3",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "n_atoms",
+        "comparison_kind"
+      ]
+    },
+    {
+      "id": "W1_F05_s1",
+      "family": "CC-A3",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "n_atoms",
+        "comparison_kind"
+      ]
+    },
+    {
+      "id": "W1_F05_s2",
+      "family": "CC-A3",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "comparison_kind"
+      ]
+    },
+    {
+      "id": "W1_F06_s0",
+      "family": "CC-A4",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "n_atoms",
+        "arm_kinds",
+        "comparison_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W1_F06_s1",
+      "family": "CC-A4",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "n_atoms",
+        "arm_kinds",
+        "comparison_kind"
+      ]
+    },
+    {
+      "id": "W1_F06_s2",
+      "family": "CC-A4",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "comparison_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W1_F07_s0",
+      "family": "CC-A5",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind",
+        "comparison_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W1_F07_s1",
+      "family": "CC-A5",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind",
+        "comparison_kind"
+      ]
+    },
+    {
+      "id": "W1_F07_s2",
+      "family": "CC-A5",
+      "bucket": "verdict_wrong",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind",
+        "comparison_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W1_F09_s0",
+      "family": "CC-A8",
+      "bucket": "full_pass",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W1_F09_s1",
+      "family": "CC-A8",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "n_atoms"
+      ]
+    },
+    {
+      "id": "W2_F01_s0",
+      "family": "CC-A1",
+      "bucket": "adjust_swap",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "measurement_kind"
+      ]
+    },
+    {
+      "id": "W2_F01_s1",
+      "family": "CC-A1",
+      "bucket": "adjust_swap",
+      "d1_pass": false,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W2_F01_s2",
+      "family": "CC-A1",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W2_F02_s0",
+      "family": "CC-A2",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind"
+      ]
+    },
+    {
+      "id": "W2_F02_s1",
+      "family": "CC-A2",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind"
+      ]
+    },
+    {
+      "id": "W2_F02_s2",
+      "family": "CC-A2",
+      "bucket": "real_struct_err",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "n_atoms",
+        "arm_kinds",
+        "measurement_kind"
+      ]
+    },
+    {
+      "id": "W2_F04_s0",
+      "family": "CC-A3",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "n_atoms",
+        "comparison_kind"
+      ]
+    },
+    {
+      "id": "W2_F04_s1",
+      "family": "CC-A3",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "n_atoms",
+        "role_vars",
+        "comparison_kind"
+      ]
+    },
+    {
+      "id": "W2_F06_s0",
+      "family": "CC-A2",
+      "bucket": "full_pass",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind"
+      ]
+    },
+    {
+      "id": "W2_F06_s1",
+      "family": "CC-A2",
+      "bucket": "real_struct_err",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "n_atoms",
+        "arm_kinds",
+        "measurement_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W2_F07_s0",
+      "family": "CC-D2",
+      "bucket": "real_struct_err",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind",
+        "comparison_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W2_F07_s1",
+      "family": "CC-D2",
+      "bucket": "verdict_wrong",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind",
+        "comparison_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W2_F09_s0",
+      "family": "SQ-A3",
+      "bucket": "full_pass",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds"
+      ]
+    },
+    {
+      "id": "W2_F09_s1",
+      "family": "SQ-A3",
+      "bucket": "full_pass",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds"
+      ]
+    },
+    {
+      "id": "W2_F11_s0",
+      "family": "CC-D1",
+      "bucket": "adjust_swap",
+      "d1_pass": false,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W2_F11_s1",
+      "family": "CC-D1",
+      "bucket": "adjust_swap",
+      "d1_pass": false,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W3_F03_s0",
+      "family": "CC-B5",
+      "bucket": "stage1_fail",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds"
+      ]
+    },
+    {
+      "id": "W3_F03_s1",
+      "family": "CC-B5",
+      "bucket": "verdict_wrong",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds"
+      ]
+    },
+    {
+      "id": "W3_F03_s2",
+      "family": "CC-B5",
+      "bucket": "stage1_fail",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds"
+      ]
+    },
+    {
+      "id": "W3_F04_s0",
+      "family": "CC-A7",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": true,
+      "slots_wrong": [
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W3_F04_s1",
+      "family": "CC-A7",
+      "bucket": "verdict_wrong",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "comparison_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W3_F05_s0",
+      "family": "CC-E2",
+      "bucket": "verdict_wrong",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W3_F05_s1",
+      "family": "CC-E2",
+      "bucket": "full_pass",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "status",
+        "n_atoms",
+        "arm_kinds",
+        "role_vars",
+        "measurement_kind",
+        "comparison_kind",
+        "assertion_polarity"
+      ]
+    },
+    {
+      "id": "W3_F05_s2",
+      "family": "CC-E2",
+      "bucket": "full_pass",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds"
+      ]
+    },
+    {
+      "id": "W3_F08_s0",
+      "family": "CC-C2",
+      "bucket": "adjust_swap",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W3_F08_s1",
+      "family": "CC-C2",
+      "bucket": "adjust_swap",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W3_F08_s2",
+      "family": "CC-C2",
+      "bucket": "real_struct_err",
+      "d1_pass": true,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "arm_kinds",
+        "measurement_kind",
+        "comparison_kind"
+      ]
+    },
+    {
+      "id": "W3_F11_s0",
+      "family": "CC-E1",
+      "bucket": "stage1_fail",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    },
+    {
+      "id": "W3_F12_s0",
+      "family": "CC-E3",
+      "bucket": "stage1_fail",
+      "d1_pass": false,
+      "d2_strict_pass": false,
+      "d2_critical_pass": false,
+      "slots_wrong": [
+        "status"
+      ]
+    },
+    {
+      "id": "W3_F12_s1",
+      "family": "CC-E3",
+      "bucket": "stage1_fail",
+      "d1_pass": true,
+      "d2_strict_pass": true,
+      "d2_critical_pass": true,
+      "slots_wrong": []
+    }
+  ],
+  "interpretation": [
+    "Marginals: D1 pass=38/55 (69%), D2-critical pass=27/55 (49%), D2-strict pass=14/55 (25%).",
+    "D1-D2 correlation (phi): critical=0.26, strict=-0.06. Near 0 = orthogonal; |phi| > 0.3 = correlated.",
+    "verdict_wrong (19) concentration in D1×D2-critical: dominant cell = d1_pass_d2_pass (7/19). Breakdown: {'d1_pass_d2_pass': 7, 'd1_pass_d2_fail': 7, 'd1_fail_d2_pass': 1, 'd1_fail_d2_fail': 4}.",
+    "adjust_swap (10) concentration in D1×D2-critical: dominant cell = d1_pass_d2_pass (6/10). Breakdown: {'d1_pass_d2_pass': 6, 'd1_pass_d2_fail': 0, 'd1_fail_d2_pass': 4, 'd1_fail_d2_fail': 0}.",
+    "full_pass distribution (critical): {'d1_pass_d2_pass': 1, 'd1_pass_d2_fail': 5, 'd1_fail_d2_pass': 0, 'd1_fail_d2_fail': 1}; (strict): {'d1_pass_d2_pass': 1, 'd1_pass_d2_fail': 5, 'd1_fail_d2_pass': 0, 'd1_fail_d2_fail': 1}. If full_pass has any 'd1_pass_d2_fail' mass, F13 is validated (D2 is noisier than the true compile oracle).",
+    "d1_fail+d2_pass cell sizes: critical=5, strict=5. Counts >= 3 = real block; <3 = anecdotal.",
+    "composition-gap cell (D1 pass + D2-critical fail) top slots: arm_kinds=14, comparison_kind=8, assertion_polarity=6, measurement_kind=6."
+  ]
+}

@@ -1,0 +1,390 @@
+{
+  "generated_by": "scripts/suite2_diag_d2_split_analysis.py",
+  "source": "research\\synthesis\\suite2_diag_d2_results.json",
+  "n_targets": 55,
+  "split_by_n_atoms": {
+    "n1": {
+      "status": {
+        "n": 46,
+        "acc": 0.978
+      },
+      "n_atoms": {
+        "n": 46,
+        "acc": 0.761
+      },
+      "arm_kinds": {
+        "n": 46,
+        "acc": 0.478
+      },
+      "role_vars": {
+        "n": 46,
+        "acc": 0.957
+      },
+      "measurement_kind": {
+        "n": 46,
+        "acc": 0.717
+      },
+      "comparison_kind": {
+        "n": 46,
+        "acc": 0.696
+      },
+      "assertion_polarity": {
+        "n": 46,
+        "acc": 0.674
+      }
+    },
+    "n_gt1": {
+      "status": {
+        "n": 4,
+        "acc": 1.0
+      },
+      "n_atoms": {
+        "n": 4,
+        "acc": 1.0
+      },
+      "arm_kinds": {
+        "n": 4,
+        "acc": 0.75
+      },
+      "role_vars": {
+        "n": 4,
+        "acc": 1.0
+      },
+      "measurement_kind": {
+        "n": 4,
+        "acc": 1.0
+      },
+      "comparison_kind": {
+        "n": 4,
+        "acc": 0.5
+      },
+      "assertion_polarity": {
+        "n": 4,
+        "acc": 0.75
+      }
+    }
+  },
+  "cardinality_collapse": {
+    "multi_atom_total": 4,
+    "collapsed_to_1": 0,
+    "kept_multi": 4,
+    "raised_to_multi": 10,
+    "single_atom_total": 45,
+    "kept_single": 35
+  },
+  "collapsed_ids": [],
+  "arm_kinds_by_claim_type": {
+    "single_causal": {
+      "n": 28,
+      "acc": 0.786,
+      "misses": 6
+    },
+    "multi_atom": {
+      "n": 4,
+      "acc": 0.75,
+      "misses": 1
+    },
+    "single_contrast_causal": {
+      "n": 3,
+      "acc": 0.0,
+      "misses": 3
+    },
+    "single_observational": {
+      "n": 12,
+      "acc": 0.0,
+      "misses": 12
+    },
+    "single_sweep": {
+      "n": 3,
+      "acc": 0.0,
+      "misses": 3
+    }
+  },
+  "arm_kinds_misses_by_type": {
+    "single_causal": [
+      {
+        "id": "W1_F04_s1",
+        "family": "CC-A3",
+        "gold_kinds": [
+          "intervene"
+        ],
+        "pred_kinds": [
+          "condition",
+          "intervene"
+        ]
+      },
+      {
+        "id": "W1_F04_s2",
+        "family": "CC-A3",
+        "gold_kinds": [
+          "intervene"
+        ],
+        "pred_kinds": [
+          "condition",
+          "intervene"
+        ]
+      },
+      {
+        "id": "W1_F06_s0",
+        "family": "CC-A4",
+        "gold_kinds": [
+          "intervene"
+        ],
+        "pred_kinds": [
+          "condition",
+          "intervene"
+        ]
+      },
+      {
+        "id": "W1_F06_s1",
+        "family": "CC-A4",
+        "gold_kinds": [
+          "intervene"
+        ],
+        "pred_kinds": [
+          "condition",
+          "intervene"
+        ]
+      },
+      {
+        "id": "W3_F04_s1",
+        "family": "CC-A7",
+        "gold_kinds": [
+          "intervene"
+        ],
+        "pred_kinds": [
+          "condition",
+          "observe"
+        ]
+      },
+      {
+        "id": "W3_F08_s2",
+        "family": "CC-C2",
+        "gold_kinds": [
+          "intervene"
+        ],
+        "pred_kinds": [
+          "intervene",
+          "observe"
+        ]
+      }
+    ],
+    "multi_atom": [
+      {
+        "id": "W1_F06_s2",
+        "family": "CC-A4",
+        "gold_kinds": [
+          "intervene"
+        ],
+        "pred_kinds": [
+          "condition",
+          "intervene"
+        ]
+      }
+    ],
+    "single_contrast_causal": [
+      {
+        "id": "W1_F07_s0",
+        "family": "CC-A5",
+        "gold_kinds": [
+          "intervene",
+          "observe"
+        ],
+        "pred_kinds": [
+          "adjust",
+          "observe"
+        ]
+      },
+      {
+        "id": "W1_F07_s1",
+        "family": "CC-A5",
+        "gold_kinds": [
+          "intervene",
+          "observe"
+        ],
+        "pred_kinds": [
+          "adjust",
+          "observe"
+        ]
+      },
+      {
+        "id": "W1_F07_s2",
+        "family": "CC-A5",
+        "gold_kinds": [
+          "intervene",
+          "observe"
+        ],
+        "pred_kinds": [
+          "adjust",
+          "observe"
+        ]
+      }
+    ],
+    "single_observational": [
+      {
+        "id": "W2_F02_s0",
+        "family": "CC-A2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "observe"
+        ]
+      },
+      {
+        "id": "W2_F02_s1",
+        "family": "CC-A2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "observe"
+        ]
+      },
+      {
+        "id": "W2_F02_s2",
+        "family": "CC-A2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "observe"
+        ]
+      },
+      {
+        "id": "W2_F06_s0",
+        "family": "CC-A2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "adjust",
+          "observe"
+        ]
+      },
+      {
+        "id": "W2_F06_s1",
+        "family": "CC-A2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "observe"
+        ]
+      },
+      {
+        "id": "W2_F07_s0",
+        "family": "CC-D2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "adjust",
+          "observe"
+        ]
+      },
+      {
+        "id": "W2_F07_s1",
+        "family": "CC-D2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "condition",
+          "intervene"
+        ]
+      },
+      {
+        "id": "W2_F09_s0",
+        "family": "SQ-A3",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "intervene"
+        ]
+      },
+      {
+        "id": "W2_F09_s1",
+        "family": "SQ-A3",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "adjust",
+          "intervene",
+          "observe"
+        ]
+      },
+      {
+        "id": "W3_F05_s0",
+        "family": "CC-E2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "intervene"
+        ]
+      },
+      {
+        "id": "W3_F05_s1",
+        "family": "CC-E2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": null
+      },
+      {
+        "id": "W3_F05_s2",
+        "family": "CC-E2",
+        "gold_kinds": [
+          "baseline"
+        ],
+        "pred_kinds": [
+          "adjust",
+          "intervene"
+        ]
+      }
+    ],
+    "single_sweep": [
+      {
+        "id": "W3_F03_s0",
+        "family": "CC-B5",
+        "gold_kinds": [
+          "sweep"
+        ],
+        "pred_kinds": [
+          "observe",
+          "sweep"
+        ]
+      },
+      {
+        "id": "W3_F03_s1",
+        "family": "CC-B5",
+        "gold_kinds": [
+          "sweep"
+        ],
+        "pred_kinds": [
+          "intervene",
+          "sweep"
+        ]
+      },
+      {
+        "id": "W3_F03_s2",
+        "family": "CC-B5",
+        "gold_kinds": [
+          "sweep"
+        ],
+        "pred_kinds": [
+          "observe",
+          "sweep"
+        ]
+      }
+    ]
+  },
+  "interpretation": [
+    "arm_kinds accuracy: n_atoms=1 -> 48% (46); n_atoms>1 -> 75% (4).",
+    "Cardinality collapse: 0/4 multi-atom golds predicted as single-atom (0%).",
+    "Weakest arm_kinds buckets: single_contrast_causal=0% (3), single_observational=0% (12), single_sweep=0% (3)"
+  ]
+}

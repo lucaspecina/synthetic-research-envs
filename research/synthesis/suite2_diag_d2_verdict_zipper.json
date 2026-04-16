@@ -1,0 +1,847 @@
+{
+  "generated_by": "scripts/suite2_diag_d2_verdict_zipper.py",
+  "sources": {
+    "baseline": "research\\synthesis\\compiler_baseline_full_dump_v2.json",
+    "d2": "research\\synthesis\\suite2_diag_d2_results.json"
+  },
+  "n_joined": 55,
+  "missing_in_d2": [],
+  "missing_in_baseline": [],
+  "bucket_distribution": {
+    "real_struct_err": 13,
+    "full_pass": 7,
+    "stage1_fail": 6,
+    "adjust_swap": 10,
+    "verdict_wrong": 19
+  },
+  "per_bucket_slot_acc": {
+    "full_pass": {
+      "arm_kinds": {
+        "n": 6,
+        "acc": 0.167
+      },
+      "assertion_polarity": {
+        "n": 6,
+        "acc": 0.833
+      },
+      "comparison_kind": {
+        "n": 6,
+        "acc": 0.833
+      },
+      "measurement_kind": {
+        "n": 6,
+        "acc": 0.667
+      },
+      "n_atoms": {
+        "n": 6,
+        "acc": 0.833
+      },
+      "role_vars": {
+        "n": 6,
+        "acc": 0.833
+      },
+      "status": {
+        "n": 7,
+        "acc": 0.714
+      }
+    },
+    "adjust_swap": {
+      "arm_kinds": {
+        "n": 10,
+        "acc": 1.0
+      },
+      "assertion_polarity": {
+        "n": 10,
+        "acc": 1.0
+      },
+      "comparison_kind": {
+        "n": 10,
+        "acc": 1.0
+      },
+      "measurement_kind": {
+        "n": 10,
+        "acc": 0.9
+      },
+      "n_atoms": {
+        "n": 10,
+        "acc": 1.0
+      },
+      "role_vars": {
+        "n": 10,
+        "acc": 1.0
+      },
+      "status": {
+        "n": 10,
+        "acc": 1.0
+      }
+    },
+    "verdict_wrong": {
+      "arm_kinds": {
+        "n": 19,
+        "acc": 0.421
+      },
+      "assertion_polarity": {
+        "n": 19,
+        "acc": 0.474
+      },
+      "comparison_kind": {
+        "n": 19,
+        "acc": 0.421
+      },
+      "measurement_kind": {
+        "n": 19,
+        "acc": 0.789
+      },
+      "n_atoms": {
+        "n": 19,
+        "acc": 0.684
+      },
+      "role_vars": {
+        "n": 19,
+        "acc": 0.947
+      },
+      "status": {
+        "n": 19,
+        "acc": 1.0
+      }
+    },
+    "real_struct_err": {
+      "arm_kinds": {
+        "n": 13,
+        "acc": 0.462
+      },
+      "assertion_polarity": {
+        "n": 13,
+        "acc": 0.615
+      },
+      "comparison_kind": {
+        "n": 13,
+        "acc": 0.692
+      },
+      "measurement_kind": {
+        "n": 13,
+        "acc": 0.538
+      },
+      "n_atoms": {
+        "n": 13,
+        "acc": 0.692
+      },
+      "role_vars": {
+        "n": 13,
+        "acc": 1.0
+      },
+      "status": {
+        "n": 13,
+        "acc": 1.0
+      }
+    },
+    "stage1_fail": {
+      "arm_kinds": {
+        "n": 2,
+        "acc": 0.0
+      },
+      "assertion_polarity": {
+        "n": 2,
+        "acc": 1.0
+      },
+      "comparison_kind": {
+        "n": 2,
+        "acc": 1.0
+      },
+      "measurement_kind": {
+        "n": 2,
+        "acc": 1.0
+      },
+      "n_atoms": {
+        "n": 2,
+        "acc": 1.0
+      },
+      "role_vars": {
+        "n": 2,
+        "acc": 1.0
+      },
+      "status": {
+        "n": 6,
+        "acc": 0.667
+      }
+    }
+  },
+  "n_slots_wrong_by_bucket": {
+    "full_pass": {
+      "1": 4,
+      "0": 1,
+      "2": 1,
+      "7": 1
+    },
+    "adjust_swap": {
+      "0": 9,
+      "1": 1
+    },
+    "verdict_wrong": {
+      "1": 4,
+      "0": 2,
+      "2": 4,
+      "4": 4,
+      "3": 5
+    },
+    "real_struct_err": {
+      "1": 6,
+      "2": 3,
+      "3": 2,
+      "4": 2
+    },
+    "stage1_fail": {
+      "1": 4,
+      "0": 2
+    }
+  },
+  "slot_attribution": {
+    "status": {
+      "total_eval": 55,
+      "total_miss": 4,
+      "miss_by_bucket": {
+        "full_pass": 2,
+        "stage1_fail": 2
+      }
+    },
+    "n_atoms": {
+      "total_eval": 50,
+      "total_miss": 11,
+      "miss_by_bucket": {
+        "verdict_wrong": 6,
+        "real_struct_err": 4,
+        "full_pass": 1
+      }
+    },
+    "arm_kinds": {
+      "total_eval": 50,
+      "total_miss": 25,
+      "miss_by_bucket": {
+        "real_struct_err": 7,
+        "verdict_wrong": 11,
+        "full_pass": 5,
+        "stage1_fail": 2
+      }
+    },
+    "role_vars": {
+      "total_eval": 50,
+      "total_miss": 2,
+      "miss_by_bucket": {
+        "verdict_wrong": 1,
+        "full_pass": 1
+      }
+    },
+    "measurement_kind": {
+      "total_eval": 50,
+      "total_miss": 13,
+      "miss_by_bucket": {
+        "verdict_wrong": 4,
+        "adjust_swap": 1,
+        "real_struct_err": 6,
+        "full_pass": 2
+      }
+    },
+    "comparison_kind": {
+      "total_eval": 50,
+      "total_miss": 16,
+      "miss_by_bucket": {
+        "real_struct_err": 4,
+        "verdict_wrong": 11,
+        "full_pass": 1
+      }
+    },
+    "assertion_polarity": {
+      "total_eval": 50,
+      "total_miss": 16,
+      "miss_by_bucket": {
+        "real_struct_err": 5,
+        "verdict_wrong": 10,
+        "full_pass": 1
+      }
+    }
+  },
+  "compiled_but_wrong_detail": {
+    "verdict_wrong": [
+      {
+        "id": "W1_F01_s2",
+        "family": "CC-A1",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "greater_than",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F03_s2",
+        "family": "CC-A1",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W1_F04_s0",
+        "family": "CC-A3",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "n_atoms"
+        ],
+        "slot_details": {
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F04_s2",
+        "family": "CC-A3",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "arm_kinds",
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "greater_than",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F05_s1",
+        "family": "CC-A3",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "n_atoms",
+          "comparison_kind"
+        ],
+        "slot_details": {
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F06_s0",
+        "family": "CC-A4",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "n_atoms",
+          "arm_kinds",
+          "comparison_kind",
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "gap_material",
+            "pred": "sign_flip",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F06_s1",
+        "family": "CC-A4",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "n_atoms",
+          "arm_kinds",
+          "comparison_kind"
+        ],
+        "slot_details": {
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F06_s2",
+        "family": "CC-A4",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "arm_kinds",
+          "comparison_kind",
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "piecewise_fit",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "positive",
+            "pred": "distinguishable",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F07_s0",
+        "family": "CC-A5",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "arm_kinds",
+          "measurement_kind",
+          "comparison_kind",
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "intervene",
+              "observe"
+            ],
+            "pred": [
+              "adjust",
+              "observe"
+            ],
+            "match": false
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "identity",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "gap_material",
+            "pred": "not_distinguishable",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F07_s1",
+        "family": "CC-A5",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "arm_kinds",
+          "measurement_kind",
+          "comparison_kind"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "intervene",
+              "observe"
+            ],
+            "pred": [
+              "adjust",
+              "observe"
+            ],
+            "match": false
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "gap",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W1_F07_s2",
+        "family": "CC-A5",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [
+          "arm_kinds",
+          "measurement_kind",
+          "comparison_kind",
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "intervene",
+              "observe"
+            ],
+            "pred": [
+              "adjust",
+              "observe"
+            ],
+            "match": false
+          },
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "partial_correlation",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "identity",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "gap_material",
+            "pred": "near_zero",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W2_F01_s2",
+        "family": "CC-A1",
+        "world": "w2_observational_epidemiology",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W2_F04_s0",
+        "family": "CC-A3",
+        "world": "w2_observational_epidemiology",
+        "slots_wrong": [
+          "n_atoms",
+          "comparison_kind"
+        ],
+        "slot_details": {
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W2_F04_s1",
+        "family": "CC-A3",
+        "world": "w2_observational_epidemiology",
+        "slots_wrong": [
+          "n_atoms",
+          "role_vars",
+          "comparison_kind"
+        ],
+        "slot_details": {
+          "n_atoms": {
+            "gold": 1,
+            "pred": 2,
+            "match": false
+          },
+          "role_vars": {
+            "gold": {
+              "treatment": "E",
+              "outcome": "D"
+            },
+            "pred": {
+              "treatment": "E",
+              "outcome": "M",
+              "mediator": null,
+              "modifier": null,
+              "condition_on": []
+            },
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "contrast_diff",
+            "pred": "difference",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W2_F07_s1",
+        "family": "CC-D2",
+        "world": "w2_observational_epidemiology",
+        "slots_wrong": [
+          "arm_kinds",
+          "measurement_kind",
+          "comparison_kind",
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "condition",
+              "intervene"
+            ],
+            "match": false
+          },
+          "measurement_kind": {
+            "gold": "identifiability_check",
+            "pred": "mean",
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "identity",
+            "pred": "difference",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "not_identifiable",
+            "pred": "distinguishable",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W3_F03_s1",
+        "family": "CC-B5",
+        "world": "w3_environmental_health",
+        "slots_wrong": [
+          "arm_kinds"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "sweep"
+            ],
+            "pred": [
+              "intervene",
+              "sweep"
+            ],
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W3_F04_s0",
+        "family": "CC-A7",
+        "world": "w3_environmental_health",
+        "slots_wrong": [
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "positive",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W3_F04_s1",
+        "family": "CC-A7",
+        "world": "w3_environmental_health",
+        "slots_wrong": [
+          "arm_kinds",
+          "comparison_kind",
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "intervene"
+            ],
+            "pred": [
+              "condition",
+              "observe"
+            ],
+            "match": false
+          },
+          "comparison_kind": {
+            "gold": "difference",
+            "pred": "gap",
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "negative",
+            "pred": "greater_than",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W3_F05_s0",
+        "family": "CC-E2",
+        "world": "w3_environmental_health",
+        "slots_wrong": [
+          "arm_kinds",
+          "assertion_polarity"
+        ],
+        "slot_details": {
+          "arm_kinds": {
+            "gold": [
+              "baseline"
+            ],
+            "pred": [
+              "intervene"
+            ],
+            "match": false
+          },
+          "assertion_polarity": {
+            "gold": "not_identifiable",
+            "pred": "identifiable",
+            "match": false
+          }
+        }
+      }
+    ],
+    "adjust_swap": [
+      {
+        "id": "W1_F01_s0",
+        "family": "CC-A1",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W1_F01_s1",
+        "family": "CC-A1",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W1_F03_s0",
+        "family": "CC-A1",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W1_F03_s1",
+        "family": "CC-A1",
+        "world": "w1_comparative_effectiveness",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W2_F01_s0",
+        "family": "CC-A1",
+        "world": "w2_observational_epidemiology",
+        "slots_wrong": [
+          "measurement_kind"
+        ],
+        "slot_details": {
+          "measurement_kind": {
+            "gold": "mean",
+            "pred": "prob",
+            "match": false
+          }
+        }
+      },
+      {
+        "id": "W2_F01_s1",
+        "family": "CC-A1",
+        "world": "w2_observational_epidemiology",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W2_F11_s0",
+        "family": "CC-D1",
+        "world": "w2_observational_epidemiology",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W2_F11_s1",
+        "family": "CC-D1",
+        "world": "w2_observational_epidemiology",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W3_F08_s0",
+        "family": "CC-C2",
+        "world": "w3_environmental_health",
+        "slots_wrong": [],
+        "slot_details": {}
+      },
+      {
+        "id": "W3_F08_s1",
+        "family": "CC-C2",
+        "world": "w3_environmental_health",
+        "slots_wrong": [],
+        "slot_details": {}
+      }
+    ]
+  },
+  "interpretation": [
+    "arm_kinds accuracy by bucket: full_pass=17%, adjust_swap=100%, verdict_wrong=42%.",
+    "Worst D2 slot inside adjust_swap (n=10): measurement_kind=90%.",
+    "Worst D2 slot inside verdict_wrong (n=19): arm_kinds=42%.",
+    "arm_kinds misses (25/50) by bucket: verdict_wrong=11, real_struct_err=7, full_pass=5, stage1_fail=2.",
+    "assertion_polarity misses (16/50) by bucket: verdict_wrong=10, real_struct_err=5, full_pass=1.",
+    "comparison_kind misses (16/50) by bucket: verdict_wrong=11, real_struct_err=4, full_pass=1.",
+    "full_pass (n=7) D2 slot failures: 6 cases have >=1 D2 slot wrong (expected ~0 if D2 is well-calibrated)."
+  ]
+}

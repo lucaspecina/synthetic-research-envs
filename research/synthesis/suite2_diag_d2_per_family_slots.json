@@ -1,0 +1,493 @@
+{
+  "generated_by": "scripts/suite2_diag_d2_per_family_slots.py",
+  "sources": {
+    "baseline": "research\\synthesis\\compiler_baseline_full_dump_v2.json",
+    "d2": "research\\synthesis\\suite2_diag_d2_results.json"
+  },
+  "per_family": {
+    "CC-A1": {
+      "n_targets": 9,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 1.0,
+        "role_vars": 1.0,
+        "measurement_kind": 0.889,
+        "comparison_kind": 1.0,
+        "assertion_polarity": 0.889
+      },
+      "weakest_non_status": [
+        "measurement_kind",
+        0.889
+      ],
+      "top2_weak_slots": [
+        [
+          "measurement_kind",
+          0.889
+        ],
+        [
+          "assertion_polarity",
+          0.889
+        ]
+      ],
+      "bucket_mix": {
+        "adjust_swap": 6,
+        "verdict_wrong": 3
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-A3": {
+      "n_targets": 8,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 0.375,
+        "arm_kinds": 0.75,
+        "role_vars": 0.875,
+        "measurement_kind": 1.0,
+        "comparison_kind": 0.375,
+        "assertion_polarity": 0.875
+      },
+      "weakest_non_status": [
+        "n_atoms",
+        0.375
+      ],
+      "top2_weak_slots": [
+        [
+          "n_atoms",
+          0.375
+        ],
+        [
+          "comparison_kind",
+          0.375
+        ]
+      ],
+      "bucket_mix": {
+        "verdict_wrong": 5,
+        "real_struct_err": 3
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-A4": {
+      "n_targets": 3,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 0.333,
+        "arm_kinds": 0.0,
+        "role_vars": 1.0,
+        "measurement_kind": 1.0,
+        "comparison_kind": 0.0,
+        "assertion_polarity": 0.333
+      },
+      "weakest_non_status": [
+        "arm_kinds",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "arm_kinds",
+          0.0
+        ],
+        [
+          "comparison_kind",
+          0.0
+        ]
+      ],
+      "bucket_mix": {
+        "verdict_wrong": 3
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-A5": {
+      "n_targets": 3,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 0.0,
+        "role_vars": 1.0,
+        "measurement_kind": 0.0,
+        "comparison_kind": 0.0,
+        "assertion_polarity": 0.333
+      },
+      "weakest_non_status": [
+        "arm_kinds",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "arm_kinds",
+          0.0
+        ],
+        [
+          "measurement_kind",
+          0.0
+        ]
+      ],
+      "bucket_mix": {
+        "verdict_wrong": 3
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-A8": {
+      "n_targets": 2,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 0.5,
+        "arm_kinds": 1.0,
+        "role_vars": 1.0,
+        "measurement_kind": 1.0,
+        "comparison_kind": 1.0,
+        "assertion_polarity": 1.0
+      },
+      "weakest_non_status": [
+        "n_atoms",
+        0.5
+      ],
+      "top2_weak_slots": [
+        [
+          "n_atoms",
+          0.5
+        ],
+        [
+          "arm_kinds",
+          1.0
+        ]
+      ],
+      "bucket_mix": {
+        "full_pass": 1,
+        "real_struct_err": 1
+      },
+      "bucket_failure_rate": 0.5
+    },
+    "CC-A2": {
+      "n_targets": 5,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 0.6,
+        "arm_kinds": 0.0,
+        "role_vars": 1.0,
+        "measurement_kind": 0.0,
+        "comparison_kind": 1.0,
+        "assertion_polarity": 0.8
+      },
+      "weakest_non_status": [
+        "arm_kinds",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "arm_kinds",
+          0.0
+        ],
+        [
+          "measurement_kind",
+          0.0
+        ]
+      ],
+      "bucket_mix": {
+        "real_struct_err": 4,
+        "full_pass": 1
+      },
+      "bucket_failure_rate": 0.8
+    },
+    "CC-D2": {
+      "n_targets": 2,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 0.0,
+        "role_vars": 1.0,
+        "measurement_kind": 0.0,
+        "comparison_kind": 0.0,
+        "assertion_polarity": 0.0
+      },
+      "weakest_non_status": [
+        "arm_kinds",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "arm_kinds",
+          0.0
+        ],
+        [
+          "measurement_kind",
+          0.0
+        ]
+      ],
+      "bucket_mix": {
+        "real_struct_err": 1,
+        "verdict_wrong": 1
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "SQ-A3": {
+      "n_targets": 2,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 0.0,
+        "role_vars": 1.0,
+        "measurement_kind": 1.0,
+        "comparison_kind": 1.0,
+        "assertion_polarity": 1.0
+      },
+      "weakest_non_status": [
+        "arm_kinds",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "arm_kinds",
+          0.0
+        ],
+        [
+          "n_atoms",
+          1.0
+        ]
+      ],
+      "bucket_mix": {
+        "full_pass": 2
+      },
+      "bucket_failure_rate": 0.0
+    },
+    "CC-D1": {
+      "n_targets": 2,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 1.0,
+        "role_vars": 1.0,
+        "measurement_kind": 1.0,
+        "comparison_kind": 1.0,
+        "assertion_polarity": 1.0
+      },
+      "weakest_non_status": [
+        "n_atoms",
+        1.0
+      ],
+      "top2_weak_slots": [
+        [
+          "n_atoms",
+          1.0
+        ],
+        [
+          "arm_kinds",
+          1.0
+        ]
+      ],
+      "bucket_mix": {
+        "adjust_swap": 2
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-B5": {
+      "n_targets": 3,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 0.0,
+        "role_vars": 1.0,
+        "measurement_kind": 1.0,
+        "comparison_kind": 1.0,
+        "assertion_polarity": 1.0
+      },
+      "weakest_non_status": [
+        "arm_kinds",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "arm_kinds",
+          0.0
+        ],
+        [
+          "n_atoms",
+          1.0
+        ]
+      ],
+      "bucket_mix": {
+        "stage1_fail": 2,
+        "verdict_wrong": 1
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-A7": {
+      "n_targets": 2,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 0.5,
+        "role_vars": 1.0,
+        "measurement_kind": 1.0,
+        "comparison_kind": 0.5,
+        "assertion_polarity": 0.0
+      },
+      "weakest_non_status": [
+        "assertion_polarity",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "assertion_polarity",
+          0.0
+        ],
+        [
+          "arm_kinds",
+          0.5
+        ]
+      ],
+      "bucket_mix": {
+        "verdict_wrong": 2
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-E2": {
+      "n_targets": 3,
+      "slot_acc": {
+        "status": 0.667,
+        "n_atoms": 0.667,
+        "arm_kinds": 0.0,
+        "role_vars": 0.667,
+        "measurement_kind": 0.667,
+        "comparison_kind": 0.667,
+        "assertion_polarity": 0.333
+      },
+      "weakest_non_status": [
+        "arm_kinds",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "arm_kinds",
+          0.0
+        ],
+        [
+          "assertion_polarity",
+          0.333
+        ]
+      ],
+      "bucket_mix": {
+        "verdict_wrong": 1,
+        "full_pass": 2
+      },
+      "bucket_failure_rate": 0.333
+    },
+    "CC-C2": {
+      "n_targets": 3,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 0.667,
+        "role_vars": 1.0,
+        "measurement_kind": 0.667,
+        "comparison_kind": 0.667,
+        "assertion_polarity": 1.0
+      },
+      "weakest_non_status": [
+        "arm_kinds",
+        0.667
+      ],
+      "top2_weak_slots": [
+        [
+          "arm_kinds",
+          0.667
+        ],
+        [
+          "measurement_kind",
+          0.667
+        ]
+      ],
+      "bucket_mix": {
+        "adjust_swap": 2,
+        "real_struct_err": 1
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-E1": {
+      "n_targets": 1,
+      "slot_acc": {
+        "status": 1.0
+      },
+      "weakest_non_status": null,
+      "top2_weak_slots": [],
+      "bucket_mix": {
+        "stage1_fail": 1
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "CC-E3": {
+      "n_targets": 2,
+      "slot_acc": {
+        "status": 0.5
+      },
+      "weakest_non_status": null,
+      "top2_weak_slots": [],
+      "bucket_mix": {
+        "stage1_fail": 2
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "SQ-A1": {
+      "n_targets": 3,
+      "slot_acc": {
+        "status": 1.0,
+        "n_atoms": 1.0,
+        "arm_kinds": 1.0,
+        "role_vars": 1.0,
+        "measurement_kind": 1.0,
+        "comparison_kind": 1.0,
+        "assertion_polarity": 0.0
+      },
+      "weakest_non_status": [
+        "assertion_polarity",
+        0.0
+      ],
+      "top2_weak_slots": [
+        [
+          "assertion_polarity",
+          0.0
+        ],
+        [
+          "n_atoms",
+          1.0
+        ]
+      ],
+      "bucket_mix": {
+        "real_struct_err": 3
+      },
+      "bucket_failure_rate": 1.0
+    },
+    "SQ-C1": {
+      "n_targets": 2,
+      "slot_acc": {
+        "status": 0.0
+      },
+      "weakest_non_status": null,
+      "top2_weak_slots": [],
+      "bucket_mix": {
+        "full_pass": 1,
+        "stage1_fail": 1
+      },
+      "bucket_failure_rate": 0.5
+    }
+  },
+  "ordered_by_worst_slot": [
+    "CC-A2",
+    "CC-A4",
+    "CC-A5",
+    "CC-B5",
+    "CC-E2",
+    "SQ-A1",
+    "CC-D2",
+    "SQ-A3",
+    "CC-A7",
+    "CC-A3",
+    "CC-A8",
+    "CC-C2",
+    "CC-A1",
+    "CC-D1",
+    "CC-E3",
+    "SQ-C1",
+    "CC-E1"
+  ]
+}
