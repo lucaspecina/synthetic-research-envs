@@ -226,7 +226,7 @@ docs/archive/ # Historico (todo_v1_history.md, issue-tracker/, etc.)
 | Epic | # | Worktree | Cierra cuando |
 |---|---|---|---|
 | Suites de correctness (1, 2, 4) | #26 | eval-suite | Las 3 suites pasan baseline |
-| Science coverage — mapeo del sistema | #29 | eval-suite | Cobertura mapeada + report |
+| Science coverage — mapeo del sistema | #29 | science-coverage | Cobertura mapeada + report |
 | Benchmarkear Qwen3-8B con benchmarks externos | #30 | qwen-benchmarks | Qwen3-8B corrio en los 4 benchmarks |
 | Infra de entrenamiento RL con Qwen sobre SREG | #31 | rl-training-infra | Infra completa + primer RL run valida |
 | Mejorar el compiler post-diagnostico Suite 2 | #36 | compiler-fix | Suite 2 effective pass rate >=50%, arm_kinds >=70%, abstain correcto |

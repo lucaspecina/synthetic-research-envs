@@ -19,12 +19,13 @@ STATUS_FIELD_ID="PVTSSF_lAHOAiGijs4BU2gWzhFxiPE"
 
 # Worktree field
 WORKTREE_FIELD_ID="PVTSSF_lAHOAiGijs4BU2gWzhFxsaY"
-  WT_EVAL_SUITE="33dda69b"
-  WT_QWEN_BENCHMARKS="a3d8410f"
-  WT_RL_TRAINING_INFRA="8ef0b6ab"
-  WT_MAIN="d66cbbef"
-  WT_COMPILER_FIX="4cfce8b8"
-  WT_NONE="edeb5e36"
+  WT_EVAL_SUITE="9594c291"
+  WT_QWEN_BENCHMARKS="13a6f96e"
+  WT_RL_TRAINING_INFRA="6e49a1a7"
+  WT_MAIN="152ea29e"
+  WT_COMPILER_FIX="d9abcc2c"
+  WT_NONE="a1100fc4"
+  WT_SCIENCE_COVERAGE="ca6c4b8a"
 ```
 
 Si algun comando falla con "option not found" o similar, refrescar IDs (pueden haber cambiado si se agrego/quito opcion del field).

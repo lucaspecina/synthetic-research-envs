@@ -57,7 +57,7 @@ pwd && git worktree list && git branch --show
 | Campo | Valores | Cuando cambia |
 |---|---|---|
 | **Status** | `Todo` / `In Progress` / `Done` | Crear issue -> `Todo`. Empezar trabajo -> `In Progress` (mover AL EMPEZAR, no al final). Mergear PR / cerrar issue -> `Done` (auto). |
-| **Worktree** | `eval-suite` / `qwen-benchmarks` / `rl-training-infra` / `main` / `compiler-fix` / `none` | Al crear (obligatorio). Rara vez cambia. |
+| **Worktree** | `eval-suite` / `qwen-benchmarks` / `rl-training-infra` / `main` / `compiler-fix` / `science-coverage` / `none` | Al crear (obligatorio). Rara vez cambia. |
 
 **Prioridad** = orden manual en la columna `Todo` (drag&drop o reorder via API). **NO es label.**
 

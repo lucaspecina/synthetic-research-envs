@@ -98,7 +98,9 @@ gh api -X DELETE /repos/lucaspecina/synthetic-research-envs/issues/<OLD_PARENT>/
 
 ## 7. Agregar opcion al campo Worktree (al crear worktree nueva)
 
-**TRAMPA CRITICA**: la mutation `updateProjectV2Field` con `singleSelectOptions` REEMPLAZA TODAS las opciones existentes. **Hay que pasar la lista completa** (existentes + nueva). Si solo pasas la nueva, se borran las demas y todos los items quedan `Worktree=MISSING`.
+**TRAMPA CRITICA (confirmada empiricamente)**: la mutation `updateProjectV2Field` con `singleSelectOptions` **siempre regenera los option IDs, aunque pases los mismos names**. El API no tiene forma de "agregar una opcion" sin reemplazar. Esto significa que CUALQUIER llamada a esta mutation invalida TODAS las asignaciones anteriores: todos los items del board quedan con `Worktree=MISSING`.
+
+**Preferir la UI web** (https://github.com/users/lucaspecina/projects/4/settings/fields) para agregar opciones. Si hay que usar el API, **planear el re-seteo**: despues de agregar la opcion, re-aplicar Worktree en los ~26 items con los NUEVOS option IDs (ver paso 4).
 
 ```bash
 # (1) Crear worktree fisico
@@ -121,6 +123,7 @@ gh api graphql -f query='mutation {
       {name: "rl-training-infra", color: GRAY, description: ""},
       {name: "main",              color: GRAY, description: ""},
       {name: "compiler-fix",      color: GRAY, description: ""},
+      {name: "science-coverage",  color: GRAY, description: ""},
       {name: "none",              color: GRAY, description: ""},
       {name: "<NUEVA>",           color: GRAY, description: ""}
     ]
