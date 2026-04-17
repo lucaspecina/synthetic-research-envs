@@ -9,6 +9,17 @@ disable-model-invocation: true
 **This is the ONLY way to commit changes.** No exceptions.
 Every change — code or docs — follows this workflow.
 
+## Tracking source of truth
+
+**GitHub Project v2 = source of truth.** Ver skill `/tracking` para comandos exactos.
+
+Antes de commitear, verificar:
+- Si trabajaste un issue → Status en `In Progress` (debiste moverlo al empezar).
+- Si cerras en este commit → Status auto a `Done` (verificar).
+- Si creaste issue en este trabajo → esta en el board con `Worktree` seteado.
+
+Para cualquier operacion de tracking (crear, mover, cerrar, linkear), `/tracking` tiene commands.md con las recipes.
+
 ## The workflow (in order)
 
 ### Step 1: Targeted validation
@@ -47,17 +58,24 @@ Every change — code or docs — follows this workflow.
 
 - Update docs:
   - GitHub Issues: close completed issues (`gh issue close`), create new ones (`gh issue create`)
+    with the 3-section body template (Contexto / Detalle tecnico / Criterio de cierre).
+    If the new issue belongs to an epic, link it via native sub-issues API:
+    `gh api -X POST /repos/O/R/issues/<EPIC>/sub_issues -F sub_issue_id=<CHILD_databaseId>`.
+  - Add the new issue to the Project and set `Worktree`:
+    `gh project item-add 4 --owner lucaspecina --url <issue-url>`.
   - `CHANGELOG.md`: add entry for new functionality
   - `CURRENT_STATE.md`: update test count, modules, capabilities
-  - `CLAUDE.md`: update project structure, conventions
+  - `CLAUDE.md`: update project structure, conventions, "Epics activos" table if applicable
   - No stale references to deleted/renamed files
-- Commit with descriptive message
+- Commit with descriptive message. Use `Refs #NNN ...` (commits do not close; `Closes` goes in the PR body).
 - Push (ask user first if unsure)
 
 ### Step 5: What's next?
 **MANDATORY. Right after commit+push.**
 
-- List open GitHub Issues (`gh issue list --label prio:now`) and identify what's next.
+- Check the Project board Todo column (top = next priority):
+  https://github.com/users/lucaspecina/projects/4
+  Or via API: list open issues and identify which epic is most active.
 - Present 1-3 concrete next steps to the user, in friendly Spanish.
   Not a dump of all issues — a curated suggestion of what makes sense NOW.
 - Explain briefly WHY each option matters (how it fits in the big picture).
