@@ -72,7 +72,7 @@ Cada decisión pasa por este TRIPLE filtro:
 | Entender como funciona el sistema hoy (usuario, explicacion AMIGABLE) | `CURRENT_STATE.md` |
 | Entender la arquitectura tecnica | `ARCHITECTURE.md` |
 | Vision, principios, invariantes | `PROJECT.md` |
-| Que hacer / trabajo pendiente | GitHub Issues (labels: `lane:*`, `type:*`, `prio:*`) |
+| Que hacer / trabajo pendiente | [Project "SREG Roadmap"](https://github.com/users/lucaspecina/projects/4) + GitHub Issues. Ver seccion "Git + GitHub Issues + Project + Codex" abajo. |
 | Historial de cambios | `CHANGELOG.md` |
 | Historico TODO v1 | `docs/archive/todo_v1_history.md` |
 | Indice de research (que doc es canon, cual no) | `research/README.md` |
@@ -206,35 +206,136 @@ docs/archive/ # Historico (todo_v1_history.md, issue-tracker/, etc.)
 
 `pytest tests/ -v` | `pytest tests/tools/test_X.py -v` | `ruff check src/ tests/` | `ruff format src/ tests/`
 
-## Git + GitHub Issues + Codex
+## Git + GitHub Issues + Project + Codex
+
+### Modelo mental (CRITICO — no confundir los 3 conceptos)
+
+| Concepto | Que es | Vida util |
+|---|---|---|
+| **Epic** | Meta concreta con criterio de cierre. El QUE y el POR QUE. Unit of thought. | Semanas/meses |
+| **Worktree** | Directorio fisico donde corre una sesion de Claude aislada. Mecanismo de paralelizacion. | Finito, se borra tras merge |
+| **Issue** | Unidad atomica = 1 PR | Dias |
+
+Reglas:
+- **Epic NO es un label ni un tema paraguas**. Es una meta cerrable con criterio explicito.
+- **Worktree es detalle de ejecucion**, no de planificacion. Un epic PUEDE spanear varios worktrees; un worktree PUEDE tocar varios epics. En la practica son 1:1 la mayoria del tiempo, pero es coincidencia.
+- **Un issue puede ser standalone** (sin epic padre). Reservado para one-offs: bugs, docs, research parkeado.
+
+### Cuando crear un epic (reactivo, no predictivo)
+
+Crear epic SOLO si:
+- Podes identificar 3+ sub-issues concretos, cada uno un PR separado
+- El trabajo va a spanear semanas
+- Hay criterio claro de cierre
+
+**Reactivo**: si Suite 2 descubre que el compiler falla, abrís issues individuales. Si despues de 3+ fixes relacionados aparece un patron, promoves a epic y re-parenteas. **No crees epics para trabajo que no descubriste todavia.**
+
+### Template de body (OBLIGATORIO para epic o issue)
+
+Dos publicos: el humano (vos) y Claude (sesiones futuras).
+
+```
+## Contexto (para humanos)
+
+<1-3 frases en español plano: que es, por que importa, cuando lo harias>
+
+## Detalle tecnico (para Claude / sesiones)
+
+<jerga, refs a codigo, decisiones, edge cases, links a docs de research/>
+
+## Criterio de cierre
+
+<que tiene que pasar para que esto este hecho>
+```
+
+### Epics activos (SREG)
+
+| Epic | # | Worktree dominante | Cierra cuando |
+|---|---|---|---|
+| Suites de correctness del sistema (1, 2, 4) | #26 | eval-suite | Las 3 suites pasan baseline |
+| Science coverage — mapeo del sistema | #29 | eval-suite | Cobertura mapeada + report |
+| Benchmarkear Qwen3-8B con benchmarks externos | #30 | qwen-benchmarks | Qwen3-8B corrio en los 4 benchmarks |
+| Infra de entrenamiento RL con Qwen sobre SREG | #31 | rl-training-infra | Infra completa + primer RL run valida |
+| Investigacion secuencial tipo Sherlock (parked) | #16 | (por definir) | A definir cuando se retome |
+
+### Standalones activos (no pertenecen a ningun epic)
+
+- Verifier: hacerlo mas robusto (#1)
+- Scoring por unidad / credit assignment (#2)
+- Modos semanticos — ficticio/abstracto (#18, parkeado, retomar despues)
+- Consolidar docs post-v1 (#21)
+- Bug: world fingerprint inestable (#22)
+
+**Tesis v1 NO es epic**. Es la motivacion north-star. Los epics concretos la alimentan cuando cierran.
+
+### Labels (3 — todo lo demas fue eliminado)
+
+| Label | Cuando |
+|---|---|
+| `bug` | Es un bug real (default GitHub) |
+| `blocked` | Esperando dependencia |
+| `parked` | Idea abierta pero no activa (ej: Sherlock, modos semanticos) |
+
+**Nada mas**. Sin `lane:*`, `type:*`, `area:*`, `prio:*`. La info vive en:
+- Titulo del epic padre (ya te dice el "que")
+- Worktree del Project (ya te dice el "donde")
+- Body del issue con template de 3 secciones (te dice el por que y el como)
+
+### Project v2 "SREG Roadmap"
+
+URL: https://github.com/users/lucaspecina/projects/4
+
+**Campos**:
+- **Status** (default GitHub): Todo / In Progress / Done. Auto-update al cerrar issue.
+- **Worktree** (custom): `eval-suite`, `qwen-benchmarks`, `rl-training-infra`, `main`, `none`.
+
+**Views recomendadas**:
+- **Epics** — Board, Group by `Parent issue`. Ves progreso por epic + standalones ("no parent").
+- **Worktrees** — Board, Group by `Worktree`. Ves que esta activo en cada worktree fisico.
+
+**Prioridad** = orden manual en la columna Todo (drag&drop). NO es label.
 
 ### Issue workflow
-- **Issues en GitHub** con labels: `lane:*`, `type:*`, `prio:*`, `status:*`
-- **1 issue = 1 branch = 1 worktree = 1 PR**
-- Branch naming: `issue/NNN-short-slug` (ej: `issue/16-sherlock-interactive`)
-- PR body empieza con `Closes #NNN` para cierre automatico
-- Squash merge preferido
-- Commits referencian issue: `#NNN descripcion` (ej: `#16 add intervention tools`)
+
+- **1 issue = 1 PR**. Worktree puede agrupar varios issues si estan en el mismo stream.
+- **Epics + sub-issues nativos** (API de GitHub, NO "Part of #N" en body).
+- Branch naming: `issue/NNN-short-slug`.
+- PR body empieza con `Closes #NNN` para cierre automatico.
+- Squash merge preferido.
+- Commits referencian con `Refs #NNN descripcion` (no cierra; `Closes` solo en PR body).
+
+### Flujo para empezar un issue
+
+1. Abrir Project board (view Epics) → elegir lo que esta arriba de la columna Todo
+2. Mover card a Status=In Progress (drag, o `gh project item-edit`)
+3. Ver Worktree del Project → si es `main`, trabajar en main. Si es otro, `cd` ahi (o `claude --worktree <nombre>`)
+4. Commitear con `Refs #NNN ...`
+5. PR con `gh pr create` + body `Closes #NNN`
+6. Tras merge: GitHub cierra issue, Project lo mueve a Done automaticamente
+
+### Flujo para crear un issue nuevo
+
+1. Decidir: ¿sub-issue de un epic existente o standalone?
+2. `gh issue create --title "..." --body "..."` con template de 3 secciones
+3. Labels: agregar `bug` si aplica. No agregar mas salvo `blocked` o `parked`.
+4. Agregar al Project: `gh project item-add 4 --owner lucaspecina --url <issue-url>`
+5. Setear campo Worktree
+6. Si es sub-issue: linkear al epic via API de sub-issues (NO "Part of #N" en body)
 
 ### gh CLI
-`gh` esta instalado pero puede no estar en PATH de bash. Usar path completo
-si falla: `"/c/Program Files/GitHub CLI/gh.exe"`. Authenticated as `lucaspecina`.
 
-### Flujo
-1. Elegir issue `prio:now` → ponerle `status:in-progress`:
-   `gh issue edit NNN --add-label status:in-progress`
-2. Crear worktree + branch: `claude --worktree issue-NNN-slug`
-3. Trabajar, commitear
-4. Abrir PR con `gh pr create` + `Closes #NNN`
-5. Mergear PR, cerrar issue, borrar branch, remover worktree
+`gh` en PATH. Authenticated as `lucaspecina`. Scopes: `project, read:project`.
+Si falla auth: `gh auth refresh -s project,read:project`.
 
 ### Git general
+
 - Always ask user before pushing. Multiple sessions: `claude --worktree <name>`.
-- Worktrees legacy (`worktree-*`) siguen con naming viejo. La convencion
-  `issue/NNN-*` aplica a work nuevo.
+- Worktrees legacy (`worktree-*`, `eval-suite`) mantienen naming viejo.
+  Work nuevo usa `issue/NNN-*`.
 - Worktrees existentes deben mergear main para traer docs actualizados.
 
 ### Codex
+
 - **Codex** (when MCP available): mandatory for code review, recommended for design.
   Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.
 - **CLAUDE LIDERA, CODEX ASESORA.** Formar opinion propia ANTES de consultar.
