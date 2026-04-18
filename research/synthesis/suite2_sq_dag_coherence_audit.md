@@ -274,8 +274,8 @@ recipes**. Prioritario porque:
 
 ## Referencias
 
-- GH issue #44: "Sub · Suite 2 · Flow B LLM DAG visibility"
-- Local issue origen: `issues/I-025-flow-b-llm-dag-visibility.md`
+- GH issue #43: "Sub · Suite 2 · Flow B LLM DAG visibility (ex I-025)"
+- Local issue origen (archivado): `docs/archive/issue-tracker/I-025-flow-b-llm-dag-visibility.md`
 - Fix: commit `2f69f71` (2026-04-09)
 - Verificador: `src/sreg/tools/oi_verifier.py:226-305`
 - Compiler: `src/sreg/tools/oi_sq_compiler.py:684-700`
