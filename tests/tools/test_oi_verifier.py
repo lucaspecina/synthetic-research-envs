@@ -14,15 +14,12 @@ from sreg.models.open_investigation import (
     Comparison,
     ComparisonKind,
     ConditionRange,
-    FamilyAtom,
-    FamilyKey,
     InSet,
     Measurement,
     MeasurementKind,
     QuantileRange,
     QueryArm,
     QueryKind,
-    SalienceFamily,
 )
 from sreg.solver.scm_solver import SCMSolver
 from sreg.tools.oi_verifier import (
@@ -30,8 +27,6 @@ from sreg.tools.oi_verifier import (
     _filter_condition,
     _find_backdoor_set,
     _measure_from_samples,
-    score_claim_against_family,
-    score_episode,
     verify_atom,
 )
 from sreg.world.scm import SCMWorld
@@ -611,98 +606,6 @@ class TestFindBackdoorSet:
         assert result is not None
         assert "C" in result
 
-
-class TestScoring:
-    def _make_family(self, n_atoms: int = 2, n_material: int = 2) -> SalienceFamily:
-        specs = []
-        for i in range(n_atoms):
-            specs.append(
-                FamilyAtom(
-                    atom_id=f"a{i}",
-                    spec=AtomicSpec(
-                        spec_id=f"s{i}",
-                        arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
-                        measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
-                        comparison=Comparison(kind=ComparisonKind.IDENTITY),
-                        assertion=Assertion(kind=AssertionKind.POSITIVE),
-                    ),
-                    weight=1.0,
-                    material=i < n_material,
-                )
-            )
-        return SalienceFamily(
-            family_id="f1",
-            key=FamilyKey(
-                brief_target="Y",
-                focus_signature=("X", "Y"),
-                pattern_class="causal_effect",
-            ),
-            atoms=tuple(specs),
-            salience=0.8,
-        )
-
-    def test_fully_true(self):
-        """All atoms correct, all material covered."""
-        family = self._make_family(n_atoms=2, n_material=2)
-        scores = {"a0": 1.0, "a1": 1.0}
-        score, verdict = score_claim_against_family(scores, family)
-        assert verdict == "fully_true"
-        assert score == 1.0
-
-    def test_partially_true_with_omission(self):
-        """One atom correct, one material atom omitted."""
-        family = self._make_family(n_atoms=2, n_material=2)
-        scores = {"a0": 1.0}  # a1 omitted but material
-        score, verdict = score_claim_against_family(scores, family)
-        assert verdict == "partially_true_with_omission"
-        assert 0.0 < score < 1.0
-
-    def test_false_claim(self):
-        """All atoms wrong."""
-        family = self._make_family(n_atoms=2, n_material=2)
-        scores = {"a0": 0.0, "a1": 0.0}
-        score, verdict = score_claim_against_family(scores, family)
-        assert verdict == "false"
-        assert score == 0.0
-
-    def test_unmatched(self):
-        """No atoms match."""
-        family = self._make_family(n_atoms=2, n_material=2)
-        scores = {"a99": 1.0}  # doesn't exist in family
-        score, verdict = score_claim_against_family(scores, family)
-        assert verdict == "unmatched"
-        assert score == 0.0
-
-    def test_specificity_bonus(self):
-        """More atoms covered → higher score."""
-        family = self._make_family(n_atoms=3, n_material=1)
-        score_1, _ = score_claim_against_family({"a0": 1.0}, family)
-        score_2, _ = score_claim_against_family({"a0": 1.0, "a1": 1.0}, family)
-        score_3, _ = score_claim_against_family({"a0": 1.0, "a1": 1.0, "a2": 1.0}, family)
-        assert score_1 < score_2 < score_3
-
-    def test_episode_scoring(self):
-        """Episode-level scoring with precision gate."""
-        families = [self._make_family()]
-        # Good solver: 1 claim matching family with high score
-        ep = score_episode([("f1", 0.9)], families, n_claims=1)
-        assert ep.correctness == 0.9
-        assert ep.coverage > 0  # family hit
-        assert ep.total > 0
-
-    def test_precision_gate(self):
-        """Low precision should zero out coverage."""
-        families = [self._make_family()]
-        ep = score_episode([("f1", 0.3)], families, n_claims=1)
-        assert ep.correctness == 0.3
-        assert ep.precision_gate_active is True
-        assert ep.coverage == 0.0
-
-    def test_efficiency_penalty(self):
-        """Submitting over budget reduces efficiency."""
-        families = [self._make_family()]
-        ep = score_episode([("f1", 0.9)], families, n_claims=7, claim_budget=5)
-        assert ep.efficiency < 1.0
 
 
 # ---------------------------------------------------------------------------

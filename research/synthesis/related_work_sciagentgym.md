@@ -365,7 +365,7 @@ permite:
 - Comparar directamente con la dinamica de SciAgentBench.
 
 Este es probablemente el cambio mas accionable para
-`held-out SREG` en `TODO.md` T6.
+`held-out SREG` en GitHub Issue #14.
 
 ### 4. SciForge data synthesis como referencia para nuestro pipeline de SFT
 
@@ -480,8 +480,7 @@ evaluacion ahi nos ayudan a calibrar nuestra suite.
    "tool calls" en el sentido de SciAgentGym. Hay que normalizar.
 
 Estas son decisiones de scaffold a cerrar antes del BEFORE de
-SciAgentBench. Vale agregar como T8 en `TODO.md` si confirmamos el
-plan.
+SciAgentBench. Vale crear GitHub Issue si confirmamos el plan.
 
 ## Implicaciones para el paper de SREG
 
@@ -548,14 +547,14 @@ Frente a SciAgentGym:
 
 ## Open questions para el equipo
 
-1. **SciAgentBench como Tier 2.** ¿Lo confirmamos? Si si, abrir T8 en
-   `TODO.md` con las decisiones de scaffold pendientes.
+1. **SciAgentBench como Tier 2.** ¿Lo confirmamos? Si si, crear GitHub
+   Issue con las decisiones de scaffold pendientes.
 2. **Adoptar las cuatro metricas de proceso en `held-out SREG`.** ¿Las
    formalizamos ahora o esperamos a tener mas data de pilotos?
 3. **SPL en SREG.** ¿Vale el costo de implementar
    `shortest_useful_path` como referencia? Es un compromiso de
    ingenieria no trivial.
-4. **Stratification L1/L2/L3 en held-out.** ¿Cambiamos T6 en `TODO.md`
+4. **Stratification L1/L2/L3 en held-out.** ¿Actualizamos Issue #14
    para que el split de tesis incluya esto desde el inicio?
 5. **SciForge como referencia para SFT data.** ¿Cuando armemos los
    datos de SFT (T7), seguimos el patron golden + error-recovery?

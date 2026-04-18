@@ -328,7 +328,7 @@ y para el setup BEFORE/AFTER.
    pre-procesamiento (resumenes estadisticos) o pasarlos crudos.
 
 Estas son decisiones de scaffold que hay que cerrar antes del BEFORE
-de SciGym. Ver `TODO.md` T3.
+de SciGym. Ver GitHub Issue #12.
 
 ## Implicaciones para el paper de SREG
 

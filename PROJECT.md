@@ -4,7 +4,7 @@
 > **Este documento es la estrella polar del proyecto.** Define que es SREG,
 > para que existe, que deberia lograr y que principios no pueden romperse.
 > No describe implementacion, estado actual ni backlog. Para eso existen
-> `ARCHITECTURE.md`, `CURRENT_STATE.md` y `TODO.md`.
+> `ARCHITECTURE.md`, `CURRENT_STATE.md` y GitHub Issues.
 
 ---
 
@@ -125,9 +125,9 @@ vocabulario canonico:
 Las dos subsecciones siguientes detallan que cubre v1 ("Lo que SREG evalua
 HOY") y que corresponde a v2 y v3 ("Lo que queda FUERA del scope actual").
 
-Los criterios concretos para cerrar v1 viven en `TODO.md` seccion
-"SREG v1 — criterios de done". El detalle del pipeline end-to-end vive en
-`CURRENT_STATE.md`.
+Los criterios de cierre de v1 fueron cumplidos (2026-04-09, tag `sreg-v1`).
+Ver `docs/archive/todo_v1_history.md` para el historico. El detalle del
+pipeline end-to-end vive en `CURRENT_STATE.md`.
 
 > **Nota terminologica.** "SREG v1" refiere al **producto**. Dentro de
 > SREG v1 existen sub-pipelines internos con nombres propios ("SQ v1
@@ -321,8 +321,8 @@ SCM pueden ver. Confundirlos es una fuente recurrente de bugs silenciosos
 que rompen o bien la presion evolutiva sobre el solver, o bien el ground
 truth del reward exacto.
 
-**Flow A** — `src/sreg/tools/oi_compiler.py::lower_intent`: traduce el
-claim del solver en un spec de verificacion. **Debe permanecer ciego al
+**Flow A** — compilacion de claims (`oi_extraction.py` grammar-direct):
+traduce claims del solver en specs de verificacion. **Debe permanecer ciego al
 DAG del SCM.** Dar a Flow A acceso estructural rescataria el razonamiento
 causal del solver (auto-corregir un `adjust_set` invalido, canonicalizar
 un control set malo) y romperia la presion evolutiva — razonar mal

@@ -27,10 +27,10 @@ Parse $ARGUMENTS:
 
 ```bash
 # Generate with inspection
-python scripts/generate_src.py --goal "..." -o experiments/eval_TOPIC/ --inspect --seed N
+python scripts/generate_src.py --goal "..." -o results/eval_TOPIC/ --inspect --seed N
 
 # Generate with OI solver run
-python scripts/generate_src.py --goal "..." -o experiments/eval_TOPIC/ --oi --seed N
+python scripts/generate_src.py --goal "..." -o results/eval_TOPIC/ --oi --seed N
 ```
 
 ## Validar contra escenarios diversos — NO NEGOCIABLE
@@ -117,6 +117,5 @@ En espanol:
 
 ## Referencia
 
-- Rubrica: `research/synthesis/qualitative_eval_rubric.md`
 - Escenarios: `research/synthesis/investigation_scenarios_rubric.md`
 - OI vision: `research/synthesis/open_investigation_vision.md`

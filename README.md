@@ -123,7 +123,7 @@ causal structure, questions, signal/noise) and builds a matching SCM.
 | `PROJECT.md` | Vision, principles, what SREG should achieve |
 | `ARCHITECTURE.md` | System design, contracts, flows |
 | `CURRENT_STATE.md` | What exists today, limitations |
-| `TODO.md` | Pending work, open problems |
+| GitHub Issues | Pending work, open problems (`gh issue list`) |
 | `CHANGELOG.md` | Version history |
 | `research/` | Analysis, findings, synthesis (see research/README.md) |
 
@@ -141,7 +141,7 @@ src/sreg/
   benchmarks/      # External benchmark adapters (CLadder, QRData, DiscoveryBench)
 
 scripts/           # Entry points (generate_src, run_benchmark, OI scripts)
-experiments/       # Generated SRCs and results
+results/           # Generated SRCs and evaluation results (gitignored)
 ```
 
 ## Tests

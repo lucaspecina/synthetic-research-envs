@@ -32,13 +32,13 @@ Build and execute the command:
 
 ```bash
 # With a specific goal + inspection
-python scripts/generate_src.py --goal "research problem about [topic], 8 nodes" -o experiments/case_NAME/ --inspect
+python scripts/generate_src.py --goal "research problem about [topic], 8 nodes" -o results/case_NAME/ --inspect
 
 # Full package with OI solver
-python scripts/generate_src.py --goal "..." -o experiments/case_NAME/ --oi --seed 42
+python scripts/generate_src.py --goal "..." -o results/case_NAME/ --oi --seed 42
 
 # From a paper seed
-python scripts/generate_src.py --seed-file seeds/paper.pdf -o experiments/case_NAME/ --inspect
+python scripts/generate_src.py --seed-file seeds/paper.pdf -o results/case_NAME/ --inspect
 ```
 
 **Goal priority**: `--goal` > `--seed-file` > default
@@ -46,10 +46,10 @@ python scripts/generate_src.py --seed-file seeds/paper.pdf -o experiments/case_N
 If $ARGUMENTS is just a topic (e.g., `/run epidemiology`), build a goal like:
 ```
 "Generate a research problem about [topic] in a fictional setting.
-Use dag_construct with 8 nodes. Design a research case."
+Use scm_construct with 8 variables. Design a research case."
 ```
 
-Always use `-o experiments/case_TOPIC/` with a descriptive name.
+Always use `-o results/case_TOPIC/` with a descriptive name.
 Add `--inspect` by default. Add `--oi` if user wants solver evaluation.
 
 ## Output files

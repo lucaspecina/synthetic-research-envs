@@ -7,11 +7,21 @@ import pandas as pd
 import pytest
 
 from sreg.models.open_investigation import (
-    AskOperator,
+    Assertion,
+    AssertionKind,
+    AtomicSpec,
+    AtomVerdict,
     ClaimCard,
+    Comparison,
+    ComparisonKind,
+    EpisodeSubQuestionScore,
     EvidenceRef,
-    SQRoles,
-    SubQuestionIntent,
+    Measurement,
+    MeasurementKind,
+    QueryArm,
+    QueryKind,
+    SubQuestionIntentV2,
+    VerificationSpec,
 )
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_runner import ArtifactCatalog, OIEpisodeRunner
@@ -252,18 +262,65 @@ class TestRunnerNamespace:
 # ---------------------------------------------------------------------------
 
 
+def _setup_dummy_scoring(runner: OIEpisodeRunner) -> None:
+    """Equip a runner with minimal SQ v2 + mock scorer so submit_claims works."""
+    _atom = AtomicSpec(
+        spec_id="s1",
+        arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+        measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+        comparison=Comparison(kind=ComparisonKind.IDENTITY),
+        assertion=Assertion(kind=AssertionKind.POSITIVE),
+    )
+    _verdict = AtomVerdict(
+        atom_id="s1",
+        spec=_atom,
+        ground_truth=1.0,
+        solver_assertion_holds=True,
+        score=1.0,
+    )
+    _spec = VerificationSpec(spec=_atom, role="required", verdict=_verdict)
+    runner.set_subquestions_v2([
+        SubQuestionIntentV2(
+            sq_id="sq1",
+            text_gloss="Does A increase Y?",
+            verification_specs=[_spec],
+            focus_variables=("A", "Y"),
+        )
+    ])
+    _dummy_score = EpisodeSubQuestionScore(
+        sq_scores=[],
+        coverage=0.5,
+        weighted_coverage=0.5,
+        correctness=0.8,
+        novel_bonus=0.0,
+        total=0.5,
+    )
+    runner._score_with_judge = lambda claims, compiled: _dummy_score
+
+
 class TestRunnerSubmission:
     def test_build_extraction_context_includes_metadata_and_sqs(self):
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world)
-        runner.set_subquestions([
-            SubQuestionIntent(
+        _atom = AtomicSpec(
+            spec_id="s1",
+            arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.IDENTITY),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
+        )
+        _verdict = AtomVerdict(
+            atom_id="s1", spec=_atom, ground_truth=1.0,
+            solver_assertion_holds=True, score=1.0,
+        )
+        _spec = VerificationSpec(spec=_atom, role="required", verdict=_verdict)
+        runner.set_subquestions_v2([
+            SubQuestionIntentV2(
                 sq_id="sq1",
-                pattern="causal_effect",
-                roles=SQRoles(treatment="A", outcome="Y"),
-                ask=AskOperator.SIGN,
                 text_gloss="Does A increase Y?",
+                verification_specs=[_spec],
+                focus_variables=("A", "Y"),
             )
         ])
 
@@ -276,7 +333,7 @@ class TestRunnerSubmission:
         assert ctx.sub_questions == [
             {
                 "sq_id": "sq1",
-                "pattern": "causal_effect",
+                "pattern": "free_text",
                 "text_gloss": "Does A increase Y?",
             }
         ]
@@ -285,6 +342,7 @@ class TestRunnerSubmission:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world)
+        _setup_dummy_scoring(runner)
         runner._namespace["load_artifact"]("dataset_bg")
 
         claims = [_make_claim()]
@@ -298,6 +356,7 @@ class TestRunnerSubmission:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world)
+        _setup_dummy_scoring(runner)
         runner._namespace["load_artifact"]("dataset_bg")
         captured: dict[str, object] = {}
 
@@ -337,6 +396,7 @@ class TestRunnerSubmission:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world)
+        _setup_dummy_scoring(runner)
         runner._namespace["load_artifact"]("dataset_bg")
 
         runner.run_code("1 + 1")
@@ -347,11 +407,12 @@ class TestRunnerSubmission:
         assert "c1" in runner.trace.claim_steps
         assert runner.trace.claim_steps["c1"] == 2  # last step
 
-    def test_submit_auto_compiles_via_deterministic_fallback(self):
-        """Without LLM, auto-compilation uses keyword-based fallback."""
+    def test_submit_without_llm_still_scores(self):
+        """Without LLM, claims abstain but scoring still runs via stub."""
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=5000)
+        _setup_dummy_scoring(runner)
 
         # Load data so warrant has access records
         runner.run_code('df = load_artifact("dataset_bg")')
@@ -360,38 +421,39 @@ class TestRunnerSubmission:
         claims = [_make_claim()]
         score = runner.submit_claims(claims)
 
-        # Deterministic fallback should compile the causal_effect claim
-        assert score.total > 0
+        # Without LLM, grammar-direct abstains. Dummy scorer still returns a score.
+        assert score is not None
 
-    def test_submit_with_compiled_intents(self):
-        """Test submission with pre-compiled ClaimIntents."""
-        from sreg.tools.oi_compiler import (
-            ClaimIntent,
-            Direction,
-            PatternClass,
-            build_world_summary,
-            lower_intent,
-        )
+    def test_submit_with_precompiled(self):
+        """Test submission with pre-compiled CompilerOutput."""
+        from sreg.tools.oi_compiler import CompiledUnit, CompilerOutput
 
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=5000)
+        _setup_dummy_scoring(runner)
 
         # Simulate investigation
         runner.run_code('df = load_artifact("dataset_bg")')
         runner.run_code('oi.regress(df, y="Y", x=["A"])')
 
-        # Create a claim + pre-compiled intent
+        # Create a claim + pre-compiled output
         claim = _make_claim()
-        summary = build_world_summary(world, "Y", n_mc=5000, seed=42)
-        intent = ClaimIntent(
-            claim_id="c1",
-            pattern=PatternClass.CAUSAL_EFFECT,
-            treatment="A",
-            outcome="Y",
-            direction=Direction.POSITIVE,
+        spec = AtomicSpec(
+            spec_id="c1_s0",
+            arms=(
+                QueryArm(label="hi", kind=QueryKind.INTERVENE, values={"A": 1.0}),
+                QueryArm(label="lo", kind=QueryKind.INTERVENE, values={"A": -1.0}),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
         )
-        compiled = [lower_intent(intent, summary)]
+        compiled = [CompilerOutput(
+            claim_id="c1",
+            status="compiled",
+            units=[CompiledUnit(unit_id="c1_u0", specs=[spec], backend="grammar_direct")],
+        )]
 
         score = runner.submit_claims([claim], compiled_claims=compiled)
         assert score.total > 0  # Should get some credit
@@ -406,6 +468,7 @@ class TestRunnerSubmission:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        _setup_dummy_scoring(runner)
         runner._namespace["load_artifact"]("dataset_bg")
 
         assert not runner.is_submitted
@@ -440,17 +503,12 @@ class TestRunnerPromptContext:
 class TestMockSolverFlow:
     def test_full_investigation_flow(self):
         """Simulate a full solver investigation without LLM."""
-        from sreg.tools.oi_compiler import (
-            ClaimIntent,
-            Direction,
-            PatternClass,
-            build_world_summary,
-            lower_intent,
-        )
+        from sreg.tools.oi_compiler import CompiledUnit, CompilerOutput
 
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=5000)
+        _setup_dummy_scoring(runner)
 
         # Step 1: Load data
         r = runner.run_code('bg = load_artifact("dataset_bg")')
@@ -473,21 +531,27 @@ class TestMockSolverFlow:
         # Verify trace accumulated
         assert len(runner.trace.accesses) == 2
 
-        # Step 6: Submit claims with pre-compiled intents
+        # Step 6: Submit claims with pre-compiled specs
         claim = _make_claim(
             text="A has a positive causal effect on Y, controlling for B",
             focus=["A", "Y"],
         )
 
-        summary = build_world_summary(world, "Y", n_mc=5000, seed=42)
-        intent = ClaimIntent(
-            claim_id="c1",
-            pattern=PatternClass.CAUSAL_EFFECT,
-            treatment="A",
-            outcome="Y",
-            direction=Direction.POSITIVE,
+        spec = AtomicSpec(
+            spec_id="c1_s0",
+            arms=(
+                QueryArm(label="hi", kind=QueryKind.INTERVENE, values={"A": 1.0}),
+                QueryArm(label="lo", kind=QueryKind.INTERVENE, values={"A": -1.0}),
+            ),
+            measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+            comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo"),
+            assertion=Assertion(kind=AssertionKind.POSITIVE),
         )
-        compiled = [lower_intent(intent, summary)]
+        compiled = [CompilerOutput(
+            claim_id="c1",
+            status="compiled",
+            units=[CompiledUnit(unit_id="c1_u0", specs=[spec], backend="grammar_direct")],
+        )]
 
         score = runner.submit_claims([claim], compiled_claims=compiled)
 
@@ -697,6 +761,7 @@ class TestEvidenceBasisValidation:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        _setup_dummy_scoring(runner)
         runner._namespace["load_artifact"]("dataset_bg")
 
         score = runner.submit_claims([_make_claim(artifact_id="dataset_bg")])
@@ -708,6 +773,7 @@ class TestEvidenceBasisValidation:
         problem = _make_problem()
         world = _make_scm_world()
         runner = OIEpisodeRunner(problem, world, n_mc=1000)
+        _setup_dummy_scoring(runner)
         runner._namespace["load_artifact"]("dataset_bg")
 
         # First attempt: fabricated ref -> rejected.

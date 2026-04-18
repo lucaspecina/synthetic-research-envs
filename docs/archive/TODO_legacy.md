@@ -7,7 +7,7 @@
 
 ## NOW
 
-- [ ] I-020: Skills stale update — fix BN/legacy refs (hygiene)
+(vacio — picking next)
 
 ## NEXT
 
@@ -66,6 +66,8 @@
 ## RECENTLY CLOSED
 
 - [x] I-009 A+B: Eval suite — reward alignment blocks A+B (2026-04-12, 25/25 pass)
+- [x] I-003: Claim compiler grammar-direct (A23) — cerrado retroactivamente (2026-04-10, hecho en commit `9ebf29d` del 2026-04-03)
+- [x] I-020: Skills stale update — fix BN/legacy refs (2026-04-10)
 - [x] SREG v1 — 6 criterios de cierre (2026-04-09, tag `sreg-v1`)
 - [x] Merge v1 a main + tags sreg-v0/sreg-v1 (2026-04-10)
 - [x] Migracion a issue tracking local (2026-04-10)

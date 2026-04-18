@@ -5,13 +5,7 @@ from __future__ import annotations
 import pytest
 
 from sreg.models.open_investigation import (
-    EPISODE_PRECISION_GATE,
-    FAMILY_HIT_THRESHOLD,
     MAX_CLAIMS,
-    MAX_FAMILIES,
-    OVERCLAIM_MAX,
-    SPEC_BASE,
-    SPEC_BONUS_MAX,
     ApproxEq,
     Assertion,
     AssertionKind,
@@ -19,22 +13,16 @@ from sreg.models.open_investigation import (
     AtomVerdict,
     ClaimCard,
     ClaimSubmission,
-    ClaimVerdict,
     Comparison,
     ComparisonKind,
     ConditionRange,
-    EpisodeScore,
     EvidenceRef,
-    FamilyAtom,
-    FamilyKey,
     InSet,
     Measurement,
     MeasurementKind,
     QuantileRange,
     QueryArm,
     QueryKind,
-    SalienceFamily,
-    SalienceMap,
 )
 
 # ---------------------------------------------------------------------------
@@ -659,92 +647,14 @@ class TestClaimSubmission:
             ClaimSubmission(claims=[_claim_card("c1"), _claim_card("c1")])
 
     def test_max_claims(self):
-        assert MAX_CLAIMS == 5
+        assert MAX_CLAIMS == 15
 
     def test_over_max_rejected(self):
-        cards = [_claim_card(f"c{i}", f"Valid claim number {i} text here") for i in range(6)]
+        cards = [_claim_card(f"c{i}", f"Valid claim number {i} text here") for i in range(16)]
         with pytest.raises(ValueError):
             ClaimSubmission(claims=cards)
 
 
-# ---------------------------------------------------------------------------
-# Salience Map tests
-# ---------------------------------------------------------------------------
-
-
-class TestSalienceMap:
-    def _family(self, fid: str, target: str = "Y") -> SalienceFamily:
-        return SalienceFamily(
-            family_id=fid,
-            key=FamilyKey(
-                brief_target=target,
-                focus_signature=("X", "Y"),
-                pattern_class="causal_effect",
-            ),
-            atoms=(
-                FamilyAtom(
-                    atom_id=f"{fid}_a1",
-                    spec=_mean_contrast_spec("X", "Y", spec_id=f"{fid}_s1"),
-                ),
-            ),
-            salience=0.8,
-        )
-
-    def test_valid_map(self):
-        sm = SalienceMap(
-            world_id="w1",
-            brief_target="Y",
-            families=[self._family("f1"), self._family("f2")],
-        )
-        assert len(sm.families) == 2
-        assert sm.family_ids == {"f1", "f2"}
-
-    def test_family_key_sorts_signature(self):
-        key = FamilyKey(
-            brief_target="Y",
-            focus_signature=("Z", "A", "M"),
-            pattern_class="mediation",
-        )
-        assert key.focus_signature == ("A", "M", "Z")
-
-    def test_max_families(self):
-        assert MAX_FAMILIES == 30
-
-
-# ---------------------------------------------------------------------------
-# Scoring model tests
-# ---------------------------------------------------------------------------
-
-
-class TestScoring:
-    def test_episode_score_weights(self):
-        es = EpisodeScore(
-            correctness=0.8,
-            coverage=0.6,
-            efficiency=0.9,
-            total=0.0,
-            families_hit=3,
-            families_total=5,
-        )
-        assert es.W_CORRECTNESS == 0.60
-        assert es.W_COVERAGE == 0.30
-        assert es.W_EFFICIENCY == 0.10
-
-    def test_constants(self):
-        assert SPEC_BASE == 0.50
-        assert SPEC_BONUS_MAX == 0.50
-        assert OVERCLAIM_MAX == 0.50
-        assert FAMILY_HIT_THRESHOLD == 0.60
-        assert EPISODE_PRECISION_GATE == 0.55
-
-    def test_claim_verdict_model(self):
-        v = ClaimVerdict(
-            claim_id="c1",
-            matched_family_id="f1",
-            score=0.75,
-            verdict="partially_true_with_omission",
-        )
-        assert v.verdict == "partially_true_with_omission"
 
     def test_atom_verdict_model(self):
         spec = _mean_contrast_spec("X", "Y")

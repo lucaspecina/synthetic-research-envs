@@ -72,7 +72,7 @@ Cada decisión pasa por este TRIPLE filtro:
 | Entender como funciona el sistema hoy (usuario, explicacion AMIGABLE) | `CURRENT_STATE.md` |
 | Entender la arquitectura tecnica | `ARCHITECTURE.md` |
 | Vision, principios, invariantes | `PROJECT.md` |
-| Que hacer / trabajo pendiente | `TODO.md` (board) + `issues/I-NNN.md` (detalle) |
+| Que hacer / trabajo pendiente | [Project v2 "SREG Roadmap"](https://github.com/users/lucaspecina/projects/4). Workflow completo en skill `/tracking`. |
 | Historial de cambios | `CHANGELOG.md` |
 | Historico TODO v1 | `docs/archive/todo_v1_history.md` |
 | Indice de research (que doc es canon, cual no) | `research/README.md` |
@@ -101,6 +101,7 @@ Cada decisión pasa por este TRIPLE filtro:
 | `/codex-collab` | Consultar Codex como segunda opinion |
 | `/plan` | Ver roadmap y estado del proyecto |
 | `/status` | Resumen rapido de donde estamos |
+| `/tracking` | **Source of truth de todo el tracking.** Crear/editar/cerrar issues, manejar Project v2 (Status, Worktree), linkear sub-issues, promover a epic. Auto-invocado. |
 
 ### research/ — mantener limpio
 
@@ -111,7 +112,7 @@ Cada decisión pasa por este TRIPLE filtro:
 
 1. **CURRENT_STATE.md** — el cambio afecta como funciona el sistema? Actualizar.
 2. **CHANGELOG.md** — agregar entrada describiendo el cambio (producto, no internals).
-3. **TODO.md + issues/** — completaste algo? Mover en TODO.md. Surgio algo nuevo? Crear issue en `issues/I-NNN.md` y agregar al board.
+3. **Tracking (Project v2 + Issues)** — sincronizar via skill `/tracking`. Cerrar lo completado, crear lo nuevo con template + Worktree field + link al epic si aplica.
 4. **research/README.md** — cambiaste o creaste docs de research? Actualizar indice.
 5. **ARCHITECTURE.md** — cambiaste componentes, contratos o flows? Actualizar.
 6. **Tests y scripts** — el cambio deja tests o scripts obsoletos? Eliminarlos.
@@ -190,8 +191,7 @@ scripts/ # generate_src.py, run_oi.py, rescore.py, run_benchmark.py
 seeds/ # Research seeds (.md/.pdf) for diverse E2E generation
 tests/ # Mirrors src/ structure
 research/ # Analisis y sintesis (ver research/README.md)
-issues/ # Issue tracking local (I-NNN-slug.md)
-docs/archive/ # Historico (todo_v1_history.md, etc.)
+docs/archive/ # Historico (todo_v1_history.md, issue-tracker/, etc.)
 ```
 
 ## Code conventions
@@ -207,11 +207,47 @@ docs/archive/ # Historico (todo_v1_history.md, etc.)
 
 `pytest tests/ -v` | `pytest tests/tools/test_X.py -v` | `ruff check src/ tests/` | `ruff format src/ tests/`
 
-## Git + Codex
+## Git + GitHub + Codex
 
-- Branch naming: `feature/<name>`, `fix/<name>`, `refactor/<name>`
-- Always ask user before pushing. Multiple sessions: `claude --worktree <name>`.
-- **Codex** (when MCP available): mandatory for code review, recommended for design.
- Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.
+**El tracking completo vive en la skill `/tracking`** (auto-invocada cuando tocas issues/Project/epics). Incluye: modelo mental (epic/worktree/issue), campos del Project v2, comandos exactos (crear, empezar, cerrar, linkear, promover), labels, convenciones de titulo, razones de cierre, sesiones concurrentes. No dupliques ese contenido aca.
+
+### Resumen minimo (lo que cada sesion debe tener presente)
+
+- **Source of truth**: [Project v2 "SREG Roadmap"](https://github.com/users/lucaspecina/projects/4), no el listado de Issues. Cada item tiene `Status` y `Worktree`.
+- **Modelo**: Epic (meta cerrable) > sub-issue(s) (pueden tener hijos) > Issue concreta (1 PR). Anidacion permitida dentro del epic.
+- **1 epic = 1 worktree** es **buena practica recomendada** (no forzada). Casos raros: un worktree con varios epics.
+- **Labels**: `bug`, `blocked`, `parked`, `research`, `design`. Nada mas.
+- **1 issue concreta = 1 PR**. Branch `issue/NNN-slug`. PR body empieza con `Closes #NNN`.
+- **Al empezar**: mover Status a `In Progress` ANTES de codear.
+- **Ante cualquier duda de flujo**: consultar `/tracking`.
+
+### Epics activos (mantener sincronizada esta tabla)
+
+| Epic | # | Worktree | Cierra cuando |
+|---|---|---|---|
+| Suites de correctness (1, 2, 4) | #26 | eval-suite | Las 3 suites pasan baseline |
+| Science coverage — mapeo del sistema | #29 | science-coverage | Cobertura mapeada + report |
+| Benchmarkear Qwen3-8B con benchmarks externos | #30 | qwen-benchmarks | Qwen3-8B corrio en los 4 benchmarks |
+| Infra de entrenamiento RL con Qwen sobre SREG | #31 | rl-training-infra | Infra completa + primer RL run valida |
+| Mejorar el compiler post-diagnostico Suite 2 | #36 | compiler-fix | Suite 2 effective pass rate >=50%, arm_kinds >=70%, abstain correcto |
+| Investigacion secuencial tipo Sherlock (parked) | #16 | (por definir) | A definir cuando se retome |
+
+### Standalones activos (sin epic padre)
+
+- #1 Verifier mas robusto (main)
+- #2 Scoring por unidad / credit assignment (main, `design`)
+- #18 Modos semanticos ficticio/abstracto (parked, `research`)
+- #21 Consolidar docs post-v1 (main, `research`)
+- #22 Bug: world fingerprint inestable (main, `bug`)
+
+### Git general
+
+- Nunca pushear sin aprobacion del usuario.
+- Multiple sesiones: `claude --worktree <name>` + el worktree debe tener su opcion en el Project (ver `/tracking` commands.md).
+- Worktrees existentes deben mergear `main` periodicamente para traer docs actualizados.
+
+### Codex
+
+- Cuando MCP disponible: **codex review mandatorio** para codigo, recomendado para diseno.
 - **CLAUDE LIDERA, CODEX ASESORA.** Formar opinion propia ANTES de consultar.
- Presentar ambas opiniones, argumentar desacuerdos. El usuario decide.
+- Reusar `threadId` con `codex-reply`. Sesion nueva solo si el tema cambio.

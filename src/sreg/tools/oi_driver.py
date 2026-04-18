@@ -24,7 +24,6 @@ from typing import Any, Callable
 from sreg.models.open_investigation import (
     MAX_CLAIMS,
     ClaimCard,
-    EpisodeScore,
     EpisodeSubQuestionScore,
     EpisodeTrace,
 )
@@ -276,7 +275,7 @@ def _parse_claim_cards(claims_raw: list[dict]) -> list[ClaimCard]:
 class OIInvestigationResult:
     """Result of a complete OI investigation."""
 
-    score: EpisodeScore | EpisodeSubQuestionScore | None = None
+    score: EpisodeSubQuestionScore | None = None
     trace: EpisodeTrace = field(default_factory=EpisodeTrace)
     messages: list[dict] = field(default_factory=list)
     n_steps: int = 0
@@ -563,7 +562,7 @@ def run_oi_investigation(
                     })
 
     return OIInvestigationResult(
-        score=runner.get_sq_score() or runner.get_score(),
+        score=runner.get_score(),
         trace=runner.get_trace(),
         messages=messages,
         n_steps=runner._step["current"],
@@ -643,7 +642,7 @@ def run_oi_scripted(
             break
 
     return OIInvestigationResult(
-        score=runner.get_sq_score() or runner.get_score(),
+        score=runner.get_score(),
         trace=runner.get_trace(),
         messages=messages,
         n_steps=runner._step["current"],

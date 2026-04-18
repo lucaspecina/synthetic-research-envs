@@ -7,7 +7,22 @@ import json
 import numpy as np
 import pytest
 
-from sreg.models.open_investigation import ClaimCard
+from sreg.models.open_investigation import (
+    Assertion,
+    AssertionKind,
+    AtomicSpec,
+    AtomVerdict,
+    ClaimCard,
+    Comparison,
+    ComparisonKind,
+    EpisodeSubQuestionScore,
+    Measurement,
+    MeasurementKind,
+    QueryArm,
+    QueryKind,
+    SubQuestionIntentV2,
+    VerificationSpec,
+)
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_driver import (
     OI_SOLVER_TOOLS,
@@ -79,7 +94,38 @@ def _make_scm_world():
 
 
 def _make_runner() -> OIEpisodeRunner:
-    return OIEpisodeRunner(_make_problem(), _make_scm_world(), seed=42)
+    runner = OIEpisodeRunner(_make_problem(), _make_scm_world(), seed=42)
+    _setup_dummy_scoring(runner)
+    return runner
+
+
+def _setup_dummy_scoring(runner: OIEpisodeRunner) -> None:
+    """Equip a runner with minimal SQ v2 + mock scorer so submit_claims works."""
+    _atom = AtomicSpec(
+        spec_id="s1",
+        arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+        measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+        comparison=Comparison(kind=ComparisonKind.IDENTITY),
+        assertion=Assertion(kind=AssertionKind.POSITIVE),
+    )
+    _verdict = AtomVerdict(
+        atom_id="s1", spec=_atom, ground_truth=1.0,
+        solver_assertion_holds=True, score=1.0,
+    )
+    _spec = VerificationSpec(spec=_atom, role="required", verdict=_verdict)
+    runner.set_subquestions_v2([
+        SubQuestionIntentV2(
+            sq_id="sq1",
+            text_gloss="Does A increase Y?",
+            verification_specs=[_spec],
+            focus_variables=("A", "Y"),
+        )
+    ])
+    _dummy_score = EpisodeSubQuestionScore(
+        sq_scores=[], coverage=0.5, weighted_coverage=0.5,
+        correctness=0.8, novel_bonus=0.0, total=0.5,
+    )
+    runner._score_with_judge = lambda claims, compiled: _dummy_score
 
 
 def _claim_dict(
@@ -578,11 +624,11 @@ class TestOIInvestigationResult:
         assert not result.submitted
 
     def test_with_score(self):
-        from sreg.models.open_investigation import EpisodeScore
+        from sreg.models.open_investigation import EpisodeSubQuestionScore
 
-        score = EpisodeScore(
-            correctness=0.7, coverage=0.5, efficiency=0.1, total=0.55,
-            families_hit=3, families_total=5,
+        score = EpisodeSubQuestionScore(
+            correctness=0.7, coverage=0.5, weighted_coverage=0.5,
+            novel_bonus=0.0, total=0.55,
         )
         result = OIInvestigationResult(score=score, submitted=True)
         assert result.score.total == 0.55

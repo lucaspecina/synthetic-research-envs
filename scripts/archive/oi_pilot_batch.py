@@ -454,7 +454,7 @@ def run_single_pilot(
         }
 
     # Sub-question score (primary scoring for OI)
-    sq_score = runner.get_sq_score()
+    sq_score = runner.get_score()
     if sq_score:
         output["sq_score"] = {
             "total": round(sq_score.total, 4),

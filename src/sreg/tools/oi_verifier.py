@@ -16,25 +16,16 @@ import numpy as np
 import pandas as pd
 
 from sreg.models.open_investigation import (
-    EPISODE_PRECISION_GATE,
-    FAMILY_HIT_THRESHOLD,
-    MAX_CLAIMS,
-    OVERCLAIM_MAX,
-    SPEC_BASE,
-    SPEC_BONUS_MAX,
     Assertion,
     AssertionKind,
     AtomicSpec,
     AtomVerdict,
-    ClaimVerdict,
     Comparison,
     ComparisonKind,
-    EpisodeScore,
     Measurement,
     MeasurementKind,
     QueryArm,
     QueryKind,
-    SalienceFamily,
 )
 from sreg.solver.scm_solver import SCMSolver
 from sreg.world.scm import SCMWorld
@@ -818,182 +809,6 @@ def _assert(
     return False, "unknown_assertion"
 
 
-# ---------------------------------------------------------------------------
-# Scoring: claim-level and episode-level
-# ---------------------------------------------------------------------------
-
-
-def score_claim_against_family(
-    atom_verdicts: dict[str, float],
-    family: SalienceFamily,
-) -> tuple[float, str]:
-    """Score a claim's atom verdicts against a salience family.
-
-    Returns (score, verdict_label).
-    """
-    covered = [a for a in family.atoms if a.atom_id in atom_verdicts]
-    if not covered:
-        return 0.0, "unmatched"
-
-    verified_w = sum(a.weight * atom_verdicts[a.atom_id] for a in covered)
-    covered_w = sum(a.weight for a in covered)
-    family_w = sum(a.weight for a in family.atoms)
-    material_w = sum(a.weight for a in family.atoms if a.material) or 1.0
-    omitted_material_w = sum(
-        a.weight for a in family.atoms if a.material and a.atom_id not in atom_verdicts
-    )
-
-    atom_precision = verified_w / covered_w if covered_w > 0 else 0.0
-    specificity_ratio = verified_w / family_w if family_w > 0 else 0.0
-    omitted_material_ratio = omitted_material_w / material_w
-
-    specificity_bonus = SPEC_BONUS_MAX * specificity_ratio
-    overclaim_penalty = OVERCLAIM_MAX * omitted_material_ratio
-
-    score = max(
-        0.0,
-        min(1.0, atom_precision * (SPEC_BASE + specificity_bonus) * (1.0 - overclaim_penalty)),
-    )
-
-    if atom_precision == 1.0 and omitted_material_ratio == 0.0:
-        verdict = "fully_true"
-    elif atom_precision == 1.0:
-        verdict = "partially_true_with_omission"
-    elif atom_precision > 0.0:
-        verdict = "mixed"
-    else:
-        verdict = "false"
-
-    return score, verdict
-
-
-def score_episode(
-    claim_matches: list[tuple[str, float]],
-    families: list[SalienceFamily],
-    n_claims: int,
-    claim_budget: int = MAX_CLAIMS,
-) -> EpisodeScore:
-    """Compute episode-level score from claim matches.
-
-    Args:
-        claim_matches: List of (family_id, match_score) for each claim.
-        families: The salience map families.
-        n_claims: Number of claims the solver submitted.
-        claim_budget: Maximum allowed claims (default K=5).
-    """
-    n_matches = len(claim_matches)
-    scores = [s for _, s in claim_matches]
-    correctness = sum(scores) / max(n_matches, 1)
-
-    # Coverage: best score per family
-    best_by_family: dict[str, float] = {}
-    for (family_id, _), s in zip(claim_matches, scores):
-        best_by_family[family_id] = max(best_by_family.get(family_id, 0.0), s)
-
-    families_hit = sum(
-        1
-        for f in families
-        if best_by_family.get(f.family_id, 0.0) >= FAMILY_HIT_THRESHOLD
-    )
-    coverage = families_hit / max(len(families), 1)
-
-    # Precision gate
-    precision_gate = correctness < EPISODE_PRECISION_GATE
-    if precision_gate:
-        coverage = 0.0
-
-    # Efficiency
-    overflow = max(0, n_claims - claim_budget)
-    efficiency = max(0.0, 1.0 - (overflow / max(claim_budget, 1)))
-
-    total = 0.60 * correctness + 0.30 * coverage + 0.10 * efficiency
-
-    return EpisodeScore(
-        correctness=correctness,
-        coverage=coverage,
-        efficiency=efficiency,
-        total=total,
-        families_hit=families_hit,
-        families_total=len(families),
-        precision_gate_active=precision_gate,
-    )
-
-
-def score_episode_v2(
-    claim_verdicts: list[ClaimVerdict],
-    families: list[SalienceFamily],
-    n_claims: int,
-    claim_budget: int = MAX_CLAIMS,
-) -> EpisodeScore:
-    """Compute episode-level score from claim verdicts (v2 scoring).
-
-    Key differences from v1:
-    - Correctness = mean of effective_scores (truth * relevance * warrant)
-    - Coverage uses family_id from verdicts, not from claim_matches tuples
-    - Per-claim scoring (not per-spec)
-    - ClaimVerdicts carry all needed info (truth, relevance, effective)
-    """
-
-    if not claim_verdicts:
-        return EpisodeScore(
-            correctness=0.0,
-            coverage=0.0,
-            efficiency=1.0,
-            total=0.10,
-            claim_verdicts=claim_verdicts,
-            families_hit=0,
-            families_total=len(families),
-        )
-
-    # Correctness: mean of effective scores across all claims
-    effective_scores = [cv.effective_score for cv in claim_verdicts]
-    correctness = sum(effective_scores) / len(effective_scores)
-
-    # Coverage: which families were hit by claims with sufficient TRUTH score
-    # (not effective_score — coverage should not depend on relevance weighting)
-    best_by_family: dict[str, float] = {}
-    for cv in claim_verdicts:
-        if cv.matched_family_id and cv.matched_family_id not in (
-            "__unmatched__", "__abstention__"
-        ):
-            best_by_family[cv.matched_family_id] = max(
-                best_by_family.get(cv.matched_family_id, 0.0),
-                cv.truth_score,
-            )
-
-    families_hit = sum(
-        1
-        for f in families
-        if best_by_family.get(f.family_id, 0.0) >= FAMILY_HIT_THRESHOLD
-    )
-    coverage = families_hit / max(len(families), 1)
-
-    # Precision gate: if correctness too low, no coverage credit
-    precision_gate = correctness < EPISODE_PRECISION_GATE
-    if precision_gate:
-        coverage = 0.0
-
-    # Efficiency: penalty for exceeding claim budget
-    overflow = max(0, n_claims - claim_budget)
-    efficiency = max(0.0, 1.0 - (overflow / max(claim_budget, 1)))
-
-    total = 0.60 * correctness + 0.30 * coverage + 0.10 * efficiency
-
-    return EpisodeScore(
-        correctness=correctness,
-        coverage=coverage,
-        efficiency=efficiency,
-        total=total,
-        claim_verdicts=claim_verdicts,
-        families_hit=families_hit,
-        families_total=len(families),
-        precision_gate_active=precision_gate,
-    )
-
-
 __all__ = [
     "verify_atom",
-    "score_claim_against_family",
-    "score_episode",
-    "score_episode_v2",
 ]

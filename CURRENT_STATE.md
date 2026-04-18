@@ -15,10 +15,10 @@
 >
 > **Este documento describe SREG v1** (Open Investigation sobre SCM). Para
 > el roadmap del producto (v0 → v1 → v2 → v3) ver `PROJECT.md` seccion
-> "Roadmap del producto". Para los criterios de cierre de v1 ver `TODO.md`
-> seccion "SREG v1 — criterios de done".
+> "Roadmap del producto". SREG v1 cerrado (2026-04-09, tag `sreg-v1`).
+> Historico en `docs/archive/todo_v1_history.md`.
 >
-> Actualizado: 2026-04-09
+> Actualizado: 2026-04-12
 
 ---
 
@@ -178,12 +178,9 @@ Esta capa vive sobre todo en:
 Ademas del mundo y del brief, SREG tiene una capa de evaluacion que decide
 que verdades "importa" descubrir.
 
-Hoy existen dos mecanismos:
-
-- el **path principal actual**: `SubQuestionIntent` -> `ResolvedSubQuestion`
-- el **path diagnostico / legado**: `SalienceFamily`
-
-El path principal de los E2E actuales es el de **sub-questions**.
+El mecanismo canonico es **SQ v2** (specs-based): `SubQuestionIntentV2` con
+`VerificationSpec` bundles, pre-grounded contra el SCM en tiempo de generacion
+y evaluadas via LLM judge en tiempo de scoring.
 
 ---
 
@@ -200,14 +197,12 @@ sistema actual.
 | `OIEpisodeRunner` | El runtime de un episodio OI | `tools/oi_runner.py` | Conecta solver, artefactos, trace y scoring |
 | `EpisodeTrace` | Log estructurado de lo que hizo el solver | `models/open_investigation.py` | Registra accesos a artefactos |
 | `ClaimCard` | La forma en que el solver entrega hallazgos | `models/open_investigation.py` | Es la entrada humana/semi-estructurada al compiler |
-| `ClaimIntent` | IR simbolica intermedia del compiler | `tools/oi_compiler.py` | Traduce una claim libre a pattern + roles |
-| `WorldSummary` | Resumen canonico del mundo | `tools/oi_compiler.py` | Convierte palabras vagas como "high" o "low" en valores concretos |
 | `CompiledUnit` | Una unidad verificable extraida de una claim | `tools/oi_compiler.py` | Un claim compuesto puede producir varias |
 | `AtomicSpec` | La unidad formal minima verificable | `models/open_investigation.py` | Es lo que realmente ejecuta el verifier |
-| `SubQuestionIntent` | Item de agenda oculto generado por el orchestrator | `models/open_investigation.py` | Representa que considera importante el sistema |
-| `ResolvedSubQuestion` | Una sub-question ya resuelta contra el SCM | `models/open_investigation.py` | Es la "answer key" formal de una SQ |
-| `EpisodeSubQuestionScore` | Score principal actual de OI | `models/open_investigation.py` | Resume coverage/correctness sobre SQs |
-| `SalienceFamily` | Familia de verdades relevantes | `models/open_investigation.py` | Parte del path diagnostico/legacy |
+| `WorldSummary` | Resumen canonico del mundo | `tools/oi_compiler.py` | Convierte palabras vagas como "high" o "low" en valores concretos |
+| `SubQuestionIntentV2` | Item de agenda oculto generado por el orchestrator | `models/open_investigation.py` | Representa que considera importante descubrir |
+| `VerificationSpec` | Un atom + rol dentro de una SQ | `models/open_investigation.py` | Answer key pre-grounded contra el SCM |
+| `EpisodeSubQuestionScore` | Score principal de OI | `models/open_investigation.py` | Resume coverage/correctness sobre SQs |
 
 Si alguien solo pudiera llevarse 5 nombres, deberia recordar estos:
 
@@ -215,7 +210,7 @@ Si alguien solo pudiera llevarse 5 nombres, deberia recordar estos:
 - `ResearchProblem`
 - `ClaimCard`
 - `AtomicSpec`
-- `SubQuestionIntent`
+- `SubQuestionIntentV2`
 
 ---
 
@@ -330,97 +325,45 @@ Es un formato de "hallazgo cientifico reportado".
 
 Esta es probablemente la parte mas importante para entender SREG hoy.
 
-El pipeline actual es:
+El pipeline canonico es **grammar-direct**:
 
 ```text
 ClaimCard
-  -> extractor LLM
-  -> ClaimIntent
-  -> lowering deterministico
-  -> AtomicSpec(s)
+  -> LLM extractor + grammar reference
+  -> AtomicSpec(s) directamente
   -> verifier
   -> truth score
 ```
 
-### Paso A. `ClaimCard` -> `ClaimIntent`
+### Paso A. `ClaimCard` -> `AtomicSpec(s)` (grammar-direct)
 
 Esto ocurre en:
 
-- `src/sreg/tools/oi_extraction.py`
-- `src/sreg/tools/oi_exemplars.py`
+- `src/sreg/tools/oi_extraction.py` (funcion `compile_episode_claims`)
 
-El extractor usa un LLM para leer el texto de la claim y producir una
-representacion intermedia llamada `ClaimIntent`.
+El extractor envia al LLM el texto de la claim junto con una referencia
+de la gramatica de `AtomicSpec` (arms, measurement, comparison, assertion).
+El LLM produce directamente los specs formales — **sin pasar por una IR
+intermedia como `ClaimIntent`**.
 
-Hoy `ClaimIntent` tiene principalmente:
+Una claim compuesta puede producir varios `CompiledUnit`s.
+Cada `CompiledUnit` contiene uno o mas `AtomicSpec`s.
 
-- `pattern`
-- `treatment`
-- `outcome`
-- `direction`
-- y opcionalmente `mediator`, `modifier`, `confounder`, `ranking_vars`,
-  `conditioning_set`
-
-Los `pattern`s reconocidos hoy son 8:
-
-- `causal_effect`
-- `mediation`
-- `heterogeneity`
-- `tail_risk`
-- `variance_effect`
-- `observational_association`
-- `effect_ranking`
-- `confounding`
-
-Importante:
-
-- esta lista NO es toda la expresividad del sistema;
-- es solo la ontologia intermedia que hoy usa el compiler.
-
-Otra idea importante: una claim puede ser compuesta.
-Por eso desde A22 una sola `ClaimCard` puede producir varios `CompiledUnit`s.
+Si el LLM falla en producir specs validos, la claim se marca como
+abstention (sin score). No hay fallback — grammar-direct es el unico
+path de compilacion.
 
 ### Paso B. `WorldSummary`: de palabras vagas a anclas canonicas
 
 El LLM no elige percentiles ni thresholds concretos.
 Eso lo hace el codigo via `WorldSummary`.
 
-`WorldSummary` samplea el mundo y guarda cosas como:
+`WorldSummary` samplea el mundo y guarda estadisticas (p25, p50, p75,
+mean, std) para cada variable. El LLM dice "tratamiento alto vs bajo"
+y el codigo lo ancla a valores canonicos (high = p75, low = p25).
 
-- `p25`
-- `p50`
-- `p75`
-- `mean`
-- `std`
-
-para cada variable.
-
-Entonces el LLM dice algo como:
-
-- "tratamiento alto vs bajo"
-
-y el codigo lo vuelve algo como:
-
-- `high = p75`
-- `low = p25`
-
-Esto es importante porque reduce subjetividad.
-El LLM decide la intencion; el codigo fija los valores canonicos.
-
-### Paso C. `ClaimIntent` -> `AtomicSpec(s)`
-
-Esto ocurre en:
-
-- `src/sreg/tools/oi_compiler.py`
-
-La funcion clave es `lower_intent()`.
-
-Toma un `ClaimIntent` ya validado y lo convierte a uno o mas `AtomicSpec`s.
-
-La idea central es:
-
-- `ClaimIntent` todavia es una IR humana/simbolica;
-- `AtomicSpec` ya es una unidad formal ejecutable.
+Esto reduce subjetividad: el LLM decide la intencion, el codigo fija
+los valores.
 
 ### Paso D. Que es un `AtomicSpec`
 
@@ -507,73 +450,43 @@ solo si **todos** sus atoms sostienen la afirmacion del solver.
 
 ---
 
-## Como funcionan hoy las sub-questions
+## Como funcionan las sub-questions (SQ v2)
 
-Las `SubQuestionIntent` son la agenda oculta que define que considera
-importante descubrir el sistema.
+Las `SubQuestionIntentV2` son la agenda oculta que define que considera
+importante descubrir el sistema. Se generan en tiempo de creacion del caso
+y se pre-grounean contra el SCM.
 
-Hoy cada SQ tiene principalmente:
+Cada SQ v2 tiene:
 
-- `sq_id`
-- `pattern`
-- `roles`
-- `ask`
-- `tier`
-- `text_gloss`
+- `sq_id`: identificador unico
+- `text_gloss`: descripcion humana libre (no participa en scoring)
+- `verification_specs`: bundle de `VerificationSpec`s (cada una = `AtomicSpec` + rol)
+- `tier`: peso (`high`, `medium`, `low`)
+- `focus_variables`: variables centrales de la SQ
 
-### Que significa cada campo
-
-- `pattern`: de que tipo de hallazgo estamos hablando
-- `roles`: que variables juegan cada rol (`treatment`, `outcome`, etc.)
-- `ask`: que se pregunta exactamente (`existence`, `sign`, `magnitude`, `rank_order`)
-- `tier`: cuanto pesa (`high`, `medium`, `low`)
-- `text_gloss`: explicacion humana corta
-
-### Como se resuelven hoy contra el SCM
+### Como se resuelven contra el SCM
 
 Esto ocurre en:
 
-- `src/sreg/tools/oi_subquestions.py`
+- `src/sreg/tools/oi_sq_compiler.py` (compilacion: text_gloss -> AtomicSpecs)
+- `src/sreg/tools/oi_verifier.py` (verificacion: AtomicSpec -> AtomVerdict)
 
-La funcion clave es `resolve_subquestion()`.
-
-Y este detalle es muy importante:
-
-**Hoy las SQ no van directo a `AtomicSpec`.**
-
-El flujo actual es mas indirecto:
+El flujo es directo — sin IR intermedia:
 
 ```text
-SubQuestionIntent
-  -> construir ClaimIntent(s) candidatos
-  -> lower_intent()
-  -> AtomicSpec(s)
-  -> verify
-  -> ResolvedSubQuestion
+SubQuestionIntentV2
+  -> LLM + grammar reference
+  -> AtomicSpec bundle (verification_specs)
+  -> verify cada spec contra el SCM
+  -> AtomVerdict con ground truth y answer key
 ```
 
-En otras palabras:
+Las SQs se grounean al generar el caso (`ground_sq_answer_key`), NO
+durante la investigacion del solver. El solver nunca ve las SQs.
 
-- primero la SQ se expresa como `pattern + roles + ask`;
-- despues el sistema reconstruye intents candidatos;
-- recien despues baja a `AtomicSpec`.
-
-El resultado final es una `ResolvedSubQuestion`, que contiene:
-
-- la SQ original (`intent`);
-- la respuesta verdadera (`resolved_answer`);
-- los componentes que la sustentan (`components`);
-- y los specs usados para resolverla.
-
-### Por que esto importa tanto
-
-Porque significa que el sesgo al catalogo de patterns no solo afecta a las
-claims del solver. Tambien afecta a la propia agenda oculta.
-
-Ese fue justamente el hallazgo nuevo de A23:
-
-- no solo el compiler de claims esta acotado;
-- tambien las SQ actuales pasan por una IR estrecha basada en patterns.
+Cada `VerificationSpec` tiene un `role`:
+- `required`: debe verificarse para que la SQ cuente como cubierta
+- `support`: evidencia adicional que suma pero no es obligatoria
 
 ---
 
@@ -650,18 +563,13 @@ solver miss (policy_equity, coral_bleach), y SQ overlap (secundario).
 
 Datos: `results/e2e_batch_bug8_9_fix/`
 
-### Algo importante: tres scorers existen, solo uno es canonico
+### Un unico scorer
 
-Hay **tres rutas de scoring** en el codigo. **Solo la primera es canonica
-para SREG v1.** Las otras dos son legacy fallback documentado — sus scores
-no son validos como resultados oficiales de v1 y el runner emite un
-`logger.warning("LEGACY PATH: ...")` cuando se usan.
-
-| Path | Funcion | Formula | Estado |
-|---|---|---|---|
-| **CANONICO v1** | `oi_runner._score_with_judge` | `total = correctness x weighted_coverage` (multiplicativo). Match score = `truth x relevance` (LLM judge). Correctness = mean de TODAS las truths. | **Unico path canonico de SREG v1.** Requiere `sub_questions_v2`. |
-| legacy: SQ v1 | `oi_subquestions.score_episode_with_subquestions` | `total = wcov*0.70 + corr*0.20 + novel + cov*0.10` (aditivo). Match score = `truth x compat x answer_score` (sin LLM). | Legacy fallback. Warning en logs. No es resultado oficial v1. |
-| legacy: salience map | `score_compiled_episode_v2` | `EpisodeScore`, `ClaimVerdict`, `SalienceFamily`, `efficiency`. | Legacy fallback. Warning en logs. No es resultado oficial v1. |
+Existe una sola ruta de scoring: `oi_runner._score_with_judge` (SQ v2 +
+LLM judge). Si el caso no tiene `sub_questions_v2`, el runner lanza un
+`RuntimeError` explicativo. Los paths legacy (salience map, SQ v1
+pattern-based) fueron eliminados del codigo en el audit cleanup de
+2026-04-12.
 
 ### Claim cap: 15 (congelado para v1, 2026-04-09)
 
@@ -677,35 +585,14 @@ atomica y amplifica la senal de calidad de juicio (el solver que
 especula sin verificar se penaliza mas). Ver
 `research/notes/p06_cap_decision_result.md`.
 
-**Para cualquier cambio sobre scoring:** apuntar al canonico
-(`_score_with_judge`) y replicar en `scripts/rescore.py::_aggregate_score`
-que es el espejo offline. NO modificar los paths legacy salvo que el
-cambio sea explicitamente para tests/benchmarks.
+**Para cualquier cambio sobre scoring:** apuntar a `_score_with_judge` y
+replicar en `scripts/rescore.py::_aggregate_score` que es el espejo offline.
 
 **Nota:** el sistema de warrant (que intentaba medir si el solver habia
 investigado de verdad antes de submitir) fue eliminado (L1, 2026-04-01).
 El solver usa pandas/numpy directamente, sin helpers instrumentadas.
 
 ---
-
-## La otra capa de evaluacion: salience families
-
-Antes del path de sub-questions, la idea mas central era la de
-`SalienceFamily`:
-
-- el sistema construye familias de verdades relevantes del mundo;
-- cada familia tiene uno o varios atoms;
-- y el solver gana credito por cubrir familias importantes.
-
-Eso sigue existiendo y es util como diagnostico, pero hoy no es el path mas
-usado en la iteracion principal de OI.
-
-Conviene pensarlo asi:
-
-- `SubQuestionIntent` = agenda de evaluacion mas interpretable y pegada al brief
-- `SalienceFamily` = mapa de verdades relevantes mas estructural
-
-Hoy coexisten, pero la linea activa va por sub-questions.
 
 ---
 
@@ -760,11 +647,10 @@ No es una solucion filosoficamente elegante, pero mejoro bastante el E2E.
 
 ## Sutileza terminologica: "SQ v1" y "SQ v2" NO son versiones del producto
 
-Este documento describe **SREG v1** (producto). Cuando las secciones
-siguientes hablan de "SQ v1 (pattern-based)" y "SQ v2 (specs-based)", se
-refieren a **dos sub-pipelines internos** del compiler y del matcher de
-sub-questions **dentro de SREG v1**. Son evoluciones internas, no versiones
-del producto.
+Este documento describe **SREG v1** (producto). "SQ v2" refiere al
+sub-pipeline interno de sub-questions (specs-based), no a una version
+del producto. El sub-pipeline "SQ v1" (pattern-based) fue eliminado
+del codigo en 2026-04-12.
 
 En terminos del roadmap del producto (`PROJECT.md` seccion "Roadmap del
 producto"):
@@ -774,41 +660,22 @@ producto"):
   capas de revelacion, teoria sintetica.
 - **SREG v3** = futuro lejano. Sistemas complejos dinamicos.
 
-Los pipelines "SQ v1" y "SQ v2" viven AMBOS dentro de SREG v1, pero
-**solo SQ v2 (specs-based) + LLM judge es el path canonico de SREG v1**
-(`oi_sq_compiler.py`, `oi_sq_matching.py`). SQ v1 (pattern-based) y
-salience map quedan como legacy fallback documentado — el runner emite
-warnings cuando se usan y sus scores no cuentan como resultados oficiales
-de v1. Analogamente, "Suite v1" refiere a la suite de evaluacion externa
-— no es el producto SREG v1.
-
 ---
 
-## SQ v2 — Pipeline principal (integrado)
+## SQ v2 — Detalles de implementacion
 
-Ademas del path v1 (pattern-based), existe un prototipo v2 que libera las SQs
-del catalogo de 8 patterns. El spec canonico esta en
-`research/synthesis/sq_v2_matching_spec.md`.
+El spec canonico esta en `research/synthesis/sq_v2_matching_spec.md`.
 
-### Que cambia en v2
-
-| Concepto | v1 (actual) | v2 (prototipo) |
-|---|---|---|
-| SQ se define como | pattern + roles + ask | text_gloss + verification_specs |
-| Verificacion | Se construye via ClaimIntent | Bundle de AtomicSpecs directo |
-| Roles en la SQ | treatment, outcome, mediator... | required/support por spec |
-| Matching claim-SQ | family_compat x operator_compat | Exacto en estimand, fuzzy en assertion |
-| Compilacion | Routing por pattern | LLM + grammar composable |
-
-### Modelos nuevos
+### Modelos
 
 - `SubQuestionIntentV2` — sq_id, text_gloss, verification_specs, tier, focus_variables
 - `VerificationSpec` — AtomicSpec + role (required/support) + verdict
 
-### Modulos nuevos
+### Modulos
 
-- `oi_sq_compiler.py` — compile step LLM: text_gloss → AtomicSpec bundle
+- `oi_sq_compiler.py` — compile step LLM: text_gloss -> AtomicSpec bundle
 - `oi_sq_matching.py` — spec_match + bipartite 1-a-1 + episode scoring
+- `oi_relevance_judge.py` — LLM judge: relevance per (claim, SQ) pair
 
 ### Primer test (2026-03-30)
 
@@ -872,8 +739,8 @@ cuando `arm.adjust_set` es vacio, o devuelve `adjust_invalid` limpio
 si no existe set identificable. Esto ya existia — el cambio es que ahora
 `adjust_set` SIEMPRE llega vacio al verifier desde Flow B.
 
-**Flow A** (`oi_compiler.py::lower_intent`) queda intacto: el solver
-sigue siendo responsable de su propio razonamiento causal. Ver
+**Flow A** (`oi_extraction.py::compile_claim_direct`) queda ciego al DAG:
+el solver sigue siendo responsable de su propio razonamiento causal. Ver
 `PROJECT.md` invariante 8 (Flow A vs Flow B) para el contrato completo.
 
 ### Harness aislado de recompile (2026-04-08)

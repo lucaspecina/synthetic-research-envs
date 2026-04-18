@@ -21,5 +21,5 @@ Loop continuo:
 ## Reglas
 
 - Cada sesion tiene su doc con hallazgos, experimentos y conclusiones.
-- Los hallazgos que se vuelven decision se promueven a `research/synthesis/` o `TODO.md`.
+- Los hallazgos que se vuelven decision se promueven a `research/synthesis/` o GitHub Issues.
 - Las sesiones no se borran — son registro historico.

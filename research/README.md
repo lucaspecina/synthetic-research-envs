@@ -49,6 +49,7 @@
 | `synthesis/a27_answer_key_contract.md` | **CANON answer key.** Contrato del answer key rico |
 | `synthesis/scm_migration_rationale.md` | **CANON migracion.** Por que SCM y no BN |
 | `synthesis/research_case_design.md` | **CANON disenio.** Como diseniar SRCs que se sientan como investigacion real |
+| `synthesis/sherlock_interactive_design.md` | **CANON diseno v2.** Sherlock-type interactive investigation — 3 modelos, SciGym comparison, Modelo 1 concreto |
 | `synthesis/real_papers_patterns.md` | **CANON patrones.** Patrones consistentes en papers reales |
 
 ### Notas activas (notes/)
@@ -71,7 +72,7 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 - `notes/s03_extraction_diagnosis.md` — A/B test extraccion compiler
 - `notes/brief_vs_eval_separation.md` — separacion brief vs eval
 - `notes/indirect_measurement_design.md` — instrumentos como nodos del SCM
-- `notes/oi_compiler_case_analysis.md` — 10 dominios analizados
+- `notes/open_investigation_case_analysis.md` — 10 dominios analizados
 - `notes/sq_flow_and_dag_visibility_open_questions.md` — briefing 2026-04-14: quien ve el DAG en cada actor (orchestrator / SQ compiler / claim compiler), dudas D1-D8 destapadas por Suite 2 baseline
 
 ### Archive (historico, read-only)
@@ -141,7 +142,7 @@ S03/S04, etc.) ver `notes/`. Estos no son canon — son insumo.
 2. Se investiga y consolida -> `synthesis/`
 3. Si se vuelve decision del proyecto -> se promueve a `PROJECT.md` o
    `ARCHITECTURE.md`
-4. Si implica trabajo pendiente -> `TODO.md`
+4. Si implica trabajo pendiente -> GitHub Issue (`gh issue create`)
 5. Si se implementa -> `CURRENT_STATE.md` + `CHANGELOG.md`
 
 El archivo de research queda como registro historico — no se borra, pero

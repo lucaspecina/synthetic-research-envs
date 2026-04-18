@@ -51,7 +51,7 @@ deterministic, no LLM. Current bottleneck: compiler (LLM extraction).
 2. `PROJECT.md` — Vision, principles, invariants, LA PREGUNTA.
 3. `ARCHITECTURE.md` — System design, contracts, flows.
 4. `CURRENT_STATE.md` — What exists TODAY. SCM + OI only.
-5. `TODO.md` — Pending work, open problems.
+5. GitHub Issues + Project v2 — Pending work organized as epics (closable goals) -> sub-issues (1 PR each). Labels minimal: `bug`, `blocked`, `parked`, `research`, `design`. Priority = order in the Project Todo column. Worktree = custom Project field.
 6. `CHANGELOG.md` — History.
 7. `research/` — Analysis, findings, synthesis.
 

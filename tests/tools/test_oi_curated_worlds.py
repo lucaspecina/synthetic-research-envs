@@ -1,7 +1,7 @@
 """Curated test worlds for OI Alpha pilot.
 
 Three hand-crafted SCMWorlds designed to exercise different aspects of the
-OI pipeline. The roadmap (TODO.md, Paso 3) calls for:
+OI pipeline. The original roadmap called for:
   - One with real interaction
   - One with partial mediation
   - One with interesting confounding
@@ -15,7 +15,6 @@ from __future__ import annotations
 from sreg.models.research_problem import DataAsset, ResearchProblem
 from sreg.tools.oi_driver import ScriptedAction, run_oi_scripted
 from sreg.tools.oi_runner import OIEpisodeRunner
-from sreg.tools.oi_salience import build_salience_map
 from sreg.world.scm import SCMWorld
 
 N_MC = 20_000

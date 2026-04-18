@@ -26,7 +26,7 @@ Following OpenAI and Anthropic best practices:
 
 2. **Enum parameters**: Don't just list values — describe what each value means and when to choose it. The LLM reads the description, not just the enum list.
 
-3. **Distinguish similar tools**: If two tools could be confused (dag_construct vs dag_generate), explain the difference explicitly. Include "prefer X when..." guidance.
+3. **Distinguish similar tools**: If two tools could be confused, explain the difference explicitly. Include "prefer X when..." guidance.
 
 4. **Examples in descriptions**: For complex parameters (node_renames, questions), include concrete examples showing the expected format and good vs bad values.
 
