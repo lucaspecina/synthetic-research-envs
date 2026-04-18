@@ -1,0 +1,2873 @@
+{
+  "aggregate": {
+    "total_cases": 12,
+    "total_specs": 198,
+    "L1_fail": 0,
+    "L2_fail": 1,
+    "L3_fail": 23,
+    "any_fail": 23
+  },
+  "per_case": [
+    {
+      "summary": {
+        "case": "chemical",
+        "num_variables": 12,
+        "num_edges": 25,
+        "num_sqs": 5,
+        "num_specs": 21,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 0,
+        "specs_any_fail": 0
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Do harsher salinity and temperature conditions causally reduce phase-balance margin and thereby increase the number of reformulation iterations required?",
+          "focus_variables": [
+            "brine_salinity",
+            "thermal_stress_test",
+            "phase_balance_margin",
+            "reformulation_iterations"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "salinity_temp_harshness_reduces_phase_balance_margin",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "salinity_temp_harshness_increases_reformulation_iterations",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "phase_balance_margin_negatively_associated_with_reformulation_iterations",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Does increasing co-surfactant fraction improve stability enough to reduce reformulation workload, or does its benefit depend on the rest of the mixture?",
+          "focus_variables": [
+            "cosurfactant_fraction",
+            "phase_balance_margin",
+            "reformulation_iterations",
+            "blending_synergy"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "cosurf_direct_effect_on_reformulation_iterations",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "cosurf_direct_effect_on_phase_balance_margin",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "cosurf_effect_depends_on_low_salinity_context",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "cosurf_effect_depends_on_high_salinity_context",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Is short-term interfacial reduction a reliable driver of delayed resistance to phase separation, or is that relationship mostly mediated by phase balance and clarity?",
+          "focus_variables": [
+            "interfacial_reduction",
+            "phase_balance_margin",
+            "visual_clarity_score",
+            "days_to_phase_separation"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "direct_interfacial_days_association",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "interfacial_days_partial_given_phase_and_clarity",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "phase_balance_days_partial_given_interfacial_and_clarity",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "clarity_days_partial_given_interfacial_and_phase_balance",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Can an unobserved compatibility factor explain why blends with similar visible composition and test conditions still show different stability outcomes?",
+          "focus_variables": [
+            "blending_synergy",
+            "phase_balance_margin",
+            "days_to_phase_separation"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "compatibility_unobs_residual_variance_stability",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Which observed formulation and test variables are most informative about expected time to phase separation in the historical archive?",
+          "focus_variables": [
+            "days_to_phase_separation",
+            "cosurfactant_fraction",
+            "solvent_polarity_index",
+            "brine_salinity",
+            "thermal_stress_test"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "info_corr_days_vs_cosurfactant_fraction",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "info_corr_days_vs_solvent_polarity_index",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "info_corr_days_vs_brine_salinity",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "info_corr_days_vs_thermal_stress_test",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "info_rank_abs_association_focus_vars_via_partial_corr_cosurfactant",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "days_high_vs_low_cosurfactant_fraction",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "days_high_vs_low_solvent_polarity_index",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "days_high_vs_low_brine_salinity",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "days_high_vs_low_thermal_stress_test",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "competing_mech",
+        "num_variables": 12,
+        "num_edges": 26,
+        "num_sqs": 5,
+        "num_specs": 14,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 1,
+        "specs_any_fail": 1
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "After accounting for local facility conditions, does network resistance pressure still indicate that transfer-linked spread contributes to local resistance prevalence?",
+          "focus_variables": [
+            "network_resistance_pressure",
+            "resistance_prevalence",
+            "antibiotic_use_intensity",
+            "facility_complexity"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "partial_corr_nrp_resistance_given_local_conditions",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "raw_corr_nrp_resistance",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Would reducing patient transfer intensity causally lower resistance prevalence across facilities?",
+          "focus_variables": [
+            "patient_transfer_intensity",
+            "resistance_prevalence"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "transfer_reduce_causally_lowers_resistance",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "transfer_effect_identifiable_on_resistance",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "transfer_sweep_monotone_resistance_pattern",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Is the antibiotic use\u2013resistance association partly explained by facility complexity rather than a direct local-emergence effect alone?",
+          "focus_variables": [
+            "antibiotic_use_intensity",
+            "resistance_prevalence",
+            "facility_complexity"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "complexity_explains_part_of_use_resistance_via_adjustment",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "facility_complexity"
+                  ],
+                  "treatment": "antibiotic_use_intensity",
+                  "outcome": "resistance_prevalence",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "raw_use_resistance_association_positive",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "use_and_resistance_each_track_complexity_use_side",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "use_and_resistance_each_track_complexity_resistance_side",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Between reducing patient transfers and reducing antibiotic use intensity, which lever is expected to produce the larger reduction in resistance prevalence?",
+          "focus_variables": [
+            "patient_transfer_intensity",
+            "antibiotic_use_intensity",
+            "resistance_prevalence"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "compare_lever_reduction_transfer_vs_antibiotic_on_resistance",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "transfer_reduction_lowers_resistance_vs_baseline",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "antibiotic_reduction_lowers_resistance_vs_baseline",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Is there evidence for an unobserved regional factor that jointly elevates transfer intensity and neighboring resistance pressure?",
+          "focus_variables": [
+            "regional_connectivity_pressure",
+            "patient_transfer_intensity",
+            "network_resistance_pressure"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "unobs_regional_factor_transfer_network_pressure_partial_corr",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "unobs_regional_factor_transfer_network_pressure_raw_corr",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "confounding",
+        "num_variables": 10,
+        "num_edges": 23,
+        "num_sqs": 4,
+        "num_specs": 18,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 6,
+        "specs_any_fail": 6
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Is the negative crude association between Immunex-R use and 14-day recovery explained by confounding from baseline severity and comorbidity burden rather than a harmful treatment e",
+          "focus_variables": [
+            "drug_y_exposure",
+            "recovery_index_14d",
+            "baseline_severity",
+            "comorbidity_burden"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "crude_assoc_drugy_recovery_negative",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "adjusted_assoc_drugy_recovery_not_negative_after_severity_comorbidity",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "baseline_severity",
+                    "comorbidity_burden"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "partial_corr_drugy_recovery_given_severity_comorbidity_near_zero",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "drugy_associated_with_baseline_severity_positive",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "drugy_associated_with_comorbidity_positive",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "severity_associated_with_recovery_negative",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "comorbidity_associated_with_recovery_negative",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "What is the minimally sufficient measured adjustment strategy for estimating the causal effect of Immunex-R on recovery?",
+          "focus_variables": [
+            "drug_y_exposure",
+            "recovery_index_14d",
+            "baseline_severity",
+            "comorbidity_burden",
+            "indication_strength"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "min_sufficient_adjustment_identify_baseline_severity_only",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "baseline_severity"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "baseline_severity_minimal_vs_baseline_plus_comorbidity",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "baseline_severity"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                },
+                {
+                  "arm_idx": 1,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "baseline_severity",
+                    "comorbidity_burden"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "baseline_severity_minimal_vs_baseline_plus_indication",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "baseline_severity"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                },
+                {
+                  "arm_idx": 1,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "baseline_severity",
+                    "indication_strength"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "baseline_severity_minimal_vs_full_focus_set",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "baseline_severity"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                },
+                {
+                  "arm_idx": 1,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "baseline_severity",
+                    "comorbidity_burden",
+                    "indication_strength"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "medium",
+          "text": "Would controlling for treatment delay distort the estimated effect of Immunex-R on recovery?",
+          "focus_variables": [
+            "drug_y_exposure",
+            "treatment_delay_hours",
+            "recovery_index_14d"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "immunexr_delay_adjustment_distorts_effect_identifiability",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "treatment_delay_hours"
+                  ],
+                  "treatment": "drug_y_exposure",
+                  "outcome": "recovery_index_14d",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "immunexr_association_with_delay",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "immunexr_delay_outcome_link_given_treatment",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Does hospital teaching intensity appear important operationally without actually confounding the treatment-outcome relationship?",
+          "focus_variables": [
+            "hospital_teaching_intensity",
+            "drug_y_exposure",
+            "recovery_index_14d"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "hti_operational_importance_on_treatment",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "hti_not_confounding_treatment_outcome_given_treatment",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "hti_operational_importance_on_outcome",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "hti_not_identified_as_confounder_for_drugy_recovery",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "coral_bleach",
+        "num_variables": 14,
+        "num_edges": 29,
+        "num_sqs": 4,
+        "num_specs": 12,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 2,
+        "specs_any_fail": 2
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "How strongly does reducing degree heating weeks lower bleaching severity, relative to variation explained by local reef characteristics?",
+          "focus_variables": [
+            "degree_heating_weeks",
+            "bleaching_severity",
+            "reef_depth",
+            "coral_branching_fraction"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "dhw_effect_on_bleaching_adjusted_for_local_reef_chars",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "coral_branching_fraction",
+                    "reef_depth"
+                  ],
+                  "treatment": "degree_heating_weeks",
+                  "outcome": "bleaching_severity",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "bleaching_correlation_with_dhw_vs_local_chars",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "bleaching_partialcorr_dhw_controlling_local_reef_chars",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "low_vs_high_dhw_bleaching_difference",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Does prior bleaching load have a direct negative effect on recovery capacity after accounting for confounding environmental and ecological factors?",
+          "focus_variables": [
+            "prior_bleaching_load",
+            "recovery_capacity",
+            "latitude_index",
+            "water_quality_index",
+            "degree_heating_weeks"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "direct_effect_prior_bleaching_on_recovery_adjusted_core",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "degree_heating_weeks",
+                    "latitude_index",
+                    "water_quality_index"
+                  ],
+                  "treatment": "prior_bleaching_load",
+                  "outcome": "recovery_capacity",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "high_vs_low_prior_bleaching_recovery_conditioned_env",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Is improving water quality or increasing marine protection the more effective local intervention for raising recovery capacity?",
+          "focus_variables": [
+            "water_quality_index",
+            "marine_protection_intensity",
+            "herbivore_biomass",
+            "algal_cover",
+            "recovery_capacity"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "compare_local_interventions_on_recovery_capacity",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "water_quality_better_than_marine_protection_for_recovery",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "marine_protection_better_than_water_quality_for_recovery",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Does branching coral dominance make reefs more sensitive to thermal stress during bleaching events?",
+          "focus_variables": [
+            "coral_branching_fraction",
+            "degree_heating_weeks",
+            "bleaching_severity"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "branching_thermal_sensitivity_high_vs_low_bleaching",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "branching_heat_bleaching_partial_correlation",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "high_branching_heat_vs_cool_bleaching",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "heterogeneity",
+        "num_variables": 13,
+        "num_edges": 30,
+        "num_sqs": 5,
+        "num_specs": 14,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 0,
+        "specs_any_fail": 0
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Does Cardiovex have a positive average causal effect on net clinical benefit across the full registry, or is the mean effect too small to justify broad treatment?",
+          "focus_variables": [
+            "treatment_intensity",
+            "net_clinical_benefit"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "cardiovex_ace_net_benefit_full_registry",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "cardiovex_ace_net_benefit_materiality_full_registry",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Does treatment benefit rise sharply above a biomarker X threshold, consistent with a clinically useful cutoff for prescribing?",
+          "focus_variables": [
+            "treatment_intensity",
+            "baseline_biomarker_x",
+            "functional_response_gain"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "cutoff_biomarker_high_vs_low_treatment_effect_functional_gain",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "cutoff_biomarker_high_vs_low_treatment_effect_net_benefit",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "biomarker_threshold_changepoint_treated_functional_gain",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Are patients with high genotype A expression substantially more responsive to treatment than patients with low genotype A expression?",
+          "focus_variables": [
+            "treatment_intensity",
+            "genotype_a_expression",
+            "functional_response_gain"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "tx_effect_high_genotypeA_vs_low_genotypeA_on_functional_response",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "high_genotypeA_treatment_response_positive",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "low_genotypeA_treatment_response_weaker_or_absent",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "In older patients with high comorbidity burden, do adverse events offset or outweigh the functional gains from treatment?",
+          "focus_variables": [
+            "age_years",
+            "comorbidity_burden",
+            "adverse_event_severity",
+            "net_clinical_benefit"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "older_high_comorbidity_net_benefit_negative",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "older_high_comorbidity_adverse_events_elevated_vs_baseline",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "older_high_comorbidity_net_benefit_worse_than_baseline",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Would a biomarker-guided treatment strategy outperform a genotype-guided strategy for improving net clinical benefit at the population level?",
+          "focus_variables": [
+            "baseline_biomarker_x",
+            "genotype_a_expression",
+            "net_clinical_benefit"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "biomarker_vs_genotype_guided_ncb_population_mean",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "baseline_biomarker_association_with_ncb",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "genotype_expression_association_with_ncb",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "identifiability",
+        "num_variables": 12,
+        "num_edges": 20,
+        "num_sqs": 3,
+        "num_specs": 7,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 1,
+        "specs_L3_fail": 2,
+        "specs_any_fail": 2
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Does industrial emission intensity affect pediatric wheeze through pathways other than particulate exposure, making simple adjustment or proxy-based regression inadequate for causa",
+          "focus_variables": [
+            "industrial_emission_intensity",
+            "childhood_asthma_prevalence",
+            "particulate_proxy"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "id_check_industrial_to_asthma_given_particulate_only",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "residual_assoc_industrial_asthma_given_particulate",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "industrial_emission_affects_asthma_under_fixed_particulate",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Is prevailing wind dispersion a valid variable to exploit for identifying the pollution effect, or does it also influence respiratory outcomes through pathways outside the measured",
+          "focus_variables": [
+            "prevailing_wind_dispersion",
+            "particulate_proxy",
+            "childhood_asthma_prevalence",
+            "seasonal_temperature"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "wind_iv_exclusion_direct_effect_adjusted",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "particulate_proxy",
+                    "seasonal_temperature"
+                  ],
+                  "treatment": "prevailing_wind_dispersion",
+                  "outcome": "childhood_asthma_prevalence",
+                  "reason": "adjust_set contains descendants of T: ['particulate_proxy']"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "wind_asthma_partial_corr_given_proxy_temp",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "wind_relevance_for_proxy_partial_corr_given_temp",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Would collecting better exposure measurements likely improve identification of the pollution effect more than collecting additional neighborhood covariates alone?",
+          "focus_variables": [
+            "true_particulate_exposure",
+            "particulate_proxy",
+            "industrial_emission_intensity",
+            "childhood_asthma_prevalence"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "id_proxy_pollution_effect_not_identifiable_with_covariates",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "treatment": "particulate_proxy",
+                  "outcome": "childhood_asthma_prevalence",
+                  "reason": "no directed path T->...->Y in DAG"
+                },
+                {
+                  "arm_idx": null,
+                  "arm_kind": "measurement",
+                  "treatment": "particulate_proxy",
+                  "outcome": "childhood_asthma_prevalence",
+                  "reason": "no directed path T->...->Y in DAG (measurement)"
+                }
+              ],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "green_space_cover",
+                    "healthcare_access",
+                    "industrial_emission_intensity",
+                    "prevailing_wind_dispersion",
+                    "seasonal_temperature",
+                    "socioeconomic_strain",
+                    "traffic_density"
+                  ],
+                  "treatment": "particulate_proxy",
+                  "outcome": "childhood_asthma_prevalence",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "immunotherapy",
+        "num_variables": 13,
+        "num_edges": 34,
+        "num_sqs": 5,
+        "num_specs": 24,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 2,
+        "specs_any_fail": 2
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Does increasing treatment intensity improve one-year survival on average after accounting for confounding by indication?",
+          "focus_variables": [
+            "treatment_intensity",
+            "one_year_survival_probability",
+            "disease_burden",
+            "functional_status"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "adj_treatment_intensity_effect_on_survival",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "disease_burden",
+                    "functional_status"
+                  ],
+                  "treatment": "treatment_intensity",
+                  "outcome": "one_year_survival_probability",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "raw_treatment_intensity_survival_association",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "confounding_by_indication_check_disease_burden",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "confounding_by_indication_check_functional_status",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Does increasing treatment intensity also increase severe toxicity risk, and is that increase clinically meaningful?",
+          "focus_variables": [
+            "treatment_intensity",
+            "severe_toxicity_risk",
+            "immune_overactivation"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "toxicity_risk_increases_with_higher_treatment_intensity",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "toxicity_risk_increase_is_clinically_meaningful",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "immune_overactivation_increases_with_higher_treatment_intensity",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Are patients with high immune marker expression more likely to benefit from aggressive treatment than patients with low expression?",
+          "focus_variables": [
+            "immune_marker_level",
+            "treatment_intensity",
+            "one_year_survival_probability"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "high_marker_aggressive_vs_low_marker_aggressive_survival",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "aggressive_benefit_high_vs_low_marker_adjusted",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "disease_burden",
+                    "functional_status",
+                    "mutation_load",
+                    "patient_age",
+                    "prior_therapy_lines"
+                  ],
+                  "treatment": "treatment_intensity",
+                  "outcome": "one_year_survival_probability",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                },
+                {
+                  "arm_idx": 1,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "disease_burden",
+                    "functional_status",
+                    "mutation_load",
+                    "patient_age",
+                    "prior_therapy_lines"
+                  ],
+                  "treatment": "treatment_intensity",
+                  "outcome": "one_year_survival_probability",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "survival_treatment_correlation_high_vs_low_marker",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Is the overall treatment trade-off mediated in part by tumor response benefits versus immune overactivation harms?",
+          "focus_variables": [
+            "tumor_response_depth",
+            "immune_overactivation",
+            "one_year_survival_probability",
+            "severe_toxicity_risk"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "tradeoff_benefit_path_tumor_response_survival",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "tradeoff_harm_path_immune_overactivation_toxicity",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "tradeoff_treatment_increases_tumor_response",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "tradeoff_treatment_increases_immune_overactivation",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Which baseline clinical characteristics create confounding in the apparent relationship between treatment intensity and survival?",
+          "focus_variables": [
+            "disease_burden",
+            "functional_status",
+            "prior_therapy_lines",
+            "treatment_intensity",
+            "one_year_survival_probability"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "confounding_disease_burden_treat_survival",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "confounding_functional_status_treat_survival",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "confounding_prior_therapy_lines_treat_survival",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "raw_treat_survival_association_exists",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "disease_burden_associated_with_treatment",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "disease_burden_associated_with_survival",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "functional_status_associated_with_treatment",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "functional_status_associated_with_survival",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "prior_therapy_lines_associated_with_treatment",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "prior_therapy_lines_associated_with_survival",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "microbiome",
+        "num_variables": 14,
+        "num_edges": 45,
+        "num_sqs": 5,
+        "num_specs": 21,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 4,
+        "specs_any_fail": 4
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Does higher microbial diversity causally reduce digestive symptom severity after accounting for shared dietary and lifestyle causes?",
+          "focus_variables": [
+            "microbial_diversity_index",
+            "digestive_symptom_score",
+            "dietary_fiber_intake",
+            "exercise_frequency"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "diversity_symptoms_adjusted_effect",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "dietary_fiber_intake",
+                    "exercise_frequency"
+                  ],
+                  "treatment": "microbial_diversity_index",
+                  "outcome": "digestive_symptom_score",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "diversity_symptoms_identifiable_with_adjustment",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "dietary_fiber_intake",
+                    "exercise_frequency"
+                  ],
+                  "treatment": "microbial_diversity_index",
+                  "outcome": "digestive_symptom_score",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Is the impact of recent antibiotic exposure on systemic inflammation mediated substantially through microbial disruption and reduced immune function?",
+          "focus_variables": [
+            "recent_antibiotic_exposure",
+            "microbial_diversity_index",
+            "immune_function_score",
+            "systemic_inflammation_crp"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "abx_to_microdiv_negative",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "abx_to_immune_negative",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "abx_to_crp_positive",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "microdiv_immune_association",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "immune_to_crp_association_negative",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "abx_crp_not_identifiable_with_mediator_adjustment",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "abx_crp_association_reduced_after_mediator_adjustment",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 1,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "immune_function_score",
+                    "microbial_diversity_index"
+                  ],
+                  "treatment": "recent_antibiotic_exposure",
+                  "outcome": "systemic_inflammation_crp",
+                  "reason": "adjust_set contains descendants of T: ['immune_function_score', 'microbial_diversity_index']"
+                }
+              ],
+              "is_coherent": false
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Does the Firmicutes-to-Bacteroidetes balance have a more specific effect on glucose regulation than on other health outcomes?",
+          "focus_variables": [
+            "firmicutes_bacteroidetes_ratio",
+            "glucose_regulation_hba1c",
+            "digestive_symptom_score",
+            "mood_wellbeing_score"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "fb_ratio_specificity_glucose_vs_digestive_corr",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "fb_ratio_specificity_glucose_vs_mood_partialcorr",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "fb_ratio_glucose_association_required",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "fb_ratio_digestive_association_weaker_than_glucose",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "fb_ratio_mood_association_weaker_than_glucose",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Would adjusting for dietary fiber be necessary to identify microbiome effects on mood and digestion?",
+          "focus_variables": [
+            "dietary_fiber_intake",
+            "microbial_diversity_index",
+            "mood_wellbeing_score",
+            "digestive_symptom_score"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "fiber_needed_for_identifying_microbiome_to_mood",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "fiber_needed_for_identifying_microbiome_to_digestion",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "fiber_associated_with_microbiome_raw",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "fiber_associated_with_mood_raw",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "fiber_associated_with_digestion_raw",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Is there a latent ecological resilience factor influencing both microbial diversity and beneficial taxa abundance beyond observed exposures?",
+          "focus_variables": [
+            "microbial_ecological_resilience",
+            "microbial_diversity_index",
+            "beneficial_taxa_abundance",
+            "recent_antibiotic_exposure"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "latent_resilience_identifiability_check",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "diversity_beneficial_association_beyond_observed_exposure",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "recent_antibiotic_exposure"
+                  ],
+                  "treatment": "microbial_diversity_index",
+                  "outcome": "beneficial_taxa_abundance",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "missing_data",
+        "num_variables": 12,
+        "num_edges": 34,
+        "num_sqs": 4,
+        "num_specs": 17,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 2,
+        "specs_any_fail": 2
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Does treatment intensity truly improve final-wave symptoms, or is the observed benefit distorted by selective loss to follow-up?",
+          "focus_variables": [
+            "treatment_intensity",
+            "outcome_wave3",
+            "retention_wave3"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "treat_intensity_effect_on_wave3_adjust_retention",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "retention_wave3"
+                  ],
+                  "treatment": "treatment_intensity",
+                  "outcome": "outcome_wave3",
+                  "reason": "adjust_set contains descendants of T: ['retention_wave3']"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "wave3_outcome_corr_treatment_condition_high_retention",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "wave3_outcome_corr_treatment_condition_low_retention",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "retention_selection_link_treatment_and_wave3_partialcorr",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "selection_association_treatment_with_retention_wave3",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Are patients with worse early outcomes and heavier side effects systematically less likely to remain under observation?",
+          "focus_variables": [
+            "outcome_wave1",
+            "side_effect_burden",
+            "retention_wave2",
+            "retention_wave3"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "retention_w2_worse_early_outcomes_lower",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "retention_w2_heavier_side_effects_lower",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "retention_w3_worse_early_outcomes_lower",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "retention_w3_heavier_side_effects_lower",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Would conditioning on observed retention status block bias, or could it introduce selection problems because retention is itself caused by prognosis and treatment burden?",
+          "focus_variables": [
+            "retention_wave2",
+            "treatment_intensity",
+            "outcome_wave3",
+            "side_effect_burden"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "retention_wave2_collider_nonidentifiable_for_treatment_outcome3",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "retention_wave2"
+                  ],
+                  "treatment": "treatment_intensity",
+                  "outcome": "outcome_wave3",
+                  "reason": "adjust_set contains descendants of T: ['retention_wave2']"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "retention_wave2_associated_with_treatment_burden",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "retention_wave2_associated_with_side_effect_burden",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "retention_wave2_associated_with_prognosis_outcome3",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Between improving adherence and reducing side-effect burden, which pathway would more strongly improve final outcomes in this trial setting?",
+          "focus_variables": [
+            "adherence_level",
+            "side_effect_burden",
+            "outcome_wave3"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "compare_pathways_adherence_vs_sideeffects_on_outcome3",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "adherence_direction_on_outcome3",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "sideeffect_direction_on_outcome3",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "rank_pathway_associations_with_outcome3",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "policy_equity",
+        "num_variables": 13,
+        "num_edges": 32,
+        "num_sqs": 5,
+        "num_specs": 16,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 0,
+        "specs_any_fail": 0
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Does higher levy intensity causally reduce sugary drink consumption across neighborhoods?",
+          "focus_variables": [
+            "tax_rate",
+            "sugary_drink_consumption"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "tax_rate_causal_effect_on_sugary_drink_consumption",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "tax_rate_sweep_monotonic_consumption_reduction",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Is the reduction in sugary drink consumption larger in more price-sensitive neighborhoods than in less price-sensitive neighborhoods?",
+          "focus_variables": [
+            "tax_rate",
+            "sugary_drink_consumption",
+            "price_sensitivity"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "tax_effect_on_sugary_consumption_stronger_in_high_price_sensitivity",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "high_price_sensitivity_tax_reduces_sugary_consumption",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "low_price_sensitivity_tax_reduces_sugary_consumption",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Does increasing levy intensity raise tax burden share more sharply for lower-income neighborhoods, making the policy financially regressive?",
+          "focus_variables": [
+            "tax_rate",
+            "tax_burden_share",
+            "neighborhood_income"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "regressive_tax_low_vs_high_income_response",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "tax_burden_gap_high_tax_low_vs_high_income",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "tax_burden_income_gradient_under_high_tax",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Does substitution toward juice mediate part of the levy\u2019s effect on obesity prevalence, offsetting some expected health gains?",
+          "focus_variables": [
+            "tax_rate",
+            "juice_substitution",
+            "obesity_prevalence",
+            "sugary_drink_consumption"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "tax_rate_increases_juice_substitution",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "juice_substitution_associated_with_higher_obesity_given_tax_and_soda",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "high_juice_substitution_offsets_tax_obesity_reduction",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "tax_rate_reduces_sugary_drink_consumption",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "high_tax_reduces_obesity_prevalence_net",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Between increasing levy intensity and improving grocery access, which intervention more effectively reduces obesity-related harm under realistic neighborhood conditions?",
+          "focus_variables": [
+            "tax_rate",
+            "grocery_access_distance",
+            "obesity_prevalence"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "compare_tax_vs_grocery_on_obesity_realistic",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "tax_increase_reduces_obesity_vs_realistic_baseline",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "grocery_improvement_reduces_obesity_vs_realistic_baseline",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "poverty",
+        "num_variables": 14,
+        "num_edges": 34,
+        "num_sqs": 5,
+        "num_specs": 19,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 1,
+        "specs_any_fail": 1
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Does grant participation causally improve five-year household income growth after accounting for baseline targeting pressure and village context?",
+          "focus_variables": [
+            "program_participation",
+            "income_growth_5y",
+            "baseline_livelihood_score",
+            "eligibility_pressure",
+            "program_saturation"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "grant_causal_effect_adjusted_income_growth",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "eligibility_pressure",
+                    "program_saturation"
+                  ],
+                  "treatment": "program_participation",
+                  "outcome": "income_growth_5y",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "grant_participation_increases_income_growth_conditioned_context",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "grant_effect_controls_baseline_targeting_and_context_correlation",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Does grant participation causally increase efficiency-oriented preferences in village allocation tasks?",
+          "focus_variables": [
+            "program_participation",
+            "efficiency_preference"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "program_participation_do_effect_on_efficiency_preference",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "program_participation_identifiable_effect_on_efficiency_preference",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Is the participation effect on efficiency preference larger in villages with higher program saturation?",
+          "focus_variables": [
+            "program_participation",
+            "program_saturation",
+            "efficiency_preference"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "participation_effect_efficiency_high_vs_low_saturation",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "participation_efficiency_association_within_high_saturation",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "participation_efficiency_association_within_low_saturation",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Is any reduction in self-interested behavior partly explained by increased fairness beliefs or improved household income?",
+          "focus_variables": [
+            "self_interest_index",
+            "fairness_belief",
+            "annual_household_income",
+            "program_participation"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "mediation_fairness_partialcorr_selfinterest_program",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "mediation_income_partialcorr_selfinterest_program",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "program_effect_on_fairness_belief",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "program_effect_on_income",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "low",
+          "text": "Why does equality preference appear less responsive to the program than efficiency preference and self-interest?",
+          "focus_variables": [
+            "equality_preference",
+            "efficiency_preference",
+            "self_interest_index",
+            "program_participation"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "prog_effect_equality_preference",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "prog_effect_efficiency_preference",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "prog_effect_self_interest",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "equality_less_responsive_than_efficiency",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "equality_less_responsive_than_self_interest",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "efficiency_changes_with_program",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "self_interest_changes_with_program",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "summary": {
+        "case": "selection_bias",
+        "num_variables": 12,
+        "num_edges": 30,
+        "num_sqs": 5,
+        "num_specs": 15,
+        "specs_L1_fail": 0,
+        "specs_L2_fail": 0,
+        "specs_L3_fail": 3,
+        "specs_any_fail": 3
+      },
+      "per_sq": [
+        {
+          "sq_id": "sq1",
+          "tier": "high",
+          "text": "Is the positive crude association between body-camera coverage and use of force explained by complaint-based selection rather than a harmful effect of cameras?",
+          "focus_variables": [
+            "body_camera_coverage",
+            "use_of_force_incidents",
+            "prior_complaint_rate",
+            "patrol_zone_risk"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "crude_assoc_bodycam_uof_positive",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "adjusted_assoc_bodycam_uof_given_selection_proxies_near_zero",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "patrol_zone_risk",
+                    "prior_complaint_rate"
+                  ],
+                  "treatment": "body_camera_coverage",
+                  "outcome": "use_of_force_incidents",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "bodycam_assoc_with_prior_complaints_positive",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "prior_complaints_assoc_with_uof_positive",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq2",
+          "tier": "high",
+          "text": "Do prior complaints and patrol-zone risk jointly account for the main backdoor path between camera deployment and force incidents?",
+          "focus_variables": [
+            "prior_complaint_rate",
+            "patrol_zone_risk",
+            "body_camera_coverage",
+            "use_of_force_incidents"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "backdoor_joint_identifiability_priorcomplaints_patrolrisk",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "patrol_zone_risk",
+                    "prior_complaint_rate"
+                  ],
+                  "treatment": "body_camera_coverage",
+                  "outcome": "use_of_force_incidents",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "residual_assoc_after_adjusting_priorcomplaints_patrolrisk",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "raw_assoc_camera_force_nonzero",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq3",
+          "tier": "high",
+          "text": "Does conditioning on internal investigative scrutiny open a collider path that distorts the estimated effect of camera coverage?",
+          "focus_variables": [
+            "internal_investigation_pressure",
+            "prior_complaint_rate",
+            "body_camera_coverage",
+            "use_of_force_incidents"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "collider_bias_camera_effect_condition_on_investigation",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [
+                {
+                  "arm_idx": 0,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "prior_complaint_rate"
+                  ],
+                  "treatment": "body_camera_coverage",
+                  "outcome": "use_of_force_incidents",
+                  "reason": "adjust_set does not d-separate T from Y (backdoor paths open)"
+                },
+                {
+                  "arm_idx": 1,
+                  "arm_kind": "adjust",
+                  "adjust_set": [
+                    "internal_investigation_pressure",
+                    "prior_complaint_rate"
+                  ],
+                  "treatment": "body_camera_coverage",
+                  "outcome": "use_of_force_incidents",
+                  "reason": "adjust_set contains descendants of T: ['internal_investigation_pressure']"
+                }
+              ],
+              "is_coherent": false
+            },
+            {
+              "spec_id": "camera_priorcomplaint_dependence_after_conditioning_on_investigation",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "camera_force_association_changes_when_conditioning_on_investigation",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq4",
+          "tier": "medium",
+          "text": "Is improved de-escalation compliance a meaningful mediator of the effect of body-camera coverage on force incidents?",
+          "focus_variables": [
+            "body_camera_coverage",
+            "de_escalation_compliance",
+            "use_of_force_incidents"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "mediation_path_bc_to_dec",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "mediator_to_force_conditional_on_bc",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "bc_force_association",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            },
+            {
+              "spec_id": "bc_force_association_reduced_after_conditioning_on_mediator",
+              "role": "support",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        },
+        {
+          "sq_id": "sq5",
+          "tier": "medium",
+          "text": "Is there evidence for a latent officer-level risk trait driving both complaints and force beyond observed assignment factors?",
+          "focus_variables": [
+            "officer_temperament_risk",
+            "prior_complaint_rate",
+            "use_of_force_incidents",
+            "performance_rating"
+          ],
+          "focus_missing": [],
+          "specs": [
+            {
+              "spec_id": "latent_trait_signal_partialcorr_complaints_force_given_assignment",
+              "role": "required",
+              "L1_missing_vars": [],
+              "L2_no_causal_path": [],
+              "L3_invalid_adjust_set": [],
+              "is_coherent": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

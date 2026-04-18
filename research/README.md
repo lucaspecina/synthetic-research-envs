@@ -37,6 +37,8 @@
 | `synthesis/compiler_baseline_full_dump_v2.json` | **CANON raw data (v2).** 55 targets, 5 buckets, round-trip-safe AtomicSpec dump. Fuente de todos los números v2. |
 | `synthesis/suite2_compiler_improvement_strategy.md` | **CANON plan.** Recipe gap duro + 6 opciones de mejora + diagnostic battery (D1-D7). §7 Findings actualizada 2026-04-15 con D1/D2/D4 + stage1_split reales. §8 plan post-diagnostics (fix abstain, formalize 6/10 adjust-swap, exemplars por slot). |
 | `synthesis/suite2_fail_audit_recipe_patterns.md` | Manual audit of 10 zero-candidate verdict-fails (#11a). Failure-mode taxonomy per family (2026-04-15) |
+| `synthesis/suite2_sq_dag_coherence_audit.md` | **CANON audit.** Flow B SQ compiler: L1/L2/L3 estructural + semantic LLM-judge. 23 L3 fail (pre-fix #45), 47% wrong_claim semantic. Input de #46. |
+| `synthesis/suite2_claim_compiler_audits.md` | **CANON audit.** Flow A claim compiler: 44% coherent (36% wrong_claim), spec-kind mode collapse, firma de los 7 full_pass. Input de #36 compiler-fix. |
 | `synthesis/suite2_diag_d1_results.json` | **CANON diag.** D1 pattern recognition raw results (55 LLM calls, 69% acc). Per-family breakdown + confusion matrix. |
 | `synthesis/suite2_diag_d2_results.json` | **CANON diag.** D2 recipe slot elicitation (55 LLM calls, 75% acc). 7 slots × 50-55 targets. arm_kinds = bottleneck real. |
 | `synthesis/suite2_diag_d2a_no_world_context_results.json` | **Diag archived.** D2 sin world-variable context (63% acc). role_vars cae a 10% — confirma que variable grounding es context-dependent. |

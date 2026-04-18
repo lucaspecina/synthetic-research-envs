@@ -1,0 +1,489 @@
+{
+  "meta": {
+    "baseline": "C:\\Users\\YT40432\\Desktop\\lp\\research\\lucaspecina\\synthetic-research-envs\\.claude\\worktrees\\eval-suite\\research\\synthesis\\compiler_baseline_full_dump_v2.json",
+    "total_entries": 55
+  },
+  "compiler_specs": {
+    "total_entries": 55,
+    "total_specs": 84,
+    "total_arms": 145,
+    "histograms": {
+      "arm_kind": {
+        "adjust": 86,
+        "intervene": 23,
+        "baseline": 27,
+        "condition": 9
+      },
+      "n_arms_per_spec": {
+        "2": 56,
+        "3": 1,
+        "1": 26,
+        "4": 1
+      },
+      "measurement_kind": {
+        "mean": 50,
+        "partial_correlation": 10,
+        "correlation": 13,
+        "variance": 2,
+        "identifiability_check": 7,
+        "tail_prob": 2
+      },
+      "comparison_kind": {
+        "difference": 54,
+        "ranking": 1,
+        "identity": 27,
+        "contrast_diff": 2
+      },
+      "assertion_kind": {
+        "distinguishable": 15,
+        "rank_order": 1,
+        "positive": 26,
+        "greater_than": 8,
+        "less_than": 5,
+        "near_zero": 10,
+        "not_distinguishable": 6,
+        "negative": 5,
+        "identifiable": 4,
+        "sign_flip": 1,
+        "not_identifiable": 3
+      },
+      "measurement_x_assertion": {
+        "mean | distinguishable": 12,
+        "mean | rank_order": 1,
+        "mean | positive": 16,
+        "mean | greater_than": 6,
+        "mean | less_than": 5,
+        "mean | near_zero": 6,
+        "partial_correlation | not_distinguishable": 2,
+        "partial_correlation | positive": 2,
+        "correlation | positive": 5,
+        "partial_correlation | greater_than": 1,
+        "partial_correlation | near_zero": 2,
+        "correlation | not_distinguishable": 3,
+        "variance | positive": 2,
+        "mean | negative": 3,
+        "partial_correlation | negative": 2,
+        "partial_correlation | distinguishable": 1,
+        "correlation | distinguishable": 2,
+        "identifiability_check | identifiable": 4,
+        "correlation | sign_flip": 1,
+        "tail_prob | positive": 1,
+        "tail_prob | greater_than": 1,
+        "identifiability_check | not_identifiable": 3,
+        "correlation | near_zero": 2,
+        "mean | not_distinguishable": 1
+      },
+      "measurement_x_n_arms": {
+        "mean | 2": 48,
+        "mean | 3": 1,
+        "partial_correlation | 1": 10,
+        "correlation | 2": 4,
+        "mean | 4": 1,
+        "correlation | 1": 9,
+        "variance | 2": 2,
+        "identifiability_check | 1": 7,
+        "tail_prob | 2": 2
+      },
+      "arm_kind_x_measurement": {
+        "adjust | mean": 82,
+        "intervene | mean": 19,
+        "baseline | partial_correlation": 10,
+        "condition | mean": 2,
+        "intervene | correlation": 2,
+        "baseline | correlation": 10,
+        "intervene | variance": 2,
+        "adjust | variance": 2,
+        "condition | correlation": 5,
+        "baseline | identifiability_check": 7,
+        "adjust | tail_prob": 2,
+        "condition | tail_prob": 2
+      },
+      "specs_per_entry": {
+        "1": 30,
+        "0": 3,
+        "2": 14,
+        "3": 6,
+        "4": 2
+      }
+    },
+    "per_world": {
+      "w1_comparative_effectiveness": {
+        "measurement_kind": {
+          "mean": 33,
+          "partial_correlation": 7,
+          "correlation": 4,
+          "variance": 2
+        },
+        "assertion_kind": {
+          "distinguishable": 10,
+          "rank_order": 1,
+          "positive": 15,
+          "greater_than": 7,
+          "less_than": 4,
+          "near_zero": 4,
+          "not_distinguishable": 5
+        },
+        "arm_kind": {
+          "adjust": 58,
+          "intervene": 15,
+          "baseline": 10,
+          "condition": 2
+        }
+      },
+      "w2_observational_epidemiology": {
+        "measurement_kind": {
+          "mean": 13,
+          "correlation": 5,
+          "partial_correlation": 3,
+          "identifiability_check": 2
+        },
+        "assertion_kind": {
+          "negative": 5,
+          "less_than": 1,
+          "near_zero": 1,
+          "positive": 10,
+          "distinguishable": 4,
+          "identifiable": 2
+        },
+        "arm_kind": {
+          "adjust": 18,
+          "baseline": 10,
+          "intervene": 8,
+          "condition": 1
+        }
+      },
+      "w3_environmental_health": {
+        "measurement_kind": {
+          "correlation": 4,
+          "tail_prob": 2,
+          "identifiability_check": 5,
+          "mean": 4
+        },
+        "assertion_kind": {
+          "sign_flip": 1,
+          "distinguishable": 1,
+          "positive": 1,
+          "greater_than": 1,
+          "identifiable": 2,
+          "not_identifiable": 3,
+          "near_zero": 5,
+          "not_distinguishable": 1
+        },
+        "arm_kind": {
+          "condition": 6,
+          "adjust": 10,
+          "baseline": 7
+        }
+      }
+    },
+    "per_category": {
+      "real_struct_err": {
+        "measurement_kind": {
+          "mean": 9,
+          "partial_correlation": 5,
+          "correlation": 6,
+          "variance": 1
+        },
+        "assertion_kind": {
+          "distinguishable": 4,
+          "positive": 12,
+          "greater_than": 1,
+          "negative": 2,
+          "near_zero": 2
+        },
+        "arm_kind": {
+          "adjust": 16,
+          "condition": 2,
+          "baseline": 10,
+          "intervene": 4
+        }
+      },
+      "stage1_fail": {
+        "measurement_kind": {
+          "mean": 2,
+          "identifiability_check": 2,
+          "correlation": 1
+        },
+        "assertion_kind": {
+          "rank_order": 1,
+          "identifiable": 1,
+          "not_distinguishable": 1,
+          "not_identifiable": 1,
+          "near_zero": 1
+        },
+        "arm_kind": {
+          "intervene": 3,
+          "baseline": 3,
+          "adjust": 2
+        }
+      },
+      "adjust_swap": {
+        "measurement_kind": {
+          "mean": 11
+        },
+        "assertion_kind": {
+          "positive": 7,
+          "negative": 2,
+          "near_zero": 2
+        },
+        "arm_kind": {
+          "adjust": 22
+        }
+      },
+      "verdict_wrong": {
+        "measurement_kind": {
+          "mean": 28,
+          "partial_correlation": 4,
+          "correlation": 6,
+          "tail_prob": 2,
+          "identifiability_check": 1
+        },
+        "assertion_kind": {
+          "greater_than": 7,
+          "less_than": 5,
+          "near_zero": 5,
+          "not_distinguishable": 5,
+          "distinguishable": 11,
+          "positive": 6,
+          "sign_flip": 1,
+          "identifiable": 1
+        },
+        "arm_kind": {
+          "adjust": 46,
+          "baseline": 9,
+          "intervene": 14,
+          "condition": 7
+        }
+      },
+      "full_pass": {
+        "measurement_kind": {
+          "variance": 1,
+          "partial_correlation": 1,
+          "identifiability_check": 4
+        },
+        "assertion_kind": {
+          "positive": 1,
+          "negative": 1,
+          "identifiable": 2,
+          "not_identifiable": 2
+        },
+        "arm_kind": {
+          "intervene": 2,
+          "baseline": 5
+        }
+      }
+    }
+  },
+  "gold_specs": {
+    "total_entries": 55,
+    "total_specs": 54,
+    "total_arms": 115,
+    "histograms": {
+      "arm_kind": {
+        "intervene": 94,
+        "observe": 6,
+        "baseline": 12,
+        "sweep": 3
+      },
+      "n_arms_per_spec": {
+        "2": 28,
+        "4": 11,
+        "1": 15
+      },
+      "measurement_kind": {
+        "mean": 38,
+        "variance": 2,
+        "partial_correlation": 5,
+        "identifiability_check": 7,
+        "tail_prob": 2
+      },
+      "comparison_kind": {
+        "difference": 28,
+        "contrast_diff": 11,
+        "identity": 12,
+        "piecewise_fit": 3
+      },
+      "assertion_kind": {
+        "positive": 29,
+        "less_than": 1,
+        "gap_material": 4,
+        "negative": 7,
+        "not_identifiable": 5,
+        "identifiable": 2,
+        "changepoint_exists": 3,
+        "near_zero": 3
+      },
+      "measurement_x_assertion": {
+        "mean | positive": 24,
+        "mean | less_than": 1,
+        "mean | gap_material": 4,
+        "variance | positive": 2,
+        "mean | negative": 3,
+        "partial_correlation | positive": 3,
+        "partial_correlation | negative": 2,
+        "identifiability_check | not_identifiable": 5,
+        "identifiability_check | identifiable": 2,
+        "mean | changepoint_exists": 3,
+        "tail_prob | negative": 2,
+        "mean | near_zero": 3
+      },
+      "measurement_x_n_arms": {
+        "mean | 2": 24,
+        "mean | 4": 11,
+        "variance | 2": 2,
+        "partial_correlation | 1": 5,
+        "identifiability_check | 1": 7,
+        "mean | 1": 3,
+        "tail_prob | 2": 2
+      },
+      "arm_kind_x_measurement": {
+        "intervene | mean": 86,
+        "observe | mean": 6,
+        "intervene | variance": 4,
+        "baseline | partial_correlation": 5,
+        "baseline | identifiability_check": 7,
+        "sweep | mean": 3,
+        "intervene | tail_prob": 4
+      },
+      "specs_per_entry": {
+        "1": 46,
+        "0": 5,
+        "2": 4
+      }
+    },
+    "per_world": {
+      "w1_comparative_effectiveness": {
+        "measurement_kind": {
+          "mean": 25,
+          "variance": 2
+        },
+        "assertion_kind": {
+          "positive": 22,
+          "less_than": 1,
+          "gap_material": 4
+        },
+        "arm_kind": {
+          "intervene": 66,
+          "observe": 6
+        }
+      },
+      "w2_observational_epidemiology": {
+        "measurement_kind": {
+          "mean": 7,
+          "partial_correlation": 5,
+          "identifiability_check": 4
+        },
+        "assertion_kind": {
+          "negative": 5,
+          "positive": 7,
+          "not_identifiable": 2,
+          "identifiable": 2
+        },
+        "arm_kind": {
+          "intervene": 18,
+          "baseline": 9
+        }
+      },
+      "w3_environmental_health": {
+        "measurement_kind": {
+          "mean": 6,
+          "tail_prob": 2,
+          "identifiability_check": 3
+        },
+        "assertion_kind": {
+          "changepoint_exists": 3,
+          "negative": 2,
+          "not_identifiable": 3,
+          "near_zero": 3
+        },
+        "arm_kind": {
+          "sweep": 3,
+          "intervene": 10,
+          "baseline": 3
+        }
+      }
+    },
+    "per_category": {
+      "real_struct_err": {
+        "measurement_kind": {
+          "mean": 8,
+          "variance": 1,
+          "partial_correlation": 4,
+          "identifiability_check": 1
+        },
+        "assertion_kind": {
+          "positive": 10,
+          "less_than": 1,
+          "negative": 1,
+          "not_identifiable": 1,
+          "near_zero": 1
+        },
+        "arm_kind": {
+          "intervene": 24,
+          "baseline": 5
+        }
+      },
+      "adjust_swap": {
+        "measurement_kind": {
+          "mean": 11
+        },
+        "assertion_kind": {
+          "positive": 7,
+          "negative": 2,
+          "near_zero": 2
+        },
+        "arm_kind": {
+          "intervene": 22
+        }
+      },
+      "verdict_wrong": {
+        "measurement_kind": {
+          "mean": 17,
+          "identifiability_check": 2,
+          "tail_prob": 2
+        },
+        "assertion_kind": {
+          "positive": 11,
+          "gap_material": 4,
+          "negative": 3,
+          "not_identifiable": 2,
+          "changepoint_exists": 1
+        },
+        "arm_kind": {
+          "intervene": 46,
+          "observe": 6,
+          "baseline": 2,
+          "sweep": 1
+        }
+      },
+      "full_pass": {
+        "measurement_kind": {
+          "variance": 1,
+          "partial_correlation": 1,
+          "identifiability_check": 4
+        },
+        "assertion_kind": {
+          "positive": 1,
+          "negative": 1,
+          "identifiable": 2,
+          "not_identifiable": 2
+        },
+        "arm_kind": {
+          "intervene": 2,
+          "baseline": 5
+        }
+      },
+      "stage1_fail": {
+        "measurement_kind": {
+          "mean": 2
+        },
+        "assertion_kind": {
+          "changepoint_exists": 2
+        },
+        "arm_kind": {
+          "sweep": 2
+        }
+      }
+    }
+  }
+}
