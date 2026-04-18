@@ -1,0 +1,121 @@
+{
+  "metadata": {
+    "timestamp_utc": "2026-04-17T14:19:33.141281+00:00",
+    "python_version": "3.11.14",
+    "platform": "win32",
+    "verifiers_version": "0.1.11",
+    "git_sha": "8a45728e49f0ae6ce54e21cebcd3dd725890f621",
+    "git_dirty": true
+  },
+  "args": {
+    "config": "configs\\smoke_rl.yaml",
+    "num_cases": 3,
+    "rollouts_per_case": 4,
+    "temperature": 0.7,
+    "prompts": [
+      "immunotherapy",
+      "missing_data",
+      "policy_equity"
+    ],
+    "max_concurrent": 3,
+    "seed": 42
+  },
+  "report": {
+    "n_rollouts": 12,
+    "n_groups": 3,
+    "mean_reward": 0.3153319234563448,
+    "mean_intra_group_std": 0.19680157666420015,
+    "bootstrap_ci_95": [
+      0.08115276814340393,
+      0.28963090753034143
+    ],
+    "submitted_only_mean_std": 0.05626506112235637,
+    "submitted_only_n_groups": 3,
+    "submit_rate": 0.6666666666666666,
+    "pct_zero_variance_groups": 0.0,
+    "pct_single_reward_groups": 0.0,
+    "mean_top1_top2_gap": 0.06262051177560435,
+    "stop_condition_distribution": {
+      "no_tools_called": 12
+    },
+    "step_count_reward_correlation": NaN,
+    "per_group": {
+      "immunotherapy": {
+        "n_rollouts": 4,
+        "rewards": [
+          0.5297727272727273,
+          0.52875,
+          -0.05,
+          -0.05
+        ],
+        "reward_mean": 0.2396306818181818,
+        "reward_std": 0.28963090753034143,
+        "n_unique_rewards": 3,
+        "submitted_count": 2,
+        "submitted_only_std": 0.0005113636363636154,
+        "stop_conditions": [
+          "no_tools_called",
+          "no_tools_called",
+          "no_tools_called",
+          "no_tools_called"
+        ]
+      },
+      "missing_data": {
+        "n_rollouts": 4,
+        "rewards": [
+          0.5914411522633745,
+          0.5810853909465021,
+          0.6040178571428572,
+          0.40570781893004115
+        ],
+        "reward_mean": 0.5455630548206938,
+        "reward_std": 0.08115276814340393,
+        "n_unique_rewards": 4,
+        "submitted_count": 4,
+        "submitted_only_std": 0.08115276814340393,
+        "stop_conditions": [
+          "no_tools_called",
+          "no_tools_called",
+          "no_tools_called",
+          "no_tools_called"
+        ]
+      },
+      "policy_equity": {
+        "n_rollouts": 4,
+        "rewards": [
+          -0.05,
+          0.2844730158730158,
+          0.45873511904761893,
+          -0.05
+        ],
+        "reward_mean": 0.16080203373015867,
+        "reward_std": 0.219621054318855,
+        "n_unique_rewards": 3,
+        "submitted_count": 2,
+        "submitted_only_std": 0.08713105158730156,
+        "stop_conditions": [
+          "no_tools_called",
+          "no_tools_called",
+          "no_tools_called",
+          "no_tools_called"
+        ]
+      }
+    },
+    "_temperature": 0.7
+  },
+  "verdict": {
+    "verdict": "PASS",
+    "gates": {
+      "all_std_ok": true,
+      "submitted_std_ok": true,
+      "not_too_many_collapsed": true
+    },
+    "thresholds": {
+      "all_std_min": 0.05,
+      "submitted_std_min": 0.03,
+      "zero_var_max_pct": 40.0
+    },
+    "recommendation": "GRPO has signal. Proceed to H100 setup (#38) and first RL run (#24)."
+  },
+  "elapsed_s": 753.9349629878998
+}

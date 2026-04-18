@@ -18,7 +18,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Sequence
 
 import numpy as np
 
@@ -193,9 +193,261 @@ def write_trajectories_jsonl(
     return count
 
 
+def _bootstrap_mean_ci(
+    values: Sequence[float], *, n_resamples: int = 1000, alpha: float = 0.05,
+    seed: int = 42,
+) -> tuple[float, float]:
+    """Bootstrap (1 - alpha) CI for the mean of `values`.
+
+    Returns (lo, hi). Used for `mean_intra_group_std` because with small N
+    (e.g. N=6 groups) the point estimate alone is misleading — operators
+    need to see the uncertainty band before deciding H100 spend.
+    """
+    if not values:
+        return (float("nan"), float("nan"))
+    arr = np.asarray(list(values), dtype=float)
+    rng = np.random.default_rng(seed)
+    n = len(arr)
+    means = np.empty(n_resamples, dtype=float)
+    for i in range(n_resamples):
+        idx = rng.integers(0, n, size=n)
+        means[i] = arr[idx].mean()
+    lo = float(np.percentile(means, 100 * alpha / 2))
+    hi = float(np.percentile(means, 100 * (1 - alpha / 2)))
+    return (lo, hi)
+
+
+def variance_report(outputs: Sequence[dict]) -> dict:
+    """Group-level variance diagnostics for GRPO signal audit (#39).
+
+    GRPO normalizes advantages by intra-group std. If groups have near-zero
+    variance (all rollouts identical), advantage=0 and no gradient flows.
+    This helper surfaces whether the current env + policy + reward combo
+    produces enough within-group spread to train on — BEFORE paying for
+    H100 GPU-hours.
+
+    Codex (2026-04-17) flagged two failure modes the naive "mean std"
+    misses:
+      1. "Submit/no-submit mixture" fakes variance: a group with 2 rollouts
+         at +0.3 and 2 at -0.05 has std ~0.17 but the signal is only
+         submit-vs-fail, not research quality. Report `submitted_only_*`
+         to control for this.
+      2. Small-N point estimates mislead. Bootstrap a 95% CI around
+         `mean_intra_group_std` so the uncertainty is visible.
+
+    Args:
+        outputs: Sequence of RolloutOutput-like dicts with at least
+            `problem_id`, `reward`. Uses `metrics.submitted` if present,
+            falls back to `reward >= 0` as "submitted" heuristic.
+
+    Returns:
+        Dict with the aggregated diagnostics. `per_group` has the raw
+        per-problem_id rewards for inspection of borderline cases.
+    """
+    if not outputs:
+        return {
+            "n_rollouts": 0,
+            "n_groups": 0,
+            "mean_reward": float("nan"),
+            "mean_intra_group_std": float("nan"),
+            "bootstrap_ci_95": [float("nan"), float("nan")],
+            "submitted_only_mean_std": float("nan"),
+            "submit_rate": float("nan"),
+            "pct_zero_variance_groups": float("nan"),
+            "pct_single_reward_groups": float("nan"),
+            "mean_top1_top2_gap": float("nan"),
+            "stop_condition_distribution": {},
+            "step_count_reward_correlation": float("nan"),
+            "per_group": {},
+        }
+
+    # Group by problem_id. "_unknown" catches state_columns hookup failures.
+    groups: dict[str, list[dict]] = {}
+    for o in outputs:
+        pid = o.get("problem_id") or "_unknown"
+        groups.setdefault(pid, []).append(dict(o))
+
+    per_group: dict[str, dict] = {}
+    intra_stds: list[float] = []
+    submitted_stds: list[float] = []
+    top_gaps: list[float] = []
+    zero_var_count = 0
+    single_reward_count = 0
+    total_submitted = 0
+    stop_conditions: dict[str, int] = {}
+    all_step_counts: list[float] = []
+    all_rewards_paired: list[float] = []
+
+    for pid, group in groups.items():
+        rewards = [float(g.get("reward", 0.0)) for g in group]
+        metrics_list = [g.get("metrics") or {} for g in group]
+        submitted_flags = [
+            bool(m.get("submitted")) if "submitted" in m else (r >= 0)
+            for m, r in zip(metrics_list, rewards)
+        ]
+        stop_list = [g.get("stop_condition") or "_unknown" for g in group]
+        step_counts = [
+            float(m.get("step_count", 0.0)) for m in metrics_list
+        ]
+
+        std = float(np.std(rewards, ddof=0)) if len(rewards) >= 2 else 0.0
+        intra_stds.append(std)
+        if std == 0.0:
+            zero_var_count += 1
+        if len(set(rewards)) <= 1:
+            single_reward_count += 1
+
+        # top1 - top2 gap: proxy for contrastive signal (more aligned with
+        # GRPO advantage than raw std, per Codex). Undefined for groups
+        # of size 1.
+        if len(rewards) >= 2:
+            sorted_r = sorted(rewards, reverse=True)
+            top_gaps.append(sorted_r[0] - sorted_r[1])
+
+        # Submitted-only std: descartes variance that is purely
+        # submit/no-submit mixture. Requires >=2 submitted rollouts to
+        # define.
+        submitted_rewards = [r for r, s in zip(rewards, submitted_flags) if s]
+        if len(submitted_rewards) >= 2:
+            submitted_stds.append(float(np.std(submitted_rewards, ddof=0)))
+
+        total_submitted += sum(submitted_flags)
+        for sc in stop_list:
+            stop_conditions[sc] = stop_conditions.get(sc, 0) + 1
+        all_step_counts.extend(step_counts)
+        all_rewards_paired.extend(rewards)
+
+        per_group[pid] = {
+            "n_rollouts": len(group),
+            "rewards": rewards,
+            "reward_mean": float(np.mean(rewards)),
+            "reward_std": std,
+            "n_unique_rewards": len(set(rewards)),
+            "submitted_count": sum(submitted_flags),
+            "submitted_only_std": (
+                float(np.std(submitted_rewards, ddof=0))
+                if len(submitted_rewards) >= 2 else None
+            ),
+            "stop_conditions": stop_list,
+        }
+
+    n_rollouts = len(outputs)
+    n_groups = len(groups)
+
+    # Pearson correlation step_count ↔ reward. Catches the "agent that
+    # tries harder gets penalized" bug (negative correlation) — important
+    # to surface before blaming the training loop for flat curves.
+    if len(all_step_counts) >= 2 and np.std(all_step_counts) > 0:
+        corr = float(np.corrcoef(all_step_counts, all_rewards_paired)[0, 1])
+    else:
+        corr = float("nan")
+
+    mean_intra_std = float(np.mean(intra_stds)) if intra_stds else float("nan")
+    ci_lo, ci_hi = _bootstrap_mean_ci(intra_stds) if intra_stds else (
+        float("nan"), float("nan")
+    )
+
+    return {
+        "n_rollouts": n_rollouts,
+        "n_groups": n_groups,
+        "mean_reward": float(np.mean(all_rewards_paired)),
+        "mean_intra_group_std": mean_intra_std,
+        "bootstrap_ci_95": [ci_lo, ci_hi],
+        "submitted_only_mean_std": (
+            float(np.mean(submitted_stds)) if submitted_stds else float("nan")
+        ),
+        "submitted_only_n_groups": len(submitted_stds),
+        "submit_rate": total_submitted / n_rollouts if n_rollouts else 0.0,
+        "pct_zero_variance_groups": (
+            100.0 * zero_var_count / n_groups if n_groups else 0.0
+        ),
+        "pct_single_reward_groups": (
+            100.0 * single_reward_count / n_groups if n_groups else 0.0
+        ),
+        "mean_top1_top2_gap": (
+            float(np.mean(top_gaps)) if top_gaps else float("nan")
+        ),
+        "stop_condition_distribution": stop_conditions,
+        "step_count_reward_correlation": corr,
+        "per_group": per_group,
+    }
+
+
+# Gate thresholds — tuned from Codex consultation 2026-04-17. These are
+# heuristics, not literature-cited cutoffs. Tweak as we learn.
+_GATE_ALL_STD_MIN = 0.05
+_GATE_SUBMITTED_STD_MIN = 0.03
+_GATE_ZERO_VAR_MAX_PCT = 40.0
+
+
+def variance_verdict(report: dict) -> dict:
+    """Decide PASS / BORDERLINE / FAIL from a `variance_report()` output.
+
+    Gates (all must pass for PASS):
+      - `mean_intra_group_std >= 0.05` — baseline variance on all rewards
+      - `submitted_only_mean_std >= 0.03` — variance among "successful"
+        submissions, rules out signal that is purely submit/no-submit
+        mixture
+      - `pct_zero_variance_groups <= 40` — most groups need >=2 distinct
+        rewards or GRPO collapses
+
+    BORDERLINE if 2/3 gates pass (likely worth a second run at higher
+    temperature). FAIL if 0 or 1 gate passes (needs intervention before
+    spending H100 hours).
+
+    Returns a dict with per-gate booleans, the computed verdict, and a
+    human-readable `recommendation` string.
+    """
+    gates = {
+        "all_std_ok": (
+            not np.isnan(report["mean_intra_group_std"]) and
+            report["mean_intra_group_std"] >= _GATE_ALL_STD_MIN
+        ),
+        "submitted_std_ok": (
+            not np.isnan(report["submitted_only_mean_std"]) and
+            report["submitted_only_mean_std"] >= _GATE_SUBMITTED_STD_MIN
+        ),
+        "not_too_many_collapsed": (
+            report["pct_zero_variance_groups"] <= _GATE_ZERO_VAR_MAX_PCT
+        ),
+    }
+    passed = sum(gates.values())
+    if passed == 3:
+        verdict = "PASS"
+        rec = (
+            "GRPO has signal. Proceed to H100 setup (#38) and first RL run (#24)."
+        )
+    elif passed == 2:
+        verdict = "BORDERLINE"
+        rec = (
+            "Signal is ambiguous. Recommend a second audit run at higher "
+            "temperature (e.g. 1.0) on the same prompts before committing "
+            "to H100 spend."
+        )
+    else:
+        verdict = "FAIL"
+        rec = (
+            "Insufficient signal for GRPO. Do NOT proceed to H100 yet — "
+            "create intervention issues (reward shaping, temperature "
+            "adjustment, penalty rebalancing) and re-audit."
+        )
+    return {
+        "verdict": verdict,
+        "gates": gates,
+        "thresholds": {
+            "all_std_min": _GATE_ALL_STD_MIN,
+            "submitted_std_min": _GATE_SUBMITTED_STD_MIN,
+            "zero_var_max_pct": _GATE_ZERO_VAR_MAX_PCT,
+        },
+        "recommendation": rec,
+    }
+
+
 __all__ = [
     "run_metadata",
     "summarize_values",
     "per_case_breakdown",
     "write_trajectories_jsonl",
+    "variance_report",
+    "variance_verdict",
 ]
