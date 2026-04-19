@@ -1,0 +1,68 @@
+# T4 smoke RL config — validates the training loop end-to-end on a
+# low-end GPU (Tesla T4, Turing sm_75, 16 GB VRAM) BEFORE committing
+# to the H100 canonical run (Issue #38).
+#
+# NOT a tesis config. Exists only to exercise the verifiers-rl GRPO
+# loop on a cheap VM so H100 time isn't burned diagnosing plumbing.
+#
+# T4-specific deltas vs configs/smoke_rl.yaml:
+#   model              = Qwen2.5-0.5B (fits in 16 GB T4 with LoRA)
+#   bf16 = false       (Turing has no bf16 tensor cores — would error or silently cast)
+#   fp16 = true        (Turing supports fp16 tensor cores)
+#   attn_implementation = sdpa  (flash-attn 2 requires Ampere+/sm_80+)
+#   batch_size=2, G=2, total_steps=2  (minimum to exercise GRPO once)
+#   max_turns / claim_cap / n_mc lowered for speed
+
+dataset:
+  dir: ${SREG_P05_BATCH}
+
+  # 2 cases for train, 1 for holdout — enough to smoke the loop.
+  # Picked from the audit's PASS set (all submitted and showed variance).
+  train_cases:
+    - missing_data
+    - policy_equity
+  holdout_cases:
+    - immunotherapy
+
+rollout:
+  temperature: 0.7
+  max_turns: 6             # shorter than smoke_rl (15) — T4 compute is tight
+  claim_cap: 8
+  n_mc: 2000               # smaller MC sample for faster scorer turnaround
+
+training:
+  model: Qwen/Qwen2.5-0.5B-Instruct
+  run_name: smoke_t4_rl_0
+
+  # Minimum viable GRPO batch: G=2, 1 prompt per step
+  rollouts_per_example: 2
+  batch_size: 2
+  micro_batch_size: 1
+  max_concurrent: 2
+
+  total_steps: 2           # just enough to see optimizer step + checkpoint
+  seed: 42
+
+  max_tokens: 512          # per-turn cap (T4 OOMs fast at 1024+)
+  max_seq_len: 4096
+
+  learning_rate: 1.0e-5
+
+  use_lora: true
+  lora_rank: 8
+  lora_alpha: 16
+
+  # Precision + attention + liger — T4-specific knobs the H100 config
+  # leaves at RLConfig defaults (bf16=True, fp16=False, flash-attn, liger).
+  # Liger Triton kernels assume Ampere+; disable on Turing.
+  bf16: false
+  fp16: true
+  attn_implementation: sdpa
+  use_liger: false
+
+  vllm_server_host: 0.0.0.0
+  vllm_server_port: 8002     # T4 VM: JupyterHub (node) ocupa 8000 y 8001
+
+  save_steps: 2
+  logging_steps: 1
+  report_to: null

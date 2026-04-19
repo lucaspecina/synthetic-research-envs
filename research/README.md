@@ -38,6 +38,7 @@
 | `synthesis/research_case_design.md` | **CANON disenio.** Como diseniar SRCs que se sientan como investigacion real |
 | `synthesis/sherlock_interactive_design.md` | **CANON diseno v2.** Sherlock-type interactive investigation — 3 modelos, SciGym comparison, Modelo 1 concreto |
 | `synthesis/real_papers_patterns.md` | **CANON patrones.** Patrones consistentes en papers reales |
+| `synthesis/rl_backend_hardware_choice.md` | **CANON training infra.** Ecosistema PrimeIntellect (verifiers / verifiers-rl / prime-rl), por que RL de LLMs pide >= 2 GPUs, decision de hardware para tesis |
 
 ### Notas activas (notes/)
 
@@ -114,6 +115,14 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 |---|---|
 | Como diseniar SRCs que parezcan investigacion real | `synthesis/research_case_design.md` |
 | Patrones que aparecen en papers reales | `synthesis/real_papers_patterns.md` |
+
+### Training infra
+
+| Necesito... | Doc canonico |
+|---|---|
+| Elegir backend RL (verifiers-rl vs prime-rl vs ART) | `synthesis/rl_backend_hardware_choice.md` |
+| Saber por que RL de LLMs pide >= 2 GPUs | `synthesis/rl_backend_hardware_choice.md` |
+| Decidir hardware antes de pedir VM | `synthesis/rl_backend_hardware_choice.md` |
 
 ### Investigaciones empiricas activas (notes/)
 

@@ -221,36 +221,38 @@ def _build_rl_config(cfg: dict):
     from verifiers_rl.rl.trainer import RLConfig
 
     t = cfg["training"]
-    return RLConfig(
-        # run identity
+    # Precision defaults: bf16=True, fp16=False — right for Ampere+/Hopper
+    # (H100 canonical). T4 (Turing sm_75) has no bf16 tensor cores, so smoke
+    # configs on T4 must flip these. Optional in YAML so H100 paths stay terse.
+    # `use_liger` default True is verifiers-rl's own; T4 can't run liger
+    # kernels so smoke_t4 disables it. `attn_implementation` is applied in
+    # `train()` at model load, not here — RLConfig has no such field.
+    kwargs = dict(
         run_name=t["run_name"],
         output_dir=f"outputs/{t['run_name']}",
-        # batch structure — see configs/smoke_rl.yaml for semantics
         rollouts_per_example=t["rollouts_per_example"],
         batch_size=t["batch_size"],
         micro_batch_size=t["micro_batch_size"],
         max_concurrent=t["max_concurrent"],
-        # steps
         max_steps=t["total_steps"],
         seed=t["seed"],
-        # sampling / sequence
         max_tokens=t["max_tokens"],
         max_seq_len=t["max_seq_len"],
         temperature=cfg["rollout"]["temperature"],
-        # optimizer
         learning_rate=t["learning_rate"],
-        # LoRA
         use_lora=t["use_lora"],
         lora_rank=t["lora_rank"],
         lora_alpha=t["lora_alpha"],
-        # vLLM server
         vllm_server_host=t["vllm_server_host"],
         vllm_server_port=t["vllm_server_port"],
-        # logging / checkpointing
+        bf16=t.get("bf16", True),
+        fp16=t.get("fp16", False),
+        use_liger=t.get("use_liger", True),
         save_steps=t["save_steps"],
         logging_steps=t["logging_steps"],
         report_to=t["report_to"] if t["report_to"] is not None else "none",
     )
+    return RLConfig(**kwargs)
 
 
 def _dump_config_snapshot(cfg: dict, rl_config, output_dir: Path) -> None:
@@ -339,13 +341,34 @@ def train(cfg: dict, policy_cfg: RoleConfig, scorer_cfg: RoleConfig) -> None:
     _dump_config_snapshot(cfg, rl_config, output_dir)
     print(f"  Output:  {output_dir.resolve()}")
 
+    # Pre-load model so we can pick dtype + attn_implementation per-host.
+    # verifiers-rl's default loader hardcodes bf16 + flash_attention_2, which
+    # breaks on T4 (Turing). When we pass a str model name, the trainer calls
+    # that loader; passing a PreTrainedModel skips it. See
+    # verifiers_rl/rl/trainer/utils.py:get_model.
+    import torch
+    from verifiers_rl import get_model_and_tokenizer
+
+    t = cfg["training"]
+    dtype = torch.float16 if t.get("fp16", False) else torch.bfloat16
+    model_kwargs = {"dtype": dtype, "use_cache": False}
+    attn_impl = t.get("attn_implementation")
+    if attn_impl is not None:
+        model_kwargs["attn_implementation"] = attn_impl
+    model_obj, tokenizer = get_model_and_tokenizer(
+        t["model"],
+        use_liger=t.get("use_liger", True),
+        model_kwargs=model_kwargs,
+    )
+
     # RLTrainer instantiation triggers:
-    #   - model + tokenizer load
     #   - LoRA wrap (if use_lora)
     #   - vLLM client init (requires server to be up)
     #   - Orchestrator start + first batch submit
     # If vLLM is down this is where we fail fast.
-    trainer = RLTrainer(model=cfg["training"]["model"], env=env, args=rl_config)
+    trainer = RLTrainer(
+        model=model_obj, env=env, args=rl_config, processing_class=tokenizer
+    )
 
     print("\n  Starting trainer.train() — this blocks until max_steps hit.")
     trainer.train()
