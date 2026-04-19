@@ -29,7 +29,15 @@ No usarlo para:
 ## Decisiones cerradas
 
 - **Modelo principal:** `Qwen3-8B`
-- **Framework de training:** `verifiers + prime-rl`
+- **Framework de training:** `verifiers + verifiers-rl` con LoRA.
+  *(Originalmente "verifiers + prime-rl" — revisado 2026-04-18. El
+  stack `verifiers + verifiers-rl` es el que tenemos integrado hoy,
+  soporta LoRA que `prime-rl` todavia no, y es viable en 2 GPUs. Ver
+  `research/synthesis/rl_backend_hardware_choice.md` para el analisis
+  completo del ecosistema PrimeIntellect + la decision de hardware.)*
+- **Hardware target:** **2x H100 80GB** minimo (1 GPU para vf-vllm
+  rollout, 1 GPU para trainer + NCCL weight sync). Single-GPU NO es
+  viable con `verifiers-rl` — ver doc citado arriba.
 - **Training v1:** `SFT + RL` (con reapertura — ver "Decisiones reabiertas")
 - **Reward RL v1:** `score.total` terminal de SREG
 - **Harness:** el mismo solver stack en solver eval, BEFORE, TRAIN y AFTER
@@ -152,7 +160,8 @@ Si no se mantiene eso, el delta no cuenta como evidencia limpia.
 ## Configuracion de training v1
 
 - **Warm start:** SFT sobre trayectorias / demostraciones SREG
-- **RL:** `verifiers + prime-rl`
+- **RL:** `verifiers + verifiers-rl` con LoRA (ver "Decisiones cerradas")
+- **Hardware:** 2x H100 80GB (1 vf-vllm + 1 trainer)
 - **Signal principal:** reward terminal `score.total`
 
 No agregar shaping complejo en v1 salvo necesidad clara.
@@ -207,6 +216,32 @@ Estas piezas siguen abiertas y deben cerrarse antes del primer run canonico:
 - budget / max iterations del agente
 - dataset/split exacto para cada benchmark
 - criterio exacto de exito para la tesis
+
+## Constraint: rollout parallelism limitado hasta sandbox isolation
+
+Estado a 2026-04-18: `src/sreg/agent/python_exec.py` ejecuta el codigo
+del solver con `exec()` en el mismo proceso del trainer. `verifiers-rl`
+paraleliza los rollouts de cada grupo GRPO con `ThreadPoolExecutor`,
+o sea **N hilos en el mismo interprete** llamando `exec()` simultaneamente.
+
+Pandas no es thread-safe — dos hilos haciendo `print(df.head())` al
+mismo tiempo corrompen el `IndexEngine` y disparan SIGSEGV.
+
+**Restriccion temporal:** todos los runs de RL en el harness actual
+deben usar `max_concurrent: 1` en el config. Esto serializa los
+rollouts del grupo, evita el SIGSEGV pero mata el throughput que
+justifica vLLM continuous batching. El smoke en H100 (Issue #38)
+completo step 0 con `max_concurrent: 1` y produjo varianza no-cero
+(rewards `-0.0598 / -0.0799`).
+
+**Fix necesario antes del primer run canonico:** subprocess isolation
+en `python_exec.py` (mismo patron que NeMo RL workers). Diagnostico
+completo + plan en
+`research/notes/2026-04-18-python_exec_isolation_finding/finding.md`.
+
+Esta restriccion **invalida temporalmente** cualquier estimacion de
+throughput basada en `max_concurrent>=2` hasta que el refactor este
+implementado y validado.
 
 ## Regla de cambios
 

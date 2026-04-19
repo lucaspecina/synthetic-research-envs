@@ -209,20 +209,23 @@ docs/archive/ # Historico (todo_v1_history.md, issue-tracker/, etc.)
 ## Git + GitHub Issues + Codex
 
 ### Issue workflow
-- **Issues en GitHub** con labels: `lane:*`, `type:*`, `prio:*`, `status:*`
-- **1 issue = 1 branch = 1 worktree = 1 PR**
-- Branch naming: `issue/NNN-short-slug` (ej: `issue/16-sherlock-interactive`)
-- PR body empieza con `Closes #NNN` para cierre automatico
-- Squash merge preferido
-- Commits referencian issue: `#NNN descripcion` (ej: `#16 add intervention tools`)
+- **Labels reales**: `parked`, `blocked`, `design`, `research`,
+  `status:next`, `status:in-progress`, `status:done`.
+  (Los `lane:*/type:*/prio:*` mencionados en docs viejos NO existen.)
+- **1 issue = 1 branch = 1 worktree = 1 PR**. Branch: `issue/NNN-short-slug`.
+- **Crear issue nueva**: usar la skill `/issue-new` — hace `gh issue create`
+  + agrega al Project "SREG Roadmap" + setea Worktree/Status + `addSubIssue`
+  del epic en un solo paso. Issue suelta sin pasar por la skill = invisible
+  en el board.
+- PR body empieza con `Closes #NNN`. Squash merge. Commits referencian:
+  `#NNN descripcion`.
 
 ### gh CLI
 `gh` esta instalado pero puede no estar en PATH de bash. Usar path completo
 si falla: `"/c/Program Files/GitHub CLI/gh.exe"`. Authenticated as `lucaspecina`.
 
 ### Flujo
-1. Elegir issue `prio:now` → ponerle `status:in-progress`:
-   `gh issue edit NNN --add-label status:in-progress`
+1. Elegir issue → mover a "In Progress" en el project + label `status:in-progress`.
 2. Crear worktree + branch: `claude --worktree issue-NNN-slug`
 3. Trabajar, commitear
 4. Abrir PR con `gh pr create` + `Closes #NNN`
