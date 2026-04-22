@@ -1,5 +1,9 @@
 """Tests for the persistent Python interpreter (agent/python_exec.py)."""
 
+from __future__ import annotations
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from sreg.agent.python_exec import (
     ExecResult,
     execute_code,
@@ -131,3 +135,45 @@ def test_multiple_datasets():
     assert "x" in r1.output
     r2 = execute_code("list(df_1.columns)", ns)
     assert "y" in r2.output
+
+
+def test_parallel_pandas_no_sigsegv():
+    """Stress test: the bug that motivated #47.
+
+    Before subprocess isolation, 8 threads calling ``print(df.head())``
+    at the same time would race inside pandas' C-side IndexEngine and
+    SIGSEGV the parent process (verifiers-rl's ThreadPoolExecutor puts
+    rollouts in the same interpreter).
+
+    After subprocess isolation, each call runs in its own process, so
+    the C internals cannot corrupt across threads. This test fails hard
+    if the regression comes back — the parent dies, pytest reports no
+    result, and the harness surfaces the crash.
+    """
+    data = [{"val": i} for i in range(50)]
+    assets = [{"data": data, "format": "tabular"}]
+
+    code = (
+        "q1 = df['val'].quantile(0.25)\n"
+        "q3 = df['val'].quantile(0.75)\n"
+        "iqr = q3 - q1\n"
+        "outliers = df[(df['val'] < q1 - 1.5*iqr) | (df['val'] > q3 + 1.5*iqr)]\n"
+        "print(df.head())\n"
+        "print(outliers.head())\n"
+        "df.describe()"
+    )
+
+    def one_call() -> ExecResult:
+        ns = make_python_namespace(data_assets=assets)
+        return execute_code(code, ns)
+
+    n_threads = 8
+    with ThreadPoolExecutor(max_workers=n_threads) as ex:
+        futures = [ex.submit(one_call) for _ in range(n_threads)]
+        results = [f.result() for f in as_completed(futures)]
+
+    assert len(results) == n_threads
+    for r in results:
+        assert isinstance(r, ExecResult)
+        assert r.ok, f"parallel call failed: {r.output[:200]}"
+        assert "val" in r.output

@@ -109,12 +109,18 @@ Probado:
 ### Frameworks de RL para LLMs y como aislan el codigo
 
 **verifiers (PrimeIntellect)** — el que usamos. Tiene built-in
-`PythonEnv` y `SandboxEnv` justamente para esto. No los estamos usando
-porque nuestro solver tiene un namespace persistente custom (numpy/pandas
-preloaded + observations dict + datasets como `df`/`df_1`/...). El
-camino "correcto" en verifiers es escribir un Env propio que extienda
-`SandboxEnv` con namespace pickling, o adaptar nuestro `python_exec.py`
-para que cumpla el mismo contrato.
+`PythonEnv` y `SandboxEnv` — pero **ambos requieren `prime_sandboxes` SDK**
+que cliente-serverea contra la **cloud pagada de Prime Intellect**
+(pay-as-you-go ~$0.10-0.50/h por sandbox según recursos).
+Literal del codigo: `from prime_sandboxes import SandboxClient ... raise
+ImportError("prime-sandboxes is not installed")`. El SDK en si es MIT/OSS
+pero NO es self-hostable — necesita `prime login` + API key + su cloud.
+No hay version self-hostable del runtime. Confirmado verificando el
+monorepo oficial (PrimeIntellect-ai/prime) en 2026-04-19.
+(Nota: `verifiers` tambien tiene un mecanismo interno en `PythonEnv` que
+usa FIFOs + worker persistente. La IDEA es copiable a un contexto local
+sin cloud; sin embargo, para nuestro caso el overhead de subprocess
+per-call es aceptable y mucho mas simple, ver Option A abajo.)
 
 **Prime Intellect Sandboxes (cerrado/SaaS)** — Rust-to-pod, escala a
 4000+ concurrent para entrenar INTELLECT-3. Producto pago. Es lo que

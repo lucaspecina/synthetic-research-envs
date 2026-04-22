@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import ast
 import builtins
-import contextlib
-import io
 import json
-import traceback
+import pickle
+import subprocess
+import sys
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 
 # Allowed imports (agent can use these in python_exec)
 # Analytical libraries only — no I/O, networking, or system access.
@@ -25,9 +27,23 @@ ALLOWED_IMPORTS = frozenset({
     "json", "collections", "itertools", "functools", "re",
 })
 
+# Keys in the namespace owned by make_python_namespace(). These are
+# rebuilt fresh in each subprocess call (they are not pickled across the
+# process boundary). The same set is replicated in _pyexec_runner.py —
+# keep them in sync.
+INFRASTRUCTURE_KEYS = frozenset({
+    "__name__", "__builtins__",
+    "np", "numpy", "pd", "pandas",
+    "math", "statistics", "json",
+    "collections", "itertools", "functools", "re",
+})
+
 MAX_OUTPUT_CHARS = 8000
 MAX_CODE_CHARS = 4000
-TIMEOUT_SECONDS = 5.0
+# Subprocess wall clock limit per call. Includes ~300-500ms of process +
+# numpy/pandas import startup, so effective user code budget is ~9.5s.
+# Bumped from 5.0 (the pre-subprocess value that was never enforced).
+TIMEOUT_SECONDS = 10.0
 
 
 @dataclass
@@ -135,43 +151,75 @@ def _check_imports(code: str) -> str | None:
 
 
 def _exec_code(code: str, namespace: dict) -> tuple[str, str, str | None]:
-    """Execute code in namespace, return (stdout, stderr, expr_result).
+    """Execute code in an isolated subprocess, return (stdout, stderr, expr_result).
 
-    Uses AST split: if the last statement is an expression, eval it
-    separately and return its repr (like Jupyter's Out[N]).
+    The subprocess reads the current user state from pickle, rebuilds
+    infrastructure, executes the code, and writes the new state back.
+    Parent updates `namespace` in place so callers keep the same dict
+    identity across calls (important for engine.py).
+
+    Subprocess isolation prevents thread-level races in pandas / numpy
+    C internals when multiple rollouts run concurrently (#47).
     """
-    stdout_buf = io.StringIO()
-    stderr_buf = io.StringIO()
-    expr_result = None
+    # Separate user state (picklable) from infrastructure (rebuilt fresh).
+    user_state = {k: v for k, v in namespace.items() if k not in INFRASTRUCTURE_KEYS}
+    picklable_state = _filter_picklable(user_state)
 
-    try:
-        tree = ast.parse(code)
-    except SyntaxError as e:
-        return "", f"SyntaxError: {e}", None
+    with tempfile.TemporaryDirectory(prefix="sreg_pyexec_") as td:
+        state_in = Path(td) / "state_in.pkl"
+        code_path = Path(td) / "code.py"
+        state_out = Path(td) / "state_out.pkl"
 
-    # Split trailing expression for auto-display
-    body = tree.body
-    last_expr = None
-    if body and isinstance(body[-1], ast.Expr):
-        last_expr = body.pop()
+        state_in.write_bytes(pickle.dumps(picklable_state))
+        code_path.write_text(code, encoding="utf-8")
 
-    with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+        cmd = [
+            sys.executable,
+            "-m", "sreg.agent._pyexec_runner",
+            str(state_in), str(code_path), str(state_out),
+        ]
+
         try:
-            if body:
-                mod = ast.Module(body=body, type_ignores=[])
-                exec(compile(mod, "<python_exec>", "exec"), namespace, namespace)  # noqa: S102
-            if last_expr:
-                val = eval(  # noqa: S307
-                    compile(ast.Expression(body=last_expr.value), "<python_exec>", "eval"),
-                    namespace,
-                    namespace,
-                )
-                if val is not None:
-                    expr_result = repr(val)
-        except Exception:
-            stderr_buf.write(traceback.format_exc())
+            proc = subprocess.run(
+                cmd, capture_output=True, timeout=TIMEOUT_SECONDS, check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return "", f"TimeoutError: execution exceeded {TIMEOUT_SECONDS:.0f}s", None
 
-    return stdout_buf.getvalue(), stderr_buf.getvalue(), expr_result
+        if not state_out.exists():
+            # Subprocess crashed before writing results (segfault, OOM, etc.)
+            err = proc.stderr.decode(errors="replace").strip()
+            return "", err or "Subprocess died without output", None
+
+        stdout, stderr, expr_result, new_user_state = pickle.loads(
+            state_out.read_bytes(),
+        )
+
+    # Update namespace in place to preserve dict identity (engine.py
+    # holds references to it across turns).
+    for k in list(namespace.keys()):
+        if k not in INFRASTRUCTURE_KEYS:
+            del namespace[k]
+    namespace.update(new_user_state)
+
+    return stdout, stderr, expr_result
+
+
+def _filter_picklable(state: dict) -> dict:
+    """Drop values that fail to pickle.
+
+    Non-picklable user vars (closures, generators, file handles) are
+    silently lost between calls. Acceptable trade-off — the solver's
+    state is DataFrames + dicts + scalars, all of which pickle cleanly.
+    """
+    out: dict = {}
+    for k, v in state.items():
+        try:
+            pickle.dumps(v)
+        except Exception:
+            continue
+        out[k] = v
+    return out
 
 
 def execute_code(code: str, namespace: dict) -> ExecResult:
@@ -181,9 +229,12 @@ def execute_code(code: str, namespace: dict) -> ExecResult:
     Like a Jupyter cell: if the last statement is an expression, its
     repr is returned as the output.
 
-    NOTE: no timeout enforcement. Thread-based timeouts in CPython cannot
-    truly kill running code (GIL) and can corrupt shared namespace state.
-    A real timeout requires a process boundary (future work).
+    Each call spawns a fresh subprocess (see _exec_code) so concurrent
+    callers do not share mutable C-extension state (#47). Wall-clock
+    limit is TIMEOUT_SECONDS; code exceeding that is killed at the
+    process boundary. Non-picklable values in the namespace are dropped
+    between calls — the solver state (DataFrames, dicts, scalars)
+    pickles fine.
     """
     if len(code) > MAX_CODE_CHARS:
         return ExecResult(
@@ -192,7 +243,7 @@ def execute_code(code: str, namespace: dict) -> ExecResult:
             truncated=False,
         )
 
-    # Import guard
+    # Static import guard (runtime guard lives inside the subprocess).
     import_err = _check_imports(code)
     if import_err:
         return ExecResult(
@@ -201,7 +252,6 @@ def execute_code(code: str, namespace: dict) -> ExecResult:
             truncated=False,
         )
 
-    # Execute directly (no timeout — see docstring)
     stdout, stderr, expr_result = _exec_code(code, namespace)
 
     # Build output
