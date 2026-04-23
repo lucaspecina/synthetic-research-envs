@@ -1,643 +1,553 @@
 # SREG — Arquitectura
 ## Synthetic Research Environment Generator
 
-> Este documento define como deberia estar organizado SREG dentro del alcance
-> arquitectonico hoy seleccionado.
+> Este documento define como deberia estar organizado SREG dentro del
+> alcance arquitectonico hoy seleccionado.
 >
 > `PROJECT.md` define la vision.
 > `ARCHITECTURE.md` define el sistema objetivo para este horizonte.
 > `CURRENT_STATE.md` describe que parte de eso existe hoy realmente.
 > GitHub Issues describe la brecha y el trabajo pendiente.
+
+---
+
+> **Versión: v1.5 (en desarrollo, rama `dev`). 2026-04-23.**
 >
-> ---
+> Este doc es **spec vivo**: working canon hasta que el primer MVP
+> end-to-end corra. Si algo de esto no sobrevive al contacto con código
+> real, se actualiza acá.
 >
-> **Estado (2026-04-23): ARQUITECTURA v1 — CONGELADA EN `main`.**
+> `main` queda congelada en v1.x con tag `pre-v1.5` como referencia
+> estable. La arquitectura v1 (orchestrator + AtomicSpec compiler +
+> Flow A/B) está preservada en `docs/archive/architecture_v1.md` para
+> referencia histórica y operativa sobre código legacy en `main`.
 >
-> Este doc describe la arquitectura **v1** (orchestrator + AtomicSpec
-> compiler + Flow A/B + Suite 1/2/3/4). v1 está congelada en `main` con
-> tag `pre-v1.5`. El compiler tocó techo en ~82% pass rate y fue
-> reemplazado por el rediseño **v1.5** (rama `dev`).
->
-> **La arquitectura v1.5 canónica está en
-> `research/synthesis/v1_5_architecture.md`** — nomenclatura nueva
-> (Environment / WorldModel / Designer / GoldQuestion / ResearchCase /
-> Rubric / AnswerKey / Investigator / Claim / Evaluator / Verifier),
-> flujo con 4 productores + Validator transversal, rubrics graduadas,
-> Evaluator con ejecución del Environment.
->
-> Este doc (`ARCHITECTURE.md`) no se actualizará a v1.5 hasta que la
-> implementación concrete las decisiones. Queda como referencia
-> histórica + operativa para código en `main`. Para diseñar código
-> en `dev`, ir al doc v1.5.
+> **Origen del rediseño:** `research/notes/rethink_sreg_2026-04-23.md`
+> (working doc con todo el historial de discusión, consultas a Codex,
+> debates). Este doc extrae la especificación limpia; el notes/ queda
+> como contexto para quien quiera entender por qué llegamos acá.
+> Post-mortem del compiler v1 (por qué lo matamos):
+> `research/notes/compiler_v1_postmortem.md`.
 
 ---
 
-## 1. Proposito
+## 1. Tesis
 
-Este documento fija:
+El gap crítico en la capacidad científica de los agentes AI actuales
+no es razonamiento puro sino **juicio investigativo**: qué examinar,
+cuándo pivotar, cómo separar evidencia específica del caso de priors
+del training.
 
-- la unidad central de producto,
-- las piezas principales del sistema,
-- los contratos de dominio que las conectan,
-- los flujos canonicos de generacion, interaccion y evaluacion,
-- y los limites de responsabilidad de SREG.
+v1.x construyó el pipeline pero quedó bloqueado en la capa de
+evaluación: el compiler que traduce prosa libre del solver a
+especificaciones formales verificables es frágil (Suite 2 topped out
+en ~83% después de 18 iteraciones empíricas — ver `compiler_v1_postmortem.md`).
+La IR `AtomicSpec` con ~5600 combos teóricos fuerza una forma causal-
+experimental que no encaja con tipos diversos de investigación.
 
-No deberia usarse para documentar estado actual, backlog, bugs o research
-abierto.
+**v1.5 elimina el compiler.** La evaluación pasa a ser *rubric + LLM
+judge con acceso al Environment ejecutable*. El verifier matemático
+se mantiene (es el núcleo anti-hallucination del proyecto) pero se
+relocaliza al diseño del caso y a rol de sentinel runtime. Se abre la
+puerta a dominios dinámicos (ODEs/SDEs) además de SCMs.
 
----
-
-## 2. Horizonte arquitectonico
-
-### Alcance seleccionado
-
-La arquitectura actual apunta a **research cases estructurados y verificables**
-donde:
-
-- la verdad del caso vive en un SCM (modelo causal estructural con ecuaciones
-  y variables continuas),
-- el caso visible se presenta como un problema de investigacion con datos,
-  contexto y herramientas de analisis,
-- el orchestrator diseña el caso como conjunto,
-- el solver investiga libre y entrega hallazgos (claim cards en OI),
-- y la evaluacion se ancla a verificacion formal contra el SCM.
-
-### Debe soportar crecimiento hacia
-
-- artefactos de evidencia mas ricos,
-- material teorico sintetico,
-- acciones de investigacion mas expresivas,
-- briefs y casos menos cerrados,
-- y paradigmas cientificos mas diversos,
-
-sin romper el nucleo verificable del sistema.
-
-### Fuera de alcance de esta version
-
-- training loops de RL,
-- simulacion cientifica totalmente abierta sin estructura formal,
-- evaluacion cuyo nucleo dependa solo de jueces humanos o LLM-as-judge,
-- **ciencia que produce artefactos evaluables** (predicciones scored por AUC,
-  policies, disenos) — el solver entrega claims sobre el mundo, no artefactos
-  ejecutables. Ver `PROJECT.md` "Scope actual y horizontes futuros",
-- **interaccion rica con el entorno** (proponer experimentos, pedir datos,
-  gestionar budget, colaboradores simulados) — el solver investiga con las
-  herramientas actuales (python_exec, load/save_artifact, helpers de analisis),
-- **material teorico sintetico** (papers ficticios, literatura inventada),
-- y un salto inmediato a cualquier idea futura del `PROJECT.md` sin pasar por
-  contratos y flujos estables.
+**Justificación empírica externa**: Corral (Ríos-García/Jablonka et al.
+2026, arXiv:2604.18805) validó con 25k runs y 95.7% human-LLM agreement
+sobre 773 traces que el modelo base explica 41.4% de la varianza, el
+scaffold 1.5%. "Scaffold doesn't fix reasoning; training does." Ver
+`research/synthesis/related_work_corral.md`.
 
 ---
 
-## 3. Vista general del sistema
+## 2. Nomenclatura
 
-SREG se organiza alrededor de tres piezas:
+| Concepto | Nombre | Rol |
+|---|---|---|
+| Sistema matemático subyacente | **WorldModel** | SCM / ODE / SDE. Ecuaciones, grafos, parámetros. |
+| Interfaz ejecutable del sistema | **Environment** | Expone `observe`, `intervene`, `simulate`. Cualquier consumidor (Designer, Evaluator, Investigator indirecto vía datos) interactúa vía esta interfaz. |
+| Paper real que inspira | **Seed Paper** | Input al Designer. El WorldModel se inspira, no replica. |
+| LLM meta-agente que diseña casos | **Designer** | Compuesto por 5 roles (ver sección 4). |
+| Pregunta canónica con answer key | **GoldQuestion** | Cada caso tiene 3-5. Pre-verificadas ejecutando el Environment. |
+| Estructura graduada de evaluación | **Rubric** | Por GoldQuestion. Core analytic + epistemic bonus. |
+| Respuesta numérica verdadera | **Answer Key** | Computada por el Verifier ejecutando el Environment. |
+| Paquete que recibe el agente | **ResearchCase** | Brief + datos + contexto + tools. Oculta GoldQuestions y Rubrics. |
+| LLM-agente que investiga | **Investigator** | Libre, con python_exec sobre los datos. |
+| Afirmación en prosa del Investigator | **Claim** | Sin formato impuesto. |
+| LLM que compara y valida | **Evaluator** | Tiene acceso al Environment ejecutable. |
+| Motor matemático determinista | **Verifier** | Ejecuta queries contra el Environment. NO es LLM. |
 
-1. **Generador de entornos**
-   Convierte un goal, seed o paper en un caso de investigacion sintetico
-   verificable.
+Convención externa respetada: `Environment` alinea con SciGym, BoxingGym,
+DiscoveryWorld, Corral.
 
-2. **Teacher / evaluador**
-   Usa la verdad formal del mundo para computar respuestas correctas,
-   posteriors, efectos, recomendaciones y rewards.
-
-3. **Policy diagnostica**
-   Un solver de referencia usado para validar que los casos generados funcionen
-   realmente como entornos de investigacion y no como puzzles triviales o
-   shortcutteables.
-
-```text
-goal / seed / paper
-        |
-        v
-  Orchestrator + tools
-        |
-        v
-       SRC
-        |
-   +----+----+
-   |         |
-   v         v
-solver    teacher
-   |         |
-   +----+----+
-        |
-        v
-   reward / diagnostico
-```
+**Nombres muertos**: `orchestrator`, `SQ`/`SubQuestion`, `ClaimCard`,
+`AtomicSpec`, `oi_*` prefix, `Suite 1/2/3/4`, `solver` (rebautizado
+Investigator), `ResearchProblem` (rebautizado ResearchCase).
 
 ---
 
-## 4. La unidad central: el SRC
-
-La unidad de producto de SREG es el **SRC** (`Synthetic Research Case`).
-
-Un SRC no es solo un grafo ni solo un prompt. Es un caso de investigacion
-completo con dos capas coordinadas:
-
-- una **capa formal oculta**, donde vive la verdad matematica del mundo,
-- una **capa visible**, donde ese mundo aparece como research case para un
-  solver.
-
-Hoy el SRC es un artefacto compuesto, no una clase unica. Sus piezas centrales
-son:
-
-- `SCMWorld`
-- `CasePlan`
-- `ResearchProblem`
-- una o mas `Task` (SRC mode) o `SubQuestionIntent` (OI mode)
-- scores, trayectorias y artefactos exportables
-
-Arquitectonicamente, el SRC debe tratarse como un producto coherente aunque se
-represente con varios contratos.
-
----
-
-## 5. Contratos centrales
-
-### `SCMWorld`
-
-Contrato del mundo formal completo.
-
-Structural Causal Model — grafo + ecuaciones estructurales + ruido. Variables
-continuas. Ver seccion 6.1.
-
-### `CasePlan`
-
-Contrato de diseno del caso.
-
-Define framing, research context, preguntas planeadas, budget compartido y
-hints para mantener alineadas pregunta visible y respuesta formal.
-
-### `ResearchProblem`
-
-Contrato de la presentacion visible del caso.
-
-Contiene narrativa, dominio, contexto teorico, `DataAsset`s,
-`AvailableAction`s, budget y pregunta principal. Es lo que el solver ve.
-
-### `DataAsset`
-
-Contrato de un artefacto de evidencia visible.
-
-Representa datasets, observaciones o activos narrativos que el solver puede
-inspeccionar como parte del caso.
-
-Arquitectonicamente, esto permite que la evidencia visible no se reduzca a un
-solo CSV plano.
-
-### `AvailableAction`
-
-Contrato de una accion de investigacion visible para el solver.
-
-Representa que se puede hacer dentro del caso, con que costo y, cuando aplica,
-sobre que nodos o con que valores de intervencion.
-
-Es la traduccion semantica de la interfaz investigativa del caso: medir,
-intervenir, pedir datos o, a futuro, otras formas de accion guiadas por el
-propio research case.
-
-### `Task`
-
-Contrato de una evaluacion concreta derivada del mundo.
-
-Contiene tipo, pregunta, target, evidencia visible, respuesta correcta oculta y
-metodo de scoring.
-
-**Nota:** En OI mode (el modo canonico de SREG v1), los Task types no se
-usan. La superficie de evaluacion es `SubQuestionIntentV2`. Los Task types
-se retienen para el path legacy non-OI del orchestrator.
-
-### `Episode`
-
-Contrato de la interaccion ejecutable.
-
-Define budget, evidencia inicial, acciones disponibles y pasos ejecutados.
-
-### `Score`
-
-Contrato del resultado de evaluacion.
-
-Separa al menos calidad funcional, eficiencia informativa y uso de budget.
-
-### `TeacherOutput`
-
-Contrato del teacher paso a paso: posterior verdadera, recomendacion de accion,
-information gain y entropia.
-
----
-
-## 6. Capas del sistema
-
-### 6.1 Capa formal
-
-Modela la verdad del caso. Todo reward central debe anclarse aca.
-
-Incluye:
-
-- variables y tipos de nodo,
-- estructura causal (DAG),
-- relaciones cuantitativas entre variables,
-- y consultas exactas o precisas sobre el mundo.
-
-#### Sustrato formal: SCM (Structural Causal Model)
-
-El mundo oculto de cada SRC se define como un **SCM**: un grafo causal +
-ecuaciones estructurales + ruido. Esto reemplaza la BN discreta anterior
-(CPD tables con 3 estados `low/medium/high`).
-
-Un SCM se define con dos cosas:
-
-**1. El grafo: QUE causa QUE**
+## 3. Flujo end-to-end
 
 ```
-carga_semanal ---+
-                 +--> ejercicio --> temperatura --> riesgo
-fitness ---------+
+Seed Paper
+    │
+    ▼
+┌─────────────────────── DESIGNER ───────────────────────┐
+│                                                        │
+│  1. World Architect  ──► WorldSpec                     │
+│        │                                               │
+│  2. Explorer         ──► PhenomenaManifest             │
+│        │                  (con evidencia ejecutable)   │
+│  3. Question Designer──► QuestionsBundle               │
+│        │                  (GoldQuestion + Rubric +     │
+│        │                   AnswerKey por pregunta)     │
+│  4. Case Writer      ──► ResearchCase                  │
+│        │                                               │
+│  5. Validator (transversal, puede invalidar upstream)  │
+│        └──► ValidationReport                           │
+│                                                        │
+└────────────────────────────────────────────────────────┘
+    │
+    ▼
+ResearchCase (brief + datos + contexto + tools)
+    │
+    ▼
+Investigator (libre, python_exec)
+    │
+    ▼
+Claims (prosa libre, sin formato impuesto)
+    │
+    ▼
+Evaluator (compara Claims vs Rubrics + ejecuta Environment
+           para validar claims espontáneas)
+    │
+    ▼
+Score (multi-dimensional: framing, identification, estimation,
+       intervention prediction, confounding, mediation,
+       epistemic calibration, process quality)
 ```
 
-**2. Las ecuaciones: COMO lo causa**
+El Validator opera en loop iterativo con los productores: puede
+invalidar cualquier etapa y gatillar revisión. El caso no sale del
+Designer hasta que el Validator aprueba.
 
-Cada variable es una funcion Python arbitraria de sus padres + ruido:
+---
+
+## 4. Agentes del Designer (4 productores + 1 Validator)
+
+### 4.1 World Architect
+- **Input**: Seed Paper + constraints opcionales.
+- **Output**: `WorldSpec` (ecuaciones, grafo, parámetros).
+- **Responsabilidad**: matemática correcta, fidelidad al paper
+  (inspirarse, no replicar), tipo de formalismo (SCM/ODE/SDE según
+  el dominio).
+- **No responsable de**: identificar qué es interesante. Solo
+  construye el mundo.
+
+### 4.2 Explorer
+- **Input**: `WorldSpec` + Environment compilado.
+- **Output**: `PhenomenaManifest` — lista de fenómenos interesantes
+  con **evidencia ejecutable adjunta** (script + resultado numérico),
+  no prosa descriptiva.
+- **Qué busca**: relaciones contraintuitivas (signo crudo ≠ signo
+  ajustado), identifiability gaps, bifurcaciones, spurious correlations
+  fuertes, heterogeneidad de efectos, no-linealidades.
+- **Por qué la evidencia importa**: sin ejecutable, cualquier
+  alucinación del Explorer contamina upstream (error laundering).
+
+### 4.3 Question Designer
+- **Input**: `PhenomenaManifest` + Seed Paper + Environment.
+- **Output**: `QuestionsBundle` — 3-5 GoldQuestions, cada una con:
+  - Texto en lenguaje natural.
+  - Rubric graduada (ver sección 6).
+  - Answer Key numérico ejecutado contra el Environment.
+  - Mapeo explícito `question → verifier_query` (reproducible).
+- **Cobertura**: mezcla de operaciones epistémicas (identificación,
+  estimación, intervención, confounding, mediación, epistemic
+  calibration).
+- **Validación implícita**: cada question pasa por el Verifier antes de
+  salir.
+
+### 4.4 Case Writer
+- **Input**: `QuestionsBundle` (pero **sin leak al solver**) + Seed Paper
+  + dominio.
+- **Output**: `ResearchCase` — brief + contexto + narrativa + datos
+  observacionales + tools disponibles.
+- **Estilo**: realista, vago tipo brief de supervisor real. No
+  lista las GoldQuestions; las sugiere indirectamente vía contexto.
+- **Protege contra**: solver que resuelve mirando el brief, no los datos.
+
+### 4.5 Validator (transversal)
+- **Vista global**: lee todos los artefactos (WorldSpec, Manifest,
+  QuestionsBundle, ResearchCase).
+- **Responsabilidades**:
+  - **Trivialidad**: adversarial check. Un LLM sin datos intenta
+    responder cada GoldQuestion desde priors. Si acierta, la pregunta
+    no mide investigación.
+  - **Leakage**: el brief no revela las GoldQuestions.
+  - **Internal consistency**: Manifest coincide con WorldSpec,
+    Questions coinciden con Manifest, AnswerKeys están dentro de
+    tolerancias del Environment.
+  - **Rubric / AnswerKey alignment**: cada criterio de la rubric tiene
+    soporte en el AnswerKey.
+  - **Optimización cruzada perversa**: detecta casos "bonitos" pero
+    irresolubles (ej. questions cuyo AnswerKey es inestable bajo ruido
+    de sampling).
+- **Autoridad**: **puede invalidar outputs upstream y gatillar re-
+  iteración**. No solo comenta.
+- **Rol adversarial**: intenta hackear el mundo y las preguntas —
+  encontrar cómo pasar sin investigar. Si encuentra cómo, la question
+  se descarta o se ajusta.
+
+---
+
+## 5. Artefactos tipados (contratos Pydantic)
+
+Cada etapa produce un artefacto con schema estricto. Handoffs requieren
+artefacto tipado, no prosa.
 
 ```python
-world = SCMWorld(
-    graph={
-        "carga":       [],                          # raiz
-        "fitness":     [],                          # raiz
-        "ejercicio":   ["carga", "fitness"],
-        "temperatura": ["ejercicio"],
-        "riesgo":      ["temperatura"],
-    },
-    equations={
-        "carga":       lambda p, rng: rng.uniform(2, 15),        # horas/semana
-        "fitness":     lambda p, rng: rng.normal(50, 10),        # VO2max
-        "ejercicio":   lambda p, rng: min(p["carga"]*0.7 + p["fitness"]*0.01, 10)
-                                      + rng.normal(0, 0.5),
-        "temperatura": lambda p, rng: (                          # threshold a 7
-            36.5
-            + (2.0 * sqrt(p["ejercicio"] - 7) if p["ejercicio"] > 7
-               else 0.3 * p["ejercicio"])
-            + rng.normal(0, 0.3)
-        ),
-        "riesgo":      lambda p, rng: sigmoid(p["temperatura"] - 39)
-                                      + rng.normal(0, 0.02),
-    },
-)
+class WorldSpec(BaseModel):
+    formalism: Literal["scm", "ode", "sde"]
+    variables: list[VariableSpec]
+    relationships: list[RelationshipSpec]
+    parameters: dict[str, float]
+    metadata: WorldMetadata  # dominio, inspiración paper, etc.
+
+class PhenomenaManifest(BaseModel):
+    world_id: str
+    phenomena: list[Phenomenon]  # cada uno con evidencia ejecutable
+    interesting_score: float  # agregado de n_counterintuitive, etc.
+
+class Phenomenon(BaseModel):
+    kind: Literal["counterintuitive", "identifiability_gap",
+                   "bifurcation_proximity", "spurious_correlation",
+                   "heterogeneity", "non_linearity"]
+    description: str
+    evidence: ExecutableEvidence  # script + numerical result
+
+class QuestionsBundle(BaseModel):
+    questions: list[GoldQuestion]
+
+class GoldQuestion(BaseModel):
+    id: str
+    text: str
+    rubric: Rubric
+    answer_key: AnswerKey
+    verifier_query: VerifierQuery  # mapeo reproducible
+    epistemic_operation: str  # "identification", "estimation", etc.
+
+class Rubric(BaseModel):
+    core_criteria: list[CoreCriterion]  # 70-85% del score
+    epistemic_bonuses: list[EpistemicCriterion]  # 15-30%
+
+class CoreCriterion(BaseModel):
+    description: str
+    weight: float
+    anchor: AnswerKeyAnchor  # qué del AnswerKey satisface esto
+    requires_span: bool = True  # judge debe citar texto del Claim
+
+class ResearchCase(BaseModel):
+    brief: str
+    context: str  # narrativa, background theory opcional
+    datasets: list[Dataset]
+    tools: list[ToolSpec]
+    # NOTA: no incluye QuestionsBundle (hidden del Investigator)
+
+class ValidationReport(BaseModel):
+    passed: bool
+    invalidated_artifacts: list[str]  # cuáles etapas fallaron
+    issues: list[ValidationIssue]
+    adversarial_attempts: list[AdversarialAttempt]  # intentos de hackeo
 ```
 
-**Como funciona el sampling:**
+---
 
-Se procesan las variables en orden topologico. Para cada muestra:
+## 6. Rubric design
 
-1. Tirar dado: `carga = 8.3` horas/semana
-2. Tirar dado: `fitness = 47.2` mL/kg/min
-3. Calcular: `ejercicio = min(8.3*0.7 + 47.2*0.01, 10) + ruido = 6.28`
-4. Calcular: ejercicio < 7, asi que `temperatura = 36.5 + 0.3*6.28 + ruido = 38.48`
-5. Calcular: `riesgo = sigmoid(38.48 - 39) + ruido = 0.37`
-
-Repetir N veces. El resultado es un DataFrame con datos continuos realistas:
+Híbrido core analytic + epistemic bonus. Decisión tomada post-consulta
+Codex (ver notes/rethink sección 6).
 
 ```
-   carga   fitness  ejercicio  temperatura  riesgo
-0   8.3     47.2      6.28       38.48      0.37
-1  12.1     55.0      9.02       40.12      0.85
-2   3.7     42.8      3.02       37.41      0.17
+score_por_GoldQuestion =
+    core_analytic     (70-85% del peso total)
+  + epistemic_bonus   (15-30% del peso total)
 ```
 
-**do-calculus (intervenciones de Pearl):**
+**Core analytic**:
+- Criterios atómicos y acumulativos.
+- Cada criterio ligado a claim **explícito** del Investigator.
+- Verificables contra el Environment.
+- Requieren **span textual citado** del reporte del Investigator para
+  acreditarse. Sin span = 0.
 
-Para computar P(riesgo | do(ejercicio=9)):
-- Se **fija** ejercicio = 9 (constante, no se usa su ecuacion)
-- Se **cortan** los edges de carga y fitness hacia ejercicio
-- Se simula el resto muchas veces (Monte Carlo)
+**Epistemic bonus**:
+- Caveats, identifiability awareness, reconocimiento de límites,
+  robustness checks, incertidumbre bien calibrada.
+- **NO compensa errores del core**. Si el Investigator afirma
+  causalidad equivocada, no se salva con caveats elegantes.
 
-Esto responde: "que pasaria si FORZAMOS ejercicio = 9?" — distinto de
-observar ejercicio = 9 (que da informacion sobre carga y fitness).
+**Niveles BARS (Behaviorally Anchored Rating Scales)**: solo como anclas
+de redacción para el Evaluator (ayudan a calibrar qué espera cada
+criterio). NO son mecanismo de puntuación.
 
-**Reward via Monte Carlo:**
+**Alternative phrasings por criterio**: lesson rescatada del compiler
+v1 (canonicalization). Ejemplo: "el efecto es positivo" ≡ "el outcome
+aumenta con el tratamiento" ≡ "X sube cuando T sube". El Question
+Designer genera alternativas; el Evaluator las consume como equivalentes.
 
-El reward ya no es analitico-exacto sino estadisticamente preciso:
-con N=100K simulaciones, el error es ~0.001. Para RL, este ruido es
-ordenes de magnitud menor que el del training.
+**Assertion entailment** (tolerance-aware): si el Claim es cuantitativo
+("efecto = 0.42 ± 0.05") y el criterio es cualitativo ("identifica que
+es positivo"), el Evaluator aplica entailment tolerante: 0.42 > tolerance
+satisface "positivo" sin necesidad de match textual exacto.
 
-**Que se preserva del grafo:**
+---
 
-| Propiedad | Depende de |
+## 7. Evaluator con acceso al Environment
+
+Pipeline en 3 pasos:
+
+```
+1. EXTRACT: identificar claims explícitos del reporte del Investigator
+            (pares span + afirmación cuantitativa o cualitativa).
+
+2. MAP:     para cada criterio de cada Rubric, buscar el claim que lo
+            acredita. Requiere span textual; sin span = 0.
+
+3. VERIFY:  para claims que soportan criterios cuantitativos, ejecutar
+            el Environment con la query correspondiente. Comparar
+            contra Claim del Investigator vía assertion entailment.
+
+            Para claims ESPONTÁNEAS (no matchean ninguna Rubric pero
+            son testeables), el Evaluator puede ejecutar el Environment
+            libremente para validarlas. Si validan → auxiliary bonus.
+```
+
+**Decisión importante**: el Evaluator tiene **libertad de ejecución**
+sobre el Environment (no set limitado de operaciones). Razón: limitar
+empobrece al judge. Costos (reproducibilidad, varianza) se manejan
+con prompt engineering estricto + temperature=0 + logs versionados.
+
+**Auxiliares** (coverage matcher lesson del compiler v1): claims extras
+del Investigator que no matchean Rubric pero son correctos se aceptan
+como auxiliares. **Nunca penalizan**. Puede haber bonus por auxiliares
+valiosos (decidir durante implementación).
+
+**Contradicciones explícitas restan**: si el Investigator tira 20
+afirmaciones contradictorias, no se premia "la que aciertó". Shotgun
+science se penaliza.
+
+---
+
+## 8. Score multi-dimensional
+
+En vez de un score único agregado, reportar un vector por caso:
+
+| Dimensión | Qué mide |
 |---|---|
-| d-separation | Solo del grafo |
-| Identifiability | Solo del grafo |
-| Adjustment sets | Solo del grafo |
-| should_condition | Solo del grafo |
-| do-calculus | Grafo + ecuaciones (simular) |
+| Framing | ¿Identifica las preguntas relevantes desde el brief abierto? (esto es único de SREG vs Corral) |
+| Identification | ¿Reconoce relaciones causales/estructurales? |
+| Estimation | ¿Cuantifica efectos correctamente? |
+| Intervention prediction | ¿Anticipa efectos de do-operations? |
+| Confounding detection | ¿Identifica sesgos? |
+| Mediation analysis | ¿Descompone mecanismos? |
+| Epistemic calibration | ¿Sabe cuándo no puede concluir? |
+| Process quality | ¿El trace muestra productive motifs vs breakdowns? (de Corral) |
 
-**Caracteristicas del SCM:**
+Agregado ponderado opcional para comparación simple (modelos, ablations),
+pero el reporte principal es el vector — más diagnóstico, mejor para
+research, mejor para reward shaping RL.
 
-| Aspecto | Detalle |
+---
+
+## 9. Cobertura de tipos de investigación
+
+### Cubre bien
+- Investigación causal (efectos, confounders, mediación).
+- Investigación predictiva (predicciones numéricas contra Environment).
+- Descriptiva (distribuciones, patrones, clustering).
+- System mapping (estructura del grafo, conexiones).
+- Epistemológica (¿qué se puede concluir?).
+- "Mejor marco conceptual" (componentes verificables contra estructura
+  del WorldModel: ¿es cadena o feedback? ¿es lineal o no? etc.).
+
+### No cubre (out of scope v1.5)
+- Investigación hermenéutica / cultural / ética / estética.
+- Diseño de experimentos (requiere Sherlock interactivo — v2).
+- Teoría fundamentada puramente cualitativa.
+
+---
+
+## 10. Dudas y debates abiertos
+
+> Estas son las preguntas honestas que no tenemos resueltas. La
+> especificación de arriba asume choices; acá registramos qué podría
+> romperse y qué todavía está para debatir.
+
+### 10.1 Ontology leak 2.0
+Si las rubrics salen del mismo pipeline que scorea, el Investigator
+entrenado con RL aprende a completar rubrics en vez de investigar.
+Vuelta a examen disfrazado.
+
+Mitigaciones en discusión:
+- No exponer la rubric completa al Investigator.
+- Randomizar descomposiciones (múltiples rubrics isomorfas por caso).
+- Reward específico por claims novedosos validados fuera del
+  GoldQuestions set (novel-but-correct lane).
+- Mundos gemelos / counterfactuales (mismo patrón superficial, pero
+  conclusiones distintas según estructura subyacente).
+
+**Pendiente**: cuánta mitigación es suficiente, y si alguna es
+implementable en v1.5 MVP o queda para fases siguientes.
+
+### 10.2 Costo del judge para RL training
+Millones de episodios con Evaluator LLM completo es caro. Opciones:
+- Distilación a classifier chico después de recolectar labels.
+- Rubric estable pre-computada por caso (solo el judge varía).
+- Uso de Evaluator en subset para validación, proxy barato para
+  training dense.
+
+**Pendiente**: cuándo atacar. Probablemente Fase 2.
+
+### 10.3 Cómo generar las rubrics
+Tres opciones:
+- Question Designer genera rubric libre (más flexible, más variable).
+- Templates por tipo de epistemic operation (más consistente, menos
+  rico).
+- Híbrido: template base + customization por el Question Designer.
+
+**Pendiente**: cuál dar prioridad en MVP.
+
+### 10.4 Cuando el Validator invalida, ¿cuántas iteraciones?
+Si el Designer entra en loop de revisión sin convergencia, el caso
+nunca se produce. Necesitamos:
+- Límite de iteraciones por etapa.
+- Criterio de "suficientemente bueno" (Validator como sentinel, no
+  perfeccionista).
+- Fallback: si no converge, descartar el caso (no forzar).
+
+**Pendiente**: parámetros concretos.
+
+### 10.5 Diversidad vs mundos "forzados a ser interesantes"
+Si forzamos mundos con confounders + bifurcaciones + no-linealidades,
+el Investigator entrenado sospecha todo en todos lados. Aprende un
+estilo específico, no investigación en general.
+
+Mitigación: seed papers diversos (papers con fenómenos variados, no
+solo causal complejo).
+
+**Pendiente**: cuál es el pool de seeds v1.5 y cómo lo diversificamos.
+
+### 10.6 Transfer a ciencia real
+Agente entrenado sobre SREG con brief abierto, ¿transfiere a
+investigación real donde el ground truth no existe? Corral argumenta
+que sí para razonamiento sobre problemas dados — hipótesis para
+nuestro caso con brief abierto.
+
+**Pendiente**: validar post-training con benchmark externo (Corral
+mismo sirve) comparando métricas de proceso antes/después.
+
+### 10.7 Primer seed paper / primer dominio MVP
+No está decidido. Criterios:
+- Seed con modelo matemático explícito (facilita WorldModel).
+- Existe prior fuerte de LLM que podamos romper con diseño.
+- Dominio semánticamente rico para narrativa del brief.
+
+Candidatos iniciales:
+- Farmacocinética simple (primer ODE): bien matemático, mucho paper,
+  LLMs tienen prior pero hay espacio para confounders sorpresa.
+- Epidemiología observacional (primer SCM): confounders clásicos,
+  transfer a dominio real.
+- Política educativa (primer SCM): heterogeneidad natural, múltiples
+  outcomes.
+
+**Pendiente**: elegir 1 para Fase 0.
+
+---
+
+## 11. Trade-offs conocidos
+
+- **Error laundering entre agentes**: alucinación temprana entra al
+  manifest y agentes downstream la tratan como hecho. Mitigación:
+  cada handoff requiere evidencia ejecutable.
+- **Optimización cruzada perversa**: Explorer empuja rareza, Validator
+  empuja dureza, Case Writer empuja realismo. Sin criterio global, casos
+  "bonitos" pero irresolubles. Mitigación: Validator tiene vista global.
+- **Prose hacking residual**: Investigator elocuente puede convencer
+  al Evaluator. Mitigación: span textual obligatorio + answer key
+  numérico como anchor del Evaluator.
+- **Dependencia de la calidad del Designer**: el bottleneck se mueve
+  del compiler al Designer. Si el Designer genera mundos mal
+  calibrados o rubrics débiles, todo falla. Pero el Designer es más
+  ingenieriable que el compiler (tools de exploration iterativas,
+  validation transversal).
+- **Varianza del LLM judge**: `temperature=0` + ensembles + calibración
+  humana en pilot.
+
+---
+
+## 12. Fases de implementación
+
+### Fase 0 — SCM MVP (4-6 semanas)
+- Un solo dominio SCM.
+- Designer "monolítico" (mismo modelo, prompts distintos por rol) con
+  artefactos tipados Pydantic ya separados.
+- Rubric + Evaluator con acceso al Environment ejecutable.
+- Pilot humano (10-20 casos, 2 anotadores) para calibrar el judge.
+- **Gate**: si el Evaluator no alcanza ≥ 85% agreement humano, pausar
+  y recalibrar antes de seguir.
+
+### Fase 1 — ODE + separación opcional (4-6 semanas)
+- Agregar dominio ODE (farmacocinética o similar).
+- Evaluar si separar agentes de Designer en modelos distintos agrega
+  valor vs complica.
+- Primera integración con Corral behavioral annotation como métrica
+  secundaria.
+
+### Fase 2 — SDE + paper (4-6 semanas)
+- Agregar dominio SDE.
+- Estabilizar pipeline.
+- Experimentos before/after con RL training para demostrar tesis.
+- Paper submission-ready.
+
+Total: ~3 meses. Cada fase con gate de ir/no-ir.
+
+---
+
+## 13. Lessons aplicadas del compiler v1
+
+Extracto operativo de `research/notes/rethink_sreg_2026-04-23.md`
+sección 11. Para contexto histórico: `research/notes/compiler_v1_postmortem.md`.
+
+| Idea v1 | Aplicación v1.5 |
 |---|---|
-| Variables | Continuas, con unidades reales |
-| Relaciones | Ecuaciones arbitrarias (threshold, sigmoid, sqrt, etc.) |
-| Escalabilidad | Lineal con padres (no exponencial) |
-| Datos generados | `38.48 C`, `6.28 intensidad` |
-| Reward | Monte Carlo preciso (~0.001 con N=20K) |
-
-### 6.2 Capa de diseno del caso
-
-Traduce un mundo posible a un research case investigable.
-
-Su funcion es decidir:
-
-- que preguntas importan,
-- como se presenta el caso,
-- que acciones existen,
-- y que restricciones organizan la investigacion.
-
-`CasePlan` vive principalmente en esta capa.
-
-### 6.3 Capa semantica visible
-
-Empaqueta el caso como problema para el solver:
-
-- narrativa,
-- dominio,
-- contexto teorico,
-- datasets y otros artefactos,
-- acciones disponibles,
-- budget visible.
-
-`ResearchProblem` vive principalmente en esta capa.
-
-La generacion de evidencia visible forma parte de esta capa: sampling de datos,
-multi-asset packaging, missingness, measurement noise y otras propiedades que
-hacen que el caso se parezca mas a investigacion real que a un input limpio y
-unico.
-
-### 6.4 Capa de interaccion
-
-Convierte las acciones visibles del caso en una interfaz de investigacion.
-
-En OI, el solver interactua via herramientas (python_exec, think, submit_claims)
-gestionadas por el OI driver. No hay EpisodeRunner ni budget de acciones.
-
-### 6.5 Capa de evaluacion
-
-Compara lo que hizo el solver contra lo que implica el mundo formal.
-
-`Task`, `TeacherOutput` y `Score` viven aca.
+| Coverage matcher (extras como auxiliares) | Evaluator no penaliza claims extras, los acepta como bonus. |
+| Assertion entailment (tolerance-aware) | Evaluator usa entailment cuali↔cuanti con tolerancia. |
+| Abstención principled | Investigator sin DAG no debe hacer structural claims; van al Question Designer. |
+| Canonicalization en gold | Rubrics tienen alternative phrasings. |
+| No metric chasing | No premiar claims vagos; premiar specificidad. |
 
 ---
 
-## 7. Flujos canonicos
+## 14. Lo que v1.5 NO incluye (scope freeze)
 
-### 7.1 Generacion
-
-El flujo canonico de generacion es:
-
-1. recibir un `goal`, seed o paper,
-2. proponer estructura y framing del caso,
-3. generar un `SCMWorld` con grafo + ecuaciones,
-4. validar el mundo,
-5. enriquecerlo semanticamente,
-6. disenar el `CasePlan` con brief y sub-preguntas,
-7. generar datasets realistas,
-8. construir el `ResearchProblem`,
-9. empaquetar todo como SRC.
-
-### 7.2 Interaccion
-
-El solver recibe el `ResearchProblem` y una o mas `Task`s visibles.
-
-Puede:
-
-- inspeccionar datos y contexto,
-- razonar libremente,
-- usar herramientas de analisis y pensamiento abiertas al solver,
-- ejecutar acciones de investigacion con costo,
-- y finalmente enviar respuestas o decisiones.
-
-El runner valida acciones y devuelve observaciones o resultados consistentes con
-la verdad formal del caso.
-
-Si el solver agota iteraciones sin llamar a `submit_claims`, un mecanismo de
-force-submit le da un turno extra con SOLO `submit_claims` disponible (sin
-`python_exec` ni `think`). Esto mitiga la "submission aversion" donde el solver
-prefiere seguir analizando en vez de entregar hallazgos.
-
-En este horizonte, la interfaz del solver separa dos cosas:
-
-- herramientas libres de razonamiento y analisis, como `python_exec` o `think`,
-- y acciones de investigacion propias del caso, que consumen budget o modifican
-  el estado del episodio.
-
-### 7.3 Evaluacion
-
-La evaluacion compara lo que hizo el solver contra lo que implica el `SCMWorld`.
-
-Segun la task, esto puede involucrar:
-
-- distribuciones verdaderas,
-- information gain optima,
-- efectos intervencionales,
-- seleccion de hipotesis,
-- o decisiones estructurales correctas.
-
-El teacher define el upper bound interno del entorno.
+- Sherlock interactive investigation (intervención iterativa del
+  Investigator sobre el Environment) — v2.
+- Investigación hermenéutica / cualitativa pura.
+- Generación automática de seed papers (los papers se curan
+  manualmente al principio).
+- Distilación del Evaluator a classifier chico — fase de post-
+  implementación.
+- Multi-agent training (agentes cooperando) — v2+.
 
 ---
 
-## 8. Orchestrator y stack de herramientas
+## Referencias
 
-El orchestrator es una policy LLM que diseña casos usando herramientas
-programaticas.
-
-Su trabajo arquitectonico es:
-
-- proponer estructura y caso,
-- llamar tools para construir y validar,
-- iterar cuando una propuesta falla checks,
-- y terminar en un SRC coherente.
-
-La decision importante no es el nombre de cada tool sino esta:
-
-> El LLM diseña el caso, pero la verdad del entorno y la validacion fuerte
-> viven en contratos estructurados y herramientas programaticas.
-
-### Modelo dual y API de inferencia
-
-Toda la codebase usa la **Responses API** de OpenAI (no Chat Completions).
-Esto soporta modelos de razonamiento (codex, o-series) ademas de modelos
-conversacionales clasicos.
-
-El orchestrator y el solver usan `AZURE_MODEL` por defecto. Los scripts
-aceptan `AZURE_SOLVER_MODEL` como override para el solver, permitiendo
-usar un modelo de razonamiento optimizado para investigar.
-
----
-
-## 9. Modelo de QA y validacion
-
-La calidad de SREG se valida en tres niveles.
-
-### Nivel 1: tests
-
-Responde:
-
-> "El codigo funciona?"
-
-Valida contratos, invariantes, tools, episodios, solver formal e integraciones.
-
-### Nivel 2: diagnostico de entornos
-
-Responde:
-
-> "Los SRCs generados funcionan como entornos de investigacion?"
-
-Detecta trivialidad, imposibilidad, leakage, narrativa confusa y desalineacion
-entre caso visible y verdad formal.
-
-### Nivel 3: transferencia externa
-
-Responde:
-
-> "Entrenar con SREG mejora una policy fuera de SREG?"
-
-Es la validacion final del producto, aunque los benchmarks externos no formen
-parte del nucleo del entorno.
-
----
-
-## 10. Invariantes arquitectonicas
-
-### Alineacion entre capas
-
-La capa visible del caso no puede contradecir la capa formal.
-
-### El caso se diseña como conjunto
-
-`SCMWorld`, `CasePlan`, `ResearchProblem` y `Task`s/`SubQuestionIntent`s deben
-construirse como partes coordinadas de un mismo SRC.
-
-### El reward central se ancla a la verdad formal
-
-La semantica visible puede crecer en riqueza, pero la evaluacion central no
-puede romper su anclaje en la verdad del mundo.
-
-### La policy tiene libertad; el entorno tiene reglas
-
-SREG no impone un procedimiento de razonamiento, pero si impone las reglas del
-caso: que acciones existen, que cuestan y como impactan el mundo.
-
-### El caso debe depender del episodio
-
-La experiencia del solver debe depender de la evidencia y decisiones del caso,
-no solo del conocimiento general del dominio.
-
----
-
-## 11. Extension y limites
-
-La arquitectura debe permitir crecimiento en:
-
-- generadores estructurales nuevos,
-- artefactos visibles mas ricos,
-- acciones de investigacion mas expresivas,
-- casos mas abiertos,
-- y distintos niveles de realismo semantico,
-
-sin romper coherencia ni evaluabilidad fuerte.
-
-### Open Investigation — implementado (Alpha-0)
-
-El modo principal de evaluacion. Separa la evaluacion en 3 capas:
-
-1. **Solver** — investiga libre, entrega claim cards (max 5).
-   Cada card tiene: texto, variables foco, confianza, evidencia.
-   El solver NO ve categorias de scoring ni patrones esperados.
-2. **Compiler** — traduce claim cards a specs ejecutables. Cada claim se
-   descompone en N `CompiledUnit`s (one per sub-claim). Usa una GRAMATICA
-   COMPOSABLE de 4 piezas (Simulacion + Medicion + Comparacion + Asercion).
-   `CompilerOutput` tiene lista de units + status (`compiled`/`partial`/
-   `abstention`). El compiler NO juzga calidad — solo traduce.
-3. **SCM Verifier** — ejecuta specs de cada unit contra el SCM (determinista,
-   sin LLM). Truth se computa a nivel **claim** (promedio de specs).
-   Limitacion conocida: penaliza claims ambiciosas (ver TODO I0d P2).
-
-**Gramatica composable:**
-- ~24 piezas atomicas que se combinan en cientos de verificaciones posibles
-- Simulacion: do, do+condicion, sweep, bundle, baseline
-- Medicion: mean, variance, quantile, tail_risk, correlation, distribution
-- Comparacion: difference, ratio, ranking, piecewise_fit, gap, proportion
-- Asercion: positive, negative, near_zero, A>B, changepoint, sign_flip
-
-**Modos de evaluacion:**
-- **Open** (principal, Alpha-0): brief abierto, claim cards, compilacion + verificacion SCM
-- **Full Open** (futuro): solo brief, sin ninguna guia
-
-**Honestidad sobre reward:** verificacion SCM exacta DESPUES de compilacion.
-La compilacion tiene subjetividad encapsulada. Es mucho mas riguroso que
-LLM judge pero no 100% mecanico.
-
-**Constraints (2026-04-06):**
-- `ref_arm` requerido para difference/ratio (BUG 9 fix). Formula:
-  `difference = other_arm - ref_arm`. Enforzado por `@model_validator`.
-- `evidence_basis` validada contra artifacts accedidos. Citas fabricadas
-  aplican penalidad proporcional, no zero (BUG 8 fix).
-- `condition_on` en QueryArm acepta 4 predicados (P1, 2026-04-06):
-  - `approx_eq` (default, backward compat con scalars puntuales)
-  - `range`: `{"kind": "range", "lo": <num>, "hi": <num>}`
-  - `quantile_range`: `{"kind": "quantile_range", "q_lo": <0-1>, "q_hi": <0-1>}`
-  - `in_set`: `{"kind": "in_set", "values": [...]}`
-  Discriminated union pydantic con auto-promote. Verifier dispatch en
-  `_filter_condition` (`oi_verifier.py`). GRAMMAR_REF expandido en
-  `oi_sq_compiler.py` con ejemplos y reglas anti-variables-derivadas.
-  **P1.5 cerrada (#10):** columna faltante y predicado numerico sobre
-  columna no-numerica ahora lanzan `ValueError` (atrapado por
-  `verify_atom` → `score=0.0`). Sample starvation (<30 rows) mantiene
-  solo warning.
-- **Compiler — 3 estados terminales (P06 G.1, 2026-04-08).**
-  `compile_sq_to_specs` devuelve un `SQCompileResult` con tres ramas
-  mutuamente excluyentes: `success` (specs validas), `abstained` (LLM
-  emitio `[]` deliberadamente porque la claim no es verificable contra el
-  SCM — ej. coeficientes de regresion, AIC, R-cuadrado, varianzas de
-  mixed-effects), `error` (parse fallo o JSON invalido). El compile loop
-  del orchestrator descarta abstenciones silenciosamente — NO cuentan
-  como compile error y NO entran a las metricas C1a/C1b. Scoring,
-  matching y la politica de required-fallback no cambian: el contrato
-  es solo de superficie.
-
-**Scoring path canonico (2026-04-09):** SQ v2 (specs-based) + LLM judge
-es el unico path canonico de SREG v1. SQ v1 (pattern-based) y salience
-map quedan como legacy fallback en codigo pero NO son parte del scope
-canonico. El runner emite `logger.warning("LEGACY PATH: ...")` cuando se
-usan paths legacy. Ver `CURRENT_STATE.md` seccion "Tres rutas de scoring".
-
-**Bottleneck actual:** credit-assignment a nivel claim (truth dilution).
-Ver TODO A28 para la taxonomia completa de failure modes del scoring.
-
-**Persistencia de scoring (P0, 2026-04-06):**
-Los internals del scoring se persisten para permitir rescore controlado
-sin regenerar mundo/solver. Dos puntos de persistencia:
-- `src.json` → `sub_questions_v2`: SQs grounded con verdicts del SCM
-- `oi_result.json` → `score_inputs_v2`: claims, compiled specs, claim truths,
-  relevance results, judge claims, runner config, trace
-
-Rescore: `scripts/rescore.py` re-evalua casos congelados en 3 modos
-(reaggregate / rejudge / recompile). Skill: `/rescore`.
-
-Ver `research/synthesis/open_investigation_vision.md` para la vision completa.
-
-SREG incluye como responsabilidad central:
-
-- generacion de casos,
-- verdad formal,
-- packaging visible,
-- interaccion del entorno,
-- teacher / scoring,
-- y QA del generador.
-
-SREG no incluye como responsabilidad central:
-
-- entrenamiento RL,
-- optimizacion de policies,
-- serving de modelos,
-- ni una simulacion cientifica completamente abierta sin contratos formales.
+- `research/notes/rethink_sreg_2026-04-23.md` — working doc con
+  historia completa, debates, consultas a Codex.
+- `research/notes/compiler_v1_postmortem.md` — post-mortem del compiler
+  v1, progresión empírica, lessons learned.
+- `research/synthesis/related_work_corral.md` — Corral synthesis y cómo
+  se integra.
+- `PROJECT.md` — LA PREGUNTA y presiones evolutivas (marcos filosóficos
+  que v1.5 debe respetar).
