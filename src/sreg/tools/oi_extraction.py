@@ -58,12 +58,29 @@ def compile_claim_direct(
     """Compile a ClaimCard directly to AtomicSpecs using the composable grammar.
 
     LLM produces AtomicSpecs directly from claim text. Same grammar used by
-    the SQ compiler. Returns CompilerOutput on success, None on failure.
+    the SQ compiler.
+
+    Returns:
+        - CompilerOutput(status="compiled"|"partial") on success.
+        - CompilerOutput(status="abstention", deliberate_abstention=True) when
+          the LLM explicitly returned `[]` as a signal that the claim is not
+          verifiable against the SCM (model-dependent quantity, temporal/lag,
+          methodological, power, open-ended optimization). See
+          oi_compiler_prompts.ABSTENTION_EXEMPLARS.
+        - None on any other failure (LLM crash, parse failure, empty/garbage
+          response, or all specs invalid) — the caller wraps this as a
+          fallback abstention (deliberate_abstention=False).
     """
     from sreg.models.open_investigation import AtomicSpec
     from sreg.tools.oi_compiler import CompiledUnit
-    from sreg.tools.oi_sq_compiler import (
+    from sreg.tools.oi_compiler_prompts import (
+        ABSTENTION_EXEMPLARS,
+        CONTROLLED_REGRESSION_EXEMPLARS,
         GRAMMAR_REF,
+        TARGETED_RECIPE_EXEMPLARS,
+        is_explicit_abstention,
+    )
+    from sreg.tools.oi_sq_compiler import (
         _build_variables_info,
         _coerce_tuples,
         _parse_specs_json,
@@ -76,21 +93,30 @@ Given a research claim and world variables, produce AtomicSpec(s) that verify
 whether the claim is true according to a structural causal model (SCM).
 
 {GRAMMAR_REF}
+{CONTROLLED_REGRESSION_EXEMPLARS}
+{TARGETED_RECIPE_EXEMPLARS}
+{ABSTENTION_EXEMPLARS}
 
 ## Guidelines for claim compilation
 - Extract ALL testable assertions from the claim text.
 - Each AtomicSpec tests ONE atomic fact.
 - A claim like "X causes Y and also affects Z" should produce 2+ specs.
-- Causal claims ("X causes Y", "X leads to Y") need interventional arms.
-- Associational claims ("X correlates with Y") use baseline arms with
-  correlation or partial_correlation measurement.
-- Claims about confounding need partial_correlation or interventional specs
-  that show the gap between crude and adjusted effects.
+- Causal claims ("X causes Y", "X leads to Y", "intervening on X changes Y")
+  need interventional arms (`intervene` or `adjust`). See Example A.
+- Associational claims ("X correlates with Y", "X is associated with Y")
+  use a `baseline` arm with `correlation` or `partial_correlation`
+  measurement. See Example B. Lean toward this route when the text does
+  not explicitly reference intervention or counterfactual reasoning.
+- Claims about confounding need partial_correlation or TWO adjust arms
+  (causal-via-do) that show the gap between crude and adjusted effects.
 - Mediation claims need specs comparing total vs direct effects.
-- Methodological claims ("don't condition on X because it's downstream")
-  can test whether X is a descendant: intervene on treatment, measure X.
-  If X changes, it's downstream. Use "positive" or "negative" assertion.
-- "No effect" or "null association" claims should use near_zero assertion.
+- Methodological claims about VARIABLE STATUS ("don't condition on X
+  because it's downstream") can test whether X is a descendant: intervene
+  on treatment, measure X. If X changes, it is downstream.
+- Methodological claims about STUDY DESIGN ("an RCT would be needed",
+  "a propensity-score model would identify this") are NOT verifiable —
+  abstain per the contract above.
+- "No effect" or "null association" claims should use `near_zero`.
 - Direction: "increases" -> positive, "decreases" -> negative.
 - For difference/ratio comparisons: ref_arm is REQUIRED and must be the
   control/baseline arm. Formula: difference = other_arm - ref_arm.
@@ -102,6 +128,10 @@ Return a JSON array of AtomicSpec objects:
   {{ ... AtomicSpec ... }},
   ...
 ]
+
+If the claim is NOT verifiable against the SCM (see the abstention
+categories above: model-output numbers, temporal/lag, study-design,
+statistical power, open-ended optimization), return an empty array: []
 
 Return ONLY the JSON array. No explanation."""
 
@@ -132,6 +162,25 @@ Return ONLY the JSON array. No explanation."""
     except Exception as e:
         logger.warning("Grammar-direct LLM call failed for %s: %s", claim.claim_id, e)
         return None
+
+    # Explicit abstention: the LLM returned [] per the abstention contract.
+    # This is a first-class signal (not a failure) and must be distinguished
+    # from parse errors / crashes downstream for honesty metrics.
+    if is_explicit_abstention(raw):
+        logger.info(
+            "Grammar-direct: %s abstained (explicit empty array)",
+            claim.claim_id,
+        )
+        return CompilerOutput(
+            claim_id=claim.claim_id,
+            status="abstention",
+            deliberate_abstention=True,
+            abstention_reason=(
+                "Compiler returned [] per abstention contract: claim is not "
+                "verifiable against the SCM (likely model-dependent, temporal, "
+                "methodological, power, or open-ended optimization)."
+            ),
+        )
 
     # Parse response
     try:

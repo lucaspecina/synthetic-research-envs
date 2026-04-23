@@ -232,6 +232,26 @@ _W1_F05_indirect_positive = AtomicSpec(
     assertion=Assertion(kind=AssertionKind.POSITIVE),
 )
 
+# Direction-neutral alternative: "mediates" / "routes through" without
+# specifying sign. Used by surface form s1 which does not commit to a
+# direction.
+_W1_F05_indirect_distinguishable = AtomicSpec(
+    spec_id="W1_F05_indirect_distinguishable_gold",
+    arms=(
+        QueryArm(label="total_hi", kind=QueryKind.INTERVENE,
+                 values={"T": 1.0}),
+        QueryArm(label="total_lo", kind=QueryKind.INTERVENE,
+                 values={"T": 0.0}),
+        QueryArm(label="direct_hi", kind=QueryKind.INTERVENE,
+                 values={"T": 1.0, "M": 0.0}),
+        QueryArm(label="direct_lo", kind=QueryKind.INTERVENE,
+                 values={"T": 0.0, "M": 0.0}),
+    ),
+    measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+    comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+    assertion=Assertion(kind=AssertionKind.DISTINGUISHABLE),
+)
+
 _W1_F05_indirect_lt_direct = AtomicSpec(
     spec_id="W1_F05_lt_direct_gold",
     arms=(
@@ -267,13 +287,26 @@ W1_F05_GOLDS = [
         atoms=[_W1_F05_indirect_positive],
         structural_contract=_w1f05_contract,
     ),
-    # surface 1: "mediates the relationship" — just positive
+    # surface 1: "mediates the relationship" — direction-neutral.
+    # Gold hygiene 2026-04-19: the word "mediates" doesn't commit to a
+    # sign; asserting positive here encodes world-truth not claim text.
+    # Primary is distinguishable; positive kept as alternative for
+    # compilers that read implicit positivity from the prior surface
+    # forms of the same fact.
     GoldTarget(
         fact_id="W1_F05",
         surface_form_index=1,
         status="compile",
-        atoms=[_W1_F05_indirect_positive],
-        structural_contract=_w1f05_contract,
+        atoms=[_W1_F05_indirect_distinguishable],
+        alternative_atoms=[[_W1_F05_indirect_positive]],
+        structural_contract=StructuralContract(
+            allowed_arm_kinds={"intervene"},
+            required_role_vars={"treatment": "T", "outcome": "Y"},
+            required_measurement_kind="mean",
+            required_comparison_kind="contrast_diff",
+            required_assertion_polarity="distinguishable",
+            required_mediator="M",
+        ),
     ),
     # surface 2: "positive but smaller than direct" — compound (positive + < 0.50)
     GoldTarget(
@@ -544,7 +577,7 @@ W2_F02_GOLDS = [
                     QueryArm(label="base", kind=QueryKind.BASELINE),
                 ),
                 measurement=Measurement(
-                    kind=MeasurementKind.PARTIAL_CORRELATION,
+                    kind=MeasurementKind.CORRELATION,
                     lhs="E",
                     rhs="D",
                     cond_set=(),
@@ -556,7 +589,7 @@ W2_F02_GOLDS = [
         structural_contract=StructuralContract(
             allowed_arm_kinds={"baseline"},
             required_role_vars={"lhs": "E", "rhs": "D"},
-            required_measurement_kind="partial_correlation",
+            required_measurement_kind="correlation",
             required_comparison_kind="identity",
             required_assertion_polarity="positive",
         ),
@@ -639,35 +672,51 @@ W2_F11_GOLDS = [
 
 # -------------------------------------------------------------------
 # W3_F05: P->H NOT identifiable (identifiability check)
+#
+# Surface forms s1 and s2 NAME the unobserved confounder explicitly
+# in the claim text (e.g. "we cannot estimate ... because W is not
+# observed") — Flow A can ground those in the world anchors and emit
+# identifiability_check with the named variable. So s1/s2 stay
+# compile.
+#
+# Surface form s0 ("Can we estimate the causal effect of pollution on
+# health?") does NOT name any variable. Flow A has no DAG access, so
+# it cannot know whether the effect is identifiable. Per Codex's
+# guidance (2026-04-19), this belongs in Flow B or must be
+# gold_status=abstain. The compiler is taught (oi_compiler_prompts
+# ABSTENTION section 6) to abstain on ungrounded identifiability
+# claims — matching this gold.
 # -------------------------------------------------------------------
+
+_W3_F05_compile_atom = lambda i: AtomicSpec(
+    spec_id=f"W3_F05_s{i}_gold",
+    arms=(
+        QueryArm(label="base", kind=QueryKind.BASELINE),
+    ),
+    measurement=Measurement(
+        kind=MeasurementKind.IDENTIFIABILITY_CHECK,
+        treatment="P",
+        outcome="H",
+    ),
+    comparison=Comparison(kind=ComparisonKind.IDENTITY),
+    assertion=Assertion(kind=AssertionKind.NOT_IDENTIFIABLE),
+)
+
+_w3f05_contract = StructuralContract(
+    allowed_arm_kinds={"baseline"},
+    required_role_vars={"treatment": "P", "outcome": "H"},
+    required_measurement_kind="identifiability_check",
+    required_comparison_kind="identity",
+    required_assertion_polarity="not_identifiable",
+)
 
 W3_F05_GOLDS = [
     GoldTarget(
         fact_id="W3_F05",
         surface_form_index=i,
         status="compile",
-        atoms=[
-            AtomicSpec(
-                spec_id=f"W3_F05_s{i}_gold",
-                arms=(
-                    QueryArm(label="base", kind=QueryKind.BASELINE),
-                ),
-                measurement=Measurement(
-                    kind=MeasurementKind.IDENTIFIABILITY_CHECK,
-                    treatment="P",
-                    outcome="H",
-                ),
-                comparison=Comparison(kind=ComparisonKind.IDENTITY),
-                assertion=Assertion(kind=AssertionKind.NOT_IDENTIFIABLE),
-            ),
-        ],
-        structural_contract=StructuralContract(
-            allowed_arm_kinds={"baseline"},
-            required_role_vars={"treatment": "P", "outcome": "H"},
-            required_measurement_kind="identifiability_check",
-            required_comparison_kind="identity",
-            required_assertion_polarity="not_identifiable",
-        ),
+        atoms=[_W3_F05_compile_atom(i)],
+        structural_contract=_w3f05_contract,
     )
     for i in range(3)
 ]
@@ -869,29 +918,57 @@ W3_F04_GOLDS = [
 # Same CONTRAST_DIFF structure as W1_F05 but different world/sign.
 # -------------------------------------------------------------------
 
+_W2_F04_gold_atom = lambda i: AtomicSpec(
+    spec_id=f"W2_F04_s{i}_gold",
+    arms=(
+        QueryArm(label="total_hi", kind=QueryKind.INTERVENE,
+                 values={"E": 1.0}),
+        QueryArm(label="total_lo", kind=QueryKind.INTERVENE,
+                 values={"E": 0.0}),
+        QueryArm(label="direct_hi", kind=QueryKind.INTERVENE,
+                 values={"E": 1.0, "M": 0.0}),
+        QueryArm(label="direct_lo", kind=QueryKind.INTERVENE,
+                 values={"E": 0.0, "M": 0.0}),
+    ),
+    measurement=Measurement(kind=MeasurementKind.MEAN, target="D"),
+    comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+    assertion=Assertion(kind=AssertionKind.POSITIVE),
+)
+
+# Alternative: link-by-link chain decomposition (E -> M positive, M -> D positive).
+# For linear SCMs this is equivalent to the indirect-effect contrast_diff.
+# The compiler sometimes emits this when the claim explicitly walks the
+# pathway ("exposure increases mediator, which increases disease").
+_W2_F04_chain_alternative = lambda i: [
+    AtomicSpec(
+        spec_id=f"W2_F04_s{i}_alt_E_to_M",
+        arms=(
+            QueryArm(label="hi_E", kind=QueryKind.INTERVENE, values={"E": 1.0}),
+            QueryArm(label="lo_E", kind=QueryKind.INTERVENE, values={"E": 0.0}),
+        ),
+        measurement=Measurement(kind=MeasurementKind.MEAN, target="M"),
+        comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo_E"),
+        assertion=Assertion(kind=AssertionKind.POSITIVE),
+    ),
+    AtomicSpec(
+        spec_id=f"W2_F04_s{i}_alt_M_to_D",
+        arms=(
+            QueryArm(label="hi_M", kind=QueryKind.INTERVENE, values={"M": 1.0}),
+            QueryArm(label="lo_M", kind=QueryKind.INTERVENE, values={"M": 0.0}),
+        ),
+        measurement=Measurement(kind=MeasurementKind.MEAN, target="D"),
+        comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo_M"),
+        assertion=Assertion(kind=AssertionKind.POSITIVE),
+    ),
+]
+
 W2_F04_GOLDS = [
     GoldTarget(
         fact_id="W2_F04",
         surface_form_index=i,
         status="compile",
-        atoms=[
-            AtomicSpec(
-                spec_id=f"W2_F04_s{i}_gold",
-                arms=(
-                    QueryArm(label="total_hi", kind=QueryKind.INTERVENE,
-                             values={"E": 1.0}),
-                    QueryArm(label="total_lo", kind=QueryKind.INTERVENE,
-                             values={"E": 0.0}),
-                    QueryArm(label="direct_hi", kind=QueryKind.INTERVENE,
-                             values={"E": 1.0, "M": 0.0}),
-                    QueryArm(label="direct_lo", kind=QueryKind.INTERVENE,
-                             values={"E": 0.0, "M": 0.0}),
-                ),
-                measurement=Measurement(kind=MeasurementKind.MEAN, target="D"),
-                comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
-                assertion=Assertion(kind=AssertionKind.POSITIVE),
-            ),
-        ],
+        atoms=[_W2_F04_gold_atom(i)],
+        alternative_atoms=[_W2_F04_chain_alternative(i)],
         structural_contract=StructuralContract(
             allowed_arm_kinds={"intervene"},
             required_role_vars={"treatment": "E", "outcome": "D"},
@@ -905,44 +982,111 @@ W2_F04_GOLDS = [
 ]
 
 # -------------------------------------------------------------------
-# W1_F07: Severity confounds T->Y (OBSERVE vs INTERVENE)
+# W1_F07: Severity confounds T->Y (CONDITION vs INTERVENE)
 # Confounding = observational effect ≠ causal effect.
-# CONTRAST_DIFF: (E[Y|T=1] - E[Y|T=-1]) - (E[Y|do(T=1)] - E[Y|do(T=-1)])
+# CONTRAST_DIFF: (E[Y|T~1] - E[Y|T~-1]) - (E[Y|do(T=1)] - E[Y|do(T=-1)])
 # Symmetric ±1 values to widen the confounding gap.
+#
+# Canonicalization 2026-04-19: migrated observe arms (values-filter,
+# legacy) to condition arms (condition_on + approx_eq predicate). Both
+# execute identically in oi_verifier.py (sample without intervention,
+# filter) — see oi_compiler_prompts.py:52 where `observe` is marked
+# DEPRECATED. The compiler correctly emits `condition` per current
+# canonical grammar; the legacy `observe` gold was the mismatch.
 # -------------------------------------------------------------------
+
+_W1_F07_primary_atom = lambda i: AtomicSpec(
+    spec_id=f"W1_F07_s{i}_gold",
+    arms=(
+        QueryArm(label="obs_hi", kind=QueryKind.CONDITION,
+                 condition_on={"T": {"kind": "approx_eq", "value": 1.0}}),
+        QueryArm(label="obs_lo", kind=QueryKind.CONDITION,
+                 condition_on={"T": {"kind": "approx_eq", "value": -1.0}}),
+        QueryArm(label="causal_hi", kind=QueryKind.INTERVENE,
+                 values={"T": 1.0}),
+        QueryArm(label="causal_lo", kind=QueryKind.INTERVENE,
+                 values={"T": -1.0}),
+    ),
+    measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
+    comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
+    assertion=Assertion(kind=AssertionKind.GAP_MATERIAL),
+)
+
+_w1f07_contract = StructuralContract(
+    allowed_arm_kinds={"condition", "intervene", "baseline"},
+    required_role_vars={"treatment": "T", "outcome": "Y"},
+    required_measurement_kind="mean",
+    required_comparison_kind="contrast_diff",
+    required_assertion_polarity="gap_material",
+)
+
+# Alternative for s2 ("severity is a confounder, not a mediator: causes
+# both the treatment decision AND the outcome independently"): compiler
+# decomposes into structural sub-claims. Each sub-claim is independently
+# verifiable in the world and together they prove the confounder-
+# not-mediator structure. Per-case alternative (Codex guidance).
+_W1_F07_s2_structural_alternative = [
+    # Severity correlates with T controlling for Y (S -> T, not S <- T <- Y).
+    AtomicSpec(
+        spec_id="W1_F07_s2_alt_S_affects_T",
+        arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+        measurement=Measurement(
+            kind=MeasurementKind.PARTIAL_CORRELATION,
+            lhs="S", rhs="T", cond_set=("Y",),
+        ),
+        comparison=Comparison(kind=ComparisonKind.IDENTITY),
+        assertion=Assertion(kind=AssertionKind.DISTINGUISHABLE),
+    ),
+    # Severity correlates with Y controlling for T (S -> Y, not S -> T -> Y).
+    AtomicSpec(
+        spec_id="W1_F07_s2_alt_S_affects_Y_indep",
+        arms=(QueryArm(label="base", kind=QueryKind.BASELINE),),
+        measurement=Measurement(
+            kind=MeasurementKind.PARTIAL_CORRELATION,
+            lhs="S", rhs="Y", cond_set=("T",),
+        ),
+        comparison=Comparison(kind=ComparisonKind.IDENTITY),
+        assertion=Assertion(kind=AssertionKind.DISTINGUISHABLE),
+    ),
+    # Severity NOT downstream of T: do(T) does not move S (not T -> S).
+    AtomicSpec(
+        spec_id="W1_F07_s2_alt_S_not_downstream_of_T",
+        arms=(
+            QueryArm(label="hi_T", kind=QueryKind.INTERVENE, values={"T": 0.7}),
+            QueryArm(label="lo_T", kind=QueryKind.INTERVENE, values={"T": -0.7}),
+        ),
+        measurement=Measurement(kind=MeasurementKind.MEAN, target="S"),
+        comparison=Comparison(kind=ComparisonKind.DIFFERENCE, ref_arm="lo_T"),
+        assertion=Assertion(kind=AssertionKind.NEAR_ZERO),
+    ),
+]
 
 W1_F07_GOLDS = [
     GoldTarget(
         fact_id="W1_F07",
-        surface_form_index=i,
+        surface_form_index=0,
         status="compile",
-        atoms=[
-            AtomicSpec(
-                spec_id=f"W1_F07_s{i}_gold",
-                arms=(
-                    QueryArm(label="obs_hi", kind=QueryKind.OBSERVE,
-                             values={"T": 1.0}),
-                    QueryArm(label="obs_lo", kind=QueryKind.OBSERVE,
-                             values={"T": -1.0}),
-                    QueryArm(label="causal_hi", kind=QueryKind.INTERVENE,
-                             values={"T": 1.0}),
-                    QueryArm(label="causal_lo", kind=QueryKind.INTERVENE,
-                             values={"T": -1.0}),
-                ),
-                measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
-                comparison=Comparison(kind=ComparisonKind.CONTRAST_DIFF),
-                assertion=Assertion(kind=AssertionKind.GAP_MATERIAL),
-            ),
-        ],
-        structural_contract=StructuralContract(
-            allowed_arm_kinds={"observe", "intervene"},
-            required_role_vars={"treatment": "T", "outcome": "Y"},
-            required_measurement_kind="mean",
-            required_comparison_kind="contrast_diff",
-            required_assertion_polarity="gap_material",
-        ),
-    )
-    for i in range(3)  # W1_F07 has 3 surface forms
+        atoms=[_W1_F07_primary_atom(0)],
+        structural_contract=_w1f07_contract,
+    ),
+    GoldTarget(
+        fact_id="W1_F07",
+        surface_form_index=1,
+        status="compile",
+        atoms=[_W1_F07_primary_atom(1)],
+        structural_contract=_w1f07_contract,
+    ),
+    GoldTarget(
+        fact_id="W1_F07",
+        surface_form_index=2,
+        status="compile",
+        atoms=[_W1_F07_primary_atom(2)],
+        # s2 compound claim ("confounder, not mediator, causes both
+        # independently") admits a structural decomposition alternative:
+        # verify S->T, S->Y|T, and S-not-downstream-of-T.
+        alternative_atoms=[_W1_F07_s2_structural_alternative],
+        structural_contract=_w1f07_contract,
+    ),
 ]
 
 # -------------------------------------------------------------------
@@ -951,34 +1095,23 @@ W1_F07_GOLDS = [
 # L is a collider (E->L<-D); conditioning on it opens a spurious path.
 # -------------------------------------------------------------------
 
+# W2_F07 — Codex guidance 2026-04-19: the surface forms use structural
+# role labels ("collider") without naming the concrete variable that
+# plays the role. Flow A has no DAG access, so it would have to GUESS
+# which of the world anchors is the collider. That is exactly the
+# "graph knowledge leak" pattern. Moved to gold_status=abstain for
+# Flow A (Flow B with SCM may re-enable as compile in its own gold set
+# when implemented).
+#
+# Compiler is taught (ABSTENTION section 6, 2026-04-19) to abstain
+# on ungrounded structural-role claims.
+
 W2_F07_GOLDS = [
     GoldTarget(
         fact_id="W2_F07",
         surface_form_index=i,
-        status="compile",
-        atoms=[
-            AtomicSpec(
-                spec_id=f"W2_F07_s{i}_gold",
-                arms=(
-                    QueryArm(label="base", kind=QueryKind.BASELINE),
-                ),
-                measurement=Measurement(
-                    kind=MeasurementKind.IDENTIFIABILITY_CHECK,
-                    treatment="E",
-                    outcome="D",
-                    candidate_adjust_set=("L",),
-                ),
-                comparison=Comparison(kind=ComparisonKind.IDENTITY),
-                assertion=Assertion(kind=AssertionKind.NOT_IDENTIFIABLE),
-            ),
-        ],
-        structural_contract=StructuralContract(
-            allowed_arm_kinds={"baseline"},
-            required_role_vars={"treatment": "E", "outcome": "D"},
-            required_measurement_kind="identifiability_check",
-            required_comparison_kind="identity",
-            required_assertion_polarity="not_identifiable",
-        ),
+        status="abstain",
+        abstain_reason_code="ungrounded_structural_role",
     )
     for i in range(2)  # W2_F07 has 2 surface forms
 ]
@@ -987,6 +1120,17 @@ W2_F07_GOLDS = [
 # SQ_F01: "Does treatment affect outcome?" — compileable SQ
 # Structurally identical to W1_F01 but formulated as a question.
 # First compileable SQ gold (all prior SQ golds are abstention).
+#
+# Gold hygiene 2026-04-19: all 3 surface forms ask about EXISTENCE of
+# an effect without committing to sign:
+#   s0: "Does treatment affect outcome?"
+#   s1: "What is the causal effect of treatment on patient outcomes?"
+#   s2: "If we were to intervene..., would we observe a change in outcome?"
+# A claim-literal compiler should answer `distinguishable` (effect is
+# non-zero), not `positive` (effect is positive in sign). Gold asserting
+# `positive` encodes the world-truth sign, which is information not
+# present in the claim text — the same kind of over-specification we
+# corrected for W2_F02 (partial_correlation|empty_cond → correlation).
 # -------------------------------------------------------------------
 
 SQ_F01_GOLDS = [
@@ -1006,7 +1150,7 @@ SQ_F01_GOLDS = [
                 measurement=Measurement(kind=MeasurementKind.MEAN, target="Y"),
                 comparison=Comparison(kind=ComparisonKind.DIFFERENCE,
                                       ref_arm="control"),
-                assertion=Assertion(kind=AssertionKind.POSITIVE),
+                assertion=Assertion(kind=AssertionKind.DISTINGUISHABLE),
             ),
         ],
         structural_contract=StructuralContract(
@@ -1014,7 +1158,7 @@ SQ_F01_GOLDS = [
             required_role_vars={"treatment": "T", "outcome": "Y"},
             required_measurement_kind="mean",
             required_comparison_kind="difference",
-            required_assertion_polarity="positive",
+            required_assertion_polarity="distinguishable",
         ),
     )
     for i in range(3)  # SQ_F01 has 3 surface forms

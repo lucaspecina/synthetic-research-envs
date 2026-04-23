@@ -33,321 +33,28 @@ from sreg.models.open_investigation import (
     VerificationSpec,
 )
 from sreg.tools.oi_compiler import WorldSummary
+from sreg.tools.oi_compiler_prompts import (
+    ABSTENTION_EXEMPLARS as _ABSTENTION_EXEMPLARS,
+    CONTROLLED_REGRESSION_EXEMPLARS as _CONTROLLED_REGRESSION_EXEMPLARS,
+    GRAMMAR_REF,
+    TARGETED_RECIPE_EXEMPLARS as _TARGETED_RECIPE_EXEMPLARS,
+    is_explicit_abstention as _is_explicit_abstention,
+    strip_json_fences as _strip_json_fences,
+)
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Grammar reference (shared with S04 direct_to_atoms prototype)
-# ---------------------------------------------------------------------------
-
-GRAMMAR_REF = """
-You have a composable verification grammar with 4 pieces:
-
-## QueryArm
-Each spec has 1+ arms. Each arm generates data from the SCM.
-- kind: "baseline" (sample from joint), "intervene" (do-calculus, set values),
-  "observe" (observe natural distribution), "condition" (condition on values),
-  "adjust" (do-calculus on `treatment`; the verifier derives the backdoor
-  adjustment from the SCM DAG; emits 1-D `outcome` samples — see "Adjust
-  arm semantics" below), "sweep" (vary a variable)
-- label: unique name for this arm (e.g. "baseline", "treated", "control")
-- values: dict of variable=value for intervene/condition (e.g. {"X": 1.0})
-- condition_on: dict mapping variable name to a condition predicate.
-  Available predicates:
-  * Point value (shorthand): just a number, e.g. {"X": 5.0}
-    Matches rows where X is approximately 5.0 (within 15% of std).
-  * range: {"kind": "range", "lo": <number>, "hi": <number>}
-    Matches rows where lo <= variable <= hi.
-    Example: near a cutoff: {"eligibility_gap": {"kind": "range", "lo": -1000, "hi": 1000}}
-  * quantile_range: {"kind": "quantile_range", "q_lo": <0-1>, "q_hi": <0-1>}
-    Matches rows in the given quantile range of the variable's distribution.
-    Example: bottom quartile: {"income": {"kind": "quantile_range", "q_lo": 0.0, "q_hi": 0.25}}
-  * in_set: {"kind": "in_set", "values": [<value>, ...]}
-    Matches rows where variable equals any listed value.
-    Example: categorical: {"region": {"kind": "in_set", "values": ["urban", "suburban"]}}
-- treatment: variable to intervene on (REQUIRED for adjust kind)
-- outcome: variable whose post-intervention distribution is sampled (REQUIRED for adjust kind)
-- adjust_set: DO NOT specify. The verifier auto-computes a valid
-  backdoor adjustment set from the SCM DAG whenever `adjust_set` is
-  omitted or empty. Your job for adjust arms is only to pick
-  `treatment`, `outcome`, the intervention `values`, and the arm count
-  (2 arms for causal differences). If no valid backdoor set exists in
-  the DAG for your chosen (`treatment`, `outcome`) pair, the verifier
-  reports that cleanly — you do not need to pre-check identifiability.
-
-## Adjust arm semantics — read this carefully
-
-`adjust` is NOT observational regression with controls. It is do-calculus.
-The verifier asks the SCM oracle for the post-intervention distribution
-of `outcome` under `do(treatment=value)`. Back-door paths are blocked by
-a backdoor set that the verifier computes from the SCM DAG — you do not
-specify it. The arm emits a **1-D array of `outcome` samples only**.
-The joint distribution is collapsed to the marginal-under-intervention,
-so multivariate quantities cannot be recomputed from it.
-
-What this means for measurements paired with an adjust arm:
-- ALLOWED: `mean`, `variance`, `quantile`, `tail_prob` on `outcome` —
-  anything that operates on a single 1-D series.
-- FORBIDDEN: `correlation`, `partial_correlation` — these need multiple
-  variables or the joint distribution, which the adjust arm has thrown
-  away. The validator will reject the spec.
-
-**Common phrasings that look like they need `adjust + partial_correlation`
-but actually do not:**
-- "the effect of T on Y after adjusting for W" → causal claim. Use TWO
-  adjust arms (e.g. `do(T=0)` and `do(T=1)`) + `measurement.kind=mean`
-  on `outcome=Y` + `comparison.kind=difference` with `ref_arm=` the
-  control arm. Do NOT specify `adjust_set` — the verifier computes the
-  backdoor set from the SCM DAG.
-- "T is associated with Y controlling for W" → observational claim. Do
-  NOT use `adjust`. Use a single `baseline` (or `observe`) arm +
-  `measurement.kind=partial_correlation` with `lhs=T`, `rhs=Y`,
-  `cond_set=(W,)` + `comparison.kind=identity`.
-- The same surface phrase ("after controlling for W") can map to either
-  pattern. Pick based on whether the claim is about `do(T)` (causal,
-  use adjust+mean+difference) or about correlation in the natural joint
-  distribution (observational, use baseline+partial_correlation).
-
-## Measurement
-What to compute from the sampled data.
-- kind: "mean", "variance", "correlation", "partial_correlation",
-  "tail_prob", "prob", "quantile", "identifiability_check"
-- target: variable name for mean/variance/quantile/tail_prob
-- lhs, rhs: variable names for correlation/partial_correlation
-- cond_set: tuple of variables to condition on (for partial_correlation)
-- treatment, outcome: for identifiability_check
-- threshold: for tail_prob
-- q: quantile level (0-1) for quantile
-- COMPATIBILITY: `correlation` and `partial_correlation` cannot be paired
-  with arms of `kind=adjust` (adjust arms only carry 1-D outcome samples
-  — see "Adjust arm semantics" above).
-
-## Comparison
-How to relate measurements across arms.
-- kind: "identity" (single arm, just check the value),
-  "difference", "ratio", "ranking" (rank multiple arms),
-  "gap" (check minimum gap), "contrast_diff"
-- ref_arm: REQUIRED for difference/ratio. The reference (baseline/control) arm.
-  Formula: difference = other_arm - ref_arm. ratio = other_arm / ref_arm.
-  Example: to test "treatment increases Y", set ref_arm to the control arm.
-  If other_arm > ref_arm, difference is positive.
-- order: tuple of arm labels for ranking
-- tolerance: float (default 0.05)
-- RULE: difference and ratio require EXACTLY 2 arms and ref_arm must be set.
-
-## Assertion
-What should be true about the comparison result.
-- kind: "positive", "negative", "near_zero", "greater_than", "less_than",
-  "rank_order", "identifiable", "not_identifiable",
-  "changepoint_exists", "sign_flip", "gap_material",
-  "distinguishable", "not_distinguishable"
-- threshold: numeric threshold (default 0.0)
-- tolerance: float (default 0.05)
-- order: tuple of arm labels for rank_order
-
-## AtomicSpec structure
-{
-  "spec_id": "unique_id",
-  "arms": [{"label": "...", "kind": "...", ...}],
-  "measurement": {"kind": "...", ...},
-  "comparison": {"kind": "...", ...},
-  "assertion": {"kind": "...", ...}
-}
-
-IMPORTANT RULES:
-- ALL variable names must come from the provided Variables list.
-- Do NOT reference derived or constructed variables. Use predicates on existing
-  world variables instead. E.g., instead of a variable "eligible", use
-  {"eligibility_gap": {"kind": "range", "lo": -1000, "hi": 1000}}.
-- Each spec checks ONE atomic fact.
-- For partial_correlation with empty cond_set, it computes raw correlation.
-- "baseline" arms sample from the joint distribution (no intervention).
-- ONE condition predicate per variable in condition_on.
-- Do NOT condition on a variable already set in values (same arm).
-- Return a JSON array of spec objects.
-"""
-
-# ---------------------------------------------------------------------------
-# Worked exemplars: controlled-regression phrasings
-# ---------------------------------------------------------------------------
-#
-# These exemplars target the single most common compiler failure mode:
-# the surface phrase "after adjusting for W" / "controlling for W" maps to
-# two semantically distinct routes (causal-via-do-calculus vs
-# observational-via-partial-correlation), and the compiler historically
-# collapsed both into the invalid `adjust + partial_correlation` hybrid.
-# Each exemplar shows ONE valid route end-to-end.
-
-_CONTROLLED_REGRESSION_EXEMPLARS = """
-## Worked examples — "controlled regression" phrasings
-
-These two examples cover the single most common ambiguity. The same
-surface phrase ("adjusting for W", "controlling for W") can mean two
-different things. Pick the route by asking: is the claim about a
-do-intervention on T, or about a correlation in the natural joint?
-
-### Example A — causal claim ("does T causally raise Y after adjusting for W?")
-
-Pattern: TWO `adjust` arms (one per treatment level) +
-`measurement.kind=mean` on the outcome + `comparison.kind=difference`
-with `ref_arm` set to the control arm.
-
-Example sub-question: "After adjusting for confounder W, does increasing
-T raise Y?"
-
-Spec:
-[
-  {
-    "spec": {
-      "spec_id": "causal_T_on_Y_adjusted_W",
-      "arms": [
-        {
-          "label": "treated",
-          "kind": "adjust",
-          "treatment": "T",
-          "outcome": "Y",
-          "values": {"T": 1.0}
-        },
-        {
-          "label": "control",
-          "kind": "adjust",
-          "treatment": "T",
-          "outcome": "Y",
-          "values": {"T": 0.0}
-        }
-      ],
-      "measurement": {"kind": "mean", "target": "Y"},
-      "comparison": {"kind": "difference", "ref_arm": "control"},
-      "assertion": {"kind": "positive"}
-    },
-    "role": "required"
-  }
+# Re-export for backward compatibility with callers that imported these
+# names from this module (Flow A compile_claim_direct, tests, etc.).
+__all__ = [
+    "GRAMMAR_REF",
+    "compile_sq_to_specs",
+    "ground_sq_answer_key",
+    "validate_compilation_alignment",
+    "SQCompileResult",
+    "SQGroundingResult",
+    "render_answer_key",
 ]
-
-Why this works: each adjust arm asks the SCM oracle for `E[Y | do(T=t)]`.
-The verifier computes a valid backdoor adjustment set from the SCM DAG
-(W in this case) — you do not specify it. The means are scalars; the
-difference compares two scalars. The validator accepts `adjust + mean`.
-
-### Example B — observational claim ("is T associated with Y controlling for W?")
-
-Pattern: ONE `baseline` arm +
-`measurement.kind=partial_correlation` with `lhs=T`, `rhs=Y`,
-`cond_set=(W,)` + `comparison.kind=identity`.
-
-Example sub-question: "Holding W constant, is T positively correlated
-with Y in the natural joint distribution?"
-
-Spec:
-[
-  {
-    "spec": {
-      "spec_id": "obs_pcor_T_Y_given_W",
-      "arms": [
-        {
-          "label": "joint",
-          "kind": "baseline"
-        }
-      ],
-      "measurement": {
-        "kind": "partial_correlation",
-        "lhs": "T",
-        "rhs": "Y",
-        "cond_set": ["W"]
-      },
-      "comparison": {"kind": "identity"},
-      "assertion": {"kind": "positive"}
-    },
-    "role": "required"
-  }
-]
-
-Why this works: the baseline arm samples the natural joint distribution
-(no intervention). `partial_correlation` reads multiple variables from
-that joint, conditioning on W. The validator accepts
-`baseline + partial_correlation`.
-
-### Disambiguation rule
-
-- Words signaling causation (causes, effect of, raises, reduces,
-  intervention, would happen if, even after intervening): use route A.
-- Words signaling association in the natural distribution (associated
-  with, correlated with, partial correlation, residual association):
-  use route B.
-- If the surface phrase does NOT clearly signal causation, do not
-  assume causal by default. Lean toward route B (observational) — it
-  is the safer interpretation for descriptive or associational
-  language. Pick route A only when the wording explicitly references
-  intervention, effect-of, or counterfactual reasoning.
-- If neither route fits cleanly — e.g. the claim is about a
-  model-output number rather than a world-defined quantity — abstain
-  by returning [] per the abstention contract above.
-- NEVER mix `adjust` arms with `partial_correlation` measurements.
-"""
-
-# ---------------------------------------------------------------------------
-# Abstention exemplars: model-dependent quantities the grammar cannot express
-# ---------------------------------------------------------------------------
-#
-# The grammar's ground truth is the SCM oracle: only world-defined quantities
-# (interventional means/quantiles, observational correlations and partial
-# correlations, identifiability) are verifiable. Statistical-model outputs
-# (regression coefficients, standardized betas, R-squared, AIC, mixed-effects
-# variance components) depend on analyst choices, not on the SCM, so the
-# verifier cannot ground truth them. The compiler must abstain on those
-# claims rather than approximate them with a hybrid spec.
-
-_ABSTENTION_EXEMPLARS = """
-## Abstention — when to return an empty array
-
-If the sub-question asks for a quantity that is a property of a particular
-statistical model rather than a property of the world (the SCM), you must
-ABSTAIN by returning an empty JSON array: []
-
-The grammar can verify properties of the SCM:
-- interventional means / variances / quantiles / tail probabilities
-- observational correlations and partial correlations
-- identifiability of an effect
-
-The grammar CANNOT verify properties of an analyst-chosen model:
-- OLS / GLS / robust / ridge regression coefficients
-- standardized betas, partial R-squared, total R-squared
-- AIC / BIC / DIC / log-likelihood / likelihood-ratio statistics
-- mixed-effects random-slope or random-intercept variance components
-- propensity scores from a chosen propensity model
-- "the coefficient on T in lm(Y ~ T + W)" — the value depends on the
-  functional form, control set, and estimator choices
-
-Why: the same SCM produces infinitely many "coefficients" depending on
-the model the analyst imposes. None of those numbers are properties of
-the world; they are properties of the model. The verifier needs a
-world-property, so abstention is the honest answer.
-
-### Abstention examples (return [] for each of these):
-
-- "The OLS coefficient of T in the multivariate model is 0.42."
-- "The standardized beta of T is 0.18."
-- "The partial R-squared of W in the model with T and W is 0.06."
-- "The model AIC drops by 12 when T is added."
-- "In a hierarchical mixed-effects model, the random-slope variance for
-  T across regions is small."
-- "The propensity-score-weighted mean of Y is 1.2."
-- "The logistic regression coefficient on T predicting Y > 0 is 0.3."
-
-### NOT abstention — these have valid SCM verifications:
-
-- "After adjusting for W, T causally raises Y." → causal route (Example A
-  above): two adjust arms + mean + difference.
-- "T is positively associated with Y controlling for W." → observational
-  route (Example B above): baseline + partial_correlation.
-- "P(Y > k | do(T=1)) is at least 0.4." → intervene + tail_prob.
-- "The interventional mean of Y under do(T=1) is greater than under
-  do(T=0)." → intervene + mean + difference.
-
-The abstention rule asks: *"is the claim about a model-output number, or
-about a world-defined quantity?"* — not *"does the text contain the
-substring 'regression' or 'coefficient'"*.
-"""
 
 # ---------------------------------------------------------------------------
 # Compile prompt
@@ -360,6 +67,7 @@ AtomicSpec(s) that would verify whether a solver has addressed this need.
 
 {GRAMMAR_REF}
 {_CONTROLLED_REGRESSION_EXEMPLARS}
+{_TARGETED_RECIPE_EXEMPLARS}
 {_ABSTENTION_EXEMPLARS}
 
 ## Role assignment
@@ -422,47 +130,6 @@ def _build_user_prompt(
 # ---------------------------------------------------------------------------
 # JSON parsing
 # ---------------------------------------------------------------------------
-
-
-def _strip_json_fences(raw: str) -> str:
-    """Strip markdown code fences and return the inner JSON-like text.
-
-    Mirrors the fence-stripping logic of `_parse_specs_json` so that
-    abstention detection looks at the same effective payload the parser
-    sees.
-    """
-    text = raw.strip()
-    if "```" in text:
-        for p in text.split("```"):
-            p = p.strip()
-            if p.startswith("json"):
-                p = p[4:].strip()
-            if p.startswith("[") or p.startswith("{"):
-                return p
-    return text
-
-
-def _is_explicit_abstention(raw: str) -> bool:
-    """Detect a deliberate empty JSON array as the LLM's abstention signal.
-
-    Returns True only when the LLM returned an explicit `[]` (after
-    stripping markdown fences). This is the contract surface area for
-    abstention as defined in the abstention exemplars block of the
-    system prompt: a model-dependent claim that the grammar cannot
-    verify is signalled by returning an empty array.
-
-    Distinguishes deliberate abstention from:
-    - empty raw response (LLM call returned ""), which is an error
-    - non-array text (the LLM ignored the format), which is an error
-    - parse failures inside a non-empty array, which are also errors
-    """
-    if not raw or not raw.strip():
-        return False
-    inner = _strip_json_fences(raw)
-    if not (inner.startswith("[") and inner.endswith("]")):
-        return False
-    middle = inner[1:-1].strip()
-    return middle == ""
 
 
 def _parse_specs_json(raw: str) -> list[dict]:

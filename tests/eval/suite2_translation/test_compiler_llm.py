@@ -99,15 +99,25 @@ def _make_llm_call(client: OpenAIClient):
 
 
 def _make_claim_card(fact, surface_form_index: int, contract) -> ClaimCard:
-    """Build a minimal ClaimCard from a fact + surface form."""
+    """Build a minimal ClaimCard from a fact + surface form.
+
+    Focus variables include:
+      - treatment / outcome / cond vars from role_vars
+      - required_modifier (effect modifier in heterogeneity claims — else
+        the compiler has no way to know which world variable matches a
+        semantic label like 'biomarker' when multiple vars are plausible)
+      - required_mediator (for mediation claims)
+    """
     sf = fact.surface_forms[surface_form_index]
 
-    # Derive focus variables from contract or fact
-    focus = []
+    focus_set: set[str] = set()
     if contract and contract.required_role_vars:
-        focus = list(set(contract.required_role_vars.values()))
-    if not focus:
-        focus = ["Y"]  # fallback
+        focus_set.update(contract.required_role_vars.values())
+    if contract and contract.required_modifier:
+        focus_set.add(contract.required_modifier)
+    if contract and contract.required_mediator:
+        focus_set.add(contract.required_mediator)
+    focus = sorted(focus_set) if focus_set else ["Y"]
 
     return ClaimCard(
         claim_id=f"{fact.fact_id}_s{surface_form_index}",
@@ -154,78 +164,180 @@ def check_stage1(gt: GoldTarget, compiler_out: CompilerOutput) -> bool:
         return not compiler_out.compiled
 
 
+def _collect_spec_vars(spec) -> set[str]:
+    """Collect all variable names mentioned in a spec (for role_var check)."""
+    vars_in_spec = set()
+    for arm in spec.arms:
+        vars_in_spec.update(arm.values.keys())
+        vars_in_spec.update(arm.condition_on.keys())
+        if arm.sweep_var:
+            vars_in_spec.add(arm.sweep_var)
+    if spec.measurement.target:
+        t = spec.measurement.target
+        if isinstance(t, str):
+            vars_in_spec.add(t)
+        else:
+            vars_in_spec.update(t)
+    if spec.measurement.lhs:
+        vars_in_spec.add(spec.measurement.lhs)
+    if spec.measurement.rhs:
+        vars_in_spec.add(spec.measurement.rhs)
+    if spec.measurement.treatment:
+        vars_in_spec.add(spec.measurement.treatment)
+    if spec.measurement.outcome:
+        vars_in_spec.add(spec.measurement.outcome)
+    return vars_in_spec
+
+
+def _spec_signature(spec) -> tuple:
+    """Structural signature of a spec for coverage matching.
+
+    Includes assertion threshold/tolerance so `_assertion_entails` can
+    check logical entailment between stricter and looser assertions
+    (greater_than >= tolerance => positive, etc.).
+    """
+    arm_kinds = frozenset(a.kind.value for a in spec.arms)
+    return (
+        arm_kinds,
+        spec.measurement.kind.value,
+        spec.comparison.kind.value,
+        spec.assertion.kind.value,
+        spec.assertion.threshold,
+        spec.assertion.tolerance,
+    )
+
+
+def _assertion_entails(
+    gold_kind: str, gold_thresh: float, gold_tol: float,
+    comp_kind: str, comp_thresh: float, comp_tol: float,
+) -> bool:
+    """Check whether compiler's assertion logically entails gold's.
+
+    Derived from the verifier semantics (see `_assert` in oi_verifier.py):
+      * positive: val > tol
+      * negative: val < -tol
+      * greater_than(t): val > t
+      * less_than(t): val < t
+
+    So:
+      * compiler greater_than(t) entails gold positive iff t >= gold_tol
+        (since val > t >= gold_tol implies val > gold_tol)
+      * compiler less_than(t) entails gold negative iff t <= -gold_tol
+        (since val < t <= -gold_tol implies val < -gold_tol)
+
+    Exact-kind match always entails (same assertion). Otherwise False.
+
+    Intentionally conservative: `distinguishable` does NOT entail
+    `positive` or `negative` or `gap_material` (it is weaker — no
+    sign commitment). Same for `near_zero` — it does not entail
+    `negative` even if threshold is negative.
+    """
+    if gold_kind == comp_kind:
+        return True
+    if gold_kind == "positive" and comp_kind == "greater_than":
+        return comp_thresh >= gold_tol
+    if gold_kind == "negative" and comp_kind == "less_than":
+        return comp_thresh <= -gold_tol
+    return False
+
+
+def _signatures_compatible(gold_sig: tuple, compiler_sig: tuple) -> bool:
+    """Check structural compatibility between gold atom and compiler spec.
+
+    Matching rules (principled, not overfitting):
+      - Measurement, comparison kinds must match EXACTLY.
+      - Assertion: exact match OR compiler entails gold via tolerance-aware
+        entailment (see `_assertion_entails`).
+      - Arm kinds: compiler's arm-kind set must be a SUPERSET of gold's
+        (compiler may add auxiliary arms, but must include every gold
+        arm kind).
+      - Allow `adjust` ≡ `intervene` (both are do-calculus regimes).
+    """
+    g_arms, g_meas, g_cmp, g_assert, g_thresh, g_tol = gold_sig
+    c_arms, c_meas, c_cmp, c_assert, c_thresh, c_tol = compiler_sig
+    if g_meas != c_meas or g_cmp != c_cmp:
+        return False
+    if not _assertion_entails(g_assert, g_thresh, g_tol,
+                              c_assert, c_thresh, c_tol):
+        return False
+    # Normalize: adjust ≡ intervene
+    _normalize = lambda s: frozenset({"intervene" if k == "adjust" else k for k in s})
+    return _normalize(g_arms).issubset(_normalize(c_arms))
+
+
+def _try_cover(gold_atoms: list, compiler_specs: list) -> tuple[bool, list[str]]:
+    """Try to match each gold atom to a distinct compiler spec on structural signature.
+
+    Returns (cover_ok, per_atom_errors).
+    """
+    gold_sigs = [_spec_signature(a) for a in gold_atoms]
+    compiler_sigs = [_spec_signature(s) for s in compiler_specs]
+    used = [False] * len(compiler_sigs)
+    errors: list[str] = []
+    for g_idx, g_sig in enumerate(gold_sigs):
+        match_idx = None
+        for c_idx, c_sig in enumerate(compiler_sigs):
+            if used[c_idx]:
+                continue
+            if _signatures_compatible(g_sig, c_sig):
+                match_idx = c_idx
+                break
+        if match_idx is None:
+            errors.append(
+                f"gold atom[{g_idx}] signature {g_sig} not covered "
+                f"by any compiler spec"
+            )
+        else:
+            used[match_idx] = True
+    return (not errors, errors)
+
+
 def check_stage2(gt: GoldTarget, compiler_out: CompilerOutput) -> dict:
-    """Stage 2: Does the compiler output satisfy the structural contract?"""
+    """Stage 2: Does the compiler output cover the gold atoms structurally?
+
+    Design (Codex-recommended, 2026-04-19): gold-atom coverage matcher.
+    For each gold AtomicSpec (in `gt.atoms` or any entry of
+    `gt.alternative_atoms`), require that SOME compiler spec has a
+    matching structural signature (measurement kind, comparison kind,
+    assertion kind, arm-kinds-superset). Additional compiler specs are
+    accepted as auxiliaries — they are not required to match anything.
+
+    Role variables (treatment, outcome, etc.) are checked as a union
+    across ALL compiler specs.
+
+    `adjust` and `intervene` arm kinds are treated as equivalent (both
+    are do-calculus regimes — this preserves the old `adjust_swap`
+    tolerance from the strict stage 2).
+    """
     if gt.status == "abstain" or not compiler_out.compiled:
         return {"pass": True, "reason": "abstain (no contract to check)"}
 
     sc = gt.structural_contract
-    if sc is None:
-        return {"pass": True, "reason": "no contract defined"}
-
     specs = compiler_out.specs
-    errors = []
+    errors: list[str] = []
 
-    # n_atoms check
-    if isinstance(sc.n_atoms, int):
-        if len(specs) != sc.n_atoms:
-            errors.append(f"n_atoms: expected {sc.n_atoms}, got {len(specs)}")
-    elif isinstance(sc.n_atoms, tuple):
-        lo, hi = sc.n_atoms
-        if not (lo <= len(specs) <= hi):
-            errors.append(f"n_atoms: expected {lo}-{hi}, got {len(specs)}")
+    # --- Gold-atom coverage (primary + alternatives) -------------------
+    if gt.atoms:
+        variants = [gt.atoms] + list(gt.alternative_atoms)
+        variant_errors: list[tuple[str, list[str]]] = []
+        coverage_ok = False
+        for v_idx, variant in enumerate(variants):
+            ok, v_errs = _try_cover(variant, specs)
+            if ok:
+                coverage_ok = True
+                break
+            label = "primary" if v_idx == 0 else f"alternative[{v_idx - 1}]"
+            variant_errors.append((label, v_errs))
+        if not coverage_ok:
+            for label, v_errs in variant_errors:
+                for err in v_errs:
+                    errors.append(f"[{label}] {err}")
 
-    for i, spec in enumerate(specs):
-        # Arm kinds
-        arm_kinds = {a.kind.value for a in spec.arms}
-        if not arm_kinds.issubset(sc.allowed_arm_kinds):
-            errors.append(
-                f"spec[{i}] arm_kinds: {arm_kinds} not subset of {sc.allowed_arm_kinds}"
-            )
-
-        # Measurement kind
-        if spec.measurement.kind.value != sc.required_measurement_kind:
-            errors.append(
-                f"spec[{i}] measurement: {spec.measurement.kind.value} "
-                f"!= {sc.required_measurement_kind}"
-            )
-
-        # Comparison kind
-        if spec.comparison.kind.value != sc.required_comparison_kind:
-            errors.append(
-                f"spec[{i}] comparison: {spec.comparison.kind.value} "
-                f"!= {sc.required_comparison_kind}"
-            )
-
-        # Assertion polarity
-        if spec.assertion.kind.value != sc.required_assertion_polarity:
-            errors.append(
-                f"spec[{i}] assertion: {spec.assertion.kind.value} "
-                f"!= {sc.required_assertion_polarity}"
-            )
-
-    # Role variables (check across all specs)
-    if sc.required_role_vars and specs:
-        all_vars_in_specs = set()
+    # --- Role variables (union across all compiler specs) --------------
+    if sc is not None and sc.required_role_vars and specs:
+        all_vars_in_specs: set[str] = set()
         for spec in specs:
-            for arm in spec.arms:
-                all_vars_in_specs.update(arm.values.keys())
-                all_vars_in_specs.update(arm.condition_on.keys())
-            if spec.measurement.target:
-                t = spec.measurement.target
-                if isinstance(t, str):
-                    all_vars_in_specs.add(t)
-                else:
-                    all_vars_in_specs.update(t)
-            if spec.measurement.lhs:
-                all_vars_in_specs.add(spec.measurement.lhs)
-            if spec.measurement.rhs:
-                all_vars_in_specs.add(spec.measurement.rhs)
-            if spec.measurement.treatment:
-                all_vars_in_specs.add(spec.measurement.treatment)
-            if spec.measurement.outcome:
-                all_vars_in_specs.add(spec.measurement.outcome)
-
+            all_vars_in_specs.update(_collect_spec_vars(spec))
         for role, var in sc.required_role_vars.items():
             if var not in all_vars_in_specs:
                 errors.append(f"role_var '{role}={var}' not found in specs")

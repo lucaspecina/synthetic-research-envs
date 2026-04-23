@@ -98,6 +98,68 @@ class TestQueryArm:
         assert len(arm.sweep_values) == 5
 
 
+class TestQueryArmValuesSemantics:
+    """Validator rejects `values` on kinds whose semantics don't use them.
+
+    Pre-fix, `condition + values` was silently dropped by the verifier
+    (F2 bug, H1 from Codex Q3). We now reject at model level so the
+    compiler receives a loud error instead of a zero-effect spec.
+    """
+
+    def test_condition_with_values_rejected(self):
+        """CONDITION + values must raise with guidance on condition_on."""
+        import pytest
+        with pytest.raises(ValueError, match="kind='condition'.*condition_on"):
+            QueryArm(
+                label="c",
+                kind=QueryKind.CONDITION,
+                values={"X": 1.0},
+                condition_on={"Y": 0.5},
+            )
+
+    def test_condition_with_values_only_also_rejected(self):
+        """Even without condition_on, CONDITION + values must be rejected."""
+        import pytest
+        with pytest.raises(ValueError, match="kind='condition'"):
+            QueryArm(label="c", kind=QueryKind.CONDITION, values={"X": 1.0})
+
+    def test_condition_empty_values_allowed(self):
+        """CONDITION with empty values + non-empty condition_on is valid."""
+        arm = QueryArm(
+            label="c",
+            kind=QueryKind.CONDITION,
+            condition_on={"X": 5.0},
+        )
+        assert arm.values == {}
+
+    def test_baseline_with_values_rejected(self):
+        """BASELINE + values is also a zero-effect footgun — reject."""
+        import pytest
+        with pytest.raises(ValueError, match="kind='baseline'"):
+            QueryArm(label="b", kind=QueryKind.BASELINE, values={"X": 1.0})
+
+    def test_intervene_with_values_allowed(self):
+        """INTERVENE + values is the normal do-calculus path — accept."""
+        arm = QueryArm(
+            label="t",
+            kind=QueryKind.INTERVENE,
+            values={"X": 1.0},
+        )
+        assert arm.values == {"X": 1.0}
+
+    def test_observe_with_values_still_allowed_legacy(self):
+        """OBSERVE + values retains legacy conditioning semantics for
+        backward compat with gold targets and suite1 registry. Prefer
+        condition_on for new specs; this path is not rejected yet.
+        """
+        arm = QueryArm(
+            label="o",
+            kind=QueryKind.OBSERVE,
+            values={"X": 1.0},
+        )
+        assert arm.values == {"X": 1.0}
+
+
 class TestConditionPredicates:
     """Tests for P1 condition predicates (approx_eq, range, quantile_range, in_set)."""
 

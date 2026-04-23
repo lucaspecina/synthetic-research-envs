@@ -1,0 +1,2695 @@
+[
+  {
+    "id": "W1_F04_s2",
+    "fact_id": "W1_F04",
+    "world": "w1_comparative_effectiveness",
+    "difficulty": "hard",
+    "claim": "The direct causal effect of treatment on outcome, controlling for compliance, is approximately 0.5.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "verdict_wrong",
+    "llm_call_seconds": 5.91,
+    "compiler_specs": [
+      {
+        "spec_id": "direct_effect_T_on_Y_controlling_M_approx_0_5",
+        "arms": [
+          {
+            "label": "treated_fixed_M",
+            "kind": "intervene",
+            "values": {
+              "T": 0.5,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control_fixed_M",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control_fixed_M",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "greater_than",
+          "threshold": 0.45,
+          "tolerance": 0.05,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "direct_effect_T_on_Y_controlling_M_not_much_above_0_5",
+        "arms": [
+          {
+            "label": "treated_fixed_M",
+            "kind": "intervene",
+            "values": {
+              "T": 0.5,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control_fixed_M",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control_fixed_M",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "less_than",
+          "threshold": 0.55,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F04_s2_gold",
+        "arms": [
+          {
+            "label": "hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "lo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "lo",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": true,
+      "errors": []
+    },
+    "stage3": {
+      "pass": false,
+      "expected_truth": "true",
+      "all_hold": false,
+      "any_fail": true,
+      "verdicts": [
+        {
+          "atom_id": "direct_effect_T_on_Y_controlling_M_approx_0_5",
+          "holds": false,
+          "ground_truth": 0.24995959721641747,
+          "detail": "{'measurements': {'treated_fixed_M': 0.2507826056176902, 'control_fixed_M': 0.000823008401272738}, 'comparison': {'difference': 0.24995959721641747, 'ref': 0.000823008401272738, 'other': 0.2507826056176902}}"
+        },
+        {
+          "atom_id": "direct_effect_T_on_Y_controlling_M_not_much_above_0_5",
+          "holds": true,
+          "ground_truth": 0.24995959721641747,
+          "detail": "{'measurements': {'treated_fixed_M': 0.2507826056176902, 'control_fixed_M': 0.000823008401272738}, 'comparison': {'difference': 0.24995959721641747, 'ref': 0.000823008401272738, 'other': 0.2507826056176902}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W1_F05_s2",
+    "fact_id": "W1_F05",
+    "world": "w1_comparative_effectiveness",
+    "difficulty": "hard",
+    "claim": "The indirect effect of treatment on outcome through compliance is positive but smaller than the direct effect.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "verdict_wrong",
+    "llm_call_seconds": 6.16,
+    "compiler_specs": [
+      {
+        "spec_id": "indirect_effect_positive_T_Y_via_M",
+        "arms": [
+          {
+            "label": "total_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "total_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "direct_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885,
+              "M": 0.001
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "direct_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874,
+              "M": 0.001
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [
+            "total_hi",
+            "total_lo",
+            "direct_hi",
+            "direct_lo"
+          ],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "indirect_effect_smaller_than_direct_T_Y_via_M",
+        "arms": [
+          {
+            "label": "total_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "total_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "direct_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885,
+              "M": 0.001
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "direct_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874,
+              "M": 0.001
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [
+            "total_hi",
+            "total_lo",
+            "direct_hi",
+            "direct_lo"
+          ],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "less_than",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F05_indirect_gold",
+        "arms": [
+          {
+            "label": "total_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "total_lo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "direct_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "direct_lo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "W1_F05_lt_direct_gold",
+        "arms": [
+          {
+            "label": "total_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "total_lo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "direct_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "direct_lo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0,
+              "M": 0.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "less_than",
+          "threshold": 0.5,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": true,
+      "errors": []
+    },
+    "stage3": {
+      "pass": false,
+      "expected_truth": "true",
+      "all_hold": false,
+      "any_fail": true,
+      "verdicts": [
+        {
+          "atom_id": "indirect_effect_positive_T_Y_via_M",
+          "holds": true,
+          "ground_truth": 0.31455501004370356,
+          "detail": "{'measurements': {'total_hi': 0.601809081197518, 'total_lo': -0.5944017848177036, 'direct_hi': 0.4433057399553753, 'direct_lo': -0.4383501160161427}, 'comparison': {'contrast_diff': 0.31455501004370356}}"
+        },
+        {
+          "atom_id": "indirect_effect_smaller_than_direct_T_Y_via_M",
+          "holds": false,
+          "ground_truth": 0.31455501004370356,
+          "detail": "{'measurements': {'total_hi': 0.601809081197518, 'total_lo': -0.5944017848177036, 'direct_hi': 0.4433057399553753, 'direct_lo': -0.4383501160161427}, 'comparison': {'contrast_diff': 0.31455501004370356}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W1_F06_s0",
+    "fact_id": "W1_F06",
+    "world": "w1_comparative_effectiveness",
+    "difficulty": "easy",
+    "claim": "The effect of treatment on outcome depends on the patient's biomarker level.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "real_struct_err",
+    "llm_call_seconds": 5.57,
+    "compiler_specs": [
+      {
+        "spec_id": "treatment_effect_heterogeneity_by_biomarker_high_vs_low",
+        "arms": [
+          {
+            "label": "treat_high_biomarker",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {
+              "B": {
+                "kind": "quantile_range",
+                "q_lo": 0.75,
+                "q_hi": 1.0
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control_high_biomarker",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {
+              "B": {
+                "kind": "quantile_range",
+                "q_lo": 0.75,
+                "q_hi": 1.0
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "treat_low_biomarker",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {
+              "B": {
+                "kind": "quantile_range",
+                "q_lo": 0.0,
+                "q_hi": 0.25
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control_low_biomarker",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {
+              "B": {
+                "kind": "quantile_range",
+                "q_lo": 0.0,
+                "q_hi": 0.25
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [
+            "treat_high_biomarker",
+            "control_high_biomarker",
+            "treat_low_biomarker",
+            "control_low_biomarker"
+          ],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F06_s0_gold",
+        "arms": [
+          {
+            "label": "hi_bhi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {
+              "B": {
+                "kind": "approx_eq",
+                "value": 1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "lo_bhi",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {
+              "B": {
+                "kind": "approx_eq",
+                "value": 1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "hi_blo",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {
+              "B": {
+                "kind": "approx_eq",
+                "value": -1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "lo_blo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {
+              "B": {
+                "kind": "approx_eq",
+                "value": -1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "gap_material",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": false,
+      "errors": [
+        "[primary] gold atom[0] signature (frozenset({'intervene'}), 'mean', 'contrast_diff', 'gap_material', 0.0, 0.05) not covered by any compiler spec"
+      ]
+    },
+    "stage3": {
+      "pass": true,
+      "expected_truth": "true",
+      "all_hold": true,
+      "any_fail": false,
+      "verdicts": [
+        {
+          "atom_id": "treatment_effect_heterogeneity_by_biomarker_high_vs_low",
+          "holds": true,
+          "ground_truth": 1.564992574558865,
+          "detail": "{'measurements': {'treat_high_biomarker': 1.249859305432253, 'control_high_biomarker': -0.7297115042481896, 'treat_low_biomarker': -0.04194457786449088, 'control_low_biomarker': -0.4565228129860686}, 'comparison': {'contrast_diff': 1.564992574558865}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W1_F06_s2",
+    "fact_id": "W1_F06",
+    "world": "w1_comparative_effectiveness",
+    "difficulty": "hard",
+    "claim": "Among patients with biomarker one standard deviation above the mean, the treatment effect is approximately 1.0, while for those one standard deviation below, it is approximately 0.3.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "verdict_wrong",
+    "llm_call_seconds": 9.26,
+    "compiler_specs": [
+      {
+        "spec_id": "treatment_effect_high_biomarker_A_approx_1_0",
+        "arms": [
+          {
+            "label": "treated_high_A",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {
+              "A": {
+                "kind": "approx_eq",
+                "value": 0.997,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control_high_A",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {
+              "A": {
+                "kind": "approx_eq",
+                "value": 0.997,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control_high_A",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "greater_than",
+          "threshold": 0.95,
+          "tolerance": 0.1,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "treatment_effect_high_biomarker_A_approx_1_0_upper_bound",
+        "arms": [
+          {
+            "label": "treated_high_A",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {
+              "A": {
+                "kind": "approx_eq",
+                "value": 0.997,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control_high_A",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {
+              "A": {
+                "kind": "approx_eq",
+                "value": 0.997,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control_high_A",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "less_than",
+          "threshold": 1.05,
+          "tolerance": 0.1,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "treatment_effect_low_biomarker_A_approx_0_3",
+        "arms": [
+          {
+            "label": "treated_low_A",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {
+              "A": {
+                "kind": "approx_eq",
+                "value": -1.005,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control_low_A",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {
+              "A": {
+                "kind": "approx_eq",
+                "value": -1.005,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control_low_A",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "greater_than",
+          "threshold": 0.25,
+          "tolerance": 0.1,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "treatment_effect_low_biomarker_A_approx_0_3_upper_bound",
+        "arms": [
+          {
+            "label": "treated_low_A",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {
+              "A": {
+                "kind": "approx_eq",
+                "value": -1.005,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control_low_A",
+            "kind": "intervene",
+            "values": {
+              "T": -0.874
+            },
+            "condition_on": {
+              "A": {
+                "kind": "approx_eq",
+                "value": -1.005,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control_low_A",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "less_than",
+          "threshold": 0.35,
+          "tolerance": 0.1,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F06_s2_bhi_gold",
+        "arms": [
+          {
+            "label": "hi_bhi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {
+              "B": {
+                "kind": "approx_eq",
+                "value": 1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "lo_bhi",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {
+              "B": {
+                "kind": "approx_eq",
+                "value": 1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "lo_bhi",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "W1_F06_s2_blo_gold",
+        "arms": [
+          {
+            "label": "hi_blo",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {
+              "B": {
+                "kind": "approx_eq",
+                "value": -1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "lo_blo",
+            "kind": "intervene",
+            "values": {
+              "T": 0.0
+            },
+            "condition_on": {
+              "B": {
+                "kind": "approx_eq",
+                "value": -1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "lo_blo",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "positive",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": true,
+      "errors": []
+    },
+    "stage3": {
+      "pass": false,
+      "expected_truth": "true",
+      "all_hold": false,
+      "any_fail": true,
+      "verdicts": [
+        {
+          "atom_id": "treatment_effect_high_biomarker_A_approx_1_0",
+          "holds": true,
+          "ground_truth": 1.1781195234662158,
+          "detail": "{'measurements': {'treated_high_A': 0.6270699249174914, 'control_high_A': -0.5510495985487246}, 'comparison': {'difference': 1.1781195234662158, 'ref': -0.5510495985487246, 'other': 0.6270699249174914}}"
+        },
+        {
+          "atom_id": "treatment_effect_high_biomarker_A_approx_1_0_upper_bound",
+          "holds": false,
+          "ground_truth": 1.1781195234662158,
+          "detail": "{'measurements': {'treated_high_A': 0.6270699249174914, 'control_high_A': -0.5510495985487246}, 'comparison': {'difference': 1.1781195234662158, 'ref': -0.5510495985487246, 'other': 0.6270699249174914}}"
+        },
+        {
+          "atom_id": "treatment_effect_low_biomarker_A_approx_0_3",
+          "holds": true,
+          "ground_truth": 1.2040759774643355,
+          "detail": "{'measurements': {'treated_low_A': 0.5717703032557772, 'control_low_A': -0.6323056742085583}, 'comparison': {'difference': 1.2040759774643355, 'ref': -0.6323056742085583, 'other': 0.5717703032557772}}"
+        },
+        {
+          "atom_id": "treatment_effect_low_biomarker_A_approx_0_3_upper_bound",
+          "holds": false,
+          "ground_truth": 1.2040759774643355,
+          "detail": "{'measurements': {'treated_low_A': 0.5717703032557772, 'control_low_A': -0.6323056742085583}, 'comparison': {'difference': 1.2040759774643355, 'ref': -0.6323056742085583, 'other': 0.5717703032557772}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W1_F07_s0",
+    "fact_id": "W1_F07",
+    "world": "w1_comparative_effectiveness",
+    "difficulty": "easy",
+    "claim": "Disease severity confounds the relationship between treatment and outcome.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "real_struct_err",
+    "llm_call_seconds": 2.57,
+    "compiler_specs": [
+      {
+        "spec_id": "severity_confounds_treatment_outcome_at_high_t",
+        "arms": [
+          {
+            "label": "obs_treated",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "T": {
+                "kind": "approx_eq",
+                "value": 0.7,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "do_treated",
+            "kind": "intervene",
+            "values": {
+              "T": 0.7
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "do_treated",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "not_distinguishable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F07_s0_gold",
+        "arms": [
+          {
+            "label": "obs_hi",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "T": {
+                "kind": "approx_eq",
+                "value": 1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "obs_lo",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "T": {
+                "kind": "approx_eq",
+                "value": -1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "causal_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "causal_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "gap_material",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": false,
+      "errors": [
+        "[primary] gold atom[0] signature (frozenset({'condition', 'intervene'}), 'mean', 'contrast_diff', 'gap_material', 0.0, 0.05) not covered by any compiler spec"
+      ]
+    },
+    "stage3": {
+      "pass": true,
+      "expected_truth": "true",
+      "all_hold": true,
+      "any_fail": false,
+      "verdicts": [
+        {
+          "atom_id": "severity_confounds_treatment_outcome_at_high_t",
+          "holds": true,
+          "ground_truth": 0.043363478149777535,
+          "detail": "{'measurements': {'obs_treated': 0.5207400214492244, 'do_treated': 0.47737654329944684}, 'comparison': {'difference': 0.043363478149777535, 'ref': 0.47737654329944684, 'other': 0.5207400214492244}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W1_F07_s1",
+    "fact_id": "W1_F07",
+    "world": "w1_comparative_effectiveness",
+    "difficulty": "medium",
+    "claim": "Without adjusting for severity, the observed association between treatment and outcome is biased.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "verdict_wrong",
+    "llm_call_seconds": 2.54,
+    "compiler_specs": [
+      {
+        "spec_id": "observed_association_t_y_biased_upward_at_treated_level",
+        "arms": [
+          {
+            "label": "obs",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "T": {
+                "kind": "approx_eq",
+                "value": 0.885,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "causal",
+            "kind": "intervene",
+            "values": {
+              "T": 0.885
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "causal",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F07_s1_gold",
+        "arms": [
+          {
+            "label": "obs_hi",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "T": {
+                "kind": "approx_eq",
+                "value": 1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "obs_lo",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "T": {
+                "kind": "approx_eq",
+                "value": -1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "causal_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "causal_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "gap_material",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": false,
+      "errors": [
+        "[primary] gold atom[0] signature (frozenset({'condition', 'intervene'}), 'mean', 'contrast_diff', 'gap_material', 0.0, 0.05) not covered by any compiler spec"
+      ]
+    },
+    "stage3": {
+      "pass": false,
+      "expected_truth": "true",
+      "all_hold": false,
+      "any_fail": true,
+      "verdicts": [
+        {
+          "atom_id": "observed_association_t_y_biased_upward_at_treated_level",
+          "holds": false,
+          "ground_truth": 0.045848431213649565,
+          "detail": "{'measurements': {'obs': 0.6491963790249597, 'causal': 0.6033479478113102}, 'comparison': {'difference': 0.045848431213649565, 'ref': 0.6033479478113102, 'other': 0.6491963790249597}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W1_F07_s2",
+    "fact_id": "W1_F07",
+    "world": "w1_comparative_effectiveness",
+    "difficulty": "hard",
+    "claim": "Severity is a confounder, not a mediator, of the treatment-outcome relationship: it causes both the treatment decision and the outcome independently.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "real_struct_err",
+    "llm_call_seconds": 4.76,
+    "compiler_specs": [
+      {
+        "spec_id": "severity_associated_with_treatment_controlling_for_outcome",
+        "arms": [
+          {
+            "label": "joint",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "partial_correlation",
+          "target": null,
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": "S",
+          "rhs": "T",
+          "cond_set": [
+            "Y"
+          ],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "severity_associated_with_outcome_controlling_for_treatment",
+        "arms": [
+          {
+            "label": "joint",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "partial_correlation",
+          "target": null,
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": "S",
+          "rhs": "Y",
+          "cond_set": [
+            "T"
+          ],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "severity_not_downstream_of_treatment",
+        "arms": [
+          {
+            "label": "treated",
+            "kind": "intervene",
+            "values": {
+              "T": 0.7
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "control",
+            "kind": "intervene",
+            "values": {
+              "T": -0.7
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "S",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "control",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "near_zero",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W1_F07_s2_gold",
+        "arms": [
+          {
+            "label": "obs_hi",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "T": {
+                "kind": "approx_eq",
+                "value": 1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "obs_lo",
+            "kind": "condition",
+            "values": {},
+            "condition_on": {
+              "T": {
+                "kind": "approx_eq",
+                "value": -1.0,
+                "tol_std": 0.15
+              }
+            },
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "causal_hi",
+            "kind": "intervene",
+            "values": {
+              "T": 1.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "causal_lo",
+            "kind": "intervene",
+            "values": {
+              "T": -1.0
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "Y",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "contrast_diff",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "gap_material",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": false,
+      "errors": [
+        "[primary] gold atom[0] signature (frozenset({'condition', 'intervene'}), 'mean', 'contrast_diff', 'gap_material', 0.0, 0.05) not covered by any compiler spec"
+      ]
+    },
+    "stage3": {
+      "pass": true,
+      "expected_truth": "true",
+      "all_hold": true,
+      "any_fail": false,
+      "verdicts": [
+        {
+          "atom_id": "severity_associated_with_treatment_controlling_for_outcome",
+          "holds": true,
+          "ground_truth": -0.22953716696550047,
+          "detail": "{'measurements': {'joint': -0.22953716696550047}, 'comparison': {'value': -0.22953716696550047}}"
+        },
+        {
+          "atom_id": "severity_associated_with_outcome_controlling_for_treatment",
+          "holds": true,
+          "ground_truth": -0.1857663321586099,
+          "detail": "{'measurements': {'joint': -0.1857663321586099}, 'comparison': {'value': -0.1857663321586099}}"
+        },
+        {
+          "atom_id": "severity_not_downstream_of_treatment",
+          "holds": true,
+          "ground_truth": -0.0022689271459081593,
+          "detail": "{'measurements': {'treated': -0.00030290012721562474, 'control': 0.0019660270186925345}, 'comparison': {'difference': -0.0022689271459081593, 'ref': 0.0019660270186925345, 'other': -0.00030290012721562474}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W2_F07_s0",
+    "fact_id": "W2_F07",
+    "world": "w2_observational_epidemiology",
+    "difficulty": "medium",
+    "claim": "Adjusting for the collider variable introduces bias in the exposure-disease estimate.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "verdict_wrong",
+    "llm_call_seconds": 1.87,
+    "compiler_specs": [
+      {
+        "spec_id": "collider_adjustment_introduces_bias_E_to_D",
+        "arms": [
+          {
+            "label": "joint",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": "E",
+          "outcome": "D",
+          "candidate_causes": [],
+          "candidate_adjust_set": [
+            "C"
+          ]
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "not_identifiable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W2_F07_s0_gold",
+        "arms": [
+          {
+            "label": "base",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": "E",
+          "outcome": "D",
+          "candidate_causes": [],
+          "candidate_adjust_set": [
+            "L"
+          ]
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "not_identifiable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": true,
+      "errors": []
+    },
+    "stage3": {
+      "pass": false,
+      "expected_truth": "true",
+      "all_hold": false,
+      "any_fail": true,
+      "verdicts": [
+        {
+          "atom_id": "collider_adjustment_introduces_bias_E_to_D",
+          "holds": false,
+          "ground_truth": true,
+          "detail": "{'measurements': {'joint': True}, 'comparison': {'value': True}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W2_F07_s1",
+    "fact_id": "W2_F07",
+    "world": "w2_observational_epidemiology",
+    "difficulty": "hard",
+    "claim": "The collider is caused by both exposure and disease; conditioning on it opens a spurious path and distorts the estimate of the causal effect.",
+    "truth_value": "true",
+    "gold_status": "compile",
+    "category": "verdict_wrong",
+    "llm_call_seconds": 5.2,
+    "compiler_specs": [
+      {
+        "spec_id": "collider_is_downstream_of_exposure",
+        "arms": [
+          {
+            "label": "high_E",
+            "kind": "intervene",
+            "values": {
+              "E": 0.8
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "low_E",
+            "kind": "intervene",
+            "values": {
+              "E": -0.8
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "C",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_E",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "collider_is_downstream_of_disease",
+        "arms": [
+          {
+            "label": "high_D",
+            "kind": "intervene",
+            "values": {
+              "D": 0.8
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          },
+          {
+            "label": "low_D",
+            "kind": "intervene",
+            "values": {
+              "D": -0.8
+            },
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "mean",
+          "target": "C",
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": null,
+          "outcome": null,
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "difference",
+          "ref_arm": "low_D",
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "distinguishable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      },
+      {
+        "spec_id": "conditioning_on_collider_breaks_identification_of_E_on_D",
+        "arms": [
+          {
+            "label": "joint",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": "E",
+          "outcome": "D",
+          "candidate_causes": [],
+          "candidate_adjust_set": [
+            "C"
+          ]
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "not_identifiable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W2_F07_s1_gold",
+        "arms": [
+          {
+            "label": "base",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": "E",
+          "outcome": "D",
+          "candidate_causes": [],
+          "candidate_adjust_set": [
+            "L"
+          ]
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "not_identifiable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": true,
+      "errors": []
+    },
+    "stage3": {
+      "pass": false,
+      "expected_truth": "true",
+      "all_hold": false,
+      "any_fail": true,
+      "verdicts": [
+        {
+          "atom_id": "collider_is_downstream_of_exposure",
+          "holds": false,
+          "ground_truth": -0.009496518405805274,
+          "detail": "{'measurements': {'high_E': -0.005840585211669719, 'low_E': 0.0036559331941355554}, 'comparison': {'difference': -0.009496518405805274, 'ref': 0.0036559331941355554, 'other': -0.005840585211669719}}"
+        },
+        {
+          "atom_id": "collider_is_downstream_of_disease",
+          "holds": false,
+          "ground_truth": -0.009496518405805274,
+          "detail": "{'measurements': {'high_D': -0.005840585211669719, 'low_D': 0.0036559331941355554}, 'comparison': {'difference': -0.009496518405805274, 'ref': 0.0036559331941355554, 'other': -0.005840585211669719}}"
+        },
+        {
+          "atom_id": "conditioning_on_collider_breaks_identification_of_E_on_D",
+          "holds": false,
+          "ground_truth": true,
+          "detail": "{'measurements': {'joint': True}, 'comparison': {'value': True}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  },
+  {
+    "id": "W3_F05_s0",
+    "fact_id": "W3_F05",
+    "world": "w3_environmental_health",
+    "difficulty": "easy",
+    "claim": "Can we estimate the causal effect of pollution on health?",
+    "truth_value": "not_identifiable",
+    "gold_status": "compile",
+    "category": "verdict_wrong",
+    "llm_call_seconds": 1.9,
+    "compiler_specs": [
+      {
+        "spec_id": "identifiable_pollution_on_health",
+        "arms": [
+          {
+            "label": "joint",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": "P",
+          "outcome": "H",
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "identifiable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "gold_specs": [
+      {
+        "spec_id": "W3_F05_s0_gold",
+        "arms": [
+          {
+            "label": "base",
+            "kind": "baseline",
+            "values": {},
+            "condition_on": {},
+            "treatment": null,
+            "outcome": null,
+            "adjust_set": [],
+            "observed_vars": null,
+            "sweep_var": null,
+            "sweep_values": [],
+            "sweep_base": "intervene"
+          }
+        ],
+        "measurement": {
+          "kind": "identifiability_check",
+          "target": null,
+          "target_value": null,
+          "q": null,
+          "threshold": null,
+          "lhs": null,
+          "rhs": null,
+          "cond_set": [],
+          "treatment": "P",
+          "outcome": "H",
+          "candidate_causes": [],
+          "candidate_adjust_set": []
+        },
+        "comparison": {
+          "kind": "identity",
+          "ref_arm": null,
+          "order": [],
+          "tolerance": 0.05,
+          "min_gap": 0.1
+        },
+        "assertion": {
+          "kind": "not_identifiable",
+          "threshold": 0.0,
+          "tolerance": 0.05,
+          "order": []
+        }
+      }
+    ],
+    "stage1_ok": true,
+    "stage2": {
+      "pass": false,
+      "errors": [
+        "[primary] gold atom[0] signature (frozenset({'baseline'}), 'identifiability_check', 'identity', 'not_identifiable', 0.0, 0.05) not covered by any compiler spec"
+      ]
+    },
+    "stage3": {
+      "pass": false,
+      "expected_truth": "not_identifiable",
+      "all_hold": false,
+      "any_fail": true,
+      "verdicts": [
+        {
+          "atom_id": "identifiable_pollution_on_health",
+          "holds": false,
+          "ground_truth": false,
+          "detail": "{'measurements': {'joint': False}, 'comparison': {'value': False}}"
+        }
+      ]
+    },
+    "backend": "grammar_direct",
+    "compiler_compiled": true,
+    "compiler_abstain_reason": null,
+    "deliberate_abstention": false
+  }
+]

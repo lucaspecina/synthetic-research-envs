@@ -439,6 +439,8 @@ class OIEpisodeRunner:
             "grammar_direct": 0,
             "v1_fallback": 0,
             "abstention": 0,
+            "abstention_deliberate": 0,
+            "abstention_fallback": 0,
             "total_specs": 0,
             "per_claim": [],
         }
@@ -448,8 +450,14 @@ class OIEpisodeRunner:
             stats["total_claims"] += 1
             if co.status == "abstention":
                 stats["abstention"] += 1
+                if co.deliberate_abstention:
+                    stats["abstention_deliberate"] += 1
+                    backend_label = "abstention_deliberate"
+                else:
+                    stats["abstention_fallback"] += 1
+                    backend_label = "abstention_fallback"
                 stats["per_claim"].append({
-                    "claim_id": co.claim_id, "backend": "abstention",
+                    "claim_id": co.claim_id, "backend": backend_label,
                     "n_specs": 0,
                 })
                 continue
@@ -766,6 +774,7 @@ class OIEpisodeRunner:
                         for u in co.units
                     ],
                     "abstention_reason": co.abstention_reason,
+                    "deliberate_abstention": co.deliberate_abstention,
                     "uncompiled_fragments": co.uncompiled_fragments,
                 })
 

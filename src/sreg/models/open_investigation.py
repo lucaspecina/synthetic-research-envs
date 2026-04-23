@@ -130,6 +130,35 @@ class QueryArm(BaseModel):
         data["condition_on"] = promoted
         return data
 
+    @model_validator(mode="after")
+    def _validate_values_by_kind(self) -> QueryArm:
+        """Enforce semantic separation between `values` and `condition_on`.
+
+        `values` has do-intervention semantics on `intervene` arms (and acts
+        as the intervention set on `sweep.base=intervene`). It has legacy
+        approx-equal conditioning semantics on `observe` only. For `condition`
+        arms, the old verifier silently dropped `values` which produced
+        zero-effect specs — we now reject at model level (Codex Q3).
+        """
+        if self.kind == QueryKind.CONDITION and self.values:
+            raise ValueError(
+                f"QueryArm(label={self.label!r}, kind='condition') cannot "
+                "specify `values`. Use `condition_on` with predicates "
+                "(approx_eq, range, quantile_range, in_set). If you meant "
+                "an intervention, use kind='intervene'. If you meant "
+                "observational conditioning on point values, prefer "
+                "`condition_on` with approx_eq predicates."
+            )
+        if self.kind == QueryKind.BASELINE and self.values:
+            raise ValueError(
+                f"QueryArm(label={self.label!r}, kind='baseline') cannot "
+                "specify `values`. A baseline arm samples the natural joint "
+                "with no filter. If you want to condition, use kind='condition' "
+                "with `condition_on`. If you want to intervene, use "
+                "kind='intervene'."
+            )
+        return self
+
 
 # ---------------------------------------------------------------------------
 # Piece 2: Measurement — what to measure from the simulation

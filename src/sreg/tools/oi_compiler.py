@@ -213,12 +213,19 @@ class CompilerOutput(BaseModel):
     1:1 with ClaimCard. May contain 0..N CompiledUnits. Multi-unit claims
     (A22) produce N units from compound assertions. Warranty, trace, and
     efficiency are keyed by claim_id (unchanged).
+
+    `deliberate_abstention` is orthogonal to `status`: a status="abstention"
+    can come from (a) the LLM explicitly returning [] (deliberate=True,
+    model recognized the claim as non-verifiable) or (b) a fallback after
+    a crash / parse failure / empty output (deliberate=False). Downstream
+    honesty metrics must distinguish these two.
     """
 
     claim_id: str
     status: Literal["compiled", "partial", "abstention"] = "compiled"
     units: list[CompiledUnit] = Field(default_factory=list)
     abstention_reason: str | None = None
+    deliberate_abstention: bool = False
     uncompiled_fragments: list[str] = Field(
         default_factory=list, description="Fragments that could not be compiled"
     )
@@ -226,6 +233,18 @@ class CompilerOutput(BaseModel):
     @property
     def compiled(self) -> bool:
         return self.status in ("compiled", "partial") and len(self.units) > 0
+
+    @property
+    def abstained(self) -> bool:
+        return self.status == "abstention"
+
+    @property
+    def abstained_deliberately(self) -> bool:
+        return self.status == "abstention" and self.deliberate_abstention
+
+    @property
+    def abstained_by_fallback(self) -> bool:
+        return self.status == "abstention" and not self.deliberate_abstention
 
     @property
     def specs(self) -> list[AtomicSpec]:

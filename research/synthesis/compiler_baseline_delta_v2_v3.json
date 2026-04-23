@@ -1,0 +1,298 @@
+{
+  "n_targets": 55,
+  "bucket_counts_v2": {
+    "real_struct_err": 13,
+    "full_pass": 7,
+    "stage1_fail": 6,
+    "adjust_swap": 10,
+    "verdict_wrong": 19
+  },
+  "bucket_counts_v3": {
+    "real_struct_err": 18,
+    "full_pass": 17,
+    "verdict_wrong": 15,
+    "stage1_fail": 4,
+    "adjust_swap": 1
+  },
+  "strict_full_pass_rate_v2": 0.12727272727272726,
+  "strict_full_pass_rate_v3": 0.3090909090909091,
+  "effective_pass_rate_v2": 0.3090909090909091,
+  "effective_pass_rate_v3": 0.32727272727272727,
+  "improved": [
+    {
+      "id": "SQ_F07_s1",
+      "claim": "What treatment level maximizes outcome while minimizing side effects?",
+      "gold_status": "abstain",
+      "fact_id": "SQ_F07",
+      "v2_bucket": "stage1_fail",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F01_s0",
+      "claim": "Treatment has a positive causal effect on outcome.",
+      "gold_status": "compile",
+      "fact_id": "W1_F01",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F01_s1",
+      "claim": "Intervening to increase treatment dosage improves patient outcomes.",
+      "gold_status": "compile",
+      "fact_id": "W1_F01",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F01_s2",
+      "claim": "The causal effect of treatment on outcome, accounting for all pathways including through compliance, is approximately 0.7 per unit increase.",
+      "gold_status": "compile",
+      "fact_id": "W1_F01",
+      "v2_bucket": "verdict_wrong",
+      "v3_bucket": "real_struct_err",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F03_s1",
+      "claim": "Treatment improves the primary outcome but also increases the risk of side effects.",
+      "gold_status": "compile",
+      "fact_id": "W1_F03",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F06_s2",
+      "claim": "Among patients with biomarker one standard deviation above the mean, the treatment effect is approximately 1.0, while for those one standard deviation below, it is approximately 0.3.",
+      "gold_status": "compile",
+      "fact_id": "W1_F06",
+      "v2_bucket": "verdict_wrong",
+      "v3_bucket": "real_struct_err",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F07_s1",
+      "claim": "Without adjusting for severity, the observed association between treatment and outcome is biased.",
+      "gold_status": "compile",
+      "fact_id": "W1_F07",
+      "v2_bucket": "verdict_wrong",
+      "v3_bucket": "real_struct_err",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W2_F01_s0",
+      "claim": "Exposure reduces the risk of disease.",
+      "gold_status": "compile",
+      "fact_id": "W2_F01",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W2_F01_s2",
+      "claim": "Intervening to increase exposure by one unit reduces disease risk by approximately 0.2 units.",
+      "gold_status": "compile",
+      "fact_id": "W2_F01",
+      "v2_bucket": "verdict_wrong",
+      "v3_bucket": "real_struct_err",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W2_F11_s0",
+      "claim": "Exposure causes an increase in disease.",
+      "gold_status": "compile",
+      "fact_id": "W2_F11",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W2_F11_s1",
+      "claim": "Increasing exposure leads to higher disease risk.",
+      "gold_status": "compile",
+      "fact_id": "W2_F11",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W3_F03_s1",
+      "claim": "The effect of temperature on health changes sharply at a threshold near zero: mild below, severe above.",
+      "gold_status": "compile",
+      "fact_id": "W3_F03",
+      "v2_bucket": "verdict_wrong",
+      "v3_bucket": "real_struct_err",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W3_F08_s0",
+      "claim": "Wind speed does not affect health.",
+      "gold_status": "compile",
+      "fact_id": "W3_F08",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W3_F08_s1",
+      "claim": "There is no causal relationship between wind speed and health outcomes.",
+      "gold_status": "compile",
+      "fact_id": "W3_F08",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W3_F11_s0",
+      "claim": "Temperature changes precede health effects by several days.",
+      "gold_status": "abstain",
+      "fact_id": "W3_F11",
+      "v2_bucket": "stage1_fail",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W3_F12_s0",
+      "claim": "A randomized controlled trial would be needed to establish the causal effect of pollution on health.",
+      "gold_status": "abstain",
+      "fact_id": "W3_F12",
+      "v2_bucket": "stage1_fail",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W3_F12_s1",
+      "claim": "The sample size is insufficient to detect a small effect of wind speed on health.",
+      "gold_status": "abstain",
+      "fact_id": "W3_F12",
+      "v2_bucket": "stage1_fail",
+      "v3_bucket": "full_pass",
+      "delta": "improved",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    }
+  ],
+  "regressed": [
+    {
+      "id": "W1_F03_s0",
+      "claim": "Treatment causes side effects.",
+      "gold_status": "compile",
+      "fact_id": "W1_F03",
+      "v2_bucket": "adjust_swap",
+      "v3_bucket": "real_struct_err",
+      "delta": "regressed",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F04_s2",
+      "claim": "The direct causal effect of treatment on outcome, controlling for compliance, is approximately 0.5.",
+      "gold_status": "compile",
+      "fact_id": "W1_F04",
+      "v2_bucket": "verdict_wrong",
+      "v3_bucket": "stage1_fail",
+      "delta": "regressed",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F05_s2",
+      "claim": "The indirect effect of treatment on outcome through compliance is positive but smaller than the direct effect.",
+      "gold_status": "compile",
+      "fact_id": "W1_F05",
+      "v2_bucket": "real_struct_err",
+      "v3_bucket": "stage1_fail",
+      "delta": "regressed",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W1_F09_s0",
+      "claim": "Treated patients show more variable outcomes than untreated patients.",
+      "gold_status": "compile",
+      "fact_id": "W1_F09",
+      "v2_bucket": "full_pass",
+      "v3_bucket": "real_struct_err",
+      "delta": "regressed",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W2_F07_s0",
+      "claim": "Adjusting for the collider variable introduces bias in the exposure-disease estimate.",
+      "gold_status": "compile",
+      "fact_id": "W2_F07",
+      "v2_bucket": "real_struct_err",
+      "v3_bucket": "verdict_wrong",
+      "delta": "regressed",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    },
+    {
+      "id": "W2_F09_s1",
+      "claim": "Is the causal effect of exposure on disease identifiable from observational data, given that we can measure the confounder?",
+      "gold_status": "compile",
+      "fact_id": "W2_F09",
+      "v2_bucket": "full_pass",
+      "v3_bucket": "verdict_wrong",
+      "delta": "regressed",
+      "v2_deliberate_abstention": null,
+      "v3_deliberate_abstention": false
+    }
+  ],
+  "same_count": 32,
+  "gold_abstain": {
+    "ids": [
+      "SQ_F07_s0",
+      "SQ_F07_s1",
+      "W3_F11_s0",
+      "W3_F12_s0",
+      "W3_F12_s1"
+    ],
+    "v2": {
+      "stage1_ok": 1,
+      "deliberate": 0,
+      "fallback": 1
+    },
+    "v3": {
+      "stage1_ok": 5,
+      "deliberate": 0,
+      "fallback": 5
+    }
+  }
+}

@@ -1,7 +1,15 @@
 # SREG — Claude Code Project Configuration
 
-## 🚨 MODO DE TRABAJO ACTUAL: COLABORATIVO 🚨
-*(Cambiar a "AUTORESEARCH" cuando se requiera trabajo autónomo sin frenar)*
+## 🚨 MODO DE TRABAJO ACTUAL: AUTORESEARCH — ACTIVO 🚨
+
+**Activado:** 2026-04-18 en worktree `compiler-fix` (epic #36).
+**LEER PRIMERO en cada nueva sesion / post-compactacion:** `research/notes/AUTORESEARCH.md`
+**Codex thread activo:** `019da2e8-1696-7d92-bb72-72104be24da9` (ver `.codex-thread.md`).
+**Revertir a COLABORATIVO:** solo con instruccion explicita del usuario.
+
+Seguir las reglas del MODO 2 (abajo) y lo que diga el doc de sesion. El doc
+es la memoria persistente: Dashboard, Journal, Preguntas pendientes, Limites,
+Criterios de parada. Si algo no esta ahi, releer este CLAUDE.md.
 
 Existen **DOS modos de trabajo completamente distintos**.
 
