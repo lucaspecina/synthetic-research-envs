@@ -8,6 +8,27 @@
 > `ARCHITECTURE.md` define el sistema objetivo para este horizonte.
 > `CURRENT_STATE.md` describe que parte de eso existe hoy realmente.
 > GitHub Issues describe la brecha y el trabajo pendiente.
+>
+> ---
+>
+> **Estado (2026-04-23): ARQUITECTURA v1 — CONGELADA EN `main`.**
+>
+> Este doc describe la arquitectura **v1** (orchestrator + AtomicSpec
+> compiler + Flow A/B + Suite 1/2/3/4). v1 está congelada en `main` con
+> tag `pre-v1.5`. El compiler tocó techo en ~82% pass rate y fue
+> reemplazado por el rediseño **v1.5** (rama `dev`).
+>
+> **La arquitectura v1.5 canónica está en
+> `research/synthesis/v1_5_architecture.md`** — nomenclatura nueva
+> (Environment / WorldModel / Designer / GoldQuestion / ResearchCase /
+> Rubric / AnswerKey / Investigator / Claim / Evaluator / Verifier),
+> flujo con 4 productores + Validator transversal, rubrics graduadas,
+> Evaluator con ejecución del Environment.
+>
+> Este doc (`ARCHITECTURE.md`) no se actualizará a v1.5 hasta que la
+> implementación concrete las decisiones. Queda como referencia
+> histórica + operativa para código en `main`. Para diseñar código
+> en `dev`, ir al doc v1.5.
 
 ---
 

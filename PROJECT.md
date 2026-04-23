@@ -5,6 +5,16 @@
 > para que existe, que deberia lograr y que principios no pueden romperse.
 > No describe implementacion, estado actual ni backlog. Para eso existen
 > `ARCHITECTURE.md`, `CURRENT_STATE.md` y GitHub Issues.
+>
+> **Estado (2026-04-23):** rama `dev` con **v1.5 en desarrollo activo**
+> — rediseño que elimina el compiler, introduce rubrics + LLM judge con
+> acceso al Environment ejecutable, y abre a dominios dinámicos (ODE/SDE).
+> La arquitectura v1.5 canónica vive en
+> `research/synthesis/v1_5_architecture.md` — léela primero si vas a
+> diseñar o implementar sobre dev. Este documento (PROJECT.md) define
+> los invariantes que v1.5 debe respetar, y los describe a nivel de
+> paradigma, no de implementación. **El código en `main` sigue siendo v1
+> (tag `pre-v1.5`)** hasta que el merge de `dev` ocurra.
 
 ---
 
@@ -118,8 +128,9 @@ vocabulario canonico:
 | Version | Paradigma | Estado |
 |---|---|---|
 | **SREG v0** | Bayes Net + preguntas especificas fijas | Eliminado (2026-03-29). Historico. |
-| **SREG v1** | Open Investigation sobre SCM: brief libre, sub-questions ocultas, claims en lenguaje natural, traduccion/compilacion a AtomicSpec, verificacion exacta contra el SCM, LLM juez para relevancia | **En cierre activo.** Es el foco de hoy. |
-| **SREG v2** | Sherlock-type: research actions con budget, capas de revelacion, teoria sintetica, nuevos task types (time-series, anomalias, optimizacion) | Futuro. Ver horizontes abajo. |
+| **SREG v1** | Open Investigation sobre SCM: brief libre, sub-questions ocultas, claims en lenguaje natural, traduccion/compilacion a AtomicSpec, verificacion exacta contra el SCM, LLM juez para relevancia | **Congelado en `main` con tag `pre-v1.5`.** Reemplazado por v1.5 (compiler frágil tocó techo ~82%; ver `research/notes/compiler_v1_postmortem.md`). |
+| **SREG v1.5** | Open Investigation sin compiler: rubrics graduadas + LLM judge con acceso al Environment ejecutable. Designer multi-agente (4 productores + Validator) que diseña WorldModel + GoldQuestions + ResearchCase iterativamente. Abre a dominios dinamicos (ODE/SDE) ademas de SCM. Arquitectura detallada en `research/synthesis/v1_5_architecture.md` | **En desarrollo activo (rama `dev`).** Foco de hoy. |
+| **SREG v2** | Sherlock-type: research actions con budget, capas de revelacion, teoria sintetica, investigacion secuencial donde el Investigator interactua iterativamente con el entorno | Futuro. Ver horizontes abajo. |
 | **SREG v3** | Sistemas complejos: mundos dinamicos, cellular automata, biologia real | Futuro lejano. |
 
 Las dos subsecciones siguientes detallan que cubre v1 ("Lo que SREG evalua
@@ -315,6 +326,16 @@ sesgo y ambiguedad no son detalles accesorios. Son parte constitutiva de la
 investigacion.
 
 ### 8. Flow A vs Flow B: fronteras del compiler
+
+> **Nota (v1.5):** esta invariante es específica de v1 — describe los dos
+> flujos del compiler de AtomicSpec. En v1.5 el compiler entero se
+> elimina y la distinción Flow A / Flow B **no aplica**. La preocupación
+> subyacente (separar "lo que ve el Investigator" de "lo que ve el
+> Designer cuando construye ground truth") sobrevive en v1.5 pero se
+> implementa a nivel de agentes, no de flows de compilación. Ver
+> `research/synthesis/v1_5_architecture.md` sección 4 (agentes del
+> Designer) y sección 11 (lessons rescatadas, ítem 3 "abstención
+> principled").
 
 SREG tiene dos caminos de compilacion con reglas OPUESTAS sobre cuanto del
 SCM pueden ver. Confundirlos es una fuente recurrente de bugs silenciosos
