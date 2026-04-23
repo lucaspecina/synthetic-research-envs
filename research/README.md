@@ -77,6 +77,7 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 - `notes/sq_flow_and_dag_visibility_open_questions.md` — briefing 2026-04-14: quien ve el DAG en cada actor (orchestrator / SQ compiler / claim compiler), dudas D1-D8 destapadas por Suite 2 baseline
 - `notes/rethink_sreg_2026-04-23.md` — **WORKING DOC activo.** Rediseño del flujo de SREG desde primeros principios: matar compiler runtime, rubricas graduadas + LLM judge con acceso al mundo ejecutable, abrir a ODEs/SDEs. Incorpora findings de Corral. Conversacion Claude+usuario+Codex 2026-04-19 → 2026-04-23. Aun no promovido a synthesis.
 - `notes/corral_paper_fulltext.txt` — fulltext de Rios-Garcia/Jablonka et al. 2026 (arXiv:2604.18805), 4822 lineas. Referencia para citas. Synthesis canonico en `synthesis/related_work_corral.md`.
+- `notes/compiler_v1_postmortem.md` — **ARCHIVAL.** Post-mortem del compiler v1 (epic #36, cerrado 2026-04-23). Root-cause taxonomy, progresion empirica v5-v18 (50.9%→83.6%), critica Codex, limites estructurales irresolubles. **Ideas trasladables a v1.5 extraidas en `notes/rethink_sreg_2026-04-23.md` seccion 11 "Lessons rescatadas".** Codigo original en branch `origin/worktree-compiler-fix`.
 
 ### Archive (historico, read-only)
 

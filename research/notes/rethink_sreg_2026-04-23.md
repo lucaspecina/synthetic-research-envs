@@ -859,7 +859,145 @@ cada caso pero sube la calidad significativamente. Está alineado con el
 - **Fase 1**: ODE domain (farmacocinética propuesta).
 - **Fase 2**: SDE + publicación.
 
-## 11. Crítica macro del flujo + tipos de investigación cubiertos (2026-04-23)
+## 11. Lessons rescatadas del compiler v1 para v1.5
+
+> Origen: trabajo del epic #36 (worktree compiler-fix) entre 2026-04-15
+> y 2026-04-19. Subió Suite 2 pass rate de 50.9% (v5) a 83.6% (v14) pero
+> no alcanzó el 90% target. Detalles completos:
+> `research/notes/compiler_v1_postmortem.md`. Código en
+> `origin/worktree-compiler-fix`.
+>
+> Esta sección extrae solo las ideas que se trasladan al rediseño v1.5.
+> No son ideas compiler-specific — son insights sobre cómo comparar
+> claims contra ground truth que aplican a cualquier evaluación basada
+> en rubric + judge.
+
+### Lesson 1 — Coverage matcher: structural matching con extras como auxiliares
+
+**Qué era en v1**: el matcher original buscaba un spec-match único por
+gold atom y penalizaba claim-specs extras. El "coverage matcher stage 2"
+(Codex-recommended) cambió el approach: por cada gold atom, busca el
+mejor match estructural en los claim specs, y los specs extras que no
+matchean ningún gold se aceptan como **auxiliaries** (no penalizan).
+Subió de 50.9% a 69.1% (+18%).
+
+**Aplicación en v1.5 Evaluator**: el Evaluator acepta Claims del
+Investigator que no matchean ninguna GoldQuestion como **auxiliares** —
+potencialmente bonus si son correctos, nunca penalty. Esto:
+- Permite al Investigator investigar de más sin miedo al castigo por
+  output "extra".
+- Alivia presión de hacer research tipo checklist.
+- Abre naturalmente el "novel-but-correct lane" que nos preocupaba
+  para el ontology leak 2.0.
+
+### Lesson 2 — Assertion entailment (tolerance-aware semantic equivalence)
+
+**Qué era en v1**: una Assertion tipo `greater_than(threshold=0.1)` con
+`tolerance=0.05` lógicamente **entails** Assertion `positive` si y solo
+si `threshold >= tolerance_of_gold`. Implementado como `_assertion_entails`
+en el matcher. Subió de 76.4% a 81.8% (+5%).
+
+**Aplicación en v1.5 Evaluator**: cuando el Claim es cuantitativo
+("efecto estimado = 0.42 ± 0.05") y el criterio de la Rubric es
+cualitativo ("identifica que el efecto es positivo"), el LLM-judge aplica
+entailment tolerante: si el valor cuantitativo soporta la dirección
+cualitativa fuera de banda de tolerancia, el criterio se acredita. Esta
+lógica es trivial en prompt del judge y evita falsos negativos por
+diferencia de nivel de abstracción.
+
+### Lesson 3 — Abstención principled para structural-role claims
+
+**Qué era en v1**: claims como "la variable collider introduce sesgo" o
+"este efecto no es identificable" requerían acceso estructural al SCM
+(topología). Flow A (blind to SCM) no podía verificarlos. Tras debate
+con Codex, se decidió: claims que refieren a **roles estructurales
+puros sin variable nombrada** → abstain. Claims con **variable
+explícita** ("unmeasured factor X") → compile.
+
+**Aplicación en v1.5**:
+- El Investigator no ve el WorldModel ni el DAG — solo datos
+  observacionales (preservación de la presión evolutiva).
+- El Designer SÍ tiene acceso al WorldModel: las GoldQuestions de tipo
+  structural (identifiability, collider detection) solo pueden
+  generarse ahí.
+- El Evaluator, que tiene acceso al Environment ejecutable, puede
+  testear structural claims cuando el Investigator nombra una variable
+  concreta (corriendo d-separation queries).
+- Si el Investigator hace structural claim abstracto sin variable
+  específica → no se acredita (como abstención honesta).
+
+### Lesson 4 — Canonicalization en el gold
+
+**Qué era en v1**: varias "falsas fallas" del compiler venían de golds
+con notación legacy. Ejemplo: gold usaba `arm.kind=observe` (deprecated)
+vs compiler canónico `arm.kind=condition` — semanticamente equivalentes
+según el verifier. Tras audit, se normalizaron los golds.
+
+**Aplicación en v1.5**: las Rubrics deben tener **alternative phrasings
+explícitos** por criterio. "El efecto es positivo" ≡ "el outcome
+aumenta con el tratamiento" ≡ "X aumenta Y". El Question Designer
+genera las alternativas cuando arma la Rubric; el Evaluator las consume
+como equivalentes.
+
+### Lesson 5 — Cross-spec relationships que grammar no puede expresar
+
+**Qué era en v1**: claims como "el efecto indirecto es menor que el
+directo" requerían relacionar DOS specs (indirect y direct) en una
+aserción. La grammar de AtomicSpec no tenía rank_order entre specs
+separados. Caso irresoluble en v1 (W1_F05_s2 quedó sin pasar).
+
+**Aplicación en v1.5**: la Rubric lo expresa naturalmente en lenguaje
+natural: "Criterio: el reporte identifica que el efecto indirecto es
+menor que el directo". El Evaluator compara Claims del Investigator
+directamente — si hay números, ejecuta la comparación aritmética; si no,
+el LLM juzga la relación. Sin grammar rígida, sin pérdida.
+
+### Lesson 6 — NO hacer "metric chasing" (rechazado por Codex, mantener)
+
+**Qué era en v1**: había tentación de simplificar el compiler para que
+produzca single-sign-only specs ("≈ 0.7" → assertion positive) y pasar
+más casos. Codex lo vetó: "sería métrica-chasing" — perder contenido
+numérico para ganar puntos. Decisión: mantener fidelidad, aunque pierda
+casos.
+
+**Aplicación en v1.5**: vale para el diseño del Evaluator. No premiar
+claims vagos porque son "más fáciles de matchear con el criterio".
+Premiar claims específicos que acierten. La Rubric, si contiene anchor
+numérico en el answer key, debe pedir especificidad del Investigator.
+Esto también protege contra prose hacking (claims elocuentes pero vagos).
+
+### Lesson 7 — Límites estructurales que v1.5 elimina naturalmente
+
+v1 tenía 4 casos irresolubles por límites de grammar (W1_F05_s2 cross-
+spec, W1_F06_s0 distinguishable vs gap_material, W1_F07_s0/s1 2-arm vs
+4-arm contrast, W3_F05_s0 identifiability blind). Todos estos
+desaparecen en v1.5:
+- Cross-spec → Rubric natural.
+- Distinguishable vs gap_material → Evaluator compara directamente.
+- 2-arm vs 4-arm → no hay grammar.
+- Identifiability blind → Evaluator tiene Environment.
+
+v1.5 resuelve estructuralmente problemas que v1 no podía.
+
+### Lo que NO pasa a v1.5
+
+- Los Recipes (G, H, I, J) específicos del compiler — muere.
+- La IR AtomicSpec (QueryArm × 6, Measurement × 9, Comparison × 8,
+  Assertion × 13 = ~5600 combos) — muere.
+- Los prompts `oi_compiler_prompts.py` — mueren.
+- Los scripts `suite2_rescore_vN.py`, `suite2_full_dump_*`, `suite2_delta_*`
+  — mueren (eran para iterar el compiler).
+- Los 30+ baselines vX.json/jsonl — valor histórico en branch de backup,
+  no en main.
+
+### Data reusable de v1 para v1.5 (pendiente de migrar cuando arranquemos)
+
+Los **55 targets de Suite 2** (`tests/eval/suite2_translation/gold_targets.py`
+en worktree-compiler-fix) son claims + answer_keys reales. Útiles como
+**test set inicial del Evaluator v1.5**. Cuando tengamos prototipo,
+cherry-pick ese archivo a main como data, no como test infrastructure.
+
+## 12. Crítica macro del flujo + tipos de investigación cubiertos (2026-04-23)
 
 ### Dónde el flujo queda bien
 Investigaciones con verdad matemática detrás: causalidad, dinámicas,
