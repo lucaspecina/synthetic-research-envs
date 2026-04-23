@@ -54,10 +54,12 @@ def _make_client(args: argparse.Namespace):
 
     if backend == "vllm":
         from sreg.inference.chat_client import ChatCompletionsClient
-        # vLLM Qwen3: disable thinking mode for tool calling
-        kwargs.setdefault("extra_body", {
-            "chat_template_kwargs": {"enable_thinking": False},
-        })
+        # Only inject Qwen thinking-mode override when targeting a custom server
+        # (not when testing Chat Completions path against Azure)
+        if args.base_url:
+            kwargs.setdefault("extra_body", {
+                "chat_template_kwargs": {"enable_thinking": False},
+            })
         base_client = ChatCompletionsClient(**kwargs)
         logger.info(f"Backend: Chat Completions (vLLM) — model={kwargs.get('model')}")
     else:

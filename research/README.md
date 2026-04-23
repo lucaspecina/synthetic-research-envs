@@ -21,6 +21,7 @@
 | `synthesis/related_work_sandmle.md` | **CANON related work.** Comparacion con SandMLE (Zhou et al. 2026) |
 | `synthesis/related_work_scigym.md` | **CANON related work.** Comparacion con SciGym (Duan et al. 2025) |
 | `synthesis/related_work_sciagentgym.md` | **CANON related work.** Comparacion con SciAgentGym (Shen et al. 2026) — long-horizon tool-use |
+| `synthesis/related_work_corral.md` | **CANON related work.** Comparacion con Corral (Ríos-García, Jablonka et al. 2026) — behavioral analysis de razonamiento epistemologico |
 | `synthesis/external_benchmarks_transfer_analysis.md` | **CANON suite.** Que mide cada benchmark, ejemplos, transferencia esperada de SREG |
 | `synthesis/open_investigation_vision.md` | **CANON producto.** Vision de Open Investigation |
 | `synthesis/oi_scoring_fundamentals.md` | **CANON scoring.** Salience map = piso, no techo. Verdad vs relevancia vs cobertura |
@@ -87,6 +88,9 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 | Related work / SandMLE / RL-only vs SFT+RL | `synthesis/related_work_sandmle.md` |
 | Related work / SciGym / loop iterativo en biologia | `synthesis/related_work_scigym.md` |
 | Related work / SciAgentGym / long-horizon tool-use | `synthesis/related_work_sciagentgym.md` |
+| Related work / Corral / behavioral analysis de razonamiento epistemologico | `synthesis/related_work_corral.md` |
+| Justificacion empirica de entrenar razonamiento (cita clave tesis) | `synthesis/related_work_corral.md` (Parte 1) |
+| Metodologia de evaluacion del proceso (grafo epistemologico) | `synthesis/related_work_corral.md` (Parte 4) |
 | Que mide cada benchmark + ejemplos + transfer esperado | `synthesis/external_benchmarks_transfer_analysis.md` |
 | Por que SciGym esta en Tier 1 ahora | `synthesis/thesis_evaluation_framework.md` (seccion "Por que SciGym esta en Tier 1") |
 | Background denso de benchmarks (para writing) | `archive/benchmark_analysis.md` (background, no canon) |

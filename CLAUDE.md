@@ -81,6 +81,7 @@ Cada decisión pasa por este TRIPLE filtro:
 | **Tesis/paper: related work (SandMLE)** | `research/synthesis/related_work_sandmle.md` |
 | **Tesis/paper: related work (SciGym)** | `research/synthesis/related_work_scigym.md` |
 | **Tesis/paper: related work (SciAgentGym)** | `research/synthesis/related_work_sciagentgym.md` |
+| **Tesis/paper: related work (Corral) — behavioral analysis** | `research/synthesis/related_work_corral.md` |
 | **Tesis/paper: benchmarks externos, ejemplos y transfer** | `research/synthesis/external_benchmarks_transfer_analysis.md` |
 | 23 escenarios de validacion | `research/synthesis/investigation_scenarios_rubric.md` |
 | Vision de Open Investigation | `research/synthesis/open_investigation_vision.md` |

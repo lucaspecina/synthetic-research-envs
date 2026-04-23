@@ -102,7 +102,7 @@ class ChatCompletionsClient:
         except Exception as e:
             err_msg = str(e).lower()
             # Retry without temp/max_tokens for models that don't support them
-            if "unsupported" in err_msg or "temperature" in err_msg:
+            if "unsupported" in err_msg or "temperature" in err_msg or "max" in err_msg:
                 kwargs.pop("temperature", None)
                 kwargs.pop("max_tokens", None)
                 response = self._client.chat.completions.create(**kwargs)

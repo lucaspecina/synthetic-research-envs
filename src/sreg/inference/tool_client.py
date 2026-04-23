@@ -160,6 +160,15 @@ class ToolEnrichedClient:
             prev_response_id = response.provider_response_id
 
             if response.finish_reason != FinishReason.TOOL_CALLS or not response.tool_calls:
+                content = response.message.content or ""
+                if iteration == 0 and tools and (
+                    "python_exec" in content or "function" in content.lower()
+                ):
+                    logger.warning(
+                        "Model returned text mentioning tools but no tool_calls parsed. "
+                        "Response preview: %s",
+                        content[:200],
+                    )
                 if response.usage:
                     response.usage.total_tokens = total_tokens
                 return response
@@ -196,6 +205,19 @@ class ToolEnrichedClient:
             total_tokens += response.usage.total_tokens if response.usage else 0
 
             if response.finish_reason != FinishReason.TOOL_CALLS or not response.tool_calls:
+                # Warn if model returned text that looks like unparsed tool calls
+                # (vLLM may fail to parse tool invocations and return raw text)
+                content = response.message.content or ""
+                if iteration == 0 and tools and (
+                    "python_exec" in content or "function" in content.lower()
+                ):
+                    logger.warning(
+                        "Model returned text mentioning tools but no tool_calls were parsed. "
+                        "The model may be attempting tool use but the server didn't parse it. "
+                        "Check vLLM --tool-call-parser and --enable-auto-tool-choice flags. "
+                        "Response preview: %s",
+                        content[:200],
+                    )
                 if response.usage:
                     response.usage.total_tokens = total_tokens
                 return response
