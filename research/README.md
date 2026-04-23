@@ -16,6 +16,7 @@
 
 | Doc | Rol |
 |---|---|
+| `synthesis/v1_5_architecture.md` | **CANON v1.5 ARQUITECTURA.** Spec viva del rediseño. Nomenclatura, flujo, agentes Designer (4+1), rubrics, Evaluator con Environment, dudas abiertas, fases. Rama `dev`. |
 | `synthesis/thesis_evaluation_framework.md` | **CANON tesis.** Que hay que demostrar, metricas, suite, protocolo paper |
 | `synthesis/sreg_training_transfer_protocol.md` | **CANON operativo.** Modelo, harness, suite final, BEFORE/TRAIN/AFTER |
 | `synthesis/related_work_sandmle.md` | **CANON related work.** Comparacion con SandMLE (Zhou et al. 2026) |
@@ -96,6 +97,14 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 ---
 
 ## Corte 2 — Por pregunta (si necesitas X, anda a Y)
+
+### v1.5 Rediseno (ACTIVO, rama dev)
+
+| Necesito... | Doc canonico |
+|---|---|
+| Arquitectura completa de v1.5 (spec vivo) | `synthesis/v1_5_architecture.md` |
+| Historia del rediseno (debates, Codex, decisiones) | `notes/rethink_sreg_2026-04-23.md` |
+| Post-mortem compiler v1 (por que lo matamos) | `notes/compiler_v1_postmortem.md` |
 
 ### Tesis y paper
 
