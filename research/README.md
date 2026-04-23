@@ -21,6 +21,7 @@
 | `synthesis/related_work_sandmle.md` | **CANON related work.** Comparacion con SandMLE (Zhou et al. 2026) |
 | `synthesis/related_work_scigym.md` | **CANON related work.** Comparacion con SciGym (Duan et al. 2025) |
 | `synthesis/related_work_sciagentgym.md` | **CANON related work.** Comparacion con SciAgentGym (Shen et al. 2026) — long-horizon tool-use |
+| `synthesis/related_work_corral.md` | **CANON related work.** Corral (Rios-Garcia/Jablonka et al. 2026) — 25k runs, behavioral analysis via epistemic graphs, 95.7% human-LLM agreement. Justification empirica para training reasoning, no scaffolding. Fulltext del paper en `notes/corral_paper_fulltext.txt` |
 | `synthesis/external_benchmarks_transfer_analysis.md` | **CANON suite.** Que mide cada benchmark, ejemplos, transferencia esperada de SREG |
 | `synthesis/open_investigation_vision.md` | **CANON producto.** Vision de Open Investigation |
 | `synthesis/oi_scoring_fundamentals.md` | **CANON scoring.** Salience map = piso, no techo. Verdad vs relevancia vs cobertura |
@@ -74,6 +75,8 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 - `notes/indirect_measurement_design.md` — instrumentos como nodos del SCM
 - `notes/open_investigation_case_analysis.md` — 10 dominios analizados
 - `notes/sq_flow_and_dag_visibility_open_questions.md` — briefing 2026-04-14: quien ve el DAG en cada actor (orchestrator / SQ compiler / claim compiler), dudas D1-D8 destapadas por Suite 2 baseline
+- `notes/rethink_sreg_2026-04-23.md` — **WORKING DOC activo.** Rediseño del flujo de SREG desde primeros principios: matar compiler runtime, rubricas graduadas + LLM judge con acceso al mundo ejecutable, abrir a ODEs/SDEs. Incorpora findings de Corral. Conversacion Claude+usuario+Codex 2026-04-19 → 2026-04-23. Aun no promovido a synthesis.
+- `notes/corral_paper_fulltext.txt` — fulltext de Rios-Garcia/Jablonka et al. 2026 (arXiv:2604.18805), 4822 lineas. Referencia para citas. Synthesis canonico en `synthesis/related_work_corral.md`.
 
 ### Archive (historico, read-only)
 
@@ -102,6 +105,8 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 | Related work / SandMLE / RL-only vs SFT+RL | `synthesis/related_work_sandmle.md` |
 | Related work / SciGym / loop iterativo en biologia | `synthesis/related_work_scigym.md` |
 | Related work / SciAgentGym / long-horizon tool-use | `synthesis/related_work_sciagentgym.md` |
+| Related work / Corral / behavioral analysis + epistemic graphs | `synthesis/related_work_corral.md` |
+| Rediseno del flujo de SREG (working doc) | `notes/rethink_sreg_2026-04-23.md` |
 | Que mide cada benchmark + ejemplos + transfer esperado | `synthesis/external_benchmarks_transfer_analysis.md` |
 | Por que SciGym esta en Tier 1 ahora | `synthesis/thesis_evaluation_framework.md` (seccion "Por que SciGym esta en Tier 1") |
 | Background denso de benchmarks (para writing) | `archive/benchmark_analysis.md` (background, no canon) |
