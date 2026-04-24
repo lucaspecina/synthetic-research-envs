@@ -112,7 +112,11 @@ ResearchCase (brief + datos + contexto + tools)
     │
     ▼
 Investigator (libre, python_exec)
-    │
+    │                      ├─► InvestigationLog (log estructurado mínimo
+    │                      │    de cada acción — se registra siempre,
+    │                      │    no se evalúa en MVP pero habilita
+    │                      │    evaluación de trayectoria futura. Ver
+    │                      │    issue #53.)
     ▼
 Claims (prosa libre, sin formato impuesto)
     │
@@ -229,22 +233,49 @@ class QuestionsBundle(BaseModel):
     questions: list[GoldQuestion]
 
 class GoldQuestion(BaseModel):
+    """Pregunta canónica del caso. Dos niveles de evaluación:
+    - Identificación (binary): ¿el solver está hablando de esta GQ?
+    - Compleción (graduada): si identifica, rubric criterion por criterion.
+
+    Pesos discretos para evitar ajuste fino arbitrario:
+    - weight ∈ {0.08, 0.12, 0.16, 0.20}
+    """
     id: str
-    text: str
+    text: str                    # pregunta conceptual en prosa
+    weight: float                 # peso en score total del caso
+    role: Literal["required", "support"]
+    verifier_query: VerifierQuery # cómo calcular answer_key
+    answer_key: AnswerKey         # struct canónica con campos tipados
+    epistemic_operation: str      # "identification", "estimation", etc.
+    identification_hint: str      # NL libre: guía al judge para matchear
+                                  # la GQ contra el reporte. 2-4 frases
+                                  # concretas sobre qué buscar y qué NO
+                                  # cuenta como identificación.
     rubric: Rubric
-    answer_key: AnswerKey
-    verifier_query: VerifierQuery  # mapeo reproducible
-    epistemic_operation: str  # "identification", "estimation", etc.
 
 class Rubric(BaseModel):
-    core_criteria: list[CoreCriterion]  # 70-85% del score
-    epistemic_bonuses: list[EpistemicCriterion]  # 15-30%
+    criteria: list[Criterion]     # mezcla core + bonus, clasificados por role
 
-class CoreCriterion(BaseModel):
-    description: str
-    weight: float
-    anchor: AnswerKeyAnchor  # qué del AnswerKey satisface esto
-    requires_span: bool = True  # judge debe citar texto del Claim
+class Criterion(BaseModel):
+    """Un criterio de la rubric. Pesos discretos (1/2/3) y role
+    core vs bonus. Core aporta 70-85% del score de la GQ, bonus 15-30%.
+    """
+    text: str                     # qué se evalúa
+    weight: int                   # 1, 2, o 3
+    role: Literal["core", "bonus"]
+    anchor: AnswerKeyAnchor       # qué del answer_key lo acredita
+    scoring_hint: str             # NL libre: guía al judge para este
+                                  # criterion. 2-4 frases concretas.
+                                  # Nunca acreditar por terminología sola
+                                  # si el span contradice el anchor.
+    requires_span: bool = True    # judge debe citar texto del Claim
+
+class AnswerKeyAnchor(BaseModel):
+    """Referencia estructurada a un campo del answer_key."""
+    path: str                     # ej. "adjusted_ate" o "interpretation.bias_type"
+    match: Literal["approx", "equals", "enum", "mentioned"]
+    tolerance: float | None = None      # para match="approx"
+    value: Any | None = None            # para match="equals" o "enum"
 
 class ResearchCase(BaseModel):
     brief: str
@@ -252,6 +283,30 @@ class ResearchCase(BaseModel):
     datasets: list[Dataset]
     tools: list[ToolSpec]
     # NOTA: no incluye QuestionsBundle (hidden del Investigator)
+
+class InvestigationLog(BaseModel):
+    """Log estructurado mínimo de lo que hace el Investigator.
+
+    MVP: solo se registra, no se evalúa. Habilita evaluación de
+    trayectoria como feature futura (issue #53, inspirado en Corral).
+    Capturar desde el arranque evita tener que rehacer tools después.
+    """
+    case_id: str
+    actions: list[InvestigatorAction]  # cada tool call (python_exec,
+                                         # submit_claim_draft, pivot, etc.)
+    hypotheses_log: list[HypothesisEntry]  # hipótesis formuladas +
+                                             # cuándo + por qué
+    final_claims: list[Claim]  # el reporte final en prosa
+
+class InvestigatorAction(BaseModel):
+    step: int
+    timestamp: datetime
+    kind: Literal["python_exec", "observe", "intervene",
+                   "hypothesis", "pivot", "submit"]
+    payload: dict  # schema depende de kind
+    rationale: str | None  # por qué esta acción (opcional pero
+                             # recomendado — el prompt del Investigator
+                             # lo pide)
 
 class ValidationReport(BaseModel):
     passed: bool
@@ -264,77 +319,114 @@ class ValidationReport(BaseModel):
 
 ## 6. Rubric design
 
-Híbrido core analytic + epistemic bonus. Decisión tomada post-consulta
-Codex (ver notes/rethink sección 6).
+Cada GoldQuestion tiene una Rubric. La evaluación ocurre en **dos niveles
+explícitos**:
 
-```
-score_por_GoldQuestion =
-    core_analytic     (70-85% del peso total)
-  + epistemic_bonus   (15-30% del peso total)
-```
+- **Nivel 1 — Identificación (binary)**: ¿el solver está hablando de
+  esta GQ? Se decide mirando el reporte completo con ayuda del
+  `identification_hint` de la GQ. Si no identifica → score_GQ = 0 y
+  no se evalúa la rubric. Si identifica → pasa al nivel 2.
 
-**Core analytic**:
-- Criterios atómicos y acumulativos.
-- Cada criterio ligado a claim **explícito** del Investigator.
-- Verificables contra el Environment.
-- Requieren **span textual citado** del reporte del Investigator para
-  acreditarse. Sin span = 0.
+- **Nivel 2 — Compleción (graduada)**: para cada `Criterion` de la
+  rubric, el judge decide si se cumple. Usa el `scoring_hint` + el
+  `anchor` para calibrar el juicio.
 
-**Epistemic bonus**:
-- Caveats, identifiability awareness, reconocimiento de límites,
-  robustness checks, incertidumbre bien calibrada.
-- **NO compensa errores del core**. Si el Investigator afirma
-  causalidad equivocada, no se salva con caveats elegantes.
+**Pesos discretos (anti-ajuste-fino)**:
+- `weight_GQ` ∈ {0.08, 0.12, 0.16, 0.20} — fuerza elegir entre pocos
+  niveles de importancia por GQ.
+- `weight_Criterion` ∈ {1, 2, 3} — idem para criterios.
 
-**Niveles BARS (Behaviorally Anchored Rating Scales)**: solo como anclas
-de redacción para el Evaluator (ayudan a calibrar qué espera cada
-criterio). NO son mecanismo de puntuación.
+**Split core vs bonus dentro de la rubric**:
+- Core: criterios que son obligatorios para responder bien la GQ.
+  Aportan 70-85% del score_GQ.
+- Bonus: caveats, identifiability awareness, calibración, robustness.
+  Aportan 15-30%. **No compensan errores del core.** Si el solver
+  afirma causalidad equivocada, no se salva con caveats elegantes.
 
-**Alternative phrasings por criterio**: lesson rescatada del compiler
-v1 (canonicalization). Ejemplo: "el efecto es positivo" ≡ "el outcome
-aumenta con el tratamiento" ≡ "X sube cuando T sube". El Question
-Designer genera alternativas; el Evaluator las consume como equivalentes.
+Fórmula: `score_GQ = alpha × score_core + (1 - alpha) × score_bonus`,
+con `alpha` entre 0.70 y 0.85.
 
-**Assertion entailment** (tolerance-aware): si el Claim es cuantitativo
-("efecto = 0.42 ± 0.05") y el criterio es cualitativo ("identifica que
-es positivo"), el Evaluator aplica entailment tolerante: 0.42 > tolerance
-satisface "positivo" sin necesidad de match textual exacto.
+**`identification_hint` (texto libre)**:
+Guía al judge sobre qué buscar en el reporte para decidir si aborda
+el tema de la GQ. 2-4 frases concretas. Incluye qué términos/conceptos
+suelen aparecer Y qué NO cuenta como identificación (ej. mención
+tangencial sin análisis de los datos del caso).
+
+**`scoring_hint` por Criterion (texto libre)**:
+Guía al judge para calibrar el cumplimiento del criterion. 2-4 frases
+concretas. Incluye qué acredita (con comprensión) y qué confusiones
+comunes **no** acreditan. Regla editorial: no convertirlo en listas
+de keywords — el judge debe entender el criterio, no triggerear por
+palabras.
+
+**Regla invariante**: nunca acreditar por terminología sola si el
+span contradice el anchor. El judge debe citar span textual del
+reporte; sin span = 0 para ese criterion.
+
+**Alternative phrasings** (lesson del compiler v1): cada Criterion
+puede listar variantes equivalentes ("el efecto es positivo" ≡ "el
+outcome aumenta con el tratamiento"). El Question Designer genera
+alternativas al diseñar la rubric.
+
+**Assertion entailment** (tolerance-aware): si el Claim es
+cuantitativo ("efecto = 0.42 ± 0.05") y el criterio es cualitativo
+("identifica que es positivo"), el judge aplica entailment tolerante:
+0.42 > tolerance satisface "positivo" sin match textual exacto.
 
 ---
 
-## 7. Evaluator con acceso al Environment
+## 7. Evaluator
 
-Pipeline en 3 pasos:
+**Evaluador es un LLM judge sin acceso runtime al Environment** en el
+MVP. Toda la formalización vive en design-time (Question Designer) —
+el Evaluator solo compara Claims del Investigator contra las Rubrics
+pre-definidas. Simplificación deliberada para evitar reintroducir el
+compiler frágil por la ventana (ver `research/notes/v1_5_debates.md`
+rondas 3 y 4 para el debate completo).
+
+Pipeline del Evaluator, dos pasos por GoldQuestion:
 
 ```
-1. EXTRACT: identificar claims explícitos del reporte del Investigator
-            (pares span + afirmación cuantitativa o cualitativa).
+Para cada GoldQuestion del caso:
 
-2. MAP:     para cada criterio de cada Rubric, buscar el claim que lo
-            acredita. Requiere span textual; sin span = 0.
+  PASO 1 — IDENTIFICACIÓN (binary)
+    Input: reporte del solver + GoldQuestion.identification_hint
+    Output: bool "¿el solver aborda este tema?"
+    Si no → score_GQ = 0, seguir con la siguiente GQ.
 
-3. VERIFY:  para claims que soportan criterios cuantitativos, ejecutar
-            el Environment con la query correspondiente. Comparar
-            contra Claim del Investigator vía assertion entailment.
+  PASO 2 — COMPLECIÓN (graduada, solo si identificó)
+    Para cada Criterion de la Rubric:
+      Input: reporte + Criterion.scoring_hint + Criterion.anchor
+      Output: {cumplido: bool, span: str, razón: str}
+      - Requiere span textual citado del reporte.
+      - Evaluar con scoring_hint (qué acredita y qué confusiones NO
+        acreditan).
+      - Verificar anchor: valor del claim del solver matchea el
+        answer_key dentro de tolerancia del anchor.
 
-            Para claims ESPONTÁNEAS (no matchean ninguna Rubric pero
-            son testeables), el Evaluator puede ejecutar el Environment
-            libremente para validarlas. Si validan → auxiliary bonus.
+Score del caso:
+    score_total = Σ GQ.weight × score_GQ
+    score_GQ = alpha × (Σ core_criterion.weight × cumplido_core) /
+                       Σ core_criterion.weight
+             + (1-alpha) × (Σ bonus_criterion.weight × cumplido_bonus) /
+                           Σ bonus_criterion.weight
 ```
 
-**Decisión importante**: el Evaluator tiene **libertad de ejecución**
-sobre el Environment (no set limitado de operaciones). Razón: limitar
-empobrece al judge. Costos (reproducibilidad, varianza) se manejan
-con prompt engineering estricto + temperature=0 + logs versionados.
+**Decisiones clave**:
 
-**Auxiliares** (coverage matcher lesson del compiler v1): claims extras
-del Investigator que no matchean Rubric pero son correctos se aceptan
-como auxiliares. **Nunca penalizan**. Puede haber bonus por auxiliares
-valiosos (decidir durante implementación).
-
-**Contradicciones explícitas restan**: si el Investigator tira 20
-afirmaciones contradictorias, no se premia "la que aciertó". Shotgun
-science se penaliza.
+- **El Evaluator NO ejecuta queries arbitrarias sobre el Environment**
+  para validar claims espontáneas del solver. Toda la formalización
+  vive en design-time. Ventaja: cero compiler NL→query en runtime,
+  cero fragilidad tipo v1.
+- **Claims espontáneas fuera de las GoldQuestions**: se evalúan
+  cualitativamente (no penalizan) o simplemente no puntúan. No entran
+  al score principal. (Feature futura: issue #53 — lane de novel-but-
+  correct si Fase 0 del MVP muestra que conviene.)
+- **Contradicciones explícitas restan**: si el solver tira 20
+  afirmaciones contradictorias, no se premia "la que aciertó". Shotgun
+  science se penaliza.
+- **Regla del span textual**: cada criterion acreditado requiere span
+  citado del reporte del solver. Sin span → 0.
 
 ---
 
