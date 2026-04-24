@@ -457,7 +457,10 @@ explícitos**:
   afirma causalidad equivocada, no se salva con caveats elegantes.
 
 Fórmula: `score_GQ = alpha × score_core + (1 - alpha) × score_bonus`,
-con `alpha` entre 0.70 y 0.85.
+con **`alpha = 0.8` fijo para MVP** (decisión post-ronda 10: alpha
+continuo en [0.70, 0.85] era inconsistente con pesos discretos anti-
+micro-optimización; se fija en 0.8 por simplicidad). Si evidencia
+empírica muestra que conviene variar, discretizar en {0.75, 0.8, 0.85}.
 
 **`identification_hint` (texto libre)**:
 Guía al judge sobre qué buscar en el reporte para decidir si aborda

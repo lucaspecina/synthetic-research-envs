@@ -217,23 +217,31 @@ Dentro de SES bajo sigue apareciendo el doble. Descarta "todo es SES".
 Sigue con nueva hipótesis: *"quizás el paradox aparece al estratificar
 por birth weight"*.
 
-**Turno 4 — Estratificación por mediador sospechoso**
+**Turno 4 — Análisis estratificado sobre data ya obtenida**
 
+El agente usa `python_exec` para groupby sobre los DataFrames que ya
+tiene (no cuesta budget — es análisis, no acción sobre el mundo):
+
+```python
+python_exec("""
+df_all = pd.concat([initial_df, new_df_low_ses])
+df_all['bw_quartile'] = pd.qcut(df_all.birth_weight, 4, labels=[1,2,3,4])
+
+by_smoking_and_bw = (df_all
+  .groupby(['smoking', 'bw_quartile'])['mortality']
+  .agg(['mean', 'sem'])
+)
+print(by_smoking_and_bw)
+""")
+→ stdout:
+  smoking=Yes Q1 (bajo peso):      mortalidad 0.040
+  smoking=Yes Q2, Q3, Q4:          mortalidades 0.015, 0.012, 0.010
+  smoking=No  Q1 (bajo peso):      mortalidad 0.060
+  smoking=No  Q2, Q3, Q4:          mortalidades 0.010, 0.008, 0.008
 ```
-stratify(outcome='mortality', by='birth_weight_quartile',
-         condition={smoking: 'Yes'})
-→ Tabla:
-  Q1 (bajo peso):      mortalidad 0.040
-  Q2, Q3, Q4:          mortalidades 0.015, 0.012, 0.010
 
-stratify(outcome='mortality', by='birth_weight_quartile',
-         condition={smoking: 'No'})
-→ Tabla:
-  Q1 (bajo peso):      mortalidad 0.060
-  Q2, Q3, Q4:          mortalidades 0.010, 0.008, 0.008
-```
-
-Cost: 2 créditos (1 por cada stratify). Remaining: 7.
+Cost: 0 créditos. Remaining: 9. (La estratificación es pandas puro
+sobre data ya obtenida, no una acción del Environment.)
 
 El paradox aparece. En el cuartil de bajo peso, fumadoras tienen MENOR
 mortalidad que no fumadoras (0.040 vs 0.060). Opuesto a la asociación
@@ -375,29 +383,44 @@ implicada por el SCM.
 - Para estimar efectos causales sin assumption de identifiability.
 - Para validar mecanismos (intervenir sobre mediador propuesto).
 
-### 4.3 `stratify(outcome, by, condition=None)`
+### 4.3 Stratificación — NO es primitiva (decisión post-ronda 10)
 
-**Qué es**: azúcar sintáctica — equivale a observe + groupby, devuelve
-tabla resumen.
+**Decisión arquitectónica**: `stratify` **no es una acción del
+Environment**. Fue una propuesta inicial pero Codex marcó correctamente
+(ronda 10) que mezcla tipos ontológicos:
 
-**Argumentos**:
-- `outcome: str` — variable cuyo promedio queremos por subgrupo.
-- `by: str` — variable de stratificación.
-- `condition: dict | None` — filtro opcional.
+- `observe/intervene/simulate` = **acciones sobre el mundo** (generan
+  data nueva desde el SCM/ODE/SDE).
+- `stratify` = **operación sobre datos ya obtenidos** (groupby sobre
+  DataFrames que el agente ya tiene).
 
-**Qué devuelve**: Tabla de outcome means + SEs por subgrupo de `by`.
+Exponer `stratify` como primitiva abriría pendiente resbaladiza:
+¿también `compare`? ¿`correlate`? ¿`regress`? Cada uno es una
+operación sobre datos, no una acción sobre el mundo. Volvemos a la
+explosión combinatoria que matamos con AtomicSpec.
 
-**Costo**: 2 créditos (base — más que observe, menos que intervene).
+**Implementación**:
+- **Opción A (MVP recomendada)**: helper en el namespace de
+  `python_exec`. El agente escribe:
+  ```python
+  stratified = df.groupby('birth_weight_quartile')['mortality'].agg(['mean', 'sem'])
+  ```
+  Es pandas puro, no cuesta budget, no es primitiva.
 
-**Skill que entrena**:
-- Detectar heterogeneidad.
-- Identificar paradojas de Simpson / Yule.
-- Verificar invariancia de efectos.
+- **Opción B**: si queremos que cueste budget (por convención, no por
+  costo computacional real), agregar un parámetro opcional `group_by`
+  al `observe`:
+  ```python
+  observe(vars=['mortality'], n=500, group_by='birth_weight_quartile')
+  → devuelve tabla agrupada en lugar de DataFrame raw
+  ```
+  Pero **solo observe lo permite** — `intervene` y `simulate` no
+  aceptan `group_by` porque su data retornada no se groupea
+  significativamente.
 
-**Cuándo el agente la usa**:
-- Cuando sospecha que el efecto varía por subgrupo.
-- Para detectar mediación / moderación.
-- Para encontrar collider bias.
+Recomendación MVP Fase 1: **Opción A**. Stratificar en python_exec,
+sin costo, como cualquier otro análisis. Si emerge evidencia de que
+costar el groupby importa, pasar a Opción B.
 
 ### 4.4 `simulate(initial, t_eval, do=None)` (SOLO ODE/SDE)
 
@@ -511,13 +534,45 @@ El ResearchCase tiene un campo `access_policy`:
 
 ```python
 class AccessPolicy(BaseModel):
-    available_actions: list[Literal["observe", "intervene",
-                                     "stratify", "simulate"]]
+    available_actions: list[Literal["observe", "intervene", "simulate"]]
+                        # stratify ya no es primitiva — es helper en python_exec
     max_n_per_call: dict[str, int]  # opcional, si se quiere fijar
     forbidden_variables: list[str]  # variables sobre las que no se
                                      # puede intervenir (ej. edad)
-    rationale: str  # por qué estos constraints (reportable al agente)
+    public_rationale: str   # justificación diegética — SÍ expuesta al
+                             # Investigator (ej. "estudio retrospectivo,
+                             # no se pueden asignar tratamientos al azar")
+    internal_rationale: str  # por qué el Designer/Validator configuró
+                              # esta policy — NO se expone al Investigator
+                              # (ej. "testear skill de inferencia
+                              # observacional bajo confounding")
 ```
+
+### Split de rationale — decisión post-ronda 10
+
+Codex marcó (correctamente) que exponer al Investigator un rationale
+con "por qué existe esta restricción" puede leakear estructura
+pedagógica del caso. "Este es un estudio retrospectivo con ética
+complicada" ya sugiere al agente que el caso es sobre confounding
+clásico.
+
+**Solución**: separar dos rationales.
+
+- `public_rationale`: justificación **diegética**. El agente la ve al
+  inicio del episodio. Puede incluir motivaciones éticas, operacionales,
+  de factibilidad histórica del estudio. El agente debe poder usarla
+  para entender qué tipo de inferencia puede hacer (ej. "sabemos que
+  solo hay datos observacionales, entonces el efecto causal requiere
+  assumption de identifiability").
+
+- `internal_rationale`: justificación **pedagógica/diagnóstica**. Por
+  qué el Designer eligió esta policy para este caso específico (qué
+  skill testea, qué GoldQuestion se vuelve no-trivial con esta
+  restricción). El agente **nunca** lo ve. Queda en el artefacto del
+  caso para debugging y auditoría.
+
+Sin este split, el `rationale` se vuelve canal lateral de leakage de
+intención pedagógica.
 
 ### Ejemplos concretos
 
@@ -763,39 +818,70 @@ con Corral-style behavioral analysis.
 Análogos a los 3 tests de Fase 0 (necessity / adversarial / style)
 pero adaptados a interactividad:
 
-### Test 1 — Interactivity adds information
+**Importante**: la "Necessity-of-investigation ablation" de Fase 0
+ya captura si más capacidad investigativa mejora score. Los tests
+de Fase 1 deben medir algo que Fase 0 NO puede medir para evitar
+duplicación. La clave: comparar siempre contra **baselines estáticos
+matched** (mismo caso, misma cantidad equivalente de data vía
+dataset inicial más grande, pero sin capacidad de pedir data nueva).
 
-Correr el mismo caso con y sin acciones disponibles. Esperamos que
-el agente con acciones saque **significativamente mejor** score que
-el agente solo con dataset inicial. Criterio: mejora ≥ 15 puntos
-percentil.
+### Test F1-A — Interactivity permite findings imposibles con paquete estático matched
 
-Si la mejora es pequeña, las acciones no están agregando señal — o
-el caso es demasiado fácil, o las acciones son redundantes con
-python_exec.
+**Setup**: correr el mismo caso (mismo WorldModel, mismas GoldQuestions)
+en dos condiciones:
+- **Condición estática matched**: Investigator recibe dataset inicial
+  agrandado equivalente al budget total (ej. si budget=10 créditos
+  y observe cuesta 1 crédito por 100 filas, dataset inicial matched
+  = 1000 filas). Sin acciones del Environment disponibles.
+- **Condición interactiva**: dataset inicial pequeño (100-200 filas)
+  + budget de acciones.
 
-### Test 2 — Budget discrimination
+**Esperado**: en casos donde GoldQuestions requieren intervención
+(identificar efecto causal sin assumption de unconfoundedness), la
+condición interactiva debe sacar significativamente mejor score. En
+casos puramente observacionales, las dos condiciones deberían
+empatar.
 
-Correr el mismo caso con budget 5, budget 10, budget 20. Esperamos que
-el agente con budget alto saque mejor score, pero no linealmente —
-retornos decrecientes. Criterio: score(budget=20) > score(budget=5) y
-score(budget=20) - score(budget=10) < score(budget=10) - score(budget=5).
+**Criterio pass**: en casos con GQ intervencionales, mejora ≥ 15
+puntos percentil en la condición interactiva. Si no hay mejora, las
+acciones no están agregando señal sobre la data estática — o el
+caso es demasiado fácil, o las acciones son redundantes con análisis
+sobre el dataset matched.
 
-Si la curva es plana (budget no importa) o lineal (más budget =
-siempre proporcionalmente mejor), el agente no internalizó la
-economía de experimentos.
+### Test F1-B — Budget discrimination (retornos decrecientes)
 
-### Test 3 — Access policy respeto
+**Setup**: correr el mismo caso con budget 5, 10, 20. Esperamos curva
+con retornos decrecientes.
 
-Correr casos con access_policy restrictiva (solo observe + stratify)
-y casos con access policy libre. Esperamos que el agente:
-- Con access restrictiva: abstiene con claims calibradas cuando no
-  puede identificar el efecto causal.
-- Con access libre: usa intervene cuando corresponde.
+**Criterio pass**:
+- `score(budget=20) > score(budget=5)`.
+- `score(budget=20) - score(budget=10) < score(budget=10) - score(budget=5)`
+  (segunda mitad aporta menos que la primera — retornos decrecientes).
 
-Criterio: los claims del agente cambian coherentemente según la
-access_policy. Si responde lo mismo con y sin intervene, está
-ignorando las constraints del caso.
+Si la curva es plana (budget no importa), el agente no usa las
+acciones. Si es lineal (más budget = siempre proporcionalmente
+mejor), el agente no internaliza saturación.
+
+### Test F1-C — Access policy respect
+
+**Setup**: para el mismo WorldModel y mismas GoldQuestions, correr con
+tres access_policy distintas:
+- Observacional puro (solo `observe`).
+- Experimental parcial (observe + intervene con forbidden_variables).
+- Experimental completo (observe + intervene sin restricciones).
+
+**Esperado**: los claims del agente cambian coherentemente:
+- Observacional puro: abstiene o calibra fuerte cuando GQ requiere
+  intervención. Claims de identificabilidad negativa.
+- Experimental parcial: intervene sobre variables disponibles, abstiene
+  sobre las prohibidas. Explicita por qué.
+- Experimental completo: usa intervene cuando corresponde, sin
+  abstenerse injustificadamente.
+
+**Criterio pass**: la distribución de scores y la calibración epistémica
+de los claims varían coherentemente con la policy. Si el agente
+responde lo mismo con y sin intervención, está ignorando las
+constraints del caso — alerta estructural.
 
 ---
 
