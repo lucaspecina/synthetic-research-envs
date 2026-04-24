@@ -31,6 +31,119 @@
 
 ---
 
+## 0. Mapa macro del sistema
+
+A alto nivel, SREG v1.5 tiene **3 bloques principales** + 1 motor
+transversal:
+
+```
+┌─────────────────────────┐      ┌──────────────────┐      ┌────────────────────┐
+│ 1. CASE GENERATION      │ →    │ 2. SOLVER        │ →    │ 3. EVALUATION      │
+│    (Designer, 5 agentes)│ case │    SCAFFOLD      │ out  │    (LLM judge)     │
+│    + Paper Digestion    │      │    (Investigator │      │                    │
+│    + Validator loop     │      │     + tools      │      │    + trace scoring │
+│    + novelty gate       │      │     + InvLog)    │      │      [futuro]      │
+└──────┬──────────────────┘      └──────────────────┘      └────────────────────┘
+       │                                                            ▲
+       └──► Verifier (transversal) ◄───────── AnswerKeys ───────────┘
+            motor matemático determinista
+            (oracle SCM/ODE/SDE-grounded, la joya del sistema)
+```
+
+### 1. Case Generation (Designer)
+
+**Lo más pesado del diseño, ~70% del esfuerzo de implementación.**
+Vive acá toda la complejidad nueva de v1.5. Compuesto por:
+
+- **Paper Digestion** → `PaperInsights` (extrae mecanismo central +
+  fenómenos + counterintuitive priors del seed paper).
+- **World Architect** → `WorldSpec` (diseña el sistema matemático
+  subyacente, anclado en el paper).
+- **Explorer** → `PhenomenaManifest` (ejecuta el mundo para encontrar
+  fenómenos interesantes, con evidencia ejecutable adjunta).
+- **Question Designer** → `QuestionsBundle` (GoldQuestions con
+  identification_hint + Rubrics con scoring_hint + AnswerKeys
+  computados por el Verifier).
+- **Case Writer** → `ResearchCase` (brief + contexto + datos,
+  disfrazado realista sin leak).
+- **Validator transversal**: feedback focalizado por agente, diversity
+  gate corpus-level, max 2 iteraciones por agente / 8-10 total,
+  re-semilla si no converge.
+
+Si este bloque produce casos pobres, el resto no salva el proyecto.
+
+### 2. Solver Scaffold (Investigator)
+
+**Relativamente delgado, ~10% del esfuerzo de implementación.** Ya
+existe buena parte de v1 reusable.
+
+ReAct-like con tool-calling nativo:
+- `load_artifact`, `save_artifact` (datasets).
+- `python_exec` (sandbox con pandas/numpy/scipy/statsmodels/sklearn).
+- `think` (reasoning explícito opcional).
+- `submit_claims` (al cierre).
+- **Nuevo en v1.5**: emite `InvestigationLog` estructurado con cada
+  acción, hipótesis intermedia, pivoteo, rationale. Solo se registra
+  en MVP — habilita trace scoring futuro (issue #53).
+
+**Constraint clave invariante**: el Investigator **NO ve** el
+WorldModel, el DAG, las GoldQuestions, las Rubrics ni los
+AnswerKeys. Solo datos observacionales + brief + catálogo de tools.
+Esa asimetría es lo que preserva la presión evolutiva sobre el
+razonamiento del solver.
+
+### 3. Evaluation (Evaluator)
+
+**MVP simple, futuro más rico. ~20% del esfuerzo de implementación.**
+
+**MVP**: LLM-judge con pipeline de 2 pasos por GoldQuestion:
+- **Paso 1 — Identificación binary**: ¿el solver aborda este tema?
+  Usa `identification_hint`. Si no → score_GQ = 0.
+- **Paso 2 — Compleción graduada** (si identificó): para cada
+  Criterion de la rubric, usa `scoring_hint` + `anchor` contra el
+  reporte del solver. Score graduado core + bonus.
+
+**No ejecuta queries runtime sobre el Environment**. Toda la
+formalización vive en design-time (evita reintroducir compiler v1).
+Claims espontáneas fuera de GoldQuestions no entran al score
+principal en MVP.
+
+**Futuro (post-Fase 0 MVP, gated en los 3 tests de go/no-go)**:
+- Trace scoring tipo Corral (nodos H/T/E/J/U/C, productive motifs,
+  breakdowns) — issue #53.
+- Lane de novel-but-correct para claims espontáneas validadas.
+- IRT modeling para separar capacidades por dimensión.
+- Distilación del judge a classifier chico para RL training.
+
+### 4. Verifier (transversal, motor matemático)
+
+**Oracle SCM/ODE/SDE-grounded. No es LLM, es código determinista.**
+La joya del sistema — lo que preserva la verdad matemática y da
+anchors a todo lo demás.
+
+- En **generación del caso**: el Question Designer lo llama para
+  computar `AnswerKey` exacto desde el `WorldModel`, dada una
+  `verifier_query` compuesta por `query_kinds` (10 SCM + 7 ODE/SDE).
+- En **evaluación (MVP)**: no se usa runtime — el Evaluator solo lee
+  los `AnswerKeys` precomputados como anchors de los Criterios.
+
+Todos los `query_kinds` son primitivas matemáticas universales del
+dominio (`ate`, `association`, `confounding_gap`, `steady_state`,
+`recovery_time`, etc.). No se componen como álgebra abierta
+(eso era el bug v1) — las GoldQuestions sí pueden combinar 2-3
+query_kinds con schema estable.
+
+### Prioridad operativa
+
+- **Diseño**: case generation > evaluation > solver scaffold.
+- **Implementación**: case generation (~70%) > evaluation (~20%) >
+  solver scaffold (~10%).
+- **Riesgo**: el Paper Digestion + el Explorer + el Question Designer
+  concentran ~60% del riesgo de que v1.5 no produzca casos
+  interesantes y diversos.
+
+---
+
 ## 1. Tesis
 
 El gap crítico en la capacidad científica de los agentes AI actuales
@@ -453,19 +566,86 @@ research, mejor para reward shaping RL.
 
 ## 9. Cobertura de tipos de investigación
 
-### Cubre bien
+### Cubre bien (todos los formalismos)
 - Investigación causal (efectos, confounders, mediación).
 - Investigación predictiva (predicciones numéricas contra Environment).
 - Descriptiva (distribuciones, patrones, clustering).
 - System mapping (estructura del grafo, conexiones).
-- Epistemológica (¿qué se puede concluir?).
+- Epistemológica (¿qué se puede concluir con estos datos?).
 - "Mejor marco conceptual" (componentes verificables contra estructura
   del WorldModel: ¿es cadena o feedback? ¿es lineal o no? etc.).
 
+### Tipos de datasets habilitados por formalismo
+
+**SCM estático (Fase 0 del MVP)**:
+- Observaciones puntuales (filas independientes, un snapshot).
+- Shape: `n_samples × n_vars`.
+- Intervenciones puntuales (do-operator clásico).
+- Preguntas naturales: efectos causales, asociaciones, mediaciones,
+  heterogeneidades, ranking de importancia, identifiability.
+
+**ODE deterministas (Fase 1)**:
+- **Trayectorias completas**: cada "fila" es una trayectoria de
+  múltiples timesteps × múltiples variables. Shape:
+  `n_paths × n_timesteps × n_vars`.
+- **Datos con shocks temporales**: before/after designs, treatment
+  schedules que varían, intervenciones en tiempos específicos.
+- **Observación parcial temporal**: solo algunas variables observables
+  en cada timestep, otras latentes (más cerca de ciencia real).
+- **Event data**: timestamps de eventos (cruces de umbrales,
+  transiciones de régimen).
+- **Panel longitudinal**: múltiples unidades × múltiples timesteps.
+
+**SDE estocásticos (Fase 2)**:
+- Todo lo de ODE, más:
+- **Ensembles estocásticos**: múltiples realizaciones del mismo
+  sistema bajo distinto ruido. Distribuciones sobre estados en
+  tiempos específicos.
+- **First-passage times** con variabilidad (distribución, no valor
+  único).
+- **Análisis señal-ruido**: qué es trend real vs fluctuación aleatoria.
+
+### Tipos de investigación adicionales que habilita la dinámica
+
+Con ODE/SDE aparecen preguntas nativas que SCM estático no puede hacer:
+
+- **Inferencia de escalas temporales**: ¿cuán rápido se estabiliza?
+  ¿tiempos característicos del sistema?
+- **Detección de oscilaciones**: ¿oscila? ¿con qué frecuencia?
+  ¿amortiguado o sostenido (limit cycle)?
+- **Régimen stability**: ¿reversible o histérico? ¿hay bistabilidad
+  y umbrales?
+- **Control óptimo**: ¿cuándo intervenir para efecto máximo? ¿con
+  qué protocolo temporal?
+- **Identificación de bifurcaciones**: ¿en qué valor de parámetro
+  cambia el comportamiento cualitativamente?
+- **Filtrado de señales**: ¿qué es señal genuina vs ruido estocástico?
+- **Inferencia de parámetros dinámicos**: constantes de tasa,
+  coeficientes de difusión.
+- **First passage / survival analysis**: ¿cuándo cruza una variable
+  un umbral?
+
+### Dominios accesibles con cada formalismo
+
+**SCM estático**: epidemiología observacional, economía causal,
+ciencias sociales cuantitativas, política educativa, salud pública
+(cross-sectional), estudios de efectos de intervenciones en cohortes.
+
+**ODE adicional**: farmacocinética/farmacodinamia, epidemiología de
+enfermedades infecciosas (SIR/SEIR), ecología dinámica (predator-prey,
+eutrophication), control de procesos, neurociencia (dinámica neuronal
+simplificada), dinámica poblacional, biología del desarrollo.
+
+**SDE adicional**: mercados financieros con jumps, sistemas con ruido
+ambiental significativo, procesos de difusión, sistemas de colas,
+dinámica estocástica molecular.
+
 ### No cubre (out of scope v1.5)
 - Investigación hermenéutica / cultural / ética / estética.
-- Diseño de experimentos (requiere Sherlock interactivo — v2).
+- Diseño de experimentos con interacción iterativa (requiere
+  Sherlock — v2).
 - Teoría fundamentada puramente cualitativa.
+- Modelos agent-based complejos (futuro lejano, v3).
 
 ---
 
