@@ -31,21 +31,10 @@
 | `synthesis/Doc1_Taxonomia_El_Mapa.md` | **CANON mapa.** Mapa operativo para clasificar investigaciones |
 | `synthesis/oi_scoring_next_design.md` | **CANON diseno.** Sub-question scoring architecture |
 | `synthesis/sq_v2_matching_spec.md` | **CANON matching.** Spec de SQ matching v2 (compile + match + agg) |
-| `synthesis/eval_suite_framework.md` | **CANON evaluation.** 4 suites de evaluacion sistematica de SREG v1 |
-| `synthesis/eval_suite_translation.md` | **CANON evaluation.** Suite 2: Translation/Compilation — design doc |
-| `synthesis/suite2_compiler_baseline.md` | **CANON evaluation result.** Suite 2 baseline (v1 2026-04-14, v2 post-verifier-fix 2026-04-15). Effective 31% / strict 13%. §9 documenta delta v1→v2. |
-| `synthesis/suite2_pattern_breakdown.md` | **CANON breakdown (v2).** Per-family bucket breakdown 2026-04-15 — actuals sobre 55 targets, no upper-bound. Zero-strict-pass families enumerados. |
-| `synthesis/compiler_baseline_full_dump_v2.json` | **CANON raw data (v2).** 55 targets, 5 buckets, round-trip-safe AtomicSpec dump. Fuente de todos los números v2. |
-| `synthesis/suite2_compiler_improvement_strategy.md` | **CANON plan.** Recipe gap duro + 6 opciones de mejora + diagnostic battery (D1-D7). §7 Findings actualizada 2026-04-15 con D1/D2/D4 + stage1_split reales. §8 plan post-diagnostics (fix abstain, formalize 6/10 adjust-swap, exemplars por slot). |
-| `synthesis/suite2_fail_audit_recipe_patterns.md` | Manual audit of 10 zero-candidate verdict-fails (#11a). Failure-mode taxonomy per family (2026-04-15) |
-| `synthesis/suite2_sq_dag_coherence_audit.md` | **CANON audit.** Flow B SQ compiler: L1/L2/L3 estructural + semantic LLM-judge. 23 L3 fail (pre-fix #45), 47% wrong_claim semantic. Input de #46. |
-| `synthesis/suite2_claim_compiler_audits.md` | **CANON audit.** Flow A claim compiler: 44% coherent (36% wrong_claim), spec-kind mode collapse, firma de los 7 full_pass. Input de #36 compiler-fix. |
-| `synthesis/suite2_diag_d1_results.json` | **CANON diag.** D1 pattern recognition raw results (55 LLM calls, 69% acc). Per-family breakdown + confusion matrix. |
-| `synthesis/suite2_diag_d2_results.json` | **CANON diag.** D2 recipe slot elicitation (55 LLM calls, 75% acc). 7 slots × 50-55 targets. arm_kinds = bottleneck real. |
-| `synthesis/suite2_diag_d2a_no_world_context_results.json` | **Diag archived.** D2 sin world-variable context (63% acc). role_vars cae a 10% — confirma que variable grounding es context-dependent. |
-| `synthesis/suite2_diag_d4_results.json` | **CANON diag.** D4 adjust-swap equivalence bajo verifier actual (0 LLM calls). 6/10 equivalentes, 4/10 numerical_diff (pass-by-accident). |
-| `synthesis/suite2_stage1_split.json` | **CANON diag.** Stage1_fail split: 4 decision_fail + 2 crash. Hint #1: compiler nunca abstiene. |
+| `synthesis/eval_suite_framework.md` | **CANON evaluation.** 4 suites de evaluacion sistematica de SREG v1. (v1.5 re-encuadrará — ver `ARCHITECTURE.md`.) |
+| `synthesis/eval_suite_translation.md` | **CANON evaluation.** Suite 2: Translation/Compilation — design doc. (Suite 2 queda obsoleta con v1.5 porque no hay compiler; el doc sirve como referencia histórica del approach.) |
 | `synthesis/eval_suite_science_coverage.md` | **CANON evaluation.** Suite 3: Science Coverage — corpus, mundos, harness |
+| `synthesis/v1_canonical_batch_manifest.md` | **CANON batch.** Manifest del v1 canonical batch (12 casos, avg 0.509). Movido de `results/v1_canonical_batch/MANIFEST.md` durante cleanup de repo 2026-04-23. |
 | `synthesis/scoring_relevance_design.md` | **CANON relevance.** Verdad vs relevancia, opciones de matching |
 | `synthesis/a27_answer_key_contract.md` | **CANON answer key.** Contrato del answer key rico |
 | `synthesis/scm_migration_rationale.md` | **CANON migracion.** Por que SCM y no BN |
@@ -81,8 +70,13 @@ Lista no exhaustiva: ver `notes/` directamente. Items mas relevantes hoy:
 
 ### Archive (historico, read-only)
 
+> **Archives en el repo:**
+> - `research/archive/` — research obsoleto/superseded (este dir).
+> - `docs/archive/` — docs del proyecto (TODOs legacy, architecture v1, issue-tracker local pre-GitHub).
+
 | Doc | Por que esta en archive |
 |---|---|
+| `archive/suite2_compiler_v1/` | **20 archivos** (13 JSON + 7 MD) del diagnóstico del compiler v1 (Suite 2). Incluye baselines, audits Flow A/B, strategies, diagnostics D1-D4, per-family breakdown. Obsoletos con v1.5 (compiler eliminado). Código con iteraciones v3-v18 en branch `origin/worktree-compiler-fix`. |
 | `archive/benchmark_analysis.md` | Research landscape denso de benchmarks (Claude+GPT consolidado). Background util para paper, NO canon operativo. Las decisiones canonicas viven en `synthesis/sreg_training_transfer_protocol.md` |
 | `archive/benchmark_results.md` | BEFORE scores corridos con `gpt-5.2-chat`, NO con Qwen3-8B. **No valido para tesis** — re-correr antes de usar como baseline. Ver banner del archivo |
 | `archive/scientific_benchmarks_policy_claude.md` | Research exploratorio original consolidado en `benchmark_analysis.md` |
