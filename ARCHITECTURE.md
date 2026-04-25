@@ -580,14 +580,14 @@ research, mejor para reward shaping RL.
 
 ### Tipos de datasets habilitados por formalismo
 
-**SCM estático (Fase 0 del MVP)**:
+**SCM estático (v1.5)**:
 - Observaciones puntuales (filas independientes, un snapshot).
 - Shape: `n_samples × n_vars`.
 - Intervenciones puntuales (do-operator clásico).
 - Preguntas naturales: efectos causales, asociaciones, mediaciones,
   heterogeneidades, ranking de importancia, identifiability.
 
-**ODE deterministas (Fase 1)**:
+**ODE deterministas (v1.5)**:
 - **Trayectorias completas**: cada "fila" es una trayectoria de
   múltiples timesteps × múltiples variables. Shape:
   `n_paths × n_timesteps × n_vars`.
@@ -599,7 +599,7 @@ research, mejor para reward shaping RL.
   transiciones de régimen).
 - **Panel longitudinal**: múltiples unidades × múltiples timesteps.
 
-**SDE estocásticos (Fase 2)**:
+**SDE estocásticos (v1.5)**:
 - Todo lo de ODE, más:
 - **Ensembles estocásticos**: múltiples realizaciones del mismo
   sistema bajo distinto ruido. Distribuciones sobre estados en
@@ -762,29 +762,45 @@ Candidatos iniciales:
 
 ## 12. Fases de implementación
 
-### Fase 0 — SCM MVP (4-6 semanas)
-- Un solo dominio SCM.
-- Designer "monolítico" (mismo modelo, prompts distintos por rol) con
-  artefactos tipados Pydantic ya separados.
-- Rubric + Evaluator con acceso al Environment ejecutable.
-- Pilot humano (10-20 casos, 2 anotadores) para calibrar el judge.
-- **Gate**: si el Evaluator no alcanza ≥ 85% agreement humano, pausar
-  y recalibrar antes de seguir.
+### v1.5 — MVP estático multi-formalismo (Epic #63, ~6-10 semanas)
 
-### Fase 1 — ODE + separación opcional (4-6 semanas)
-- Agregar dominio ODE (farmacocinética o similar).
-- Evaluar si separar agentes de Designer en modelos distintos agrega
-  valor vs complica.
-- Primera integración con Corral behavioral annotation como métrica
-  secundaria.
+Paradigma estático (Investigator recibe dataset, responde una vez, fin).
+**Los 3 formalismos entran desde el inicio**, no en fases separadas:
+porque ODE/SDE no agregan complejidad ortogonal a la mecánica de
+evaluación — agregan tipos de Environment y query_kinds adicionales,
+pero el flujo Designer → Investigator → Evaluator es el mismo.
 
-### Fase 2 — SDE + paper (4-6 semanas)
-- Agregar dominio SDE.
-- Estabilizar pipeline.
-- Experimentos before/after con RL training para demostrar tesis.
-- Paper submission-ready.
+Componentes:
+- Contratos Pydantic con `formalism: Literal["scm","ode","sde"]`.
+- 3 implementaciones de Environment (SCMEnv, ODEEnv, SDEEnv).
+- Verifier con 17 query_kinds (10 SCM + 7 dinámicos para ODE/SDE).
+- Designer multi-formalismo (Architect elige formalismo según paper).
+- Evaluator con `alpha=0.8` fijo.
+- Casos canónicos: Birth Weight Paradox (SCM) + 1 ODE (p.ej. SIR).
+- Pilot humano (10-20 casos mix, 2 anotadores).
 
-Total: ~3 meses. Cada fase con gate de ir/no-ir.
+**Gate go/no-go** (3 tests sobre los 2 casos canónicos):
+1. Necessity ablation gradient.
+2. Judge adversarial calibration.
+3. Style/leak invariance.
+
+Si los 3 pasan, v2 arranca. Si alguno falla, diagnose y ajustar.
+
+### v2 — Interactividad Sherlock multi-turno (Epic #64, post-v1.5)
+
+El Investigator deja de ser pasivo. Loop multi-turno con Environment-as-API:
+- Primitivas `observe`, `intervene`, `simulate` como acciones del agente.
+- Budget visible con cost scaling.
+- AccessPolicy con public/internal rationale.
+- `InvestigationLog` evaluado (trace scoring) — solo tiene sentido con multi-turno.
+- Gate formal de identificabilidad.
+
+**Pre-requisito**: v1.5 cierra con los 3 gates pasados.
+
+**Gate go/no-go v2**:
+1. Matched baseline interactivity gain.
+2. Budget discrimination.
+3. Access policy respect.
 
 ---
 

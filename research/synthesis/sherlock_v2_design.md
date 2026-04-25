@@ -1,24 +1,28 @@
-# Interactivity in SREG — Phase 1 Design
+# Sherlock v2 — Diseño de interactividad multi-turno
 
 > **Status**: working canon para la interactividad del Investigator en
-> Fase 1 de v1.5. Reemplaza a `sherlock_interactive_design.md` (archivado
-> en `docs/archive/`), que fue escrito pre-rediseño v1.5 y quedó
-> estructuralmente obsoleto.
+> **v2** (Sherlock multi-turno). Reemplaza a `sherlock_interactive_design.md`
+> (archivado en `docs/archive/`), que fue escrito pre-rediseño v1.5 y
+> quedó estructuralmente obsoleto.
 >
-> **Alcance**: diseño del loop interactivo agente-Environment para la
-> Fase 1 del MVP de v1.5. **NO aplica al MVP Fase 0** (SCM estático sin
-> interacción).
+> **Alcance**: diseño del loop interactivo agente-Environment para v2.
+> **NO aplica a v1.5** (que es estático single-turn pero ya soporta los
+> 3 formalismos SCM/ODE/SDE — la dinámica del mundo es independiente
+> de la interactividad del agente).
 >
-> **Rama**: `dev`. Se activa si los 3 tests de go/no-go de Fase 0 pasan.
+> **Rama**: `dev`. v2 se activa cuando los 3 tests de go/no-go de v1.5
+> (Epic #63) pasan.
 >
-> **Fecha**: 2026-04-24. Origen: debate ronda 1-9 en
-> `research/notes/v1_5_debates.md`.
+> **Fecha**: 2026-04-24 (refactor 2026-04-25 separando ODE/SDE de
+> interactividad: los formalismos dinámicos entran en v1.5, lo que
+> queda exclusivamente para v2 es el multi-turno).
+> Origen: debate ronda 1-9 en `research/notes/v1_5_debates.md`.
 
 ---
 
 ## 1. El problema que resuelve
 
-En Fase 0 del MVP, el Investigator recibe un `ResearchCase` (brief +
+En v1.5 del MVP, el Investigator recibe un `ResearchCase` (brief +
 dataset tabular + tools) y solo puede analizar lo que tiene. Toda la
 data es estática. El agente hace python_exec sobre el DataFrame,
 formula claims, submite. No hay experimentos, no hay data nueva, no
@@ -31,13 +35,13 @@ nunca tiene que elegir qué experimento vale la pena no aprende
 priorización, no aprende timing de intervenciones, no aprende a usar
 budget bien, no aprende a saber cuándo parar.
 
-Fase 1 agrega interactividad: el Investigator puede pedir **data nueva
+v2 agrega interactividad: el Investigator puede pedir **data nueva
 generada al vuelo por el Environment** mediante acciones (observar
 más datos filtrados, intervenir sobre variables, estratificar,
 simular trayectorias). Cada acción cuesta budget visible. Cuando el
 budget se termina, solo queda submitir.
 
-Esto materializa presiones evolutivas que Fase 0 no puede tocar
+Esto materializa presiones evolutivas que v1.5 no puede tocar
 (PROJECT.md):
 
 - Descomponer preguntas fine-grained y pedir data específica.
@@ -136,7 +140,7 @@ epistemológica): nada nuevo del loop interactivo porque la mecánica
 específica de cada dominio es ad-hoc. Lo que sí tomamos es la
 **metodología de evaluación behavioral** (grafos H/T/E/J/U/C, 7
 motifs, 10 breakdowns) — pero eso es para scoring procedural futuro
-(issue #53), no para Fase 1.
+(issue #53), no para v2.
 
 **De SciAgentGym**: el patrón de **action templates con combinatoria**
 (25 verbos × muchos objetos = ~200k acciones válidas por step en
@@ -418,7 +422,7 @@ explosión combinatoria que matamos con AtomicSpec.
   aceptan `group_by` porque su data retornada no se groupea
   significativamente.
 
-Recomendación MVP Fase 1: **Opción A**. Stratificar en python_exec,
+Recomendación MVP v2: **Opción A**. Stratificar en python_exec,
 sin costo, como cualquier otro análisis. Si emerge evidencia de que
 costar el groupby importa, pasar a Opción B.
 
@@ -489,7 +493,7 @@ Writer según complejidad del caso:
 Sin esta regla, el agente pide `n=100000` y saturando saca la
 incertidumbre por muestreo. Budget sin scaling es cosmético.
 
-**MVP Fase 1 — Opción A (n fijo por tier)**:
+**MVP v2 — Opción A (n fijo por tier)**:
 - `observe` siempre devuelve N=100.
 - `intervene` siempre devuelve N=50.
 - `stratify` siempre usa N=200 por subgrupo.
@@ -497,7 +501,7 @@ incertidumbre por muestreo. Budget sin scaling es cosmético.
 - El agente no elige N, solo qué pedir.
 - Más simple, menos expresivo.
 
-**Fase 1.5 — Opción B (cost proporcional a N)**:
+**v2.5 — Opción B (cost proporcional a N)**:
 - `cost(observe, n) = 1 * ceil(n / 100)`.
 - `cost(intervene, n) = 3 * ceil(n / 50)`.
 - Etc.
@@ -625,19 +629,19 @@ medidos", eso acredita la GoldQuestion de identificabilidad.
 
 ---
 
-## 7. Qué hooks dejamos en Fase 0 MVP
+## 7. Qué hooks dejamos en v1.5 MVP
 
 Codex (ronda 8) nos marcó que ciertos hooks son "casi gratis" en el
-MVP Fase 0 y evitan refactor grande cuando activemos Fase 1. Los
+MVP v1.5 y evitan refactor grande cuando activemos v2. Los
 dejamos:
 
 1. **`EnvironmentSession` como contract abstracto** (no implementado
-   en Fase 0, pero el tipo existe):
+   en v1.5, pero el tipo existe):
    ```python
    class EnvironmentSession(Protocol):
        seed: int
        step: int
-       budget_remaining: int | None = None  # None = ilimitado (Fase 0)
+       budget_remaining: int | None = None  # None = ilimitado (v1.5)
        def observe(self, ...) -> Data: ...
        def intervene(self, ...) -> Data: ...
        def stratify(self, ...) -> Data: ...
@@ -657,8 +661,8 @@ dejamos:
    `save_artifact`. Ya tenemos el framework de artifacts con IDs; se
    extiende naturalmente.
 
-4. **`ResearchCase.access_policy`** como campo opcional. En Fase 0
-   queda `None` o default estático (solo python_exec). Fase 1 lo llena.
+4. **`ResearchCase.access_policy`** como campo opcional. En v1.5
+   queda `None` o default estático (solo python_exec). v2 lo llena.
 
 5. **Queries stateless por default**: cada call independiente. Stateful
    (acciones cambian lo que viene después) queda para v2 (layered
@@ -693,30 +697,30 @@ El Validator debe chequear esto: adversarial check con agente sin
 data intenta responder GoldQuestions desde solo el brief. Si acierta,
 hay leakage y el Case Writer tiene que regenerar el brief sin hints.
 
-### Dead ends y honey traps (roadmap futuro, NO en Fase 1)
+### Dead ends y honey traps (roadmap futuro, NO en v2)
 
 El sherlock viejo proponía que el Case Writer diseñara **explícitamente**
 algunas variables "interesantes pero sin valor causal" para que el
 agente las persiga y gaste budget. Esto es diseño adversarial del
 entorno.
 
-En Fase 1 no lo metemos — ya es bastante complejidad. Pero lo
-anotamos para Fase 1.5 o v2: variables señuelo con alta correlación
+En v2 no lo metemos — ya es bastante complejidad. Pero lo
+anotamos para v2.5 o v2: variables señuelo con alta correlación
 pero sin rol causal, que el agente tiene que aprender a descartar.
 
-### Modelos 2 y 3 como roadmap post-Fase 1
+### Modelos 2 y 3 como roadmap post-v2
 
-- **Modelo 1 (Fase 1 actual)**: budget-gated access. El agente ve
+- **Modelo 1 (v2 actual)**: budget-gated access. El agente ve
   todas las variables, tiene 4 acciones disponibles, presupuesto
   limitado.
-- **Modelo 2 (Fase 1.5)**: progressive revelation. El agente no ve
+- **Modelo 2 (v2.5)**: progressive revelation. El agente no ve
   todas las variables de entrada — algunas están "locked" y tiene
   que pedirlas. Fuerza hipótesis previas a observación.
 - **Modelo 3 (v2)**: layered worlds con estructura de revelación
   diseñada. Cada capa revela nuevas variables + nuevas acciones. Los
   dead ends y honey traps viven acá.
 
-Fase 1 implementa Modelo 1 solo. Si valida, Modelo 2 en Fase 1.5.
+v2 implementa Modelo 1 solo. Si valida, Modelo 2 en v2.5.
 Modelo 3 queda como horizonte v2 (issue #16).
 
 ---
@@ -759,7 +763,7 @@ que tengo, solo confirma una.
 
 ### Cómo lo evalúa el Evaluator
 
-En el MVP Fase 1 no evaluamos directamente "bueno vs malo". Evaluamos
+En el MVP v2 no evaluamos directamente "bueno vs malo". Evaluamos
 vía proxy: el score final sobre GoldQuestions + el presupuesto que
 usó. Un agente con score alto y budget sobrante hizo experimentos
 buenos. Un agente con score bajo y budget agotado hizo experimentos
@@ -772,7 +776,7 @@ con Corral-style behavioral analysis.
 
 ## 10. Roadmap de fases
 
-### Fase 0 — SCM estático (MVP actual)
+### v1.5 — SCM estático (MVP actual)
 
 - Solo python_exec + submit_claims.
 - Dataset estático en el ResearchCase.
@@ -780,7 +784,7 @@ con Corral-style behavioral analysis.
 - 3 tests de go/no-go al final: necessity ablation, judge adversarial,
   style/leak invariance.
 
-### Fase 1 — SCM estático + interactividad (4-6 semanas post Fase 0)
+### v2 — SCM estático + interactividad (4-6 semanas post v1.5)
 
 - 3 acciones activas: observe, intervene, stratify (simulate no aplica
   a SCM estático).
@@ -791,14 +795,14 @@ con Corral-style behavioral analysis.
   go/no-go **más** un test nuevo: "con acciones disponibles, ¿el agente
   mejora claro sobre el mismo caso sin acciones?".
 
-### Fase 1.5 — ODE/SDE + Modelo 2 (4-6 semanas post Fase 1)
+### v2.5 — ODE/SDE + Modelo 2 (4-6 semanas post v2)
 
 - 4 acciones: agregamos simulate.
 - Opción B de cost scaling (proporcional a N).
 - Modelo 2: progressive revelation (algunas variables locked).
 - Nuevo dominio: farmacocinética (ODE) o eutrophication (ODE).
 
-### Fase 2 — Paper y distilación
+### post-v2 — Paper y distilación
 
 - SDE support.
 - Distilación del Evaluator a classifier chico.
@@ -813,14 +817,14 @@ con Corral-style behavioral analysis.
 
 ---
 
-## 11. 3 tests de go/no-go para cerrar Fase 1
+## 11. 3 tests de go/no-go para cerrar v2
 
-Análogos a los 3 tests de Fase 0 (necessity / adversarial / style)
+Análogos a los 3 tests de v1.5 (necessity / adversarial / style)
 pero adaptados a interactividad:
 
-**Importante**: la "Necessity-of-investigation ablation" de Fase 0
+**Importante**: la "Necessity-of-investigation ablation" de v1.5
 ya captura si más capacidad investigativa mejora score. Los tests
-de Fase 1 deben medir algo que Fase 0 NO puede medir para evitar
+de v2 deben medir algo que v1.5 NO puede medir para evitar
 duplicación. La clave: comparar siempre contra **baselines estáticos
 matched** (mismo caso, misma cantidad equivalente de data vía
 dataset inicial más grande, pero sin capacidad de pedir data nueva).
@@ -887,11 +891,11 @@ constraints del caso — alerta estructural.
 
 ## 12. Dudas abiertas
 
-- **¿Cost scaling opción A vs B en MVP Fase 1?** Arrancamos con A (N
+- **¿Cost scaling opción A vs B en MVP v2?** Arrancamos con A (N
   fijo). Pasamos a B si Test 2 muestra discriminación débil.
 
-- **¿Budget visible o hidden?** Visible en MVP Fase 1. Hidden para
-  investigar en Fase 1.5 — puede forzar planning más explícito.
+- **¿Budget visible o hidden?** Visible en MVP v2. Hidden para
+  investigar en v2.5 — puede forzar planning más explícito.
 
 - **¿stratify es primitiva o composición?** En MVP la tratamos como
   primitiva por conveniencia operativa, pero bajo el capot es
@@ -913,7 +917,7 @@ constraints del caso — alerta estructural.
 ## Referencias
 
 - `ARCHITECTURE.md` — arquitectura v1.5 canon. §5 contratos Pydantic,
-  §12 fases, este doc se articula con la Fase 1.
+  §12 fases, este doc se articula con la v2.
 - `research/notes/v1_5_debates.md` — rondas 1-9 de debate. Ronda 8
   (Sherlock / hooks) y ronda 9 (investigación comparativa) son las
   más relacionadas con este diseño.

@@ -225,20 +225,21 @@ docs/archive/ # Historico (todo_v1_history.md, issue-tracker/, etc.)
 
 | Epic | # | Worktree | Cierra cuando |
 |---|---|---|---|
-| Suites de correctness (1, 2, 4) | #26 | eval-suite | Las 3 suites pasan baseline |
-| Science coverage — mapeo del sistema | #29 | science-coverage | Cobertura mapeada + report |
+| **v1.5 · MVP rubric+juez estatico (SCM+ODE+SDE)** | #63 | main | 3 tests go/no-go pasan en SCM y ODE |
+| **v2 · Interactividad Sherlock multi-turno** | #64 | main | post-v1.5; 3 tests interactividad pasan |
 | Benchmarkear Qwen3-8B con benchmarks externos | #30 | qwen-benchmarks | Qwen3-8B corrio en los 4 benchmarks |
 | Infra de entrenamiento RL con Qwen sobre SREG | #31 | rl-training-infra | Infra completa + primer RL run valida |
-| Mejorar el compiler post-diagnostico Suite 2 | #36 | compiler-fix | Suite 2 effective pass rate >=50%, arm_kinds >=70%, abstain correcto |
-| Investigacion secuencial tipo Sherlock (parked) | #16 | (por definir) | A definir cuando se retome |
+
+**Taxonomia de versiones**: v1 = sistema actual con compiler NL↔IR (techo
+~82% en Suite 2, plateau). v1.5 = rubric + juez + answer key grounded
+sobre SCM+ODE+SDE estatico (Investigator single-turn). v2 = interactividad
+Sherlock multi-turno (Investigator pide observaciones, interviene, simula).
+Los formalismos dinamicos ODE/SDE entran ya en v1.5 — son ortogonales al
+multi-turno, que queda exclusivamente para v2.
 
 ### Standalones activos (sin epic padre)
 
-- #1 Verifier mas robusto (main)
-- #2 Scoring por unidad / credit assignment (main, `design`)
 - #18 Modos semanticos ficticio/abstracto (parked, `research`)
-- #21 Consolidar docs post-v1 (main, `research`)
-- #22 Bug: world fingerprint inestable (main, `bug`)
 
 ### Git general
 
