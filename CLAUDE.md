@@ -64,6 +64,7 @@ Cada decisión pasa por este TRIPLE filtro:
 4. **No construir un juego** — si necesita "roles", "slots", "pattern_weights" para funcionar, es un juego, no evaluación de investigación.
 5. **Verificación es el core** — el SCM verifica. El scoring solo pregunta: ¿es verdad? ¿es relevante? ¿cubrió lo pedido? ¿no spameó?
 6. **Diversidad de investigación** — todo diseño debe funcionar para los tipos diversos de investigación. No diseñar solo para "X→Y".
+7. **DIVERSIDAD DE CASOS — sin esto nada tiene sentido.** v1.5 MVP debe entregar varios casos diversos por formalismo (NO un caso canónico único). Distintos dominios, distintos tipos de trampa (collider, Simpson, mediación, no-linealidad, identifiability, bifurcaciones), distintas dificultades. Casos famosos como Birth Weight Paradox o SIR son **smoke tests**, no evidencia principal. Si el set MVP es homogéneo, los tests go/no-go pueden pasar por overfitting al caso, no por entender la mecánica.
 
 ## Donde buscar que
 

@@ -497,3 +497,69 @@ GoldQuestion(
 - §5 contratos Pydantic: reemplazar estructura de Rubric existente por este schema final.
 - §8 scoring: documentar los 2 pasos del Evaluator (identificación binaria, luego graduación por rubric).
 - Apéndice nuevo con ejemplo canónico Birth Weight Paradox (6-8 GQs completas).
+
+---
+
+## Ronda 11 — 2026-04-26 — Estrategia de implementación (orden + checkpoints + anti-memorización)
+
+### Contexto
+
+Después de cerrar el diseño macro, arrancamos a pensar cómo construir v1.5 sin caer en dos trampas:
+1. Hacer un spike chico desechable que no valide nada concluyente (ya pasó: spike `experiments/v1_5_juez_spike/` daba rank 6/6 pero el caso Birth Weight es famoso → posible memorización del LLM judge).
+2. Construir las 8 sub-issues #55-#62 en orden secuencial sin probar nada hasta el final → si la mecánica de evaluación falla, lo descubrimos tarde.
+
+### Pregunta a Codex
+
+> ¿Cómo encarar el desarrollo de v1.5 si tuviéramos que construir cosas que QUEDEN (no atajos), pieza por pieza, sabiendo del riesgo de memorización del LLM judge?
+
+### Idea central de Codex
+
+> No construyas primero el pipeline que GENERA casos. Construí primero el pipeline que DEMUESTRA que, dado un caso válido, la verdad estructurada realmente gobierna el score. Después automatizá la generación encima de un suelo firme.
+
+La pieza más frágil de v1.5 NO es coordinar 4 agentes — la pieza frágil es que **rubric + answer key + juez LLM realmente discriminen sobre casos NO memorizados**. Hay que enterarse pronto, no al final.
+
+### Orden de implementación adoptado
+
+| Orden | Issue | Por qué acá |
+|---|---|---|
+| 1 | #55 Contratos Pydantic | Congela handoffs y la frontera público/oculto. |
+| 2 | #56 Environment + Verifier | Sin oráculo matemático, todo lo demás es prosa apoyada en el aire. |
+| 3 | **#61 Evaluator + Scoring** | La hipótesis más frágil del producto. Si rubric+anchor+judge no funciona, hay que enterarse ACÁ. |
+| 4 | #60 Investigator runtime | Cierra el loop estático real con casos hand-authored. |
+| 5 | #57 Paper Digestion | Recién acá: ya sabés qué artefactos tiene que producir. |
+| 6 | #58 Designer 4 agentes | Sobre consumidores estables (Evaluator + Investigator). |
+| 7 | #59 Validator + Loop | Último porque amplifica calidad, no la crea. |
+| 8 | #62 Casos diversos + tests | Arranca tras #56, cierra al final. Harness permanente. |
+
+**Cambios respecto al orden secuencial #55→#62**: #61 (Evaluator) salta de posición 7 a 3. #58 (Designer) baja de 4 a 6. La razón: validar mecánica de evaluación ANTES de construir maquinaria de generación.
+
+### Checkpoints entre piezas
+
+- **CP0** post-#55: contratos roundtripean OK, `ResearchCase` no filtra cosas internas.
+- **CP1** post-#56: mundos hand-authored producen `AnswerKey` estable y reproducible.
+- **CP2** post-#61: **gate duro** — `answer_key_sensitivity` y `isomorph_invariance` pasan sobre corpus abstracto. Si fallan, se rehace Evaluator AHORA.
+- **CP3** post-#60: caso SCM y caso ODE corren end-to-end con Investigator real.
+- **CP4** post-#57: 3 seed papers producen `PaperInsights` accionables.
+- **CP5** post-#58: Designer produce casos completos válidos por formalismo.
+- **CP6** post-#59: Validator rechaza casos plantados con leak/trivialidad.
+- **CP7** post-#62: casos diversos + suite abstracta + piloto humano.
+
+### Anti-memorización integrada al flujo
+
+No es una prueba aparte al final, es parte del desarrollo:
+
+1. **Corpus abstracto desde temprano**: justo después de #56 se construye un corpus chico de mundos isomorfos hand-authored con variables `X`, `M`, `Y`, briefs neutros, answer keys generadas por el Verifier. Asset permanente, no spike.
+2. **Birth Weight y SIR son smoke tests, no evidencia principal.** Los casos famosos sirven para confirmación humana.
+3. **Gate duro post-#61**: dos tests obligatorios (`answer_key_sensitivity` y `isomorph_invariance`).
+4. **Re-ejecución post-#58 y post-#59**: el Designer puede reintroducir leak por wording de briefs o rubrics demasiado "teaching-to-the-test".
+5. **Regla operativa**: si el judge acierta en casos famosos pero falla en la suite abstracta → rojo. Si pasa la abstracta y los famosos → señal real.
+
+### Decisiones laterales tomadas en esta ronda
+
+1. **SDE difiere a v1.6**: ODE + observation_noise opcional cubre la mayoría de los casos realistas. SDE intrínseco solo se necesita para difusión molecular, mercados, biofísica con ruido térmico — no es bloqueante para v1.5.
+2. **`epistemic_operation` sale de `GoldQuestion`**: el campo confundía dos sentidos (clasificación de pregunta vs tagging de acción al estilo Corral). En v1.5 no clasificamos preguntas con templates (principio "UN método para todo"). El concepto Corral-style queda como `epistemic_tag` opcional en `InvestigatorAction`, hookeado para trace scoring futuro (issue #53).
+3. **Diversidad de casos como invariante**: NO un caso canónico único. Varios casos por formalismo, distintos dominios, distintos tipos de trampa. Sin diversidad real, todo el sistema pierde sentido.
+
+### Veredicto
+
+Arrancamos con #55. El plan está documentado, no hay ambigüedad. Si en la implementación aparece una decisión grande que afecta el plan, paramos y revisamos. Detalles (nombres, layout) los resolvemos en flujo.
