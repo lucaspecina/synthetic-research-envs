@@ -77,6 +77,12 @@ class InvestigationLog(BaseModel):
 
     En MVP solo se persiste, no se evalúa. Habilita trace scoring (#53)
     y rewards de proceso a futuro sin requerir rehacer tools después.
+
+    `extra_claims` es hook reservado para v1.6+ (open scoring del Solver):
+    claims fuera de las GoldQuestions que el Investigator hace
+    espontáneamente. En v1.5 se registran pero NO entran al score; en
+    v1.6+ entran con bonus si son verdaderos contra el WorldSpec y
+    relevantes (ver `multi_explorer_redesign.md` §7).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -85,6 +91,9 @@ class InvestigationLog(BaseModel):
     actions: list[InvestigatorAction]
     hypotheses_log: list[HypothesisEntry] = Field(default_factory=list)
     final_claims: list[Claim] = Field(default_factory=list)
+    extra_claims: list[Claim] = Field(default_factory=list)
+    """Claims espontáneos fuera de las GoldQuestions. Registrados en v1.5
+    pero NO scoreados; hook reservado para v1.6+ open scoring."""
 
 
 __all__ = [

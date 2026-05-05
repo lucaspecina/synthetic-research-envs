@@ -18,10 +18,14 @@ from sreg.v1_5.contracts import (
     Criterion,
     EvidenceArtifact,
     GoldQuestion,
-    QuestionProposal,
+    PaperInsights,
+    PaperNarrativeCapsule,
     QuestionsBundle,
     Rubric,
+    ValidatedPhenomenon,
+    ValidationIssue,
     ValidationReport,
+    ValidatorVote,
     WorldMetadata,
     WorldSpec,
 )
@@ -236,8 +240,18 @@ def test_validation_passed_without_target_ok() -> None:
 
 
 def test_validation_failed_with_target_ok() -> None:
-    r = ValidationReport(passed=False, target_to_reiterate="world")
+    r = ValidationReport(
+        passed=False,
+        target_to_reiterate="world",
+        issues=[ValidationIssue(artifact="world", severity="error", description="x")],
+    )
     assert r.target_to_reiterate == "world"
+
+
+def test_validation_failed_without_issues_or_artifacts_fails() -> None:
+    """passed=False sin `issues` ni `invalidated_artifacts` no es accionable."""
+    with pytest.raises(ValidationError):
+        ValidationReport(passed=False, target_to_reiterate="world")
 
 
 def test_validation_passed_with_target_fails() -> None:
@@ -273,70 +287,245 @@ def test_gq_empty_provenance_fails() -> None:
 
 
 # ---------------------------------------------------------------------------
-# QuestionProposal — status consistency
+# ValidatorVote — failure_reason consistency
 # ---------------------------------------------------------------------------
 
 
-def test_proposal_verified_with_complete_fields_ok() -> None:
-    p = QuestionProposal(
-        proposal_id="p1",
-        author_run_id="explorer_1",
-        focus="ip_collider",
-        status="verified",
-        question_text="¿Cuál es el efecto?",
-        rubric_draft=Rubric(criteria=[_make_criterion()]),
-        answer_key=AnswerKey(summary="s", numeric={}),
-        answer_key_provenance=[_make_evidence()],
+def _make_vote(
+    *,
+    vote: str = "passes",
+    failure_reason: str | None = None,
+    iteration: int = 1,
+) -> ValidatorVote:
+    return ValidatorVote(
+        validator_id="v1",
+        target_intended_id="ip1",
+        iteration=iteration,
+        vote=vote,  # type: ignore[arg-type]
+        margin=0.8,
+        fragility=0.2,
+        evidence=[_make_evidence()],
+        failure_reason=failure_reason,
     )
-    assert p.status == "verified"
 
 
-def test_proposal_verified_missing_fields_fails() -> None:
-    """status='verified' sin question_text/rubric/answer_key/provenance falla."""
+def test_validator_vote_passes_without_failure_reason_ok() -> None:
+    v = _make_vote(vote="passes")
+    assert v.failure_reason is None
+
+
+def test_validator_vote_weak_pass_requires_failure_reason() -> None:
+    """`weak_pass` no graduates silenciosamente — exige `failure_reason`."""
     with pytest.raises(ValidationError):
-        QuestionProposal(
-            proposal_id="p1",
-            author_run_id="explorer_1",
-            focus="ip_collider",
-            status="verified",
-            # Faltan: question_text, rubric_draft, answer_key, provenance
+        _make_vote(vote="weak_pass", failure_reason=None)
+
+
+def test_validator_vote_fails_requires_failure_reason() -> None:
+    with pytest.raises(ValidationError):
+        _make_vote(vote="fails", failure_reason=None)
+
+
+def test_validator_vote_fails_with_reason_ok() -> None:
+    v = _make_vote(vote="fails", failure_reason="coef de U débil; collider no se materializa")
+    assert v.vote == "fails"
+
+
+def test_validator_vote_negative_iteration_fails() -> None:
+    with pytest.raises(ValidationError):
+        _make_vote(iteration=-1)
+
+
+def test_validator_vote_empty_evidence_fails() -> None:
+    with pytest.raises(ValidationError):
+        ValidatorVote(
+            validator_id="v1",
+            target_intended_id="ip1",
+            iteration=0,
+            vote="passes",
+            margin=0.5,
+            fragility=0.1,
+            evidence=[],
         )
 
 
-def test_proposal_rejected_with_failure_reason_ok() -> None:
-    p = QuestionProposal(
-        proposal_id="p1",
-        author_run_id="explorer_1",
-        focus="ip_collider",
-        status="rejected_unconfirmed",
-        failure_reason="el collider en LBW no se materializa en este SCM",
+def test_validator_vote_passes_with_failure_reason_fails() -> None:
+    """vote='passes' con failure_reason es contradictorio."""
+    with pytest.raises(ValidationError):
+        _make_vote(vote="passes", failure_reason="esto no debería estar")
+
+
+def test_validator_vote_iteration_zero_with_delta_fails() -> None:
+    """iteration=0 con delta_from_previous no nulo: no hay previa."""
+    with pytest.raises(ValidationError):
+        ValidatorVote(
+            validator_id="v1",
+            target_intended_id="ip1",
+            iteration=0,
+            vote="passes",
+            margin=0.5,
+            fragility=0.1,
+            evidence=[_make_evidence()],
+            delta_from_previous={"x": 1},
+        )
+
+
+@pytest.mark.parametrize("margin", [-0.1, 1.5, 100.0])
+def test_validator_vote_margin_out_of_range_fails(margin: float) -> None:
+    with pytest.raises(ValidationError):
+        ValidatorVote(
+            validator_id="v1",
+            target_intended_id="ip1",
+            iteration=0,
+            vote="passes",
+            margin=margin,
+            fragility=0.1,
+            evidence=[_make_evidence()],
+        )
+
+
+@pytest.mark.parametrize("fragility", [-0.1, 1.5])
+def test_validator_vote_fragility_out_of_range_fails(fragility: float) -> None:
+    with pytest.raises(ValidationError):
+        ValidatorVote(
+            validator_id="v1",
+            target_intended_id="ip1",
+            iteration=0,
+            vote="passes",
+            margin=0.5,
+            fragility=fragility,
+            evidence=[_make_evidence()],
+        )
+
+
+# ---------------------------------------------------------------------------
+# ValidatedPhenomenon — only-passes consistency + source_intended_id match
+# ---------------------------------------------------------------------------
+
+
+def _vp_kwargs(**overrides) -> dict:
+    base = dict(
+        id="vp1",
+        source_intended_id="ip1",
+        kind="collider",
+        description="LBW collider entre Smoking y U",
+        relevant_variables=["smoking", "lbw", "u"],
+        validator_votes=[_make_vote(vote="passes")],
+        margin=0.8,
+        fragility=0.2,
+        evidence=[_make_evidence()],
     )
-    assert p.status == "rejected_unconfirmed"
-    assert p.question_text is None
+    base.update(overrides)
+    return base
 
 
-def test_proposal_rejected_without_failure_reason_fails() -> None:
-    """status='rejected_unconfirmed' sin `failure_reason` falla."""
+def test_validated_phenomenon_with_passes_vote_ok() -> None:
+    vp = ValidatedPhenomenon(**_vp_kwargs())
+    assert vp.validator_votes[0].vote == "passes"
+
+
+def test_validated_phenomenon_rejects_weak_pass_vote() -> None:
+    """`weak_pass` NO graduates a ValidatedPhenomenon."""
+    weak = _make_vote(vote="weak_pass", failure_reason="margin marginal")
     with pytest.raises(ValidationError):
-        QuestionProposal(
-            proposal_id="p1",
-            author_run_id="explorer_1",
-            focus="ip_collider",
-            status="rejected_unconfirmed",
+        ValidatedPhenomenon(**_vp_kwargs(validator_votes=[weak]))
+
+
+def test_validated_phenomenon_rejects_fails_vote() -> None:
+    fails = _make_vote(vote="fails", failure_reason="no materializa")
+    with pytest.raises(ValidationError):
+        ValidatedPhenomenon(**_vp_kwargs(validator_votes=[fails]))
+
+
+def test_validated_phenomenon_empty_votes_fails() -> None:
+    with pytest.raises(ValidationError):
+        ValidatedPhenomenon(**_vp_kwargs(validator_votes=[]))
+
+
+def test_validated_phenomenon_target_mismatch_fails() -> None:
+    """`source_intended_id` debe coincidir con cada `target_intended_id` de los votes."""
+    mismatched = _make_vote(vote="passes")
+    # `mismatched.target_intended_id` es "ip1"; usamos otro source para forzar mismatch
+    with pytest.raises(ValidationError):
+        ValidatedPhenomenon(
+            **_vp_kwargs(source_intended_id="ip_OTRO", validator_votes=[mismatched])
         )
 
 
-def test_proposal_verified_with_failure_reason_fails() -> None:
-    """status='verified' NO debe tener `failure_reason`."""
+def test_validated_phenomenon_empty_evidence_fails() -> None:
     with pytest.raises(ValidationError):
-        QuestionProposal(
-            proposal_id="p1",
-            author_run_id="explorer_1",
-            focus="ip_collider",
-            status="verified",
-            question_text="?",
-            rubric_draft=Rubric(criteria=[_make_criterion()]),
-            answer_key=AnswerKey(summary="s", numeric={}),
-            answer_key_provenance=[_make_evidence()],
-            failure_reason="esto no debería estar acá",
+        ValidatedPhenomenon(**_vp_kwargs(evidence=[]))
+
+
+def test_validated_phenomenon_orphan_evidence_fails() -> None:
+    """Evidence con script que no aparece en ningún vote es huérfana."""
+    orphan = EvidenceArtifact(script="pass # script huérfano", numerical_result={})
+    with pytest.raises(ValidationError):
+        ValidatedPhenomenon(**_vp_kwargs(evidence=[orphan]))
+
+
+def test_validated_phenomenon_tampered_numerical_result_fails() -> None:
+    """Evidence con MISMO script pero numerical_result distinto es huérfana.
+
+    Detecta caso "Architect copia código pero retoca el número": el
+    fingerprint compara `(script, numerical_result)`, no solo script.
+    """
+    # vote_evidence (en _make_evidence): numerical_result={}
+    tampered = EvidenceArtifact(script="pass", numerical_result={"ate": 999.0})
+    with pytest.raises(ValidationError):
+        ValidatedPhenomenon(**_vp_kwargs(evidence=[tampered]))
+
+
+def test_validated_phenomenon_margin_above_min_vote_fails() -> None:
+    """Margin agregado debe ser <= min(votes.margin) (conservador)."""
+    vote = _make_vote(vote="passes")  # margin=0.8
+    with pytest.raises(ValidationError):
+        ValidatedPhenomenon(
+            **_vp_kwargs(validator_votes=[vote], margin=0.95)  # > 0.8 → fails
         )
+
+
+def test_validated_phenomenon_fragility_below_max_vote_fails() -> None:
+    """Fragility agregada debe ser >= max(votes.fragility)."""
+    vote = _make_vote(vote="passes")  # fragility=0.2
+    with pytest.raises(ValidationError):
+        ValidatedPhenomenon(
+            **_vp_kwargs(validator_votes=[vote], fragility=0.05)  # < 0.2 → fails
+        )
+
+
+# ---------------------------------------------------------------------------
+# PaperInsights — narrative_capsule obligatorio (anti-leak)
+# ---------------------------------------------------------------------------
+
+
+def test_paper_insights_without_narrative_capsule_fails() -> None:
+    """`narrative_capsule` es obligatorio post-Ronda 13 (anti-leak)."""
+    with pytest.raises(ValidationError):
+        PaperInsights(
+            paper_id="p1",
+            objective="x",
+            entities=[],
+            mechanisms=[],
+            phenomena=[],
+            complications=[],
+            counterintuitive_priors=[],
+            realism_bounds=[],
+            # falta narrative_capsule
+        )
+
+
+def test_paper_insights_with_capsule_ok() -> None:
+    p = PaperInsights(
+        paper_id="p1",
+        objective="x",
+        entities=[],
+        mechanisms=[],
+        phenomena=[],
+        complications=[],
+        counterintuitive_priors=[],
+        realism_bounds=[],
+        narrative_capsule=PaperNarrativeCapsule(
+            domain="d", population="p"
+        ),
+    )
+    assert p.narrative_capsule is not None

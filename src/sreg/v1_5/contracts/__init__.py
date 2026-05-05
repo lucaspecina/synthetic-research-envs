@@ -7,9 +7,12 @@ tipado, no prosa.
 **Frontera público/oculto** (invariante operativa):
 
 - **PÚBLICO** (lo ve el Investigator): `ResearchCase`, `Dataset`, `ToolSpec`.
+  Opcionalmente `PaperNarrativeCapsule` (saneada, anti-leak) puede
+  incluirse en `ResearchCase.context`.
 - **OCULTO** (NO se filtra al Investigator): `WorldSpec`, `IntendedPhenomenon`,
-  `QuestionsBundle`, `GoldQuestion`, `QuestionProposal`, `Rubric`,
-  `AnswerKey`, `EvidenceArtifact`, `SelectionReport`, `ValidationReport`.
+  `ValidatorVote`, `ValidatedPhenomenon`, `PhenomenaManifest`,
+  `QuestionsBundle`, `GoldQuestion`, `Rubric`, `AnswerKey`,
+  `EvidenceArtifact`, `ValidationReport`, `PaperInsights` (resto).
 
 Si alguna vez agregás un campo de la lista oculta a `ResearchCase`,
 parás y revisás. Es un bug grave (filtra la respuesta al solver).
@@ -22,13 +25,12 @@ from sreg.v1_5.contracts.investigation import (
     InvestigationLog,
     InvestigatorAction,
 )
-from sreg.v1_5.contracts.paper import PaperInsights
+from sreg.v1_5.contracts.paper import PaperInsights, PaperNarrativeCapsule
 from sreg.v1_5.contracts.phenomena import (
     EvidenceArtifact,
     PhenomenaManifest,
     Phenomenon,
 )
-from sreg.v1_5.contracts.proposal import QuestionProposal, SelectionReport
 from sreg.v1_5.contracts.questions import (
     ALLOWED_CRITERION_WEIGHTS,
     ALLOWED_GQ_WEIGHTS,
@@ -38,6 +40,10 @@ from sreg.v1_5.contracts.questions import (
     GoldQuestion,
     QuestionsBundle,
     Rubric,
+)
+from sreg.v1_5.contracts.validated_phenomenon import (
+    ValidatedPhenomenon,
+    ValidatorVote,
 )
 from sreg.v1_5.contracts.validation import (
     AdversarialAttempt,
@@ -57,6 +63,7 @@ from sreg.v1_5.contracts.world import (
 __all__ = [
     # paper
     "PaperInsights",
+    "PaperNarrativeCapsule",
     # world
     "VariableSpec",
     "RelationshipSpec",
@@ -76,9 +83,9 @@ __all__ = [
     "Rubric",
     "GoldQuestion",
     "QuestionsBundle",
-    # proposal (multi-agent flow)
-    "QuestionProposal",
-    "SelectionReport",
+    # validated_phenomenon (Architect ↔ Validators flow)
+    "ValidatorVote",
+    "ValidatedPhenomenon",
     # case
     "Dataset",
     "ToolSpec",

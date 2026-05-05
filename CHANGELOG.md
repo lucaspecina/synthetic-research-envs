@@ -5,6 +5,71 @@
 
 ## [Unreleased]
 
+### 2026-05-05 — Fase 0 v1.5: contratos Ronda 13 aplicados + endurecidos post-Codex
+
+Aplicación de los cambios de contratos Pydantic acordados en Ronda 13.
+Codex review final identificó 4 fugas de disciplina en los validators
+cruzados; se endurecieron antes del commit.
+
+- **Borrado**: `proposal.py` (`QuestionProposal` + `SelectionReport`).
+- **Nuevo**: `validated_phenomenon.py`:
+  - `ValidatorVote` con margin/fragility en [0, 1], rechazo de
+    estados contradictorios (`vote='passes'` con `failure_reason`,
+    `iteration=0` con `delta_from_previous`), `diagnostics: dict`
+    libre como telemetría no normativa (idea del survey
+    `world_design_techniques_survey.md` §4.5).
+  - `ValidatedPhenomenon` con agregación conservadora forzada por
+    schema: `margin <= min(votes.margin)`, `fragility >= max(votes.fragility)`,
+    evidence anti-huérfana con fingerprint `(script, numerical_result)`
+    para detectar Architect que copia código pero retoca números.
+- **`paper.py`**: nuevo `PaperNarrativeCapsule` (cápsula saneada anti-leak
+  con domain/population/units/measurement_conventions/natural_question_style/
+  forbidden_phrases). `PaperInsights.narrative_capsule` ahora **obligatoria**
+  — el flujo post-Ronda 13 prohíbe exponer paper crudo aguas abajo de
+  Paper Digestion.
+- **`validation.py`**: `ReiterationTarget` cambia de `world|explorers|case`
+  a `world|designer|case`. Nuevo check de accionabilidad: `passed=False`
+  exige al menos un `issue` o `invalidated_artifact`.
+- **`investigation.py`**: `InvestigationLog.extra_claims` registra claims
+  espontáneos del Investigator fuera de las GoldQuestions. Hook reservado
+  para v1.6+ open scoring; en v1.5 se persiste pero NO se puntúa.
+
+Total: 103 tests pasan, ruff limpio. Codex review final en thread
+`019df8b5-3ba4-71f2-9984-cf24d6e6373f`.
+
+Próxima fase (Fase 1 v1.5): compiler `WorldSpec → SCMWorld` (adapter sobre
+`expression_compiler.py` v1) + Architect agente con LLM.
+
+### 2026-05-05 — Survey de técnicas de diseño de mundos y tareas (4 verticales)
+
+Investigación amplia de técnicas estructuralmente similares a SREG
+tomadas de **fuera del dominio** (no causal inference / scientific
+benchmarks — ya cubierto en `related_work_*.md`). Cuatro verticales en
+paralelo, cada uno con reporte detallado en `research/notes/`:
+
+- **PCG en videojuegos** (`world_design_pcg.md`): Wave Function Collapse,
+  Answer Set Programming, búsqueda evolutiva, L-systems, MAP-Elites;
+  Spelunky, Dwarf Fortress, Caves of Qud, Minecraft, No Man's Sky.
+- **Mystery & Discovery design** (`world_design_mystery.md`): Obra Dinn,
+  Outer Wilds, Disco Elysium, Tunic, Heaven's Vault; TTRPG (Three-Clue
+  Rule, Gumshoe, Brindlewood Bay), Sherlock Holmes board game.
+- **UED & Open-Endedness en RL** (`world_design_ued.md`): POET, PAIRED,
+  ACCEL, PLR, MAP-Elites, Domain Randomization, BabyAI, XLand, Voyager,
+  Eureka, Genie.
+- **LLM-as-environment-designer 2023-2026** (`world_design_llm.md`):
+  GenSim, RoboGen, Eureka, Voyager, AI Scientist, Auto MC-Reward,
+  AutoGen, CAMEL, ChatDev.
+
+Síntesis canónica en `research/synthesis/world_design_techniques_survey.md`
+con las **12 técnicas más transferibles** priorizadas, mapeadas a etapas
+del Designer SREG (Architect / Validators / Question Designer / Validator
+transversal). Estado de adopción documentado: 4 ítems incorporables a v1.5
+(uno aplicado: `diagnostics` en `ValidatorVote`), 5 ítems reservados a
+v1.6+ (MAP-Elites archive corpus-level, mutación compositiva, skill
+library, antagonist validator, novelty corpus-level), resto declinado.
+
+`research/README.md` actualizado con refs a los 5 docs nuevos.
+
 ### 2026-05-05 — v1.5 Designer ronda 13: recorte a Architect + Validators + Question Designer
 
 Segundo recorte del Designer multi-agente (post ronda 12 del 2026-05-04).

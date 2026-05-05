@@ -19,15 +19,16 @@ from sreg.v1_5.contracts import (
     InvestigationLog,
     InvestigatorAction,
     PaperInsights,
+    PaperNarrativeCapsule,
     PhenomenaManifest,
     Phenomenon,
-    QuestionProposal,
     QuestionsBundle,
     ResearchCase,
     Rubric,
-    SelectionReport,
     ToolSpec,
+    ValidatedPhenomenon,
     ValidationReport,
+    ValidatorVote,
     VariableSpec,
     WorldMetadata,
     WorldSpec,
@@ -91,38 +92,49 @@ def questions_bundle(gold_question: GoldQuestion) -> QuestionsBundle:
 
 
 @pytest.fixture
-def question_proposal(rubric: Rubric, evidence_artifact: EvidenceArtifact) -> QuestionProposal:
-    return QuestionProposal(
-        proposal_id="prop_001",
-        author_run_id="explorer_run_2_focus_collider",
-        focus="ip_collider_smoking_u",
-        question_text="¿El efecto estratificado por LBW se invierte?",
-        rubric_draft=rubric,
-        answer_key=AnswerKey(
-            summary="Sí: en LBW=1 el efecto se invierte; señal de collider.",
-            numeric={"effect_lbw_0": 0.013, "effect_lbw_1": -0.216},
-        ),
-        answer_key_provenance=[evidence_artifact],
-        status="verified",
-    )
-
-
-@pytest.fixture
-def selection_report() -> SelectionReport:
-    return SelectionReport(
-        selected_proposals=["prop_001", "prop_002"],
-        rejected_proposals=["prop_003"],
-        diversity_score=0.7,
-    )
-
-
-@pytest.fixture
 def intended_phenomenon() -> IntendedPhenomenon:
     return IntendedPhenomenon(
         id="ip_collider_x_u",
         kind="collider",
         description="LBW como collider entre Smoking y un confounder no observado U",
         relevant_variables=["smoking", "low_birth_weight", "hidden_u"],
+    )
+
+
+@pytest.fixture
+def validator_vote_passing(
+    intended_phenomenon: IntendedPhenomenon,
+    evidence_artifact: EvidenceArtifact,
+) -> ValidatorVote:
+    return ValidatorVote(
+        validator_id="validator_run_2_collider",
+        target_intended_id=intended_phenomenon.id,
+        iteration=1,
+        vote="passes",
+        margin=0.85,
+        fragility=0.2,
+        delta_from_previous={"coef_u_on_mort": "1.0 → 2.8"},
+        evidence=[evidence_artifact],
+        diagnostics={"n_samples": 50000, "ci_width": 0.014},
+    )
+
+
+@pytest.fixture
+def validated_phenomenon(
+    intended_phenomenon: IntendedPhenomenon,
+    validator_vote_passing: ValidatorVote,
+    evidence_artifact: EvidenceArtifact,
+) -> ValidatedPhenomenon:
+    return ValidatedPhenomenon(
+        id="vp_collider_x_u",
+        source_intended_id=intended_phenomenon.id,
+        kind=intended_phenomenon.kind,
+        description=intended_phenomenon.description,
+        relevant_variables=intended_phenomenon.relevant_variables,
+        validator_votes=[validator_vote_passing],
+        margin=validator_vote_passing.margin,
+        fragility=validator_vote_passing.fragility,
+        evidence=[evidence_artifact],
     )
 
 
@@ -167,7 +179,22 @@ def research_case() -> ResearchCase:
 
 
 @pytest.fixture
-def paper_insights() -> PaperInsights:
+def narrative_capsule() -> PaperNarrativeCapsule:
+    return PaperNarrativeCapsule(
+        domain="epidemiología perinatal",
+        population="cohorte observacional de ~1500 nacimientos",
+        units={"birth_weight": "gramos", "mortality": "binario"},
+        measurement_conventions=["LBW threshold 2500g", "mortalidad neonatal primer mes"],
+        natural_question_style=[
+            "estimaciones de efecto causal con CI",
+            "análisis estratificados por covariable observacional",
+        ],
+        forbidden_phrases=["paradoja del peso al nacer", "collider", "Berkson"],
+    )
+
+
+@pytest.fixture
+def paper_insights(narrative_capsule: PaperNarrativeCapsule) -> PaperInsights:
     return PaperInsights(
         paper_id="p1",
         objective="Estudia efecto de X sobre Y.",
@@ -177,6 +204,7 @@ def paper_insights() -> PaperInsights:
         complications=["Z parcialmente no observado"],
         counterintuitive_priors=["asumir que X protege a Y en LBW"],
         realism_bounds=["X y Y dentro de rangos plausibles"],
+        narrative_capsule=narrative_capsule,
     )
 
 
