@@ -52,6 +52,10 @@ class VariableSpec(BaseModel):
 
     name: str
     kind: Literal["continuous", "binary", "categorical", "count"] = "continuous"
+    """Tipo semántico de la variable. **Metadata-only en v1.5**: el
+    compiler NO valida que los samples respeten el `kind` declarado
+    (ej. `kind='binary'` con `equation='normal(0,1)'` compila sin
+    error). Validación post-sampling del kind queda para v1.6+."""
     description: str | None = None
     is_observable: bool = True
     """Si False, la variable es latente (ej. confounder no observado).
@@ -142,6 +146,11 @@ class WorldSpec(BaseModel):
     de cada variable. Para ODE puede declarar qué variable acopla con qué
     en `dy/dt`."""
     parameters: dict[str, float] = Field(default_factory=dict)
+    """Hiperparámetros nombrados del mundo. **NO soportado en SCM v1.5**:
+    el Architect debe inlinear valores literales en las `equation`s. El
+    `compile_scm` rebota con `NotImplementedError` si este dict no está
+    vacío. Sustitución determinista de parámetros: v1.6+. Para ODE puede
+    usarse a futuro como bind-time parameters."""
     metadata: WorldMetadata
     observation_noise: float | None = None
     """Desvío estándar gaussiano opcional sobre las trayectorias observadas

@@ -85,3 +85,26 @@ def trivial_env(trivial_scm: SCMWorld) -> SCMEnvironmentAdapter:
 @pytest.fixture
 def confounded_env(confounded_scm: SCMWorld) -> SCMEnvironmentAdapter:
     return SCMEnvironmentAdapter(confounded_scm)
+
+
+@pytest.fixture
+def latent_confounder_env() -> SCMEnvironmentAdapter:
+    """Mundo con `U` LATENTE (confounder no observado).
+
+    - U ~ N(0, 1)         (latente)
+    - X = U + N(0, 0.1)
+    - Y = 2*X + 3*U + N(0, 0.1)
+
+    `observable_variables = {X, Y}`. `U` no aparece por default en
+    `observe()`/`intervene()`.
+    """
+    world = SCMWorld(
+        graph={"U": [], "X": ["U"], "Y": ["X", "U"]},
+        equations={
+            "U": _gaussian(mean=0.0, std=1.0),
+            "X": _linear(coefs={"U": 1.0}, intercept=0.0, std=0.1),
+            "Y": _linear(coefs={"X": 2.0, "U": 3.0}, intercept=0.0, std=0.1),
+        },
+        latent_variables={"U"},
+    )
+    return SCMEnvironmentAdapter(world)

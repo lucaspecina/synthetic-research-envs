@@ -75,6 +75,45 @@ def test_observe_different_seeds_differ(
     assert not df1.equals(df2)
 
 
+# -- latentes / frontera publico-oculto ------------------------------------
+
+
+def test_observe_default_excludes_latent_variables(
+    latent_confounder_env: SCMEnvironmentAdapter,
+) -> None:
+    """Por default `columns=None` proyecta `observable_variables` —
+    NUNCA expone latentes (frontera público/oculto)."""
+    df = latent_confounder_env.observe(n=50, seed=42)
+    assert set(df.columns) == {"X", "Y"}
+    assert "U" not in df.columns
+
+
+def test_observe_explicit_columns_can_request_latent(
+    latent_confounder_env: SCMEnvironmentAdapter,
+) -> None:
+    """Pidiendo latentes explícitamente (caso design-time de los
+    Validators), el adapter las devuelve."""
+    df = latent_confounder_env.observe(n=50, columns=["U", "X"], seed=42)
+    assert list(df.columns) == ["U", "X"]
+
+
+def test_intervene_default_excludes_latent_variables(
+    latent_confounder_env: SCMEnvironmentAdapter,
+) -> None:
+    df = latent_confounder_env.intervene(do={"X": 1.0}, n=50, seed=42)
+    assert set(df.columns) == {"X", "Y"}
+    assert "U" not in df.columns
+
+
+def test_intervene_explicit_columns_can_request_latent(
+    latent_confounder_env: SCMEnvironmentAdapter,
+) -> None:
+    df = latent_confounder_env.intervene(
+        do={"X": 1.0}, n=50, columns=["U", "X", "Y"], seed=42
+    )
+    assert list(df.columns) == ["U", "X", "Y"]
+
+
 # -- intervene -------------------------------------------------------------
 
 

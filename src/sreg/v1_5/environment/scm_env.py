@@ -51,6 +51,13 @@ class SCMEnvironmentAdapter:
         seed: int | None = None,
     ) -> pd.DataFrame:
         df = self._world.sample(n=n, seed=seed)
+        # `columns=None` significa "todas las observables" según el
+        # protocol (`protocols.py`). Las latentes NUNCA se exponen por
+        # default — para acceder a ellas hay que pedirlas explícitamente
+        # vía `columns=env.variables`. Esa explicitud refuerza la
+        # frontera público/oculto.
+        if columns is None:
+            columns = self.observable_variables
         return self._project_columns(df, columns)
 
     def intervene(
@@ -62,6 +69,8 @@ class SCMEnvironmentAdapter:
         seed: int | None = None,
     ) -> pd.DataFrame:
         df = self._world.sample(n=n, seed=seed, do=dict(do))
+        if columns is None:
+            columns = self.observable_variables
         return self._project_columns(df, columns)
 
     def is_d_separated(

@@ -5,6 +5,58 @@
 
 ## [Unreleased]
 
+### 2026-05-05 — Fase 1.1 v1.5: compiler `WorldSpec → SCMWorld` + Birth Weight Paradox E2E
+
+Wrapper fino sobre `SCMWorldGenTool` v1 (no duplica lógica). El `WorldSpec`
+v1.5 quedó alineado con `SCMSpec` v1 (commit anterior), así que el adapter
+es trivial.
+
+**Nuevo módulo** `src/sreg/v1_5/world/`:
+- `compile_scm(world: WorldSpec, *, seed: int = 42) -> SCMWorld`.
+- `_world_to_scm_spec`: mapea contratos v1.5 → v1 (name, equation, role,
+  description, edges).
+- 3 guardas explícitas con mensaje útil:
+  - `formalism != "scm"` → `ValueError`.
+  - `parameters` no vacío → `NotImplementedError` (sustitución
+    determinista queda para v1.6+).
+  - `len(variables) < 2` → `ValueError` (heritage constraint de
+    SCMSpec v1; mejor que ValidationError críptico).
+- Pérdidas conscientes documentadas: `kind` (metadata-only), `metadata`,
+  `intended_phenomena`, `observation_noise`.
+
+**Bug del SCMEnvironmentAdapter detectado y corregido**: el adapter no
+respetaba el protocol `SCMEnvironment` — `observe()`/`intervene()` con
+`columns=None` devolvían TODAS las variables, incluidas latentes,
+violando la frontera público/oculto. Fix: `columns=None` ahora proyecta
+a `observable_variables`. Para acceder a latentes (caso design-time de
+los Validators), hay que pedirlas explícito con
+`columns=env.variables`. Esa explicitud refuerza la frontera.
+
+**Test E2E Birth Weight Paradox** (`tests/v1_5/integration/`): WorldSpec
+hardcoded del paper canónico (5 variables: Smoking, HiddenU latente,
+BirthWeight, LowBW determinista, Mortality logística) → compile →
+`SCMEnvironmentAdapter` → verifica:
+- ATE marginal `Smoking → Mortality` positivo (fumar harmful).
+- Estratificando por `LowBW=1`: efecto se atenúa fuerte o invierte
+  (paradoja por collider — `diff_lbw1 < diff_lbw0`).
+- `HiddenU` queda latente, fuera del DataFrame observable.
+- Tolerancias amplias: verificar que la mecánica funciona, no
+  exactitud numérica fina.
+
+Total: **227 tests pasan** (era 191). Nuevos: 12 unitarios del compiler
++ 4 E2E Birth Weight + 4 latentes en SCMEnvironmentAdapter.
+
+Codex review en 2 rondas:
+- Ronda 1: identificó pérdida silenciosa de `parameters`, `kind` no
+  enforce, mezcla compiler-environment. Aplicados ajustes.
+- Ronda 2: identificó `assert` en código de librería + bug semántico
+  del adapter (latentes expuestas por default). Ambos corregidos antes
+  del commit.
+
+Próximo: Fase 1.2 — Architect agente con LLM real (Azure Foundry,
+Responses API + function calling). Output: `WorldSpec +
+intended_phenomena`. Sin loop ↔ Validators todavía (Fase 2).
+
 ### 2026-05-05 — v1.5: WorldSpec rediseñado alineado con SCMSpec v1 + ExpressionCompiler extendido
 
 **Bug de diseño detectado por Codex post-Fase 0**: el `WorldSpec` v1.5 que

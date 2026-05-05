@@ -246,7 +246,9 @@ def _build_namespace(
     # Deterministic helpers (no rng)
     ns.update(
         {
-            # sigmoid(x) = 1 / (1 + exp(-x)), numerically stable.
+            # sigmoid(x) = 1 / (1 + exp(-x)). Para |x| moderado funciona OK;
+            # para x muy negativo, exp(-x) puede overflow a inf y devuelve 0.0
+            # (no lanza). Para x muy positivo, devuelve 1.0. Sin clipping.
             "sigmoid": lambda x: float(1.0 / (1.0 + np.exp(-x))),
             # I(condition) -> 1.0 if condition else 0.0 — indicator function.
             "I": lambda cond: 1.0 if bool(cond) else 0.0,
