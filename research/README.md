@@ -49,6 +49,7 @@ agente-Environment.
 | `synthesis/research_case_design.md` | **CANON disenio.** Como diseniar SRCs que se sientan como investigacion real |
 | `synthesis/sherlock_v2_design.md` | **CANON v2 SHERLOCK.** Loop interactivo agente-Environment multi-turno: 4 acciones primitivas (observe/intervene/stratify/simulate), budget visible, Case Writer restringe access_policy. Comparativa con SciGym/Corral/Asta/etc. Ejemplo Birth Weight Paradox paso a paso. (Renombrado desde `interactivity_phase1_design.md` 2026-04-25 al separar ODE/SDE — que entran en v1.5 — del multi-turno — que queda en v2.) |
 | `synthesis/real_papers_patterns.md` | **CANON patrones.** Patrones consistentes en papers reales |
+| `synthesis/world_design_techniques_survey.md` | **CANON survey.** Técnicas de diseño de mundos/tareas tomadas de fuera del dominio: PCG en videojuegos, mystery design, UED/RL, LLM-as-environment-designer. 12 técnicas transferibles priorizadas + mapeo a etapas del Designer SREG. Sub-docs detallados en `notes/world_design_*.md` |
 
 ### Notas activas (notes/)
 
@@ -64,6 +65,10 @@ empiricos. **NO es canonico** — son insumos para futuras decisiones.
 - `notes/indirect_measurement_design.md` — instrumentos como nodos del SCM
 - `notes/open_investigation_case_analysis.md` — 10 dominios analizados
 - `notes/real_investigations_analysis.md` — análisis de investigaciones reales
+- `notes/world_design_pcg.md` — Vertical 1 del survey: PCG en videojuegos (WFC, ASP, MAP-Elites, Spelunky, Dwarf Fortress, NMS, Caves of Qud)
+- `notes/world_design_mystery.md` — Vertical 2 del survey: mystery & discovery design (Obra Dinn, Outer Wilds, Three-Clue Rule, Gumshoe, Brindlewood Bay)
+- `notes/world_design_ued.md` — Vertical 3 del survey: UED & open-endedness en RL (POET, PAIRED, ACCEL, MAP-Elites, XLand, Genie)
+- `notes/world_design_llm.md` — Vertical 4 del survey: LLM-as-environment-designer 2023-2026 (GenSim, RoboGen, Eureka, Voyager, AI Scientist, Auto MC-Reward)
 
 ### Archive (historico, read-only)
 
