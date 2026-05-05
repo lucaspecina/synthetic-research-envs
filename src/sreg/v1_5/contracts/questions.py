@@ -1,8 +1,9 @@
-"""Contratos del output del Question Designer.
+"""Contratos del output del proceso de diseño de preguntas.
 
 `GoldQuestion` es la pregunta canónica del caso, con `Rubric` y `AnswerKey`
-ya computado en design-time vía `VerifierQuery`. El Evaluator lee estos
-artefactos en runtime — NO recomputa contra el Environment.
+ya computados en design-time. El `AnswerKey` se respalda en una lista de
+`EvidenceArtifact` (scripts ejecutables) — no hay catálogo cerrado de
+operaciones canónicas (ver `multi_explorer_redesign.md`).
 
 Pesos discretos (`weight ∈ {0.08, 0.12, 0.16, 0.20}` para `GoldQuestion`,
 `weight ∈ {1, 2, 3}` para `Criterion`) son anti-ajuste-fino: evitan que
@@ -15,30 +16,18 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from sreg.v1_5.contracts.phenomena import EvidenceArtifact
+
 ALLOWED_GQ_WEIGHTS: tuple[float, ...] = (0.08, 0.12, 0.16, 0.20)
 ALLOWED_CRITERION_WEIGHTS: tuple[int, ...] = (1, 2, 3)
-
-
-class VerifierQuery(BaseModel):
-    """Cómo computar el `AnswerKey` de una `GoldQuestion`.
-
-    Ejecutable contra el Verifier matemático en design-time. `query_kind`
-    es uno de los 16 soportados en v1.5 (10 SCM + 6 ODE — ver
-    `ARCHITECTURE.md` §9). String genérico para flexibilidad; la validez
-    del kind se chequea cuando el Verifier lo recibe, no acá.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    query_kind: str
-    args: dict[str, Any]
 
 
 class AnswerKey(BaseModel):
     """Verdad de referencia de una `GoldQuestion`.
 
-    Computada por el Verifier en design-time (ejecutando `VerifierQuery`).
-    El Evaluator solo lee — NO recomputa.
+    Computada en design-time por el agente que armó la pregunta, ejecutando
+    scripts contra el `Environment` (registrados en `answer_key_provenance`
+    del `GoldQuestion`). El Evaluator solo lee — NO recomputa.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -48,7 +37,7 @@ class AnswerKey(BaseModel):
     en prosa para considerarse correcto)."""
     numeric: dict[str, Any]
     """Campos numéricos clave para anchors. Ej:
-    `{'effect_direction': 'positive', 'magnitude_pp': (1, 4)}`."""
+    `{'effect_direction': 'positive', 'magnitude_pp': 2.3}`."""
 
 
 class AnswerKeyAnchor(BaseModel):
@@ -162,8 +151,14 @@ class Rubric(BaseModel):
 class GoldQuestion(BaseModel):
     """Pregunta canónica del caso, con `AnswerKey` pre-computado.
 
+    `answer_key_provenance` es la lista de `EvidenceArtifact` (scripts
+    ejecutables) que produjeron el `AnswerKey`. Plural porque una pregunta
+    rica puede necesitar varios scripts (ej: ATE marginal + ATE estratificado
+    + check de identifiability). Reproducible: cualquiera puede re-correr
+    los scripts y verificar.
+
     El Evaluator usa `identification_hint` (paso 1, identificación binaria)
-    y la `Rubric` (paso 2, completion graduada). Ver `ARCHITECTURE.md` §7.
+    y la `Rubric` (paso 2, completion graduada).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -172,8 +167,9 @@ class GoldQuestion(BaseModel):
     text: str
     weight: float
     role: Literal["required", "support"]
-    verifier_query: VerifierQuery
     answer_key: AnswerKey
+    answer_key_provenance: list[EvidenceArtifact] = Field(min_length=1)
+    """Scripts ejecutables que respaldan el `AnswerKey`. Mínimo 1."""
     identification_hint: str
     """Guía al juez para decidir si el reporte aborda esta GQ. 2-4 frases
     concretas sobre qué buscar Y qué NO cuenta como identificación."""
@@ -191,11 +187,11 @@ class GoldQuestion(BaseModel):
 
 
 class QuestionsBundle(BaseModel):
-    """Output del Question Designer: catálogo de `GoldQuestion`s del caso.
+    """Output final del Selector: catálogo de `GoldQuestion`s del caso.
 
     Un bundle vacío no es evaluable: `min_length=1`. La spec recomienda
-    3-5 GoldQuestions por caso (`ARCHITECTURE.md §4.3`); esa restricción
-    fuerte la chequea el `Validator` transversal, no este schema.
+    3-5 GoldQuestions por caso; esa restricción fuerte la chequea el
+    `Validator` transversal, no este schema.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -206,7 +202,6 @@ class QuestionsBundle(BaseModel):
 __all__ = [
     "ALLOWED_GQ_WEIGHTS",
     "ALLOWED_CRITERION_WEIGHTS",
-    "VerifierQuery",
     "AnswerKey",
     "AnswerKeyAnchor",
     "Criterion",

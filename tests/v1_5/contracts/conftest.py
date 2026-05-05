@@ -12,21 +12,23 @@ from sreg.v1_5.contracts import (
     Claim,
     Criterion,
     Dataset,
-    ExecutableEvidence,
+    EvidenceArtifact,
     GoldQuestion,
     HypothesisEntry,
+    IntendedPhenomenon,
     InvestigationLog,
     InvestigatorAction,
     PaperInsights,
     PhenomenaManifest,
     Phenomenon,
+    QuestionProposal,
     QuestionsBundle,
     ResearchCase,
     Rubric,
+    SelectionReport,
     ToolSpec,
     ValidationReport,
     VariableSpec,
-    VerifierQuery,
     WorldMetadata,
     WorldSpec,
 )
@@ -54,17 +56,30 @@ def rubric(criterion: Criterion) -> Rubric:
 
 
 @pytest.fixture
-def gold_question(rubric: Rubric) -> GoldQuestion:
+def evidence_artifact() -> EvidenceArtifact:
+    return EvidenceArtifact(
+        script=(
+            "df1 = env.intervene(do={'X': 1}, n=1000)\n"
+            "df0 = env.intervene(do={'X': 0}, n=1000)\n"
+            "ate = df1['Y'].mean() - df0['Y'].mean()"
+        ),
+        numerical_result={"ate": 0.3, "n_samples": 1000},
+        tag="ate_computation",
+    )
+
+
+@pytest.fixture
+def gold_question(rubric: Rubric, evidence_artifact: EvidenceArtifact) -> GoldQuestion:
     return GoldQuestion(
         id="GQ1",
         text="¿Cuál es el efecto causal de X sobre Y?",
         weight=0.20,
         role="required",
-        verifier_query=VerifierQuery(query_kind="ate", args={"treatment": "X", "outcome": "Y"}),
         answer_key=AnswerKey(
             summary="Efecto positivo, ~+0.3.",
             numeric={"effect_direction": "positive", "magnitude": 0.3},
         ),
+        answer_key_provenance=[evidence_artifact],
         identification_hint="El reporte menciona el efecto de X sobre Y con un número.",
         rubric=rubric,
     )
@@ -76,7 +91,43 @@ def questions_bundle(gold_question: GoldQuestion) -> QuestionsBundle:
 
 
 @pytest.fixture
-def world_spec() -> WorldSpec:
+def question_proposal(rubric: Rubric, evidence_artifact: EvidenceArtifact) -> QuestionProposal:
+    return QuestionProposal(
+        proposal_id="prop_001",
+        author_run_id="explorer_run_2_focus_collider",
+        focus="ip_collider_smoking_u",
+        question_text="¿El efecto estratificado por LBW se invierte?",
+        rubric_draft=rubric,
+        answer_key=AnswerKey(
+            summary="Sí: en LBW=1 el efecto se invierte; señal de collider.",
+            numeric={"effect_lbw_0": 0.013, "effect_lbw_1": -0.216},
+        ),
+        answer_key_provenance=[evidence_artifact],
+        status="verified",
+    )
+
+
+@pytest.fixture
+def selection_report() -> SelectionReport:
+    return SelectionReport(
+        selected_proposals=["prop_001", "prop_002"],
+        rejected_proposals=["prop_003"],
+        diversity_score=0.7,
+    )
+
+
+@pytest.fixture
+def intended_phenomenon() -> IntendedPhenomenon:
+    return IntendedPhenomenon(
+        id="ip_collider_x_u",
+        kind="collider",
+        description="LBW como collider entre Smoking y un confounder no observado U",
+        relevant_variables=["smoking", "low_birth_weight", "hidden_u"],
+    )
+
+
+@pytest.fixture
+def world_spec(intended_phenomenon: IntendedPhenomenon) -> WorldSpec:
     return WorldSpec(
         formalism="scm",
         variables=[
@@ -86,6 +137,7 @@ def world_spec() -> WorldSpec:
         relationships=[],
         parameters={"alpha": 0.5},
         metadata=WorldMetadata(domain="generic"),
+        intended_phenomena=[intended_phenomenon],
     )
 
 
@@ -129,17 +181,15 @@ def paper_insights() -> PaperInsights:
 
 
 @pytest.fixture
-def phenomena_manifest() -> PhenomenaManifest:
+def phenomena_manifest(evidence_artifact: EvidenceArtifact) -> PhenomenaManifest:
     return PhenomenaManifest(
         world_id="w1",
         phenomena=[
             Phenomenon(
                 kind="counterintuitive",
                 description="Efecto crudo positivo, ajustado nulo.",
-                evidence=ExecutableEvidence(
-                    script="env.intervene(do={'X': 1}, n=1000)",
-                    numerical_result={"ate": 0.3},
-                ),
+                evidence=evidence_artifact,
+                tags=["collider", "simpson_reversal"],
             )
         ],
         interesting_score=0.8,

@@ -49,11 +49,40 @@ class WorldMetadata(BaseModel):
     notes: str | None = None
 
 
+class IntendedPhenomenon(BaseModel):
+    """Lo que el `World Architect` quiso poner intencionalmente en el `WorldSpec`.
+
+    Es la guía de "qué fenómenos esperar" para los Explorer/Designers.
+    Vive en nivel **mecanismo / fenómeno**, NO en nivel pregunta concreta
+    (esa decisión la toman los Explorer/Designers, no el Architect).
+
+    Ejemplos válidos:
+    - `kind="collider"`, `description="LBW collider entre smoking y hidden_u"`
+    - `kind="mediation"`, `description="smoking afecta mortality vía birth_weight"`
+    - `kind="bifurcation"`, `description="bifurcación de Hopf cerca de R0=1.0"`
+
+    Ejemplos NO válidos:
+    - `description="preguntar el ATE marginal de smoking sobre mortality"`
+      (eso es decisión del Explorer, no del Architect).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    kind: str
+    """String libre. Tags comunes: collider, mediation, confounding, bifurcation,
+    non_linearity, heterogeneity, etc."""
+    description: str
+    relevant_variables: list[str]
+
+
 class WorldSpec(BaseModel):
     """Especificación matemática del mundo.
 
-    El formalismo (`scm` / `ode`) determina cómo se compila el Environment
-    y qué `query_kinds` aplican (ver `ARCHITECTURE.md` §9).
+    El `formalism` (`scm` / `ode`) determina cómo se compila el Environment.
+    `intended_phenomena` declara qué fenómenos el Architect quiso poner;
+    los Explorer/Designers los usan como guía para verificar y profundizar
+    (ver `multi_explorer_redesign.md`).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -67,6 +96,9 @@ class WorldSpec(BaseModel):
     """Desvío estándar gaussiano opcional sobre las trayectorias observadas
     (solo aplica a `formalism='ode'`). Modela ruido de medición sin
     requerir SDE intrínseco."""
+    intended_phenomena: list[IntendedPhenomenon] = Field(default_factory=list)
+    """Lista corta (típicamente 2-5) de fenómenos que el Architect declaró
+    haber puesto. Sirve como guía de focos para los Explorer/Designers."""
 
     @model_validator(mode="after")
     def _check_observation_noise(self) -> "WorldSpec":
@@ -86,4 +118,10 @@ class WorldSpec(BaseModel):
         return self
 
 
-__all__ = ["VariableSpec", "RelationshipSpec", "WorldMetadata", "WorldSpec"]
+__all__ = [
+    "VariableSpec",
+    "RelationshipSpec",
+    "WorldMetadata",
+    "IntendedPhenomenon",
+    "WorldSpec",
+]

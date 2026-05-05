@@ -563,3 +563,54 @@ No es una prueba aparte al final, es parte del desarrollo:
 ### Veredicto
 
 Arrancamos con #55. El plan está documentado, no hay ambigüedad. Si en la implementación aparece una decisión grande que afecta el plan, paramos y revisamos. Detalles (nombres, layout) los resolvemos en flujo.
+
+---
+
+## Ronda 12 — 2026-05-04 — Re-diseño multi-agente del Designer (mata el catálogo cerrado)
+
+> **Banner de obsolescencia parcial**: las rondas 1-11 (sobre todo 4, 5, 6, 7) hablan de `query_kinds` fijos, `VerifierQuery`, `Verifier` con dispatch, y catálogo cerrado de 16 operaciones. Esa parte fue **explícitamente rechazada en Ronda 12** por sesgar al Designer ("siempre las mismas preguntas"). El doc canónico del re-diseño es `research/notes/multi_explorer_redesign.md`. El resto de las decisiones (rubric + LLM judge + answer key grounded, evaluator design-time, alpha=0.8, frontera público/oculto, diversidad de casos como invariante) sigue vigente.
+
+### Contexto
+
+Después de programar #55 (contratos) y arrancar #56 (Environment + Verifier), el usuario detectó dos problemas en el approach:
+
+1. **Catálogo cerrado de 16 query_kinds = sesgo**. Si el Question Designer sabe que solo 16 operaciones producen AnswerKey numérico, va a inventar preguntas que mapeen a esas 16. Eco al problema de AtomicSpec v1, otra puerta.
+2. **Doble trabajo Architect ↔ Explorer ↔ Question Designer**. El Architect ya diseña el mundo intencionalmente. El Explorer ya escribe scripts arbitrarios contra el Environment (`ExecutableEvidence`). El Question Designer estaba haciendo lo mismo pero con dispatch dict.
+
+### Decisiones de Ronda 12
+
+1. **Mata el catálogo cerrado**. Cada agente del Designer escribe sus propios scripts Python contra el Environment. Resultado: `EvidenceArtifact` (script + numerical_result + tag opcional). Sin restricción.
+
+2. **Mata el `Verifier` como objeto centralizado**. No hay dispatch dict. No hay 16 funciones canónicas. Las 10 funciones SCM que se programaron en `verifier/scm/` se borran. Si emerge necesidad de un helper de bajo nivel (ej. `bootstrap_ci`), va a `helpers/` como librería opcional, NO como catálogo cerrado.
+
+3. **Multi-agente**: el flujo lineal `Architect → Explorer → Question Designer` se reemplaza por:
+   - Architect produce `WorldSpec + intended_phenomena` (lista corta a nivel mecanismo).
+   - **N Explorer/Designers en paralelo** (3 default, 4 si WorldSpec cargado): 2-3 guiados por `IntendedPhenomenon` + 1 wildcard. Multi-turn. Regla dura: verify first, propose later.
+   - **Selector** (advisory) → `QuestionsBundle` + `SelectionReport`. NO invalida.
+   - Case Writer y Validator transversal sin cambios estructurales, salvo que el **Validator es ÚNICO ÁRBITRO** y cuando invalida declara `target_to_reiterate: Literal["world","explorers","case"]`.
+
+4. **`intended_phenomena` a nivel mecanismo, NO a nivel pregunta**. El Architect dice "puse collider entre X y U", NO "preguntá ATE de X sobre Y". Eso evita que el Architect se vuelva fuente única de qué se pregunta.
+
+### Consultas a Codex (3 rondas en esta sesión)
+
+- Ronda A: validó la dirección general del re-diseño. Marcó como riesgo crítico que el Selector "vuelva a inventar semántica sin evidencia recomputable" (mini-compiler por la ventana).
+- Ronda B: refinamiento — `intended_phenomena` a nivel mecanismo, verify-first/propose-later como regla dura, wildcard explícito (no opcional), Validator con `target_to_reiterate`, 3-4 Explorers (no 5), focos derivados del WorldSpec.
+- Ronda C: review final del cambio aplicado. Verde con 3 cabos sueltos menores corregidos antes del commit.
+
+### Cambios concretos en contratos Pydantic
+
+**Crear**: `IntendedPhenomenon`, `EvidenceArtifact` (rename de `ExecutableEvidence`), `QuestionProposal`, `SelectionReport`.
+
+**Modificar**:
+- `WorldSpec`: agregar `intended_phenomena: list[IntendedPhenomenon]`.
+- `Phenomenon.kind`: de `Literal[6 valores]` a `str` libre + `tags`.
+- `GoldQuestion`: borrar `verifier_query`, agregar `answer_key_provenance: list[EvidenceArtifact]` (`min_length=1`).
+- `ValidationReport`: agregar `target_to_reiterate` con validator cruzado (passed True ↔ target None).
+
+**Borrar**: `VerifierQuery`.
+
+### Veredicto
+
+Re-diseño aplicado, 97 tests pasan, ruff limpio. ARCHITECTURE.md y bodies de issues #56 y #58 actualizados. Issue #58 cambia significativamente: ya no es "Designer 4 agentes", ahora es "Designer multi-agente con N Explorers paralelo + Selector advisory + Validator único árbitro".
+
+Próximo paso: commit + push, después arrancar #58 con orden recomendado por Codex: Architect → 1 Explorer/Designer E2E con Environment mock → Selector → Validator → Case Writer; recién después escalar de 1 a N Explorers.

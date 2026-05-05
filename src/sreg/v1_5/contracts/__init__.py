@@ -7,8 +7,9 @@ tipado, no prosa.
 **Frontera público/oculto** (invariante operativa):
 
 - **PÚBLICO** (lo ve el Investigator): `ResearchCase`, `Dataset`, `ToolSpec`.
-- **OCULTO** (NO se filtra al Investigator): `WorldSpec`, `QuestionsBundle`,
-  `GoldQuestion`, `Rubric`, `AnswerKey`, `ValidationReport`.
+- **OCULTO** (NO se filtra al Investigator): `WorldSpec`, `IntendedPhenomenon`,
+  `QuestionsBundle`, `GoldQuestion`, `QuestionProposal`, `Rubric`,
+  `AnswerKey`, `EvidenceArtifact`, `SelectionReport`, `ValidationReport`.
 
 Si alguna vez agregás un campo de la lista oculta a `ResearchCase`,
 parás y revisás. Es un bug grave (filtra la respuesta al solver).
@@ -23,10 +24,11 @@ from sreg.v1_5.contracts.investigation import (
 )
 from sreg.v1_5.contracts.paper import PaperInsights
 from sreg.v1_5.contracts.phenomena import (
-    ExecutableEvidence,
+    EvidenceArtifact,
     PhenomenaManifest,
     Phenomenon,
 )
+from sreg.v1_5.contracts.proposal import QuestionProposal, SelectionReport
 from sreg.v1_5.contracts.questions import (
     ALLOWED_CRITERION_WEIGHTS,
     ALLOWED_GQ_WEIGHTS,
@@ -36,15 +38,16 @@ from sreg.v1_5.contracts.questions import (
     GoldQuestion,
     QuestionsBundle,
     Rubric,
-    VerifierQuery,
 )
 from sreg.v1_5.contracts.validation import (
     AdversarialAttempt,
+    ReiterationTarget,
     ValidationArtifact,
     ValidationIssue,
     ValidationReport,
 )
 from sreg.v1_5.contracts.world import (
+    IntendedPhenomenon,
     RelationshipSpec,
     VariableSpec,
     WorldMetadata,
@@ -58,21 +61,24 @@ __all__ = [
     "VariableSpec",
     "RelationshipSpec",
     "WorldMetadata",
+    "IntendedPhenomenon",
     "WorldSpec",
     # phenomena
-    "ExecutableEvidence",
+    "EvidenceArtifact",
     "Phenomenon",
     "PhenomenaManifest",
     # questions
     "ALLOWED_GQ_WEIGHTS",
     "ALLOWED_CRITERION_WEIGHTS",
-    "VerifierQuery",
     "AnswerKey",
     "AnswerKeyAnchor",
     "Criterion",
     "Rubric",
     "GoldQuestion",
     "QuestionsBundle",
+    # proposal (multi-agent flow)
+    "QuestionProposal",
+    "SelectionReport",
     # case
     "Dataset",
     "ToolSpec",
@@ -84,6 +90,7 @@ __all__ = [
     "InvestigationLog",
     # validation
     "ValidationArtifact",
+    "ReiterationTarget",
     "ValidationIssue",
     "AdversarialAttempt",
     "ValidationReport",

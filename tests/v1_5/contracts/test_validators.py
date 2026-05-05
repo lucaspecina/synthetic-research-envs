@@ -16,10 +16,12 @@ from sreg.v1_5.contracts import (
     AnswerKey,
     AnswerKeyAnchor,
     Criterion,
+    EvidenceArtifact,
     GoldQuestion,
+    QuestionProposal,
     QuestionsBundle,
     Rubric,
-    VerifierQuery,
+    ValidationReport,
     WorldMetadata,
     WorldSpec,
 )
@@ -39,14 +41,18 @@ def _make_criterion(weight: int = 2) -> Criterion:
     )
 
 
+def _make_evidence() -> EvidenceArtifact:
+    return EvidenceArtifact(script="pass", numerical_result={})
+
+
 def _make_gq(weight: float = 0.20) -> GoldQuestion:
     return GoldQuestion(
         id="GQ",
         text="t",
         weight=weight,
         role="required",
-        verifier_query=VerifierQuery(query_kind="ate", args={}),
         answer_key=AnswerKey(summary="s", numeric={}),
+        answer_key_provenance=[_make_evidence()],
         identification_hint="h",
         rubric=Rubric(criteria=[_make_criterion()]),
     )
@@ -217,3 +223,120 @@ def test_rubric_only_bonus_fails() -> None:
     )
     with pytest.raises(ValidationError):
         Rubric(criteria=[bonus])
+
+
+# ---------------------------------------------------------------------------
+# ValidationReport — target_to_reiterate consistency con passed
+# ---------------------------------------------------------------------------
+
+
+def test_validation_passed_without_target_ok() -> None:
+    r = ValidationReport(passed=True)
+    assert r.target_to_reiterate is None
+
+
+def test_validation_failed_with_target_ok() -> None:
+    r = ValidationReport(passed=False, target_to_reiterate="world")
+    assert r.target_to_reiterate == "world"
+
+
+def test_validation_passed_with_target_fails() -> None:
+    """Si pasa, no debería declarar a qué etapa rehacer."""
+    with pytest.raises(ValidationError):
+        ValidationReport(passed=True, target_to_reiterate="world")
+
+
+def test_validation_failed_without_target_fails() -> None:
+    """Si no pasa, debe declarar a qué etapa rehacer."""
+    with pytest.raises(ValidationError):
+        ValidationReport(passed=False)
+
+
+# ---------------------------------------------------------------------------
+# GoldQuestion — answer_key_provenance no puede estar vacío
+# ---------------------------------------------------------------------------
+
+
+def test_gq_empty_provenance_fails() -> None:
+    """Una GQ sin scripts ejecutables que respalden su AnswerKey no es válida."""
+    with pytest.raises(ValidationError):
+        GoldQuestion(
+            id="GQ",
+            text="t",
+            weight=0.20,
+            role="required",
+            answer_key=AnswerKey(summary="s", numeric={}),
+            answer_key_provenance=[],
+            identification_hint="h",
+            rubric=Rubric(criteria=[_make_criterion()]),
+        )
+
+
+# ---------------------------------------------------------------------------
+# QuestionProposal — status consistency
+# ---------------------------------------------------------------------------
+
+
+def test_proposal_verified_with_complete_fields_ok() -> None:
+    p = QuestionProposal(
+        proposal_id="p1",
+        author_run_id="explorer_1",
+        focus="ip_collider",
+        status="verified",
+        question_text="¿Cuál es el efecto?",
+        rubric_draft=Rubric(criteria=[_make_criterion()]),
+        answer_key=AnswerKey(summary="s", numeric={}),
+        answer_key_provenance=[_make_evidence()],
+    )
+    assert p.status == "verified"
+
+
+def test_proposal_verified_missing_fields_fails() -> None:
+    """status='verified' sin question_text/rubric/answer_key/provenance falla."""
+    with pytest.raises(ValidationError):
+        QuestionProposal(
+            proposal_id="p1",
+            author_run_id="explorer_1",
+            focus="ip_collider",
+            status="verified",
+            # Faltan: question_text, rubric_draft, answer_key, provenance
+        )
+
+
+def test_proposal_rejected_with_failure_reason_ok() -> None:
+    p = QuestionProposal(
+        proposal_id="p1",
+        author_run_id="explorer_1",
+        focus="ip_collider",
+        status="rejected_unconfirmed",
+        failure_reason="el collider en LBW no se materializa en este SCM",
+    )
+    assert p.status == "rejected_unconfirmed"
+    assert p.question_text is None
+
+
+def test_proposal_rejected_without_failure_reason_fails() -> None:
+    """status='rejected_unconfirmed' sin `failure_reason` falla."""
+    with pytest.raises(ValidationError):
+        QuestionProposal(
+            proposal_id="p1",
+            author_run_id="explorer_1",
+            focus="ip_collider",
+            status="rejected_unconfirmed",
+        )
+
+
+def test_proposal_verified_with_failure_reason_fails() -> None:
+    """status='verified' NO debe tener `failure_reason`."""
+    with pytest.raises(ValidationError):
+        QuestionProposal(
+            proposal_id="p1",
+            author_run_id="explorer_1",
+            focus="ip_collider",
+            status="verified",
+            question_text="?",
+            rubric_draft=Rubric(criteria=[_make_criterion()]),
+            answer_key=AnswerKey(summary="s", numeric={}),
+            answer_key_provenance=[_make_evidence()],
+            failure_reason="esto no debería estar acá",
+        )
