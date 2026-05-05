@@ -5,6 +5,45 @@
 
 ## [Unreleased]
 
+### 2026-05-05 — v1.5 Designer ronda 13: recorte a Architect + Validators + Question Designer
+
+Segundo recorte del Designer multi-agente (post ronda 12 del 2026-05-04).
+Lucas detectó que los Explorer/Designers no exploraban — solo verificaban
+hipótesis pre-cocinadas del Architect. Se eliminaron junto con el Selector
+y se redistribuyeron sus funciones.
+
+- **Architect multi-iter** (hard cap 3 vueltas) con disciplina formal:
+  votos crudos inmutables, `weak_pass` no promueve a `ValidatedPhenomenon`,
+  cambios al `intended_phenomenon` versionados en log.
+- **N Validators** = N `intended_phenomena` (emergente, no fijo). Output
+  enriquecido: `vote + margin + fragility + delta_from_previous + evidence
+  + failure_reason`. Verifican con scripts Python libres contra el
+  Environment.
+- **Question Designer** consume `list[ValidatedPhenomenon]` completo y
+  produce `QuestionsBundle` libremente (NO 1:1 — una GQ puede combinar
+  fenómenos, un fenómeno puede generar varias GQs). Sin acceso al paper
+  crudo: anti-leak vía `PaperInsights.narrative_capsule` saneada.
+- **Validator transversal** con 10 checks (6 originales + 4 nuevos
+  sugeridos por Codex): cobertura, provenance, leak, trivialness, rubric
+  coherence, **answerability pública**, **modality match de provenance**,
+  **stability del answer key** (tolerance/CI medido empíricamente),
+  **bundle redundancy**, **salience threshold**.
+- **Hooks reservados a v1.6+**: `InvestigationLog.extra_claims` (open
+  scoring del Solver), wildcard challenger, novelty corpus-level.
+- **Eliminado**: `QuestionProposal`, `SelectionReport`, target
+  `"explorers"` en `ValidationReport.target_to_reiterate` (queda
+  `world`/`designer`/`case`).
+- Validado con Codex en 2 consultas dedicadas + walkthrough concreto del
+  Birth Weight Paradox.
+
+Solo documentación + GitHub issues #56/#58 reescritos en este commit.
+Cambios de contratos Pydantic (`proposal.py` → borrar; `validated_phenomenon.py`
+→ crear; `validation.py`/`investigation.py`/`phenomena.py` → ajustar) van
+en commit siguiente, antes de retomar implementación de #58.
+
+Doc canónico: `research/notes/multi_explorer_redesign.md`.
+Camino completo del rediseño: `research/notes/v1_5_debates.md` ronda 13.
+
 ### 2026-04-16 — Suite 2 closure package 5/5 (F1-F24 + I-031 opened)
 
 **Cierre del diagnóstico del compiler (I-007). 5 items: audit taxonómico

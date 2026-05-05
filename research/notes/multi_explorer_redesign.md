@@ -1,146 +1,208 @@
-# Re-diseño multi-agente del Designer (v1.5)
+# Diseño del Designer multi-agente (v1.5)
 
-> **Doc canónico** del re-diseño que mata el catálogo cerrado de `query_kinds`
-> y reemplaza el flujo lineal Explorer → Question Designer por un flujo
-> multi-agente con N Explorers/Designers en paralelo + un Selector advisory.
+> **Doc canónico** del Designer v1.5 después de tres rondas de simplificación.
+> Estado: **diseño cerrado**, listo para aplicar a contratos y `ARCHITECTURE.md`.
 >
-> Validado con Codex en consulta dedicada (2026-05-04).
-> **Antes de aplicar a `ARCHITECTURE.md`** se aprueba en este doc.
+> El nombre del archivo (`multi_explorer_redesign.md`) es histórico — viene de
+> la primera versión multi-agente que mataba el catálogo cerrado de
+> `query_kinds`. El diseño actual ya no tiene "Explorers" como rol separado.
 >
-> Estado del repo: `dev`. Contratos #55 mergeados. Environment SCM mergeado
-> (15 tests OK). Verifier con dispatch programado pero NO commiteado — se
-> borra como parte de este re-diseño.
+> Validado con Codex en 3 consultas dedicadas:
+> - Ronda 12 (2026-05-04): muerte del catálogo cerrado, multi-agent inicial.
+> - Ronda 13 (2026-05-05) parte 1: Validators con feedback loop, recorte del Selector.
+> - Ronda 13 (2026-05-05) parte 2: walkthrough Birth Weight Paradox + recorte final.
+>
+> Estado del repo (rama `dev`): contratos #55 mergeados; `proposal.py` (con
+> `QuestionProposal`/`SelectionReport`) será borrado como parte de este
+> diseño; `verifier/` ya fue borrado en ronda 12.
 
 ---
 
-## 1. Por qué cambiamos el diseño
+## 1. Por qué llegamos a este diseño
 
-### El problema 1 — Catálogo cerrado de `query_kinds`
+El camino hasta acá tuvo tres recortes encadenados.
 
-El diseño anterior tenía un catálogo de 16 operaciones canónicas (10 SCM + 6 ODE) que el `Verifier` despachaba por dispatch dict. Cada `GoldQuestion` declaraba un `verifier_query` con un `query_kind` del catálogo.
+### 1.1 Recorte 1: muerte del catálogo cerrado de `query_kinds` (ronda 12)
 
-**Riesgos detectados**:
+El primer diseño v1.5 tenía un `Verifier` con dispatch a 16 operaciones canónicas (10 SCM + 6 ODE). Cada `GoldQuestion` declaraba un `verifier_query` con un `query_kind` del catálogo.
 
-- **Sesgo a "siempre lo mismo"**: si el Question Designer sabe que solo 16 operaciones producen `AnswerKey` numérico, va a inventar preguntas que mapeen a esas 16. Resultado: todos los casos pueden tener una pregunta de ATE, una de mediation, etc. — predictibilidad alta.
-- **Eco a `AtomicSpec` v1**: aunque los `query_kinds` no restringen lo que dice el solver (a diferencia del compiler v1), restringen lo que el sistema puede verificar numéricamente. Mismo tipo de trampa, otra puerta.
-- **Inconsistencia con el `Explorer`**: el `Explorer` ya escribe scripts Python arbitrarios contra el `Environment` y captura el resultado en `ExecutableEvidence`. El `Question Designer` hacía lo mismo de manera totalmente distinta (dispatch dict). Doble mecanismo para la misma operación.
+Detectado por el usuario: mismo tipo de trampa que el `AtomicSpec` v1 — sesga al Question Designer a inventar siempre las mismas preguntas. Eco arquitectónico del compiler que ya tocó techo.
 
-**Decisión**: matar el catálogo. Los `AnswerKey` se producen con el mismo patrón que `ExecutableEvidence`: el agente escribe un script, el sistema lo ejecuta contra el `Environment`, el resultado queda registrado.
+**Decisión**: matar el catálogo. Los `AnswerKey` se producen con scripts Python ejecutables (`EvidenceArtifact`). Sin enum cerrado.
 
-### El problema 2 — Doble trabajo Architect ↔ Explorer
+### 1.2 Recorte 2: Validators con feedback loop, sin Explorers (ronda 13.1)
 
-El flujo anterior asumía que el `Explorer` exploraba el mundo a ciegas para encontrar fenómenos interesantes. Pero el `World Architect` ya construye el mundo CON INTENCIÓN — basado en `PaperInsights` (mecanismos esperados, fenómenos típicos del paper). Un mundo aleatorio no se construye así.
+El segundo diseño tenía N Explorer/Designers en paralelo — cada uno con un foco distinto, multi-turn, escribiendo scripts contra el Environment, proponiendo `QuestionProposal`s. Un Selector advisory rankeaba/filtraba/mergeaba.
 
-Si el Architect ya sabe qué fenómenos quiso poner, hacer que el Explorer redescubra todo desde cero es ineficiente y puede no encontrar lo que el Architect quería destacar.
+Detectado por el usuario: los Explorer/Designers no exploraban de verdad. El Architect ya cocina el `WorldSpec` con intención (basado en `PaperInsights`), entonces los Explorers solo verificaban hipótesis pre-cocinadas. Doble agente para una sola función.
 
-**Decisión**: que el Architect produzca `intended_phenomena` (lista corta de "qué quise poner") como guía para los Explorers. Los Explorers verifican y profundizan, no exploran a ciegas.
+**Decisión**: reemplazar Explorer/Designers por **Validators** que verifican `intended_phenomena` específicos del Architect, con feedback loop cerrado al Architect mismo. El Architect itera el `WorldSpec` hasta que los fenómenos se materializan.
 
-### El problema 3 — Flujo lineal Explorer → Question Designer
+### 1.3 Recorte 3: Architect agrega votos, sin Selector, sin wildcard (ronda 13.2)
 
-El flujo anterior corría 1 Explorer + 1 Question Designer. Eso da un único "punto de vista" sobre el mundo. Sin diversidad real entre casos generados desde el mismo seed paper.
+El tercer recorte vino del walkthrough con el caso Birth Weight Paradox (`research/examples/birth_weight_paradox.md`). El usuario propuso eliminar el Selector y el wildcard challenger.
 
-**Decisión**: N Explorer/Designers en paralelo (multi-turn), cada uno con un foco distinto. Diversidad emergente del proceso, no de un catálogo.
+**Decisión**:
+- **Architect agrega votos directamente**: lee `failure_reasons` de los Validators y decide si itera o pasa. Ya no hay Aggregator separado.
+- **Sin wildcard MVP**: arrancamos con `N validators = N intended_phenomena`. Si después los casos quedan monótonos, lo agregamos.
+- **Sin `QuestionProposal` / `SelectionReport`**: contratos no necesarios. Aparece `ValidatedPhenomenon` como contrato nuevo.
+- **Question Designer no consulta el paper**: usa `description + EvidenceArtifact + WorldSpec` + cápsula narrativa saneada (anti-leak).
+
+Codex (consulta dedicada post-recorte) validó la dirección pero advirtió que **el recorte quitó agentes pero no funciones**. Las funciones de `bundle shaping`, `interface answerability` y `robust numeric truth` hay que reubicarlas explícitamente. La sección §3 de este doc lo hace.
 
 ---
 
-## 2. Nuevo flujo
+## 2. Flujo final
 
 ```
 Paper Digestion → PaperInsights
+                  ├── mecanismos (input al Architect)
+                  └── cápsula narrativa saneada (input al Question Designer
+                      y al Case Writer): dominio, población, unidades,
+                      convenciones, "estilo de pregunta natural", SIN
+                      frases icónicas ni punchlines del paper.
     ↓
-World Architect → WorldSpec + intended_phenomena (lista corta a nivel
-                  fenómeno/mecanismo: "puse collider en X y U",
-                  "puse mediation X→M→Y", "puse bifurcación en
-                  parámetro α", etc. — NO a nivel pregunta concreta)
+Architect (multi-iter, hard cap 3 vueltas)
+    1. propone draft WorldSpec + intended_phenomena[N]
+       (mecanismos a nivel "puse collider X-U sobre Z", NO preguntas)
+    2. lanza N Validators (uno por intended_phenomenon, NO hardcode 3)
+       cada uno escribe scripts Python libres contra el Environment
+       y devuelve: ValidatorVote {
+                     vote: passes | weak_pass | fails,
+                     margin: float,
+                     fragility: float,
+                     delta_from_previous: dict,
+                     evidence: list[EvidenceArtifact],
+                     failure_reason: str | None
+                   }
+    3. el Architect lee votos crudos (inmutables)
+    4. promoción: solo vote=passes promueve a ValidatedPhenomenon
+       weak_pass NO promueve silenciosamente
+    5. si quedan fenómenos sin promover y hay vueltas disponibles,
+       el Architect ajusta WorldSpec o intended_phenomena (con versionado
+       en log para que no achique la tesis sin dejar rastro) y vuelve a 1
+    6. si tras 3 vueltas no convergió, descarta seed paper o
+       reduce intended_phenomena (con log explícito)
+    ↓ list[ValidatedPhenomenon]
+Question Designer
+    consume el LIST COMPLETO de ValidatedPhenomena, produce QuestionsBundle
+    libremente. NO 1:1 — una GQ puede combinar varios fenómenos, un
+    fenómeno puede generar varias GQs.
+    redacción: usa ValidatedPhenomenon.description + EvidenceArtifact +
+               cápsula narrativa saneada. NO el paper crudo (anti-leak).
+    AnswerKey: numeric reusado del EvidenceArtifact (NO inventado),
+               con tolerance/range basado en la stability medida.
+    answer_key_provenance: list[EvidenceArtifact] re-ejecutables.
     ↓
-N Explorer/Designers (paralelo, multi-turn, focos derivados del WorldSpec)
-    cada uno tiene un foco específico:
-      · "verifica y profundiza el collider entre X y U" (guiado)
-      · "verifica y profundiza la mediation X→M→Y" (guiado)
-      · "explorá libre, encontrá fenómenos emergentes" (wildcard)
-    cada uno multi-turn:
-      · turno 1: verifica el intended_phenomenon con script contra Environment
-      · si confirma → profundiza, propone preguntas con AnswerKey ejecutable
-      · si NO confirma → reporta "intended_phenomenon X NO se materializa
-                         en este mundo" y termina sin proponer preguntas
-                         (regla dura: verify first, propose later)
-    output: list[QuestionProposal]
+Case Writer → ResearchCase
+    brief NL anti-leak (sin variables latentes, sin términos técnicos
+    que filtren), dataset visible (sin columnas latentes), tools
+    (python_exec + numpy + pandas + statsmodels).
     ↓
-[Pool de propuestas]
-    ↓
-Selector → rank/filter/merge → QuestionsBundle (3-5 GoldQuestions)
-    también produce SelectionReport con calidad de las propuestas
-    (puede marcar "calidad insuficiente, razones: ..." pero NO invalida
-     directamente al Architect — solo reporta)
-    ↓
-Case Writer → ResearchCase (brief, datasets, tools)
-    ↓
-Validator transversal (ÚNICO ÁRBITRO con autoridad de invalidar)
-    lee TODO incluido SelectionReport → decide:
-      · pasar adelante, o
-      · invalidar → re-iterar especificando target:
-          · target="world": rehacer World Architect
-          · target="explorers": rehacer Explorer/Designer round
-          · target="case": rehacer Case Writer
-        max 2 vueltas total por caso. Si no converge, descartar y probar
-        otro seed paper.
+Validator transversal (único árbitro con autoridad de invalidar)
+    checks (10):
+      1. cobertura: cada ValidatedPhenomenon core está cubierto por
+         al menos una GQ.
+      2. provenance: toda GQ tiene >=1 EvidenceArtifact.
+      3. leak en brief: regex + LLM judge buscan filtración de
+         answer keys, variables latentes, términos delatadores.
+      4. trivialness: lazy investigator simulado scorea < 0.3.
+      5. rubric coherence: respuesta canónica scorea > 0.85.
+      6. answerability pública: cada GQ es respondible con dataset
+         visible + tools, no solo "verdadera en el WorldSpec".
+      7. modality match de provenance: si EvidenceArtifact usó
+         latentes / intervenciones, no respalda pregunta empírica
+         pura — salvo que la GQ pida explícitamente "no identificable".
+      8. stability del answer key: numeric viene con tolerance o CI
+         medido empíricamente, no número crudo de una corrida.
+      9. bundle redundancy: no hay GQs casi idénticas con wording
+         distinto (chequeo de overlap semántico).
+      10. salience threshold: cada fenómeno detrás de una GQ tiene
+          tamaño de efecto suficiente para merecer pregunta.
+    output: ValidationReport(
+              passed: bool,
+              target_to_reiterate: Literal["world", "designer", "case"] | None
+            )
+    si invalida: re-itera la etapa indicada (max 2 vueltas totales).
 ```
 
 ---
 
 ## 3. Decisiones clave
 
-### 3.1 `intended_phenomena` a nivel mecanismo, no a nivel pregunta
+### 3.1 Architect con disciplina formal
 
-Un `IntendedPhenomenon` describe **qué se quiso poner mecanísticamente**, no **qué pregunta hacer**. Ejemplos válidos:
+El Architect agrega los votos él mismo (sin Aggregator separado), pero con tres reglas duras:
 
-- "collider entre `smoking` y `hidden_u` con `LBW` como collider"
-- "mediation `smoking → BW → mortality`"
-- "bifurcación en parámetro `R0` cerca de 1.0"
+- **Votos crudos inmutables**: el Architect lee, no edita ni reescribe los `ValidatorVote`s.
+- **Promoción explícita**: solo `vote="passes"` graduates a `ValidatedPhenomenon`. `weak_pass` NO. Esto evita que el Architect "redondee hacia arriba" ambigüedades.
+- **Versionado del `intended_phenomenon`**: si el Architect cambia el `description` o las `relevant_variables` entre iteraciones, queda registrado. Eso impide que achique la tesis silenciosamente para hacerla más fácil de validar.
 
-Ejemplos NO válidos (eso lo decide el Explorer):
+Hard cap = 3 iteraciones. Si tras 3 vueltas hay fenómenos sin promover, el Architect decide entre:
+- bajar la lista de `intended_phenomena` (con log explícito de qué se descarta),
+- declarar el seed paper inviable y descartarlo.
 
-- ~~"preguntá el ATE marginal de smoking sobre mortality"~~
-- ~~"hacé un análisis de sensibilidad sobre R0"~~
+### 3.2 Validator output enriquecido
 
-Esto evita que el Architect se vuelva fuente única de qué se pregunta. El espacio de preguntas posibles para un mundo dado es siempre más grande que la lista de mecanismos puestos.
+Cada `ValidatorVote` no es solo `pass/fail`. Devuelve:
 
-### 3.2 Verificación dura: verify first, propose later
+- `vote`: `passes | weak_pass | fails`.
+- `margin`: claridad cuantitativa del resultado. Ej: para una paradoja con `diff_lbw=-0.045 ± 0.01`, margin alto. Para `=-0.005 ± 0.01`, margin nulo.
+- `fragility`: cuánto se mueve el fenómeno si se perturba un coef. Esto le da al Architect señal de sensibilidad para iterar inteligentemente, no a ciegas.
+- `delta_from_previous`: qué cambió entre esta iteración y la anterior (para detectar oscilación).
+- `evidence`: `list[EvidenceArtifact]` (script + numerical_result).
+- `failure_reason`: texto explicando el problema si `vote != passes`.
 
-Cada Explorer multi-turn empieza por confirmar el `intended_phenomenon` que le tocó. Si la confirmación falla, **el Explorer NO propone preguntas alternativas creativas**. Reporta el problema y termina.
+Sin `margin/fragility`, el Architect hace hill-climbing ciego: cambia coef, los validators dicen "ok", pero no sabemos si está sólido o al borde.
 
-Razón: si un Architect roto diseñó un mundo donde el collider no se materializa, queremos saberlo. Si el Explorer "compensa" creativamente, ocultamos el bug del Architect bajo preguntas válidas pero no relacionadas con la intención original. El Validator transversal después decide si re-iterar al Architect.
+### 3.3 N Validators = N intended_phenomena (emergente, no fijo)
 
-### 3.3 Wildcard explícito (1 de los N)
+El número de Validators es función del WorldSpec, no constante. Si el Architect pone 2 fenómenos, manda 2 Validators. Si pone 5, 5. NO hardcodear "siempre 3" — eso huele a otro catálogo cerrado disimulado.
 
-Uno de los N Explorers no recibe `intended_phenomena` y explora libre. Su rol: descubrir fenómenos emergentes que el Architect no anticipó.
+Para MVP: rango razonable 2-5. Más de 5 fenómenos en un solo caso huele a sobrecarga del Architect; bajamos.
 
-Razón (Codex): el Selector llega demasiado tarde para "mirar emergentes" — para cuando ve las propuestas, los Explorers ya gastaron sus turnos pegados a los `intended_phenomena`. Aceptar el límite (no buscar emergentes) ahorra muy poco comparado con tener 1 Explorer libre.
+### 3.4 Question Designer consume el bundle completo, no 1:1
 
-Distribución MVP:
-- **3 Explorers** (default): 2 guiados + 1 wildcard.
-- **4 Explorers** (cuando el WorldSpec viene cargado, ej: muchos `intended_phenomena`): 3 guiados + 1 wildcard.
-- **NO 5 Explorers** en MVP: el costo en LLM calls no compensa el incremento marginal de diversidad.
+El Question Designer recibe `list[ValidatedPhenomenon]` entera y produce `QuestionsBundle` libremente. Mappings posibles:
 
-### 3.4 Selector advisory, no árbitro
+- **N:1**: una GQ combina varios fenómenos. Ej: en Birth Weight Paradox, GQ4 ("¿qué tipo de variable es LBW?") combina paradoja al estratificar (ip2) + no identifiability del efecto directo (ip3).
+- **1:N**: un fenómeno genera varias GQs con ángulos distintos.
+- **1:1**: el caso simple.
 
-El Selector tiene 4 tareas: `rank, filter, merge, reportar calidad`. NO tiene 5ta tarea de "invalidar al Architect" ni de "pedir más evidencia".
+Hardcodear `1 fenómeno → 1 pregunta` haría el sistema rígido y mataría diversidad real.
 
-Si las propuestas son flojas, el Selector lo marca en su `SelectionReport.quality_issues`. Eso va al Validator transversal, que es quien decide si re-iterar y a qué etapa.
+### 3.5 Anti-leak: cápsula narrativa saneada
 
-Razón: gobernanza concentrada. Dos árbitros (Selector + Validator) crean ambigüedad y loops difíciles de razonar.
+El paper crudo NO se le pasa al Question Designer (riesgo: pregunta calcada del paper, frases icónicas como "the birth weight paradox", el Investigator memoriza la respuesta).
 
-### 3.5 Validator único árbitro CON target
+En cambio, Paper Digestion produce **dos artefactos** desde el seed paper:
 
-El `ValidationReport` ya existe (en contratos #55) pero hay que extenderlo con un campo `target_to_reiterate: Literal["world", "explorers", "case"] | None`.
+1. **Mecanismos** (para el Architect): "collider entre `Smoking` y un confounder no observado de mortalidad", "estratificar por `LBW` invierte signo".
+2. **Cápsula narrativa saneada** (para el Question Designer y el Case Writer):
+   - dominio: epidemiología perinatal
+   - población: ~1500 nacimientos en cohorte observacional
+   - unidades: peso al nacer en gramos, mortalidad binaria primer mes
+   - convenciones de medición: LBW threshold 2500g
+   - "estilo de pregunta natural en este dominio": estimaciones de efecto causal con CI, análisis estratificados, discusión de identifiability
+   - **PROHIBIDO**: nombres canónicos del paper ("paradoja de X"), frases icónicas, conclusiones del paper, recomendaciones de salud pública.
 
-Razón (Codex): si el Validator solo dice "no pasa, re-itere", el sistema no sabe qué rehacer. El target hace que el loop sea concreto. Si `target="world"`, vuelve al Architect. Si `target="explorers"`, los Explorers corren de nuevo sobre el mismo WorldSpec. Si `target="case"`, solo el Case Writer.
+Esto es anti-leak parcial. El leak fuerte (autoría del caso) no se elimina; solo el wording.
 
-### 3.6 No hay "Selector pide más evidencia" en MVP
+### 3.6 Validator transversal con 10 checks
 
-Si las propuestas tienen evidencia floja, el Selector lo registra y deja que el Validator decida qué hacer (probablemente `target="explorers"` para re-correr con los mismos `intended_phenomena`). No hay un sub-loop interno entre Selector y Explorers.
+Ver §2 para lista completa. Los críticos que vinieron de Codex y NO estaban en versiones anteriores:
 
-Razón: mantener el sistema simple para MVP. Si después vemos que vale la pena un sub-loop, se agrega.
+- **answerability pública** (#6): que la GQ sea respondible desde la **interfaz pública** (dataset + tools), no solo "verdadera en el WorldSpec". Si el WorldSpec tiene `HiddenU` y la GQ pide "qué es `HiddenU`", el Investigator no puede responder porque no lo ve. Hay que reformular o descartar.
+- **modality match de provenance** (#7): si el `EvidenceArtifact` usó `env.intervene(do=...)` o leyó variables latentes, NO puede respaldar una GQ que el Investigator debe responder empíricamente — salvo que la GQ pida explícitamente "no identificable" / "imposible desde estos datos".
+- **stability del answer key** (#8): el `numeric` no puede ser número crudo de una corrida del Validator. Tiene que tener `tolerance` o `ci` medido empíricamente (re-correr con seeds distintos, computar variance). Si no, convertimos ruido de una corrida en gold.
+- **bundle redundancy** (#9): sin Selector, alguien tiene que chequear que no haya 3 preguntas casi iguales con wording distinto. Va al Validator transversal.
+- **salience threshold** (#10): un fenómeno puede pasar (`vote=passes` + `margin alto`) pero ser marginal o periférico al caso. No todo fenómeno verificado merece ser GQ.
+
+### 3.7 Verify first, propose later (mantiene del recorte 1)
+
+Esta regla sobrevive a los recortes: si un Validator no puede confirmar el `intended_phenomenon` que le tocó, NO inventa preguntas alternativas creativas. Reporta el problema y termina. Eso evita ocultar bugs del Architect bajo preguntas válidas pero desconectadas de la intención original.
+
+En el flujo final, esto se materializa en: el Validator devuelve `vote=fails` con `failure_reason`; el Architect itera. No hay "pregunta de consolación".
 
 ---
 
@@ -148,134 +210,136 @@ Razón: mantener el sistema simple para MVP. Si después vemos que vale la pena 
 
 ### Crear
 
-**`IntendedPhenomenon`** (nuevo):
+**`ValidatedPhenomenon`** (en `contracts/validated_phenomenon.py`):
 
 ```python
-class IntendedPhenomenon(BaseModel):
-    """Lo que el World Architect quiso poner intencionalmente en el WorldSpec."""
+class ValidatedPhenomenon(BaseModel):
+    """Fenómeno cuya materialización en el WorldSpec fue verificada por
+    Validators con vote=passes."""
     id: str
-    kind: str  # tag libre: "collider", "mediation", "bifurcation", "non_linearity", etc.
-    description: str  # NL: qué fenómeno y entre qué variables
+    source_intended_id: str  # apunta al IntendedPhenomenon original
+    kind: str  # tag libre
+    description: str
     relevant_variables: list[str]
+    validator_votes: list[ValidatorVote]  # mínimo 1, todos passes
+    margin: float  # del vote (si N validators del mismo, agregado)
+    fragility: float
+    evidence: list[EvidenceArtifact]  # mínimo 1
 ```
 
-**`EvidenceArtifact`** (nuevo, reemplaza el rol de `VerifierQuery`):
+**`ValidatorVote`** (en mismo archivo):
 
 ```python
-class EvidenceArtifact(BaseModel):
-    """Evidencia ejecutable que respalda un AnswerKey o un Phenomenon.
-
-    Patrón: el agente escribe un script Python que recibe el Environment,
-    lo ejecuta, y captura el resultado numérico.
-    """
-    script: str  # código Python que usa env.observe / env.intervene / env.simulate
-    numerical_result: dict[str, Any]  # output del script
-    notes: str | None = None
-    tag: str | None = None  # opcional: descriptivo para análisis agregado
-                            # (NO restrictivo, NO valida contra catálogo)
-```
-
-**`QuestionProposal`** (nuevo):
-
-```python
-class QuestionProposal(BaseModel):
-    """Output de un Explorer/Designer: una pregunta candidata con su evidencia."""
-    proposal_id: str
-    author_run_id: str  # qué Explorer la generó
-    focus: str  # qué intended_phenomenon (o "wildcard") motivó esta propuesta
-    question_text: str
-    rubric_draft: Rubric
-    answer_key: AnswerKey
-    answer_key_provenance: list[EvidenceArtifact]  # plural: una pregunta puede
-                                                    # necesitar varios scripts
-    status: Literal["proposed", "verified", "rejected_unconfirmed"]
-    tags: list[str] = Field(default_factory=list)
-```
-
-**`SelectionReport`** (nuevo):
-
-```python
-class SelectionReport(BaseModel):
-    """Output advisory del Selector. NO tiene autoridad de invalidar."""
-    selected_proposals: list[str]  # proposal_ids elegidos
-    rejected_proposals: list[str]
-    merged_proposals: dict[str, list[str]]  # final_id -> [source_proposal_ids]
-    quality_issues: list[str]  # problemas detectados en el pool
-    diversity_score: float | None  # qué tan diversas son las preguntas finales
+class ValidatorVote(BaseModel):
+    """Output de un Validator sobre un IntendedPhenomenon."""
+    validator_id: str
+    target_intended_id: str
+    iteration: int  # qué vuelta del Architect
+    vote: Literal["passes", "weak_pass", "fails"]
+    margin: float
+    fragility: float
+    delta_from_previous: dict[str, Any] | None  # null en iter 1
+    evidence: list[EvidenceArtifact]  # mínimo 1
+    failure_reason: str | None  # obligatorio si vote != passes
 ```
 
 ### Modificar
 
-**`WorldSpec`**: agregar `intended_phenomena: list[IntendedPhenomenon] = Field(default_factory=list)`.
+**`ValidationReport`**: cambiar `target_to_reiterate: Literal["world", "explorers", "case"]` a `Literal["world", "designer", "case"]` (sin "explorers" — ya no existen como rol).
 
-**`Phenomenon.kind`**: cambiar de `Literal[6 valores cerrados]` a `str` libre. Agregar `tags: list[str]` opcional para taxonomía no normativa.
+**`InvestigationLog`**: agregar `extra_claims: list[Claim] = Field(default_factory=list)`. Hook reservado para open scoring del Solver. En v1.5 se registra pero NO se puntúa. En v1.6+ entra al score con bonus.
 
-**`GoldQuestion.verifier_query`**: cambiar de un solo `VerifierQuery` a `answer_key_provenance: list[EvidenceArtifact]`. Una pregunta puede necesitar evidencia de varios scripts.
+### Borrar
 
-**`ValidationReport`**: agregar `target_to_reiterate: Literal["world", "explorers", "case"] | None = None`.
-
-### Borrar / deprecar
-
-**`VerifierQuery`**: el contrato actual con `query_kind: str + args: dict` deja de tener sentido sin un catálogo cerrado. Se borra.
+- **`QuestionProposal`** (en `contracts/proposal.py`): no se usa más.
+- **`SelectionReport`** (en `contracts/proposal.py`): no se usa más.
+- **`contracts/proposal.py`** completo: borrarlo (queda vacío).
+- Tests asociados.
 
 ### Mantener sin cambios
 
 - `PaperInsights`
-- `ExecutableEvidence` (ya estaba bien — el patrón se generaliza con `EvidenceArtifact`)
-- `Rubric`, `Criterion`, `AnswerKey`, `AnswerKeyAnchor`
+- `WorldSpec` con `intended_phenomena: list[IntendedPhenomenon]`
+- `IntendedPhenomenon`
+- `EvidenceArtifact`
+- `Phenomenon`, `PhenomenaManifest`
+- `Rubric`, `Criterion`, `AnswerKey`, `AnswerKeyAnchor`, `GoldQuestion`, `QuestionsBundle`
 - `ResearchCase`, `Dataset`, `ToolSpec`
-- `InvestigationLog`, `InvestigatorAction`, `Claim`, `HypothesisEntry`
+- `InvestigatorAction`, `Claim`, `HypothesisEntry` (`InvestigationLog` solo agrega `extra_claims`)
 - `ValidationIssue`, `AdversarialAttempt`
 
 ---
 
-## 5. Cambios en código que ya está commiteado o programado
+## 5. Cambios en código
 
-### Borra
+### Borrar
 
-- `src/sreg/v1_5/verifier/` completo: dispatch dict, funciones canónicas SCM (`verify_ate`, etc.), `Verifier` fachada.
-- Tests de `verifier/` (no se commitearon, pero los tengo localmente).
+- `src/sreg/v1_5/contracts/proposal.py` (completo).
+- Tests asociados a `QuestionProposal` / `SelectionReport` en `tests/v1_5/contracts/`.
+- Exports correspondientes en `src/sreg/v1_5/contracts/__init__.py`.
 
-### Mantiene
+### Crear
 
-- `src/sreg/v1_5/contracts/` (con los cambios listados arriba).
+- `src/sreg/v1_5/contracts/validated_phenomenon.py` con `ValidatedPhenomenon` + `ValidatorVote`.
+- Tests para los validadores cruzados de los nuevos contratos.
+
+### Modificar
+
+- `src/sreg/v1_5/contracts/validation.py`: ajustar `ValidationReport.target_to_reiterate`.
+- `src/sreg/v1_5/contracts/investigation.py`: agregar `extra_claims` a `InvestigationLog`.
+- `src/sreg/v1_5/contracts/__init__.py`: actualizar exports.
+
+### Mantener sin cambios
+
 - `src/sreg/v1_5/environment/` (Protocols, SCMEnvironmentAdapter — sirven igual).
-- Tests de `contracts/` (con ajustes mínimos por los cambios de schema).
-- Tests de `environment/` (sin cambios).
-
-### Eventualmente agrega
-
-- Helpers de bajo nivel SI emergen como necesarios (ej. `bootstrap_ci`). NO de alto nivel (no `compute_ate`, etc.).
+- Tests de `environment/`.
+- Resto de tests de `contracts/`.
 
 ---
 
 ## 6. Cambios en docs
 
-- **`ARCHITECTURE.md`**: sacar refs a `query_kinds`, `Verifier con dispatch`, "16 operaciones canónicas". Agregar el flujo multi-agente, `intended_phenomena`, Selector advisory, Validator con `target_to_reiterate`.
-- **`research/notes/v1_5_query_matrix.md`**: archivar. Era la spec congelada del catálogo cerrado. Con el catálogo muerto, el doc queda como referencia histórica del approach desechado. Mover a `research/archive/pre_v1_5/v1_5_query_matrix.md` o similar.
-- **`research/notes/v1_5_debates.md`**: agregar Ronda 12 con este re-diseño y las consultas a Codex que lo validaron.
-- **Body de issue #56** (Environment + Verifier): re-titular y re-scopear. Ya no es "Environment + Verifier multi-formalismo (10 SCM + 6 ODE)". Ahora es "Environment infra (SCM + ODE) + helpers mínimos". El "Verifier dispatch" desaparece; cualquier cómputo lo hace cada agente con sus propios scripts.
-- **Body de issue #58** (Designer): re-titular y re-scopear. Ahora es "Designer multi-agente: Architect + N Explorer/Designers + Selector + Case Writer". El rol del antiguo "Question Designer" se distribuye entre Explorers y Selector.
+- **`ARCHITECTURE.md`**: sacar refs a Selector, Explorer/Designer, wildcard, `QuestionProposal`, `SelectionReport`. Reflejar flujo final con Architect multi-iter + Validators + Question Designer + Case Writer + Validator transversal. Actualizar §2 vocabulario, §3 flujo, §4 Designer multi-agente, §5 contratos, §10 frontera, §11 no-goals.
+- **`research/notes/v1_5_debates.md`**: agregar Ronda 13 con el camino de los recortes 2 y 3 + consultas a Codex.
+- **Body de issue #56** (Environment + helpers): ya estaba bien post-ronda 12 (Environment + helpers mínimos sin dispatch). Ajustes menores si los hay.
+- **Body de issue #58** (Designer): re-titular "Designer multi-agente" → reflejar componentes finales (Architect, Validators, Question Designer, Case Writer, Validator transversal — sin Selector, sin Explorer/Designer).
 
 ---
 
-## 7. Riesgos abiertos (a vigilar durante MVP)
+## 7. Hooks reservados para v1.6+
 
-- **Diversidad real entre los N Explorers**: si los focos derivados se construyen mal, los N pueden converger. Hay que diseñar el prompt builder con cuidado.
-- **Wildcard puede divagar**: el Explorer wildcard sin foco podría perder turnos en cosas irrelevantes. Si vemos que el wildcard rinde poco en pilot humano, ajustamos (ej. darle restricción tipo "buscá fenómenos emergentes que no estén en `intended_phenomena`").
-- **Selector como cuello de botella oculto**: si el Selector elige mal, todo el caso sufre. El `SelectionReport` con `quality_issues` mitiga pero no resuelve. Pilot humano va a calibrar.
-- **Validator sobrecargado**: ahora tiene que procesar más artefactos (intended_phenomena + N proposals + SelectionReport + ResearchCase). Hay que ver si rinde con un solo prompt.
-- **Costo en LLM calls**: 3-4 Explorers multi-turn aumenta el costo por caso. Ver si rinde para RL training o si hay que paralelizar de manera más agresiva.
+Estos NO se implementan en v1.5, pero se dejan los pegamentos para no reescribir contratos después:
+
+- **Open scoring del Solver**: `InvestigationLog.extra_claims` registra claims fuera de las GoldQuestions. En v1.5 NO paga; el Evaluator los ignora para el score. En v1.6 entran con bonus si son verdaderos (verificable contra el `WorldSpec`) y relevantes (LLM judge). Justificación: el proyecto se inspira en Open Investigation (`research/synthesis/open_investigation_vision.md`) — el Solver debería poder reportar más de lo pedido, sin penalización si no lo hace y con crédito si lo hace bien.
+- **Wildcard challenger**: si pilot humano muestra que los casos quedan monótonos (los Architects siempre ponen el mismo tipo de fenómeno), agregamos 1 Validator sin foco que explora libre. Hoy 0.
+- **Novelty corpus-level**: chequeo entre casos del corpus (no por caso). Detecta convergencia a 2-3 recetas. v1.6.
+- **Sherlock multi-turn**: v2 (Epic #64). El Investigator pide observaciones, interviene, simula. En v1.5 es single-turn sobre dataset pre-sampleado.
+- **Process quality scoring del trace**: issue #53.
+- **Identifiability gate formal universal**: issue #54.
 
 ---
 
-## 8. Próximos pasos
+## 8. Riesgos abiertos (a vigilar durante MVP)
 
-1. Aplicar cambios a contratos Pydantic v1.5.
-2. Borrar `src/sreg/v1_5/verifier/` (dispatch + funciones canónicas).
-3. Actualizar `ARCHITECTURE.md`.
+- **Architect rompe disciplina**: si "redondea hacia arriba" `weak_pass` o reescribe `intended_phenomenon` para que pase más fácil sin loggearlo, oculta bugs reales del WorldSpec. Mitigación: contratos `ValidatorVote.vote` inmutable; versionado del intended con log visible al Validator transversal. Pilot humano calibra.
+- **Hill-climbing ciego con fenómenos acoplados**: si 2-3 fenómenos comparten coeficientes, ajustar un coef para `ip2` puede romper `ip1`. `margin` y `fragility` ayudan a guiar la iteración pero no resuelven. Si en pilot vemos oscilación, descartamos seeds difíciles temprano.
+- **Cápsula saneada con leak residual**: el anti-leak no es total. Si la cápsula menciona "ten cuidado con confounders no observados" o "considera análisis estratificados", filtra parcialmente la respuesta. Pilot humano + judge entrenado calibran.
+- **Validator transversal sobrecargado**: ahora tiene 10 checks. Puede no rendir con un solo prompt LLM. Si falla, dividimos en 2-3 sub-validators (ej. uno semántico, uno cuantitativo, uno estructural) sin cambiar contratos.
+- **Costo en LLM calls**: Architect (multi-iter) + N Validators (×3 vueltas) + Question Designer + Case Writer + Validator transversal. Por caso, ~10-20 LLM calls. Para RL training a escala, hay que paralelizar agresivamente o cachear.
+
+---
+
+## 9. Próximos pasos
+
+1. Aplicar cambios a contratos Pydantic v1.5:
+   - borrar `proposal.py` + tests
+   - crear `validated_phenomenon.py`
+   - ajustar `validation.py` y `investigation.py`
+   - actualizar `__init__.py`
+2. Actualizar `ARCHITECTURE.md`.
+3. Agregar Ronda 13 a `v1_5_debates.md`.
 4. Actualizar bodies de issues #56 y #58 en GitHub.
 5. Codex review final del cambio aplicado.
 6. Commit + push.
 
-Después de eso, recién retomamos implementación: probablemente arrancando por #58 (Designer multi-agente) ya que es donde está la mayor complejidad nueva. #56 queda mucho más chico (solo Environment + helpers básicos).
+Después de eso, retomamos implementación. La mayor complejidad nueva está en el Architect + Validators + feedback loop (issue #58 reescrito). Issue #56 queda chico (solo Environment + helpers básicos, sin dispatch).

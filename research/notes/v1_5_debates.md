@@ -614,3 +614,89 @@ Después de programar #55 (contratos) y arrancar #56 (Environment + Verifier), e
 Re-diseño aplicado, 97 tests pasan, ruff limpio. ARCHITECTURE.md y bodies de issues #56 y #58 actualizados. Issue #58 cambia significativamente: ya no es "Designer 4 agentes", ahora es "Designer multi-agente con N Explorers paralelo + Selector advisory + Validator único árbitro".
 
 Próximo paso: commit + push, después arrancar #58 con orden recomendado por Codex: Architect → 1 Explorer/Designer E2E con Environment mock → Selector → Validator → Case Writer; recién después escalar de 1 a N Explorers.
+
+---
+
+## Ronda 13 — Recorte del recorte: Validators con feedback loop, sin Selector, sin wildcard (2026-05-05)
+
+### Contexto
+
+Tras commitear la Ronda 12 (multi-agente con Explorer/Designers + Selector), el usuario detectó dos problemas conceptuales que la implementación todavía no había hecho explotar:
+
+1. **Los Explorer/Designers no exploraban**. El Architect ya cocina el `WorldSpec` con intención (a partir de `PaperInsights`). Si un Explorer recibe `intended_phenomena` y "verifica primero", no está explorando — está validando hipótesis pre-cocinadas. Doble agente para una sola función.
+2. **Catálogo cerrado disimulado**: aunque `query_kinds` murió en Ronda 12, el patrón "1 Explorer = 1 IntendedPhenomenon = 1 QuestionProposal = 1 GoldQuestion" creaba un nuevo catálogo implícito.
+
+El recorrido de un caso concreto (Birth Weight Paradox, ver `research/examples/birth_weight_paradox.md`) hizo evidentes los problemas: una buena GQ puede combinar fenómenos (GQ4 combina paradoja al estratificar e identifiability del efecto directo); el Architect "sin querer" pone más fenómenos de los que declara (heterogeneidad por decil de BW que el Architect no anticipó).
+
+### Recorrido del recorte (en orden)
+
+**Recorte A — Sin Selector (Architect agrega votos él mismo)**.
+
+El Selector agregaba complejidad sin función única: rank/filter/merge solapaba con lo que el Question Designer puede hacer (tomando todo el bundle), y "reportar calidad" duplica al Validator transversal. Decisión: el Architect lee los votos crudos de los Validators y decide promover o iterar. NO hay Aggregator separado.
+
+Disciplina formal del Architect (sugerencia de Codex):
+- Votos crudos inmutables.
+- Solo `vote=passes` promueve a `ValidatedPhenomenon`. `weak_pass` NO graduates silenciosamente.
+- Cambios al `intended_phenomenon` entre iteraciones quedan versionados (impide "achicar la tesis sin dejar rastro").
+- Hard cap = 3 vueltas internas.
+
+**Recorte B — Sin wildcard challenger MVP**.
+
+El wildcard se justificaba en Ronda 12 como anti-monotonía. Pero el usuario detectó que el problema ("¿qué pasa si el Architect no anticipó un fenómeno?") tiene mejor solución desde otro ángulo: **open scoring del Solver** — si el Investigator descubre fenómenos no declarados y los reporta, debería ganar bonus. Eso captura el espíritu de Open Investigation sin sumar otro Validator.
+
+Decisión: arrancamos con N Validators = N intended_phenomena (sin wildcard). Open scoring se difiere a v1.6 pero se reserva el campo `InvestigationLog.extra_claims` desde v1.5 para no reescribir contratos después.
+
+**Recorte C — Question Designer no consulta el paper**.
+
+Justificación: anti-leak. Si el Question Designer ve "the birth weight paradox" en el paper, redacta una GQ con esa frase y el Investigator memoriza. Decisión: el paper crudo se queda en Paper Digestion. El Question Designer recibe `ValidatedPhenomenon.description + EvidenceArtifact + WorldSpec` + una **cápsula narrativa saneada** (dominio, población, unidades, "estilo de pregunta natural", SIN frases icónicas).
+
+**Recorte D — Question Designer NO 1:1**.
+
+El Question Designer consume el `list[ValidatedPhenomenon]` completo y produce `QuestionsBundle` libremente. Una GQ puede combinar fenómenos; un fenómeno puede generar varias GQs. Hardcodear 1:1 sería otra ontología cerrada disimulada.
+
+**Recorte E — N Validators emergente, no fijo**.
+
+Si el Architect pone 2 fenómenos, manda 2 Validators. Si pone 5, 5. NO "siempre 3" — eso huele a otra ontología cerrada.
+
+### Consultas a Codex (2 en esta ronda)
+
+- **Ronda 13.1**: validó "el flujo es mejor que Explorer→Selector pero incompleto". Identificó gap: "valida mecanismos pero no cierra el salto a GoldQuestion + AnswerKey + provenance + rubric". Recomendó: Question Designer post-validación, `ValidatedPhenomenon` contract, hard iteration cap explícito.
+- **Ronda 13.2** (post-walkthrough Birth Weight): aceptó la dirección del recorte pero advirtió: "quitaste agentes, no funciones". Forzó reubicar tres funciones que el Selector hacía:
+  - **bundle shaping**: pasa al Question Designer (que consume el bundle completo).
+  - **interface answerability**: pasa al Validator transversal (check #6 nuevo).
+  - **robust numeric truth**: pasa al Validator transversal (check #8: stability del answer key con tolerance/CI medido empíricamente).
+
+Codex agregó cuatro checks nuevos al Validator transversal:
+- `answerability pública` (la GQ es respondible con el dataset visible + tools, no solo "verdadera en el WorldSpec")
+- `modality match de provenance` (si el `EvidenceArtifact` usó latentes / intervenciones, no respalda preguntas empíricas — salvo "no identificable")
+- `bundle redundancy` (no GQs casi calcadas)
+- `salience threshold` (un fenómeno verificado puede ser demasiado chico para merecer GQ)
+
+Codex también pidió Validator output enriquecido: además de `vote`, devolver `margin` (claridad cuantitativa), `fragility` (sensibilidad a coefs), `delta_from_previous` (qué cambió iter-a-iter). Sin esto el Architect hace hill-climbing ciego.
+
+### Decisiones de Ronda 13
+
+1. **Architect agrega votos**, sin Aggregator. Disciplina formal: votos inmutables, `weak_pass` no promueve, versionado del intended.
+2. **Sin wildcard challenger MVP**. Open scoring del Solver diferido a v1.6 con hook `InvestigationLog.extra_claims` reservado.
+3. **Question Designer consume bundle completo**, NO 1:1. Sin acceso al paper crudo.
+4. **PaperInsights con `narrative_capsule`** saneada para Question Designer y Case Writer.
+5. **N Validators emergente**, no hardcodeado.
+6. **Validator output enriquecido**: `vote + margin + fragility + delta_from_previous + evidence + failure_reason`.
+7. **Validator transversal con 10 checks** (6 originales + 4 nuevos de Codex).
+8. **`ValidationReport.target_to_reiterate`**: `Literal["world","designer","case"]` (sacamos "explorers" — ya no existen).
+9. **Hooks reservados v1.6+**: `extra_claims`, wildcard, novelty corpus-level.
+
+### Cambios en contratos Pydantic
+
+**Crear**: `ValidatedPhenomenon`, `ValidatorVote`.
+
+**Modificar**:
+- `ValidationReport.target_to_reiterate`: `Literal["world","designer","case"]`.
+- `InvestigationLog`: agregar `extra_claims: list[Claim]`.
+- `PaperInsights`: agregar `narrative_capsule`.
+
+**Borrar**: `QuestionProposal`, `SelectionReport`, `contracts/proposal.py` completo.
+
+### Veredicto
+
+Diseño cerrado. Doc canónico actualizado en `research/notes/multi_explorer_redesign.md`. ARCHITECTURE.md actualizado. Próximo paso: aplicar cambios a contratos Pydantic, actualizar bodies de issues #56 y #58 en GitHub, codex review final, commit + push.

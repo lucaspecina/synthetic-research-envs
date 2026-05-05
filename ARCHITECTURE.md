@@ -3,9 +3,9 @@
 
 > **Spec viva del sistema target (v1.5).** Sólo decisiones cerradas, componentes y contratos. Sin debates, sin trade-offs largos, sin lessons históricas.
 >
-> Vision y principios: `PROJECT.md` · Estado actual real: `CURRENT_STATE.md` · Trabajo pendiente: GitHub Issues · Debates históricos: `research/notes/v1_5_debates.md` · Re-diseño multi-agente: `research/notes/multi_explorer_redesign.md`.
+> Vision y principios: `PROJECT.md` · Estado actual real: `CURRENT_STATE.md` · Trabajo pendiente: GitHub Issues · Debates históricos: `research/notes/v1_5_debates.md` · Diseño del Designer multi-agente: `research/notes/multi_explorer_redesign.md`.
 >
-> **Versión**: v1.5 en desarrollo activo (rama `dev`). Actualizado 2026-05-04. La arquitectura v1.x está preservada en `docs/archive/architecture_v1.md`.
+> **Versión**: v1.5 en desarrollo activo (rama `dev`). Actualizado 2026-05-05. La arquitectura v1.x está preservada en `docs/archive/architecture_v1.md`.
 
 ---
 
@@ -24,11 +24,11 @@
 
 Tres bloques:
 
-- **Case Generation (Designer multi-agente)**: lo más pesado. Architect + N Explorer/Designers (paralelo, multi-turn) + Selector + Case Writer + Validator transversal. Vive acá toda la complejidad nueva de v1.5.
+- **Case Generation (Designer multi-agente)**: lo más pesado. Architect (multi-iter) + N Validators + Question Designer + Case Writer + Validator transversal. Vive acá toda la complejidad nueva de v1.5.
 - **Investigator**: relativamente delgado, ~10% del esfuerzo. Reusa código de v1. Single-turn en v1.5; multi-turno en v2.
 - **Evaluator**: LLM judge sin acceso runtime al Environment. Lee AnswerKeys ya computados.
 
-**Environment (transversal)**: interfaz ejecutable del WorldModel (`observe`, `intervene`, `simulate`). Lo usan los Explorer/Designers en design-time para producir AnswerKeys vía scripts Python (`EvidenceArtifact`). El Evaluator NO lo toca en runtime.
+**Environment (transversal)**: interfaz ejecutable del WorldModel (`observe`, `intervene`, `simulate`). Lo usan los Validators y el Question Designer en design-time para producir AnswerKeys vía scripts Python (`EvidenceArtifact`). El Evaluator NO lo toca en runtime.
 
 **No hay "Verifier" como motor separado.** Los AnswerKeys salen de scripts ejecutables que cada agente del Designer escribe contra el Environment. NO hay catálogo cerrado de operaciones canónicas (ver `multi_explorer_redesign.md` §1).
 
@@ -51,11 +51,11 @@ Justificación empírica externa: Corral (Ríos-García/Jablonka et al. 2026) �
 | Sistema matemático subyacente | **WorldModel** | SCM o ODE en v1.5 (SDE intrínseco en v1.6). Ecuaciones, grafos, parámetros. |
 | Interfaz ejecutable | **Environment** | Expone `observe`, `intervene`, `simulate`. Cualquier agente del Designer puede escribir scripts Python que la usen. |
 | Paper que inspira | **Seed Paper** | Input al Designer. WorldModel se inspira, no replica. |
-| LLM meta-agente que diseña | **Designer** | Compuesto por: Architect + N Explorer/Designers (paralelo) + Selector + Case Writer + Validator transversal. |
-| Fenómeno declarado por el Architect | **IntendedPhenomenon** | Lo que el Architect quiso poner en el WorldSpec. Guía a los Explorers (no es prescriptivo a nivel de pregunta). |
+| LLM meta-agente que diseña | **Designer** | Compuesto por: Architect (multi-iter) + N Validators + Question Designer + Case Writer + Validator transversal. |
+| Fenómeno declarado por el Architect | **IntendedPhenomenon** | Lo que el Architect quiso poner en el WorldSpec. Cada uno se asigna a un Validator. |
+| Voto de un Validator sobre un fenómeno | **ValidatorVote** | `vote` (passes/weak_pass/fails) + margin + fragility + delta_from_previous + evidence + failure_reason. Output crudo inmutable. |
+| Fenómeno con materialización verificada | **ValidatedPhenomenon** | `IntendedPhenomenon` cuyos Validators votaron `passes`. Apunta al original vía `source_intended_id`. Input principal del Question Designer. |
 | Evidencia ejecutable | **EvidenceArtifact** | Script Python + resultado numérico contra el Environment. Patrón canónico para producir AnswerKeys y verificar fenómenos. |
-| Pregunta candidata | **QuestionProposal** | Output de un Explorer/Designer. El Selector elige cuáles van al `QuestionsBundle` final. |
-| Reporte advisory del Selector | **SelectionReport** | Calidad del pool de propuestas, diversidad, issues. Va al Validator. |
 | Pregunta canónica con verdad | **GoldQuestion** | 3-5 por caso. AnswerKey + provenance ejecutable. |
 | Estructura de evaluación | **Rubric** | Por GoldQuestion. Criterios concretos generados desde el contenido. |
 | Verdad de referencia | **AnswerKey** | Estructurada, computada en design-time vía scripts. NO se recomputa en runtime. |
@@ -76,41 +76,50 @@ Convención externa respetada: `Environment` se alinea con SciGym, BoxingGym, Di
   Seed Paper
      │
      ▼
-  Paper Digestion ──► PaperInsights (mecanismos, fenómenos, trampas)
+  Paper Digestion ──► PaperInsights:
+                        ├── mecanismos (input al Architect)
+                        └── cápsula narrativa saneada (input al Question
+                            Designer y al Case Writer): dominio, población,
+                            unidades, convenciones — SIN frases icónicas
+                            ni punchlines del paper (anti-leak).
      │
      ▼
-  World Architect ──► WorldSpec + intended_phenomena
-     │                (lista corta a nivel mecanismo: "puse collider en X y U",
-     │                 "puse mediation X→M→Y", etc.)
-     │
-     ▼ [compile]
-  Environment (ejecutable)
-     ▲                                                          ▲
-     │                                                          │ scripts
-     │ scripts                                                  │ Python
-     │ Python                                                   │
-  ┌──┴───────────────────────────────────────────────────────────┴──┐
-  │ N Explorer/Designers (paralelo, multi-turn, focos derivados):   │
-  │   · 2-3 guiados (uno por intended_phenomenon)                   │
-  │   · 1 wildcard (libre, sin foco fijo)                           │
-  │   cada uno: verify first, propose later                         │
-  │   output: list[QuestionProposal]                                │
+  World Architect ◄────────┐  (multi-iter, hard cap 3 vueltas)
+     │                     │
+     │ propone WorldSpec   │ Architect lee votos crudos (inmutables) y
+     │ + intended_phenomena│ decide: promover (vote=passes) o iterar.
+     ▼ [compile]           │ weak_pass NO promueve. Cambios al intended
+  Environment (ejecutable) │ van versionados.
+     ▲                     │
+     │ scripts             │
+     │ Python              │
+  ┌──┴─────────────────────┴───────────────────────────────────────┐
+  │ N Validators (uno por intended_phenomenon, paralelo):          │
+  │   cada uno escribe scripts Python contra el Environment        │
+  │   y devuelve ValidatorVote {vote, margin, fragility,           │
+  │                              delta_from_previous, evidence,    │
+  │                              failure_reason}                   │
   └────────────────────────┬────────────────────────────────────────┘
                            ▼
-                    [pool de propuestas]
+                    list[ValidatedPhenomenon] (cuando todos pass)
                            │
                            ▼
-                    Selector (advisory) ──► QuestionsBundle + SelectionReport
-                                            (rank/filter/merge; NO invalida)
+                    Question Designer ──► QuestionsBundle
+                       consume el bundle COMPLETO (no 1:1)
+                       redacta NL libre desde ValidatedPhenomenon +
+                       EvidenceArtifact + cápsula narrativa saneada
+                       NO consulta el paper crudo (anti-leak).
                            │
                            ▼
                     Case Writer ──► ResearchCase (brief + datasets + tools)
                            │
                            ▼
                     Validator transversal (ÚNICO ÁRBITRO)
-                    lee TODO incl. SelectionReport
+                    10 checks: cobertura, provenance, leak, trivialness,
+                    rubric coherence, answerability pública, modality match,
+                    stability AK, bundle redundancy, salience threshold.
                     decide: passed | invalida con target_to_reiterate
-                            ('world' / 'explorers' / 'case'). Max 2 vueltas.
+                            ('world' / 'designer' / 'case'). Max 2 vueltas.
 
 === FASE B — RUNTIME (Investigator) ===
 
@@ -119,6 +128,7 @@ Convención externa respetada: `Environment` se alinea con SciGym, BoxingGym, Di
      ▼
   Investigator (LLM, python_exec sobre dataset)
      │   ├─► InvestigationLog (registrado, NO evaluado en MVP)
+     │   └─► extra_claims (registrado, NO scoreado en v1.5; hook v1.6+)
      ▼
   Claims (prosa libre)
 
@@ -136,19 +146,22 @@ Convención externa respetada: `Environment` se alinea con SciGym, BoxingGym, Di
 
 | Rol | Cantidad | Input | Output | Responsabilidad |
 |---|---|---|---|---|
-| **Paper Digestion** | 1 | Seed Paper | `PaperInsights` | Extrae mecanismos, fenómenos, trampas, counterintuitive priors. |
-| **World Architect** | 1 | `PaperInsights` | `WorldSpec` + `intended_phenomena` | Diseña ecuaciones del WorldModel y declara qué fenómenos quiso poner. SCM o ODE. |
-| **Explorer/Designer** | 3-4 paralelo | `WorldSpec` + Environment + foco | `list[QuestionProposal]` | Multi-turn. Cada uno tiene foco derivado (intended_phenomenon o "wildcard"). Verifica primero, propone preguntas después. |
-| **Selector** | 1 | Pool de QuestionProposals | `QuestionsBundle` + `SelectionReport` | Rank / filter / merge. NO invalida — solo reporta calidad. |
-| **Case Writer** | 1 | `QuestionsBundle` + Seed Paper | `ResearchCase` | Brief realista. Disfraza GQs sin filtrar respuestas. |
-| **Validator (transversal)** | 1 | TODO | `ValidationReport` | ÚNICO ÁRBITRO: invalida cualquier etapa con `target_to_reiterate` ('world' / 'explorers' / 'case'). Max 2 vueltas. |
+| **Paper Digestion** | 1 | Seed Paper | `PaperInsights` (mecanismos + cápsula narrativa saneada) | Dos artefactos: mecanismos (para Architect) y cápsula narrativa saneada (para Question Designer y Case Writer, anti-leak: SIN frases icónicas del paper). |
+| **World Architect** | 1 | `PaperInsights` (mecanismos) | `WorldSpec` + `intended_phenomena` + (luego) `list[ValidatedPhenomenon]` | Multi-iter (hard cap 3). Diseña WorldSpec, lanza Validators, lee votos crudos, promueve solo `vote=passes`, itera con cambios versionados. |
+| **Validator** | N (= len(intended_phenomena)) paralelo | `WorldSpec` + Environment + 1 `IntendedPhenomenon` | `ValidatorVote` | Escribe scripts libres contra el Environment. Devuelve vote + margin + fragility + delta_from_previous + evidence + failure_reason. Verify first, no inventa preguntas. |
+| **Question Designer** | 1 | `list[ValidatedPhenomenon]` + cápsula narrativa | `QuestionsBundle` | Consume el bundle COMPLETO (no 1:1). Redacta NL libre, AnswerKey numeric reusado del EvidenceArtifact, provenance re-ejecutable. NO consulta el paper crudo. |
+| **Case Writer** | 1 | `QuestionsBundle` + cápsula narrativa | `ResearchCase` | Brief realista anti-leak, dataset visible (sin latentes), tools. |
+| **Validator (transversal)** | 1 | TODO | `ValidationReport` | ÚNICO ÁRBITRO. 10 checks (ver §3). Invalida con `target_to_reiterate` ('world' / 'designer' / 'case'). Max 2 vueltas. |
 
 Decisiones operativas:
 
-- **3-4 Explorer/Designers en paralelo**: 3 default, 4 si el WorldSpec viene cargado. NO 5 en MVP. Distribución: 2 guiados + 1 wildcard (caso 3); 3 guiados + 1 wildcard (caso 4).
-- **Verify first, propose later**: si un Explorer no puede confirmar el `intended_phenomenon` que le tocó, NO inventa preguntas alternativas — reporta el problema. Eso evita ocultar bugs del Architect.
-- **Selector advisory**: el `SelectionReport` puede declarar "calidad insuficiente, razones X/Y/Z" pero NO llama directo al Architect. El Validator lee el reporte y decide.
-- **Validator con `target_to_reiterate`**: cuando invalida, declara qué etapa rehacer (no solo "no pasa"). Eso hace que el loop sea concreto.
+- **N Validators emergente, no fijo**: si el Architect pone 2 fenómenos, manda 2 Validators; si pone 5, 5. NO hardcodear "siempre 3" — eso huele a otro catálogo cerrado disimulado. Rango razonable MVP: 2-5.
+- **Architect agrega votos él mismo**: NO hay Aggregator separado. Disciplina formal: votos crudos inmutables, `weak_pass` NO promueve a `ValidatedPhenomenon`, cambios al `intended_phenomenon` versionados en log.
+- **Validator output enriquecido**: además del vote, cada uno devuelve `margin` (claridad cuantitativa), `fragility` (sensibilidad a coefs), `delta_from_previous` (qué cambió iter-a-iter). Sin esto el Architect hace hill-climbing ciego.
+- **Verify first, propose later**: si un Validator no puede confirmar el `intended_phenomenon` que le tocó, devuelve `vote=fails` con `failure_reason`. NO inventa preguntas alternativas. Esto evita ocultar bugs del Architect.
+- **Question Designer NO 1:1**: consume todo el bundle de `ValidatedPhenomenon` y produce `QuestionsBundle` libremente. Una GQ puede combinar fenómenos; un fenómeno puede generar varias GQs.
+- **Anti-leak con cápsula narrativa**: el paper crudo no llega al Question Designer ni al Case Writer. Solo dominio, población, unidades, convenciones, "estilo de pregunta natural" — sin nombres canónicos del paper.
+- **Validator con `target_to_reiterate`**: cuando invalida, declara qué etapa rehacer (no solo "no pasa"). El loop es concreto.
 
 ---
 
@@ -156,22 +169,22 @@ Decisiones operativas:
 
 Cada handoff requiere artefacto Pydantic, no prosa. Los schemas viven en `src/sreg/v1_5/contracts/`. Los contratos clave:
 
-- **`PaperInsights`**: `paper_id`, `objective`, `entities`, `mechanisms`, `phenomena`, `complications`, `counterintuitive_priors`, `realism_bounds`.
+- **`PaperInsights`**: `paper_id`, `objective`, `entities`, `mechanisms`, `phenomena`, `complications`, `counterintuitive_priors`, `realism_bounds`, `narrative_capsule` (cápsula saneada para Question Designer y Case Writer: dominio, población, unidades, convenciones, "estilo de pregunta natural" — SIN frases icónicas del paper).
 - **`WorldSpec`**: `formalism: Literal["scm","ode"]`, `variables`, `relationships`, `parameters`, `metadata`, `intended_phenomena: list[IntendedPhenomenon]`. Validator cruzado: `observation_noise` solo en ODE y `>= 0`.
 - **`IntendedPhenomenon`**: `id`, `kind: str` (libre, ej. "collider", "mediation"), `description`, `relevant_variables`. Vive a nivel mecanismo, NO a nivel pregunta.
 - **`EvidenceArtifact`**: `script: str` (Python ejecutable contra Environment), `numerical_result: dict`, `tag: str | None` (descriptivo, no normativo).
 - **`Phenomenon`**: `kind: str` (string libre, no enum cerrado), `description`, `evidence: EvidenceArtifact`, `tags: list[str]`.
 - **`PhenomenaManifest`**: lista de `Phenomenon`, `world_id`, `interesting_score`.
-- **`QuestionProposal`** (multi-agent): `proposal_id`, `author_run_id`, `focus`, `question_text`, `rubric_draft`, `answer_key`, `answer_key_provenance: list[EvidenceArtifact]`, `status: Literal["proposed","verified","rejected_unconfirmed"]`.
-- **`SelectionReport`** (advisory): `selected_proposals`, `rejected_proposals`, `merged_proposals`, `quality_issues`, `diversity_score`.
+- **`ValidatorVote`**: `validator_id`, `target_intended_id`, `iteration`, `vote: Literal["passes","weak_pass","fails"]`, `margin: float`, `fragility: float`, `delta_from_previous: dict | None`, `evidence: list[EvidenceArtifact]` (mínimo 1), `failure_reason: str | None`. Validator cruzado: `failure_reason` obligatorio si `vote != passes`.
+- **`ValidatedPhenomenon`**: `id`, `source_intended_id`, `kind`, `description`, `relevant_variables`, `validator_votes: list[ValidatorVote]` (todos `vote=passes`), `margin`, `fragility`, `evidence: list[EvidenceArtifact]` (mínimo 1).
 - **`GoldQuestion`** (final): `id`, `text`, `weight ∈ {0.08, 0.12, 0.16, 0.20}`, `role: required|support`, `answer_key`, `answer_key_provenance: list[EvidenceArtifact]` (mínimo 1), `identification_hint`, `rubric`.
 - **`Rubric`**: lista de `Criterion` (`min_length=1`). Debe tener al menos uno con `role="core"`.
 - **`Criterion`**: `text`, `weight ∈ {1,2,3}`, `role: core|bonus`, `anchor: AnswerKeyAnchor`, `scoring_hint`, `requires_span: bool`.
 - **`AnswerKeyAnchor`**: `path`, `match: approx|equals|enum|mentioned`, `tolerance`, `value`. Validator cruzado por modo de match.
 - **`ResearchCase`**: `case_id`, `brief`, `context`, `datasets`, `tools`. **Sin** GoldQuestions, AnswerKeys, IntendedPhenomena (frontera público/oculto, ver §10).
-- **`InvestigationLog`**: `actions`, `hypotheses_log`, `final_claims`. Registrado siempre; NO evaluado en MVP.
+- **`InvestigationLog`**: `actions`, `hypotheses_log`, `final_claims`, `extra_claims: list[Claim]` (claims fuera de las GoldQuestions; registrado en v1.5, NO scoreado; hook reservado para v1.6+ open scoring). Registrado siempre.
 - **`InvestigatorAction`**: `step`, `kind: Literal["python_exec","hypothesis","pivot","submit"]`, `payload`, `rationale`, `epistemic_tag: Literal["H","T","E","J","U","C"] | None`. El tag (Corral) es telemetría no-scoring (#53). `observe`, `intervene`, `simulate` NO son `kind` de v1.5 — son v2.
-- **`ValidationReport`**: `passed`, `invalidated_artifacts`, `issues`, `adversarial_attempts`, `target_to_reiterate: Literal["world","explorers","case"] | None`. Validator cruzado: si `passed=True` el target debe ser `None`; si `passed=False` el target es obligatorio.
+- **`ValidationReport`**: `passed`, `invalidated_artifacts`, `issues`, `adversarial_attempts`, `target_to_reiterate: Literal["world","designer","case"] | None`. Validator cruzado: si `passed=True` el target debe ser `None`; si `passed=False` el target es obligatorio.
 
 Pesos discretos en `GoldQuestion` y `Criterion` son anti-ajuste-fino (evita micro-optimización arbitraria).
 
@@ -179,7 +192,7 @@ Pesos discretos en `GoldQuestion` y `Criterion` son anti-ajuste-fino (evita micr
 
 ## 6. Rubric design
 
-Cada GoldQuestion tiene una Rubric. **Los criterios concretos los genera el agente que armó la pregunta (Explorer/Designer) desde el contenido específico de la pregunta.** No hay templates por categoría (rompería el principio "UN método para todo" en `PROJECT.md`).
+Cada GoldQuestion tiene una Rubric. **Los criterios concretos los genera el Question Designer desde el contenido específico de la pregunta** (no desde un template categorizado por tipo de fenómeno). No hay templates por categoría (rompería el principio "UN método para todo" en `PROJECT.md`).
 
 **4 dimensiones universales** — son **guideline editorial** para armar criterios, NO un enum del schema:
 
@@ -230,7 +243,7 @@ score_total_caso = Σ GQ.weight × score_GQ
 
 **Reglas del Evaluator**:
 - **No ejecuta queries arbitrarias del Environment.** Si necesita verificar contra el SCM, eso lo hizo el Designer en design-time vía `EvidenceArtifact`.
-- **Claims espontáneas fuera de las GoldQuestions** no entran al score principal. (Future: novel-but-correct lane si Fase 0 lo justifica.)
+- **Claims espontáneas fuera de las GoldQuestions**: en v1.5 se registran en `InvestigationLog.extra_claims` pero NO entran al score principal. Hook reservado para v1.6+ (open scoring): bonus si son verdaderos contra el `WorldSpec` y relevantes al brief.
 - **Contradicciones explícitas restan**: shotgun science (20 claims contradictorias) no se premia "la que aciertó".
 
 ---
@@ -263,7 +276,8 @@ Para análisis y reporting agregado (no parte del schema canónico ni del scorin
 | Artefacto | ¿Lo ve el Investigator? |
 |---|---|
 | `ResearchCase` (`brief`, `context`, `datasets`, `tools`) | **Sí.** |
-| `WorldSpec`, `IntendedPhenomenon`, `PhenomenaManifest`, `QuestionProposal`, `SelectionReport`, `QuestionsBundle`, `GoldQuestion`, `AnswerKey`, `EvidenceArtifact`, `Rubric`, `ValidationReport` | **No.** |
+| `PaperInsights.narrative_capsule` (cápsula saneada, opcional incluir en `context`) | **Sí.** |
+| `WorldSpec`, `IntendedPhenomenon`, `ValidatorVote`, `ValidatedPhenomenon`, `PhenomenaManifest`, `QuestionsBundle`, `GoldQuestion`, `AnswerKey`, `EvidenceArtifact`, `Rubric`, `ValidationReport`, `PaperInsights` (resto) | **No.** |
 | `AccessPolicy.public_rationale` (v2) | Sí. |
 | `AccessPolicy.internal_rationale` (v2) | No. |
 
@@ -278,7 +292,9 @@ Garantía operativa: el constructor de prompts del Investigator **no puede** acc
 - **SDE intrínseco** — v1.6.
 - **Trace scoring del InvestigationLog** — issue #53.
 - **Identifiability gate formal universal** — issue #54.
-- **Claims espontáneas fuera de GoldQuestions** — no entran al score principal.
+- **Open scoring de claims fuera de GoldQuestions** — registrados en `InvestigationLog.extra_claims` pero NO scoreados en v1.5. Hook reservado para v1.6+.
+- **Wildcard challenger en el Designer** — diferido a v1.6 si pilot humano detecta convergencia a 2-3 recetas. Hoy el Designer corre con N Validators = N intended_phenomena, sin Validator libre.
+- **Novelty corpus-level** — chequeo entre casos del corpus (no por caso). v1.6.
 - **Generación automática de seed papers** — los papers se curan a mano al inicio.
 - **Distilación del Evaluator a classifier chico** — post-MVP.
 - **Catálogo cerrado de operaciones canónicas** — explícitamente rechazado en re-diseño multi-agente (sesgo a "siempre lo mismo"). Cada agente del Designer escribe sus propios scripts.
@@ -301,12 +317,13 @@ Detalle del orden de implementación de v1.5 y del re-diseño multi-agente: ver 
 
 v1.5 NO entrega un caso canónico único — entrega **varios casos diversos por formalismo**, cubriendo distintos dominios, distintos tipos de trampa (collider, paradoja de Simpson, mediación, no-linealidad, identifiability, bifurcaciones), distintas dificultades. Casos famosos (ej. Birth Weight Paradox SCM, SIR ODE) son **smoke tests**, no evidencia principal.
 
-La diversidad emergente del proceso multi-agente (N Explorers con focos distintos + wildcard) es complementaria a la diversidad de casos. Sin diversidad de casos, los Explorers tendrían los mismos `intended_phenomena` siempre.
+La diversidad principal viene de la **variedad de seed papers** y de los `intended_phenomena` que cada Architect propone. La forma del bundle (cuántas GQs, cómo se combinan los fenómenos) la decide el Question Designer caso por caso. NO hay diversidad emergente "barata" del Designer — un Architect con poca imaginación va a producir casos parecidos. Mitigación: pilot humano con dietas variadas de papers.
 
 Anti-memorización integrada al flujo:
 - **Corpus abstracto isomorfo**: variables `X`, `M`, `Y`; briefs neutros; AnswerKeys generadas por scripts ejecutables. Asset permanente del repo.
 - **Gate duro post-Evaluator**: tests `answer_key_sensitivity` (mismo caso, AnswerKey alterado → score sigue al AnswerKey, no al prior del modelo) e `isomorph_invariance` (mismo caso renombrado → score parecido).
-- **Re-ejecución post-Selector y post-Validator**: el Designer puede reintroducir leak por wording de briefs o rubrics demasiado "teaching-to-the-test".
+- **Cápsula narrativa saneada**: el paper crudo no llega al Question Designer ni al Case Writer. Solo el dominio + convenciones; sin frases icónicas que faciliten memorización.
+- **Re-ejecución post-Validator transversal**: el Designer puede reintroducir leak por wording de briefs o rubrics demasiado "teaching-to-the-test". El Validator transversal corre los 10 checks (incluyendo `leak`, `bundle redundancy`, `salience threshold`).
 
 Regla operativa: si el judge acierta en casos famosos pero falla en suite abstracta → rojo. Si pasa la abstracta y los famosos → señal real.
 
