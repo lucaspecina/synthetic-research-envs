@@ -26,6 +26,7 @@ from sreg.v1_5.contracts import (
     ValidationIssue,
     ValidationReport,
     ValidatorVote,
+    VariableSpec,
     WorldMetadata,
     WorldSpec,
 )
@@ -101,11 +102,21 @@ def test_gq_rejects_invalid_weights(weight: float) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _make_world(formalism="scm", observation_noise=None) -> WorldSpec:
+def _make_world(
+    formalism: str = "scm",
+    observation_noise: float | None = None,
+    variables: list | None = None,
+    edges: list | None = None,
+) -> WorldSpec:
+    if variables is None:
+        equation = "normal(0, 1)" if formalism == "scm" else None
+        variables = [
+            VariableSpec(name="X", kind="continuous", equation=equation),
+        ]
     return WorldSpec(
-        formalism=formalism,
-        variables=[],
-        relationships=[],
+        formalism=formalism,  # type: ignore[arg-type]
+        variables=variables,
+        edges=edges or [],
         parameters={},
         metadata=WorldMetadata(domain="generic"),
         observation_noise=observation_noise,
@@ -140,6 +151,95 @@ def test_world_scm_with_noise_fails() -> None:
 def test_world_ode_with_negative_noise_fails() -> None:
     with pytest.raises(ValidationError):
         _make_world(formalism="ode", observation_noise=-0.1)
+
+
+# ---------------------------------------------------------------------------
+# WorldSpec — variables + edges + DAG + naming
+# ---------------------------------------------------------------------------
+
+
+def test_world_scm_missing_equation_fails() -> None:
+    """SCM exige `equation` en cada variable."""
+    var_no_eq = VariableSpec(name="X", kind="continuous")  # equation=None
+    with pytest.raises(ValidationError):
+        _make_world(formalism="scm", variables=[var_no_eq])
+
+
+def test_world_ode_without_equation_ok() -> None:
+    """ODE permite variables sin `equation` (puede modelar parámetros constantes)."""
+    var = VariableSpec(name="X", kind="continuous")
+    w = _make_world(formalism="ode", variables=[var])
+    assert w.variables[0].equation is None
+
+
+def test_world_empty_variables_fails() -> None:
+    """min_length=1 — un mundo sin variables no es un mundo."""
+    with pytest.raises(ValidationError):
+        WorldSpec(
+            formalism="scm",
+            variables=[],
+            edges=[],
+            metadata=WorldMetadata(domain="generic"),
+        )
+
+
+def test_world_duplicate_variable_names_fails() -> None:
+    var1 = VariableSpec(name="X", equation="normal(0, 1)")
+    var2 = VariableSpec(name="X", equation="normal(0, 1)")
+    with pytest.raises(ValidationError):
+        _make_world(variables=[var1, var2])
+
+
+def test_world_unknown_edge_parent_fails() -> None:
+    var = VariableSpec(name="X", equation="normal(0, 1)")
+    with pytest.raises(ValidationError):
+        _make_world(variables=[var], edges=[("U", "X")])  # U no existe
+
+
+def test_world_unknown_edge_child_fails() -> None:
+    var = VariableSpec(name="X", equation="normal(0, 1)")
+    with pytest.raises(ValidationError):
+        _make_world(variables=[var], edges=[("X", "Z")])  # Z no existe
+
+
+def test_world_duplicate_edge_fails() -> None:
+    a = VariableSpec(name="A", equation="normal(0, 1)")
+    b = VariableSpec(name="B", equation="A + normal(0, 1)")
+    with pytest.raises(ValidationError):
+        _make_world(variables=[a, b], edges=[("A", "B"), ("A", "B")])
+
+
+def test_world_cyclic_edges_fails() -> None:
+    a = VariableSpec(name="A", equation="B")
+    b = VariableSpec(name="B", equation="A")
+    with pytest.raises(ValidationError):
+        _make_world(variables=[a, b], edges=[("A", "B"), ("B", "A")])
+
+
+def test_world_dag_ok() -> None:
+    a = VariableSpec(name="A", equation="normal(0, 1)")
+    b = VariableSpec(name="B", equation="A + normal(0, 1)")
+    c = VariableSpec(name="C", equation="A + B + normal(0, 1)")
+    w = _make_world(variables=[a, b, c], edges=[("A", "B"), ("A", "C"), ("B", "C")])
+    assert w.parents_of("C") == ["A", "B"]
+    assert w.parents_of("A") == []
+
+
+@pytest.mark.parametrize("bad_name", ["1X", "X-Y", "for", "class"])
+def test_variable_name_invalid_identifier_fails(bad_name: str) -> None:
+    """Nombres de variables deben ser identificadores Python no-keyword."""
+    with pytest.raises(ValidationError):
+        VariableSpec(name=bad_name, equation="normal(0, 1)")
+
+
+@pytest.mark.parametrize(
+    "reserved",
+    ["normal", "uniform", "exp", "log", "bernoulli", "sigmoid", "I"],
+)
+def test_variable_name_reserved_fails(reserved: str) -> None:
+    """Nombres de variables no pueden colisionar con funciones del compiler."""
+    with pytest.raises(ValidationError):
+        VariableSpec(name=reserved, equation="normal(0, 1)")
 
 
 # ---------------------------------------------------------------------------

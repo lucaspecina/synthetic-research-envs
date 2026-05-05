@@ -143,10 +143,14 @@ def world_spec(intended_phenomenon: IntendedPhenomenon) -> WorldSpec:
     return WorldSpec(
         formalism="scm",
         variables=[
-            VariableSpec(name="X", kind="binary"),
-            VariableSpec(name="Y", kind="continuous"),
+            VariableSpec(name="X", kind="binary", equation="bernoulli(0.5)"),
+            VariableSpec(
+                name="Y",
+                kind="continuous",
+                equation="2.0 * X + normal(0, 0.5)",
+            ),
         ],
-        relationships=[],
+        edges=[("X", "Y")],
         parameters={"alpha": 0.5},
         metadata=WorldMetadata(domain="generic"),
         intended_phenomena=[intended_phenomenon],

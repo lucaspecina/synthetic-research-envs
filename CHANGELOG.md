@@ -5,6 +5,46 @@
 
 ## [Unreleased]
 
+### 2026-05-05 — v1.5: WorldSpec rediseñado alineado con SCMSpec v1 + ExpressionCompiler extendido
+
+**Bug de diseño detectado por Codex post-Fase 0**: el `WorldSpec` v1.5 que
+diseñé en #55 reinventó mal el patrón de SCM. `RelationshipSpec` tenía
+`expression` por arista, pero un SCM real define **una ecuación por
+variable** (puede tener multi-parent). El v1 ya tenía `SCMSpec` con el
+patrón correcto (`SCMVariableSpec.equation` + `edges: list[tuple[str,str]]`)
+y lo ignoré al diseñar v1.5. Lección refinada en memoria personal.
+
+Fix:
+- `RelationshipSpec` borrado.
+- `VariableSpec` agrega `equation: str | None = None`.
+- `WorldSpec` agrega `edges: list[tuple[str, str]]` (parent, child) y
+  helper `parents_of(name)`.
+- `VariableSpec.name` valida: identifier Python no-keyword + sin
+  colisión con funciones reservadas del compiler.
+- Validators cruzados nuevos en `WorldSpec`: nombres únicos, edges
+  válidos, no duplicados, DAG (via networkx), SCM exige equation por
+  variable, observation_noise sólo en ODE.
+
+**ExpressionCompiler v1 extendido** (backward-compatible, solo agrega):
+- `bernoulli(p)` → `rng.binomial(1, p)`.
+- `sigmoid(x)` → `1/(1+exp(-x))`.
+- `I(condition)` → `1.0 if cond else 0.0` (indicator).
+- Necesarias para casos canónicos como Birth Weight Paradox
+  (variables binarias, mortalidad logística, LowBW indicator).
+
+**Decisión LowBW**: nodo SCM determinista con
+`equation="I(BirthWeight < 2500)"` y `parents=["BirthWeight"]`. Sin
+noise. Documentado en docstring de WorldSpec. No requiere campo nuevo
+de schema (cualquier nodo sin distribución en su equation es derived).
+
+Total: 191 tests pasan (era 103). Nuevos tests: 13 para WorldSpec
+validators (DAG, missing equation, naming) + 16 para
+bernoulli/sigmoid/I/Birth Weight Paradox expressions. Codex review
+final luz verde.
+
+Estos cambios desbloquean Fase 1.1: compiler `WorldSpec → SCMWorld`
+adapter sobre `SCMWorldGenTool` v1.
+
 ### 2026-05-05 — Fase 0 v1.5: contratos Ronda 13 aplicados + endurecidos post-Codex
 
 Aplicación de los cambios de contratos Pydantic acordados en Ronda 13.

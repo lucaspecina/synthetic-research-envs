@@ -296,3 +296,114 @@ class TestEdgeCases:
         eq = compiler.compile_equation("log(X)", ["X"])
         result = eq({"X": -1.0}, rng)
         assert np.isnan(result)
+
+
+# ------------------------------------------------------------------
+# v1.5 additions: bernoulli, sigmoid, I (indicator)
+# ------------------------------------------------------------------
+
+
+class TestBernoulli:
+    def test_bernoulli_in_zero_one(self, compiler, rng):
+        eq = compiler.compile_equation("bernoulli(0.5)", [])
+        for _ in range(20):
+            v = eq({}, rng)
+            assert v in (0.0, 1.0)
+
+    def test_bernoulli_p_zero_returns_zero(self, compiler, rng):
+        eq = compiler.compile_equation("bernoulli(0.0)", [])
+        for _ in range(10):
+            assert eq({}, rng) == 0.0
+
+    def test_bernoulli_p_one_returns_one(self, compiler, rng):
+        eq = compiler.compile_equation("bernoulli(1.0)", [])
+        for _ in range(10):
+            assert eq({}, rng) == 1.0
+
+    def test_bernoulli_uses_rng(self, compiler):
+        """bernoulli sampling es reproducible con misma seed."""
+        eq = compiler.compile_equation("bernoulli(0.5)", [])
+        samples_a = [eq({}, np.random.default_rng(7)) for _ in range(5)]
+        samples_b = [eq({}, np.random.default_rng(7)) for _ in range(5)]
+        # Cada llamada con un rng fresco produce el primer sample.
+        assert samples_a == samples_b
+
+    def test_bernoulli_p_out_of_range_raises_at_runtime(self, compiler, rng):
+        """p fuera de [0, 1] no es detectable en compile-time (puede ser
+        expresión sobre padres). Falla en runtime al evaluar."""
+        eq = compiler.compile_equation("bernoulli(2.0)", [])
+        with pytest.raises(ValueError):
+            eq({}, rng)
+        eq_neg = compiler.compile_equation("bernoulli(-0.5)", [])
+        with pytest.raises(ValueError):
+            eq_neg({}, rng)
+
+
+class TestSigmoid:
+    def test_sigmoid_zero_is_half(self, compiler, rng):
+        eq = compiler.compile_equation("sigmoid(0)", [])
+        assert eq({}, rng) == pytest.approx(0.5)
+
+    def test_sigmoid_large_positive_approaches_one(self, compiler, rng):
+        eq = compiler.compile_equation("sigmoid(20)", [])
+        assert eq({}, rng) > 0.9999
+
+    def test_sigmoid_large_negative_approaches_zero(self, compiler, rng):
+        eq = compiler.compile_equation("sigmoid(-20)", [])
+        assert eq({}, rng) < 0.0001
+
+    def test_sigmoid_with_parent(self, compiler, rng):
+        eq = compiler.compile_equation("sigmoid(2 * X - 1)", ["X"])
+        # sigmoid(2*0.5 - 1) = sigmoid(0) = 0.5
+        assert eq({"X": 0.5}, rng) == pytest.approx(0.5)
+
+
+class TestIndicator:
+    def test_indicator_true(self, compiler, rng):
+        eq = compiler.compile_equation("I(X < 2500)", ["X"])
+        assert eq({"X": 2000.0}, rng) == 1.0
+
+    def test_indicator_false(self, compiler, rng):
+        eq = compiler.compile_equation("I(X < 2500)", ["X"])
+        assert eq({"X": 3000.0}, rng) == 0.0
+
+    def test_indicator_chained_conditions(self, compiler, rng):
+        eq = compiler.compile_equation("I(X > 0)", ["X"])
+        assert eq({"X": 5.0}, rng) == 1.0
+        assert eq({"X": -1.0}, rng) == 0.0
+
+
+class TestBirthWeightParadoxExpressions:
+    """Verifica que las expresiones del caso BWP compilan y se ejecutan.
+
+    Ver `research/examples/birth_weight_paradox.md`.
+    """
+
+    def test_smoking_bernoulli(self, compiler, rng):
+        eq = compiler.compile_equation("bernoulli(0.30)", [])
+        # Sample varias veces; debe estar en {0, 1}.
+        for _ in range(50):
+            assert eq({}, rng) in (0.0, 1.0)
+
+    def test_birth_weight_linear(self, compiler, rng):
+        expr = "3200 - 250*Smoking - 1000*HiddenU + normal(0, 380)"
+        eq = compiler.compile_equation(expr, ["Smoking", "HiddenU"])
+        # No-fumadora, no-confounder: ~ 3200 ± 380.
+        v = eq({"Smoking": 0.0, "HiddenU": 0.0}, rng)
+        assert 1000 < v < 5000
+
+    def test_low_bw_indicator(self, compiler, rng):
+        eq = compiler.compile_equation("I(BirthWeight < 2500)", ["BirthWeight"])
+        assert eq({"BirthWeight": 2000.0}, rng) == 1.0
+        assert eq({"BirthWeight": 3500.0}, rng) == 0.0
+
+    def test_mortality_logistic(self, compiler, rng):
+        expr = "bernoulli(sigmoid(-2.5 + 2.8*HiddenU - 0.0030*(BirthWeight - 3000)))"
+        eq = compiler.compile_equation(expr, ["HiddenU", "BirthWeight"])
+        # No-confounder, peso normal: probabilidad muy baja.
+        zeros = sum(
+            eq({"HiddenU": 0.0, "BirthWeight": 3200.0}, rng) == 0.0
+            for _ in range(200)
+        )
+        # sigmoid(-2.5 - 0.6) ≈ 0.04 → ~96% deberían ser 0.
+        assert zeros >= 180

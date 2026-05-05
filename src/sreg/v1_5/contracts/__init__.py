@@ -53,8 +53,8 @@ from sreg.v1_5.contracts.validation import (
     ValidationReport,
 )
 from sreg.v1_5.contracts.world import (
+    Edge,
     IntendedPhenomenon,
-    RelationshipSpec,
     VariableSpec,
     WorldMetadata,
     WorldSpec,
@@ -66,7 +66,7 @@ __all__ = [
     "PaperNarrativeCapsule",
     # world
     "VariableSpec",
-    "RelationshipSpec",
+    "Edge",
     "WorldMetadata",
     "IntendedPhenomenon",
     "WorldSpec",
