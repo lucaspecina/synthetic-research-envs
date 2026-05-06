@@ -5,6 +5,65 @@
 
 ## [Unreleased]
 
+### 2026-05-05 — Fase 1.2.a v1.5: Paper Digestion agent (LLM real, prompt genérico)
+
+Primer agente real del Designer multi-agente: lee un paper crudo y emite
+`PaperInsights` con `narrative_capsule` saneada (anti-leak por
+construcción).
+
+Implementación:
+- `src/sreg/v1_5/agents/paper_digestion.py`: function calling sobre
+  `ModelClient` v1, schema auto-generado de `PaperInsights`.
+- `src/sreg/v1_5/agents/prompts/paper_digestion.md`: system prompt
+  **genérico** (NO sesgado a un caso). Disciplina explícita de tres
+  buckets (`mechanisms` = estructura del mundo / `phenomena` = patrones
+  empíricos / `complications` = problemas analíticos) para evitar que
+  consejo metodológico contamine la estructura del mundo. Regla
+  priorizada para `forbidden_phrases` (named effects > plain summaries
+  > lexical hooks; sin padding con taxonomía).
+- `scripts/run_paper_digestion.py`: harness manual para inspección
+  humana. Codex pidió esto como instrumento de validación principal
+  en lugar de pytest (verde/rojo no sirve para juzgar si un agente
+  "entendió" un seed).
+
+Tests:
+- `tests/v1_5/agents/test_paper_digestion_wiring.py`: 9 tests con LLM
+  mock — parsing de respuestas, error paths, schema exposure. La
+  validación semántica del output queda como revisión humana del
+  harness, no test automático.
+
+Validación:
+- Corrido contra 3 seeds reales (`selection_bias_police`,
+  `confounding_by_indication`, `identifiability_pollution`) con LLM
+  real (Azure Foundry, gpt-5.4). Los seeds cubren 3 trampas distintas:
+  selección, confounding, identifiability.
+- 2 rondas de iteración del prompt (Codex review entre cada una):
+  - v1: el LLM mezclaba consejo metodológico ("ajustar por X") en
+    `mechanisms`, contaminando la estructura del mundo.
+  - v2: tras la disciplina tres-bucket + regla priorizada de
+    forbidden_phrases, los outputs separan mecanismos puros de
+    consejo de análisis. `counterintuitive_priors` aparecen donde
+    antes estaban vacíos.
+- Codex review final v2: luz verde para avanzar. Detalles menores que
+  no bloquean (1-2 frases en frontera mecanismo/conclusión, 3 entradas
+  de taxonomía en forbidden_phrases) los dejamos para iteración futura
+  cuando el Architect downstream nos muestre dónde duele realmente.
+
+Memoria personal actualizada con la lección clave: **el paper es
+INSPIRACIÓN, no template a replicar**. La métrica correcta para juzgar
+Paper Digestion / Architect es fidelidad al **fenómeno central**, no
+al paper exacto. La diversidad de casos generados es un objetivo, no
+un bug.
+
+`experiments/paper_digestion/<timestamp>/` (gitignored) guarda los
+JSONs producidos por cada corrida del harness para revisión humana.
+
+Próximo: Fase 1.2.b — Architect agente, alimentado con los
+`PaperInsights` ya aprobados. Empezar por `selection_bias_police`
+(el más sólido), después `confounding_by_indication`, y dejar
+`identifiability_pollution` para el final (riesgo de que el Architect
+lo degrade a confounding simple en vez de mantener no-identifiability).
+
 ### 2026-05-05 — Fase 1.1 v1.5: compiler `WorldSpec → SCMWorld` + Birth Weight Paradox E2E
 
 Wrapper fino sobre `SCMWorldGenTool` v1 (no duplica lógica). El `WorldSpec`
