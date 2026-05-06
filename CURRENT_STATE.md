@@ -1,10 +1,10 @@
 # SREG — Estado actual
 
-> **Realidad runnable hoy = SREG v1** (Open Investigation sobre SCM con compiler NL↔IR). Congelado en `main` con tag `pre-v1.5`. Si querés correr SREG en este momento, este es el sistema.
+> **Realidad runnable hoy** = dos cosas en paralelo:
+> - **SREG v1** (Open Investigation sobre SCM con compiler NL↔IR) congelado en `main` con tag `pre-v1.5`. Si querés correr el sistema completo end-to-end hoy, este es. Ver §2.
+> - **SREG v1.5** **EN IMPLEMENTACIÓN ACTIVA** en rama `dev`. Diseño cerrado (Ronda 13). Pipeline parcial ya funcional: contratos, compile_scm, Paper Digestion agent, Architect agent + lints. Falta: Validators, Question Designer, Case Writer, Validator transversal, Investigator runtime, Evaluator. Ver §3 con tabla de fases. Para detalle de cada fase ver `CHANGELOG.md`.
 >
-> **v1.5** está en arquitectura definida pero **sin implementación** todavía. Rama `dev` contiene docs y planning; el código no arrancó. Para el target ver `ARCHITECTURE.md` y Epic [#63](https://github.com/lucaspecina/synthetic-research-envs/issues/63).
->
-> **v2 (Sherlock multi-turno)** y **v1.6 (SDE)** son futuro.
+> **v2 (Sherlock multi-turno)** y **v1.6 (SDE intrínseco)** son futuro.
 
 ---
 
@@ -91,21 +91,53 @@ AZURE_SOLVER_MODEL=gpt-5.2-codex
 
 ## 3. Qué se está construyendo (v1.5)
 
-v1.5 reemplaza el compiler NL↔IR por un esquema **rubric + LLM judge + answer key grounded en Environment ejecutable**:
+v1.5 reemplaza el compiler NL↔IR por un esquema **rubric + LLM judge + answer key grounded en Environment ejecutable**.
 
-- **Designer multi-rol** genera cada caso desde un seed paper: Paper Digestion → World Architect → Explorer → Question Designer → Case Writer + Validator transversal.
-- **Multi-formalismo desde el inicio**: SCM (causal estático) + ODE (dinámica determinista, con observation noise opcional). SDE intrínseco se difiere a v1.6.
-- **Investigator** sigue siendo single-turn (recibe dataset, responde, fin) — el multi-turno es v2.
-- **Evaluator** es LLM judge sin acceso runtime al Environment: lee `AnswerKey` ya computado en design-time. Frontera limpia.
+**Diseño cerrado en Ronda 13** (`research/notes/multi_explorer_redesign.md`). Flujo del Designer:
+
+```
+Paper crudo
+  → [Paper Digestion]      → PaperInsights (con narrative_capsule saneada anti-leak)
+  → [World Architect]      → WorldSpec + intended_phenomena (multi-iter, hard cap 3)
+       loop con N Validators (verifican que intended_phenomena se materializan)
+  → [Question Designer]    → QuestionsBundle (consume bundle completo, no 1:1)
+  → [Case Writer]          → ResearchCase
+  → [Validator transversal] → ValidationReport (10 checks; único árbitro)
+                           ↓
+                    Investigator (LLM single-turn) → Claims
+                           ↓
+                    Evaluator (LLM judge) → score
+```
+
+- **Multi-formalismo**: SCM (causal estático) + ODE (dinámica determinista, opcional `observation_noise`). SDE intrínseco va en v1.6.
+- **Frontera anti-leak**: `narrative_capsule` saneada con `forbidden_phrases`. Question Designer / Case Writer NO ven el paper crudo.
 - **Diversidad de casos** como invariante: varios casos diversos por formalismo, no UN caso canónico único. Casos famosos = smoke tests.
 
-**Estado actual de v1.5**:
-- Arquitectura cerrada (11 rondas de debate documentadas en `research/notes/v1_5_debates.md`).
-- Epic [#63](https://github.com/lucaspecina/synthetic-research-envs/issues/63) abierto con 8 sub-issues (#55-#62).
-- Orden de implementación definido (`#55 → #56 → #61 → #60 → #57 → #58 → #59 → #62`) con checkpoints entre piezas.
-- Cero código todavía. Próximo paso: arrancar #55 (contratos Pydantic).
+### Estado de implementación de v1.5 (rama `dev`)
 
-Para detalles del target: `ARCHITECTURE.md`. Para historia de decisiones: `research/notes/v1_5_debates.md`. Para ejemplo canónico de un caso v1.5 escrito a mano: `research/examples/birth_weight_paradox.md`.
+| Fase | Componente | Estado | Commit / detalle |
+|---|---|:-:|---|
+| **#55** | Contratos Pydantic v1.5 (25 modelos: WorldSpec, IntendedPhenomenon, EvidenceArtifact, ValidatedPhenomenon, ValidatorVote, GoldQuestion, Rubric, AnswerKey, ResearchCase, etc.) | ✅ | `bfacb22` + ronda 13 endurecida en `890d735` |
+| **#56** | Environment SCM ejecutable + adapter al `SCMEnvironment` Protocol | ✅ | parte de `48ba341`; bug fix latentes en `3841ffd` |
+| **Fase 1.1** | `compile_scm(WorldSpec) → SCMWorld` + Birth Weight Paradox E2E hardcoded | ✅ | `3841ffd` |
+| **Fase 1.2.a** | `PaperDigestionAgent` con LLM real + 3 seeds digeridos + tests wiring | ✅ | `4e16b19` |
+| **Fase 1.2.b** | `ArchitectAgent` con LLM real + 3 lints deterministas + harness con diagnósticos | ✅ | `378662f` |
+| **Fase 2** | Validators (N en paralelo, multi-iter con feedback al Architect) | ⏳ | **PRÓXIMO** — primer Validator determinista (materialization checks numéricos) antes de uno con LLM |
+| **Fase 3** | Question Designer (consume `list[ValidatedPhenomenon]`, no 1:1) | ❌ | pendiente |
+| **Fase 4** | Case Writer (`ResearchCase` desde `QuestionsBundle` + `narrative_capsule`) | ❌ | pendiente |
+| **Fase 5** | Validator transversal (10 checks, único árbitro con `target_to_reiterate`) | ❌ | pendiente |
+| **Fase 6** | Investigator runtime + Evaluator (2 pasos, alpha=0.8) | ❌ | pendiente — issues #60/#61 |
+| **Fase 7** | Casos diversos por formalismo + 3 tests go/no-go + pilot humano | ❌ | pendiente — issue #62 |
+
+### Cómo retomar v1.5 después de un break
+
+1. Leer **`CHANGELOG.md`** secciones 2026-05-05 y 2026-05-06 (entradas detalladas por fase).
+2. Leer Epic **[#63](https://github.com/lucaspecina/synthetic-research-envs/issues/63)** body para roadmap actualizado.
+3. Doc canónico del Designer: **`research/notes/multi_explorer_redesign.md`** (Ronda 13).
+4. Estado de outputs reales: **`experiments/architect/<timestamp>/<seed>.summary.txt`** (gitignored, regenerar con `scripts/run_architect.py`).
+5. Próxima fase: **Fase 2 (Validators)** — ver Issue #58 body.
+
+Para detalles del target arquitectónico: `ARCHITECTURE.md`. Para historia de decisiones: `research/notes/v1_5_debates.md` (12 rondas). Para ejemplo canónico hand-authored: `research/examples/birth_weight_paradox.md`.
 
 ---
 
