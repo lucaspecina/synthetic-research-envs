@@ -93,15 +93,18 @@ AZURE_SOLVER_MODEL=gpt-5.2-codex
 
 v1.5 reemplaza el compiler NL↔IR por un esquema **rubric + LLM judge + answer key grounded en Environment ejecutable**.
 
-**Diseño cerrado en Ronda 13** (`research/notes/multi_explorer_redesign.md`). Flujo del Designer:
+**Reformulación filosófica clave (Ronda 14, 2026-05-06)**: las "GoldQuestions" se reinterpretan como **DiscoveryTargets** — descubrimientos centrales ocultos que el mundo fue diseñado para contener, NO preguntas a responder. Cada caso está construido para que una buena investigación libre recupere esos descubrimientos. Apertura está en el proceso; verificabilidad está en los anchors formales. Ver `PROJECT.md` §"Investigación abierta vs examen cerrado" para las 4 protecciones contra el regreso al examen cerrado. Internamente, el schema `GoldQuestion` se renombra a `DiscoveryTarget` cuando se implemente Fase 3 (no antes — Fases 1.x ya commiteadas siguen válidas).
+
+**Diseño cerrado en Ronda 13** (`research/notes/multi_explorer_redesign.md`, con extensión filosófica en Ronda 14). Flujo del Designer:
 
 ```
 Paper crudo
   → [Paper Digestion]      → PaperInsights (con narrative_capsule saneada anti-leak)
   → [World Architect]      → WorldSpec + intended_phenomena (multi-iter, hard cap 3)
        loop con N Validators (verifican que intended_phenomena se materializan)
-  → [Question Designer]    → QuestionsBundle (consume bundle completo, no 1:1)
-  → [Case Writer]          → ResearchCase
+  → [Discovery Designer]   → DiscoveryBundle (descubrimientos esperados, mapping N:M; no 1:1)
+  → [Case Writer]          → ResearchCase (CIEGO al DiscoveryBundle: brief sin
+                                 referenciar textos de DiscoveryTargets)
   → [Validator transversal] → ValidationReport (10 checks; único árbitro)
                            ↓
                     Investigator (LLM single-turn) → Claims
@@ -110,7 +113,8 @@ Paper crudo
 ```
 
 - **Multi-formalismo**: SCM (causal estático) + ODE (dinámica determinista, opcional `observation_noise`). SDE intrínseco va en v1.6.
-- **Frontera anti-leak**: `narrative_capsule` saneada con `forbidden_phrases`. Question Designer / Case Writer NO ven el paper crudo.
+- **Frontera anti-leak con Discovery semántica** (Ronda 14): `narrative_capsule` saneada con `forbidden_phrases`. Discovery Designer NO ve el paper crudo. Case Writer NO ve el `DiscoveryBundle` — solo `WorldSpec` (variables visibles) + `narrative_capsule` + lista de `DiscoveryTarget.kind` a alto nivel. Si el brief leyera los textos de los targets, el agente parafrasearía y no investigaría.
+- **Knowledge-first, capability-secondary**: v1.5 evalúa claims/conclusiones científicas. Capability-as-evidence permitido como `role="support"` con peso capado, NUNCA `required`. Hidden test sets, ROC AUC programático, optimizadores ejecutables → v2+.
 - **Diversidad de casos** como invariante: varios casos diversos por formalismo, no UN caso canónico único. Casos famosos = smoke tests.
 
 ### Estado de implementación de v1.5 (rama `dev`)
@@ -123,7 +127,7 @@ Paper crudo
 | **Fase 1.2.a** | `PaperDigestionAgent` con LLM real + 3 seeds digeridos + tests wiring | ✅ | `4e16b19` |
 | **Fase 1.2.b** | `ArchitectAgent` con LLM real + 3 lints deterministas + harness con diagnósticos | ✅ | `378662f` |
 | **Fase 2** | Validators (N en paralelo, multi-iter con feedback al Architect) | ⏳ | **PRÓXIMO** — primer Validator determinista (materialization checks numéricos) antes de uno con LLM |
-| **Fase 3** | Question Designer (consume `list[ValidatedPhenomenon]`, no 1:1) | ❌ | pendiente |
+| **Fase 3** | Discovery Designer (consume `list[ValidatedPhenomenon]`, mapping N:M no 1:1; produce `DiscoveryBundle` con descubrimientos esperados, no preguntas). Incluye renombre de schemas `GoldQuestion`→`DiscoveryTarget`, `QuestionsBundle`→`DiscoveryBundle`, campo `identification_hint`→`claim_match_hint`, agregar `source_validated_ids`. | ❌ | pendiente |
 | **Fase 4** | Case Writer (`ResearchCase` desde `QuestionsBundle` + `narrative_capsule`) | ❌ | pendiente |
 | **Fase 5** | Validator transversal (10 checks, único árbitro con `target_to_reiterate`) | ❌ | pendiente |
 | **Fase 6** | Investigator runtime + Evaluator (2 pasos, alpha=0.8) | ❌ | pendiente — issues #60/#61 |

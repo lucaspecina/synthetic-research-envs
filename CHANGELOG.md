@@ -5,6 +5,78 @@
 
 ## [Unreleased]
 
+### 2026-05-06 — v1.5 Ronda 14: Discovery-first philosophy (GoldQuestion → DiscoveryTarget)
+
+Reformulación filosófica importante para v1.5, post Fase 1.2.b. Validada con
+Codex en thread `019dfe55-fe93`. Sin código todavía (los renames de schema
+van con la implementación de Fase 3).
+
+**Tesis central**: las "GoldQuestions" se reinterpretan como
+**DiscoveryTargets** — descubrimientos centrales ocultos que el mundo
+fue diseñado para contener, NO preguntas que el agente debería
+responder. Cada caso está construido para que una buena investigación
+libre RECUPERE esos descubrimientos.
+
+> Arriba: conclusión científica flexible (capa A, NL).
+> Abajo: verdad formal verificable (capa B, anchors contra Environment).
+
+**4 protecciones contra el regreso al examen cerrado** (las 4 deben coexistir):
+1. Capa A flexible en NL (target redactable libremente).
+2. Capa B formal en anchors (verdad matemática contra Environment).
+3. Evaluator que acredita conclusiones equivalentes (paráfrasis,
+   claims cuantitativas que implican cualitativas).
+4. Case Writer **ciego al target oculto** (rompe la frontera de
+   Ronda 13 donde el Case Writer veía el QuestionsBundle).
+
+**Knowledge-first, capability-secondary**: v1.5 evalúa knowledge
+contributions (mecanismos, causas, explicaciones, limitaciones).
+Capability-as-evidence permitido como `role="support"` con peso
+capado, NUNCA `required`. Hidden test sets, ROC AUC programático,
+optimizadores ejecutables → v2+.
+
+**Cambios de naming agendados para Fase 3** (no aplicados aún a código):
+- `GoldQuestion` → `DiscoveryTarget`.
+- `QuestionsBundle` → `DiscoveryBundle`.
+- `QuestionDesigner` → `DiscoveryDesigner`.
+- `identification_hint` → `claim_match_hint` (semántica nueva: "¿alguna
+  claim del reporte llega a la conclusión?", no "¿aborda el tema?").
+- `narrative_capsule.natural_question_style` → `natural_investigation_style`.
+- Agregar `DiscoveryTarget.source_validated_ids: list[str]` para
+  auditar el mapping N:M con `ValidatedPhenomenon`s.
+- Hook v1.6: `EvidenceArtifact.access_mode: Literal["public_data",
+  "interventional", "omniscient_latent"]` para discoverability check.
+
+**Coexistencia de taxonomías**:
+- `IntendedPhenomenon.kind` = estructura del mundo (operativa para el
+  Architect).
+- `DiscoveryTarget.kind` = tipo de descubrimiento (taxonomía
+  descriptiva, NO operativa: NO debe disparar templates de rubric ni
+  scoring profiles, eso reintroduciría el catálogo cerrado).
+
+**Docs actualizados en este commit** (sin cambios en código):
+- `PROJECT.md`: nueva sección "Investigación abierta vs examen
+  cerrado" con las 4 protecciones, sección "Knowledge vs Capability",
+  invariante #2 reformulada.
+- `ARCHITECTURE.md`: vocabulario actualizado (DiscoveryTarget,
+  DiscoveryBundle, Discovery Designer, claim_match_hint), §3 flujo
+  con Case Writer ciego, §5 contratos con campos nuevos
+  (source_validated_ids, access_mode hook), §6 Rubric design,
+  §7 Evaluator (Discovery Match en lugar de identification), §10
+  frontera, §11 no-goals (capability scoring explícitamente fuera).
+- `research/notes/multi_explorer_redesign.md`: Ronda 14 agregada con
+  decisiones, hooks reservados v1.6+, taxonomía recomendada de
+  DiscoveryTarget.kind, lista de cambios de código diferidos a Fase 3.
+- `CURRENT_STATE.md`: tabla de fases con notas sobre el rename de Fase 3.
+- Issue #63 body en GitHub: filosofía + tabla de fases con scope nuevo.
+- Memoria personal: nueva entrada `project_discovery_targets_filosofia.md`
+  con las 4 invariantes + antipatrones a evitar.
+
+**Estado de Fase 1.x**: SIGUE VÁLIDO. Los outputs ya producidos (3
+PaperInsights v2 + 3 mundos del Architect) están alineados con la
+filosofía Discovery — el Paper Digestion ya extrae phenomena como
+conclusiones, el Architect ya emite intended_phenomena como mecanismos
+del mundo. La reformulación pega solo downstream (Fases 3-7).
+
 ### 2026-05-06 — Fase 1.2.b v1.5: Architect agent + deterministic guardrails + honest diagnostics
 
 Segundo agente real del Designer multi-agente. Lee `PaperInsights` y

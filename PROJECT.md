@@ -24,7 +24,9 @@ No es un benchmark estático: es un generador de casos nuevos donde cada seed pu
 
 ## Lo que SREG quiere lograr
 
-El objetivo no es producir preguntas con respuestas correctas. Es construir entornos donde **la estrategia ganadora sea investigar como un científico real**. Para resolver bien un caso, el Investigator debería tener que:
+El objetivo no es producir preguntas con respuestas correctas. Es construir entornos donde **la estrategia ganadora sea investigar como un científico real**, y donde el output evaluable sea un **reporte científico con conclusiones**, no la respuesta a un cuestionario.
+
+Para resolver bien un caso, el Investigator debería tener que:
 
 - interpretar evidencia parcial,
 - integrar datos con contexto y material teórico,
@@ -45,6 +47,49 @@ El objetivo no es producir preguntas con respuestas correctas. Es construir ento
 - **No prescribe cómo razonar.** Da entorno, restricciones y herramientas.
 - **No depende de jueces humanos como núcleo.** La referencia central es formal y verificable.
 - **No replica papers reales.** Los papers inspiran, SREG construye mundos nuevos.
+- **No es un examen disfrazado.** El sistema interno tiene targets ocultos, pero esos targets son **descubrimientos esperados** (conclusiones científicas), no preguntas que el agente debería hacerse explícitamente. Ver §"Investigación abierta vs examen cerrado".
+
+---
+
+## Investigación abierta vs examen cerrado
+
+SREG vive en una tensión central:
+
+- Si los targets internos son demasiado específicos (*"Estimate the ATE of X on Y"*), SREG se vuelve un examen cerrado: el agente ya no investiga, responde subpreguntas implícitas.
+- Si no hay target oculto, no hay forma de evaluar — una pregunta vaga tiene infinitas respuestas válidas.
+
+**La solución conceptual**: el sistema interno no almacena *preguntas*, almacena **DiscoveryTargets**. Un DiscoveryTarget es un descubrimiento central oculto que el mundo sintético fue diseñado para contener, y que una buena investigación libre debería recuperar.
+
+Cada DiscoveryTarget tiene **dos capas**:
+
+> **Arriba**: conclusión científica flexible, redactable como abstract de paper.
+> *Ej: "El investigador debería descubrir que el riesgo de arenamiento es impulsado principalmente por la intensidad de frac-hits, pero el efecto aparente está distorsionado a menos que se considere la presión del pozo madre y la historia del pad."*
+>
+> **Abajo**: verdad formal verificable, anclada al `Environment` ejecutable (dirección de efecto, magnitud aproximada, ranking, mediación, heterogeneidad, threshold, etc.).
+
+La apertura está en el proceso (el agente decide hipótesis, análisis, modelos, pruebas). La verificabilidad está en los anchors formales (el evaluator compara conclusiones contra la verdad del SCM/ODE).
+
+### 4 protecciones contra el regreso al examen cerrado
+
+El renombre de "GoldQuestion" a "DiscoveryTarget" no alcanza por sí solo. Para que el sistema sea genuinamente investigación abierta, deben coexistir las cuatro:
+
+1. **Capa A flexible en NL** — el target se expresa como conclusión científica redactable libremente, no como wording exacto.
+2. **Capa B formal en anchors** — la verdad subyacente es matemática contra el `Environment`, computada en design-time vía `EvidenceArtifact`.
+3. **Evaluator que acredita conclusiones equivalentes** — la rubric reconoce paráfrasis y claims cuantitativas que implican la misma conclusión cualitativa. No premia wording.
+4. **Case Writer ciego al target oculto** — el brief que ve el Investigator NO se construye desde los DiscoveryTargets. Se construye desde el `narrative_capsule` saneado y el `WorldSpec` (visible). Si el brief hereda los textos de los targets, el agente parafrasea y no investiga.
+
+Si falla cualquiera de las cuatro, el sistema vuelve a ser examen disfrazado.
+
+### Knowledge vs Capability — qué evalúa v1.5
+
+SREG distingue dos tipos de contribución científica:
+
+- **Knowledge contribution**: mecanismo, causa, explicación, mapeo del sistema, limitación epistémica, hipótesis respaldada por evidencia. **Foco de v1.5.**
+- **Capability contribution**: predictor con métrica de performance, controlador, optimizador, policy, modelo generativo. **Reservado para v2+.**
+
+En v1.5, el Investigator puede usar capabilities (entrenar modelos, optimizar, simular) **como herramientas internas**, pero el output scoreado son las **claims/conclusiones** del reporte. Capability-as-evidence es válido si se expresa como conclusión ("la señal predictiva principal viene de X y Y"), no como artefacto numérico ("AUC=0.87 sobre el test set").
+
+v1.5 NO incluye: hidden test set submissions, scoring por ROC AUC/RMSE programático, optimización de policies, controllers ejecutables, acciones interactivas de `observe/intervene/simulate` por el Investigator.
 
 ---
 
@@ -81,7 +126,7 @@ Si SREG no puede crear estas presiones, no cumple su propósito.
 
 1. **Verdad formal y reward exacto.** Detrás de cada caso existe una capa formal (SCM, ODE, en el futuro SDE) que permite verificar respuestas con rigor matemático. Si algo no puede evaluarse contra esa verdad subyacente, no pertenece al núcleo de SREG.
 
-2. **Las preguntas deben forzar investigación.** Las preguntas dependen de la evidencia de **este caso**, no del conocimiento general del dominio. Si un agente puede responder sin mirar los datos, la pregunta no sirve.
+2. **Los descubrimientos deben forzar investigación.** Cada caso tiene targets ocultos (DiscoveryTargets) que dependen de la evidencia de **este caso**, no del conocimiento general del dominio. Si un agente puede llegar a la conclusión esperada sin mirar los datos, el target no sirve. Ver §"Investigación abierta vs examen cerrado" para las 4 protecciones que mantienen esta invariante.
 
 3. **El caso debe sentirse como investigación real.** Todo lo que se diseñe acerca el entorno a una investigación científica real, no a una mecánica de juego ni a un ejercicio abstracto.
 

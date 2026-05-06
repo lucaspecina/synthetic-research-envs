@@ -343,3 +343,91 @@ Estos NO se implementan en v1.5, pero se dejan los pegamentos para no reescribir
 6. Commit + push.
 
 Después de eso, retomamos implementación. La mayor complejidad nueva está en el Architect + Validators + feedback loop (issue #58 reescrito). Issue #56 queda chico (solo Environment + helpers básicos, sin dispatch).
+
+---
+
+## Ronda 14 — GoldQuestion → DiscoveryTarget (filosofía discovery-first, 2026-05-06)
+
+Después de implementar Fase 1.2.b (Architect agent + lints + diagnósticos honestos), Lucas planteó una reformulación filosófica importante. Validada por Codex en consulta dedicada (thread `019dfe55-fe93`). Doc filosófico en `PROJECT.md` §"Investigación abierta vs examen cerrado".
+
+### Tesis central
+
+Tensión que el diseño anterior no resolvía bien:
+
+- Si las `GoldQuestion`s son demasiado específicas (*"Estimate the ATE of X on Y"*), SREG se vuelve **examen cerrado**: el Investigator no investiga, responde subpreguntas implícitas.
+- Si no hay target oculto, no hay forma de evaluar — pregunta vaga = infinitas respuestas válidas.
+
+**Solución**: reinterpretar `GoldQuestion` como **`DiscoveryTarget`** — un descubrimiento central oculto que el mundo fue diseñado para contener, NO una pregunta a responder. Cada DT tiene dos capas: A) conclusión científica flexible en NL (paráfrasis OK); B) anchors formales verificables vía `EvidenceArtifact`.
+
+### Decisiones de Ronda 14
+
+1. **Renombre de schemas** (al implementar Fase 3, no antes — durante Fases 1.x el schema interno sigue llamándose `GoldQuestion` para no romper código ya commiteado):
+   - `GoldQuestion` → `DiscoveryTarget`
+   - `QuestionsBundle` → `DiscoveryBundle`
+   - `QuestionDesigner` → `DiscoveryDesigner`
+   - Campo `identification_hint` → `claim_match_hint` (semántica nueva: no es "¿aborda el tema?" sino "¿alguna claim llega a la conclusión?").
+
+2. **Nuevo campo en DiscoveryTarget**: `source_validated_ids: list[str]` — auditoría del mapping N:M entre `ValidatedPhenomenon`s y `DiscoveryTarget`s. El Discovery Designer NO es 1:1; un fenómeno puede contribuir a varios targets y un target puede combinar varios fenómenos.
+
+3. **Coexistencia de taxonomías**:
+   - `IntendedPhenomenon.kind` = estructura del mundo (collider, mediation, etc.) — vocabulario operativo del Architect.
+   - `DiscoveryTarget.kind` = tipo de descubrimiento (causal_mechanism, misleading_association, epistemic_limit, etc.) — taxonomía **descriptiva**, NO operativa: NO debe disparar templates de rubric ni scoring profiles, eso reintroduciría el catálogo cerrado que matamos en Ronda 12.
+
+4. **Capability vs Knowledge**: en v1.5, capability-as-evidence permitido SOLO con `role="support"` y peso capado, NUNCA `required`. El score primario es knowledge contributions. Hidden test sets, ROC AUC programático, optimización de policies, controllers ejecutables se difieren a v2+.
+
+5. **Frontera Case Writer rota**: en Ronda 13, el Case Writer recibía `QuestionsBundle`. **En Ronda 14 esto se rompe**: el Case Writer queda **CIEGO al DiscoveryBundle**. Solo recibe:
+   - `WorldSpec` (público, conoce las variables visibles).
+   - `narrative_capsule` saneada.
+   - Lista de `DiscoveryTarget.kind` a alto nivel (taxonomía descriptiva, sin textos).
+   El brief del caso NO referencia ningún `DiscoveryTarget.text`. Si lo hiciera, el agente parafrasearía y no investigaría.
+
+6. **Las 4 protecciones contra el regreso al examen cerrado** (las 4 deben coexistir):
+   - Capa A flexible en NL (target redactable libremente).
+   - Capa B formal en anchors (verdad matemática contra Environment).
+   - Evaluator que acredita conclusiones equivalentes (paráfrasis, claims cuantitativas que implican cualitativas).
+   - Case Writer ciego al target oculto.
+
+### Hooks reservados para v1.6+
+
+- `EvidenceArtifact.access_mode: Literal["public_data", "interventional", "omniscient_latent"]` — para que el Validator transversal verifique que un anchor es **discoverable** desde la interfaz pública. Hoy un anchor numérico puede venir de leer una variable latente; eso lo hace imposible de recuperar para el Investigator. v1.6 agrega este typing y un nuevo lint.
+- **Lint `discoverability` en Validator transversal**: separa "verdad" de "recuperabilidad". Un target puede ser verdadero pero no alcanzable desde el dataset visible bajo asunciones razonables.
+- **Anchors específicos para ODE**: dirección/magnitud/ranking alcanza para SCM simples; ODE necesita trayectoria, timing, régimen, threshold temporal, equilibrio.
+- Open scoring de `extra_claims` (premia descubrimientos no anticipados por el Architect).
+
+### Cambio en taxonomía recomendada de DiscoveryTarget.kind
+
+Vocabulario descriptivo (NO enum operativo) sugerido:
+
+- `causal_mechanism` — el agente debe recuperar una relación causal con su dirección/magnitud.
+- `misleading_association` — asociación cruda que es engañosa (collider, Simpson's paradox, selection bias).
+- `mediation` — el efecto pasa por una variable intermedia.
+- `effect_heterogeneity` — el efecto cambia según contexto/subgroup.
+- `system_mapping` — descripción del comportamiento del sistema sin necesariamente claim causal.
+- `epistemic_limit` — algún parámetro / efecto NO es identificable con la evidencia disponible.
+- `dynamic_regime` (ODE) — equilibrio, threshold temporal, oscilación, transición de fase.
+- `intervention_recommendation` — recomendación accionable expresada como conclusión.
+
+Nuevos kinds pueden agregarse — la taxonomía es descriptiva, no normativa.
+
+### Cambios en docs requeridos
+
+| Doc | Cambio |
+|---|---|
+| `PROJECT.md` | Sección nueva "Investigación abierta vs examen cerrado" + invariante #2 reformulada + sección "Knowledge vs Capability". ✅ Actualizado. |
+| `ARCHITECTURE.md` | §2 vocabulario + §3 flujo (Case Writer ciego al bundle) + §4 tabla del Designer + §5 contratos (DiscoveryTarget con source_validated_ids + claim_match_hint + access_mode hook) + §6 Rubric design + §7 Evaluator (Discovery Match) + §10 frontera + §11 no-goals. ✅ Actualizado. |
+| `multi_explorer_redesign.md` | Esta ronda (#14). ✅ Actualizado. |
+| `CURRENT_STATE.md` | Aclarar que Fase 1.x sigue válida; el cambio pega downstream. ⏳ Pendiente. |
+| Issue #63 body | Reescribir Fases 3/4/6/7 con ontología nueva. ⏳ Pendiente. |
+| Memoria personal | Nueva entrada con las 4 invariantes. ⏳ Pendiente. |
+| Prompts de Paper Digestion / Architect | Cambios menores: Paper Digestion rename `natural_question_style` → `natural_investigation_style`. Architect agrega línea sobre "intended_phenomena alimentan descubrimientos downstream, no preguntas". ⏳ Pendiente, agendado para Fase 3. |
+
+### Cambios en código que se difieren a Fase 3
+
+NO se tocan ahora porque el código de Fases 1.x sigue válido. Se agendan para cuando arranque Fase 3 (Discovery Designer):
+
+- Renombre del schema `GoldQuestion` → `DiscoveryTarget` (+ `QuestionsBundle` → `DiscoveryBundle`).
+- Renombre del campo `identification_hint` → `claim_match_hint`.
+- Agregar `source_validated_ids` a `DiscoveryTarget`.
+- Rename de `narrative_capsule.natural_question_style` → `natural_investigation_style`.
+- Agregar `EvidenceArtifact.access_mode` (hook v1.6+, opcional ahora).
+- Update prompt de Paper Digestion (rename de field) + prompt de Architect (línea sobre downstream).
