@@ -5,6 +5,87 @@
 
 ## [Unreleased]
 
+### 2026-05-06 — v1.5 SOTA review: 5 buenas prácticas integradas al roadmap
+
+Catálogo de ~30 proyectos del estado del arte en generación/validación de
+entornos sintéticos para RL (Endless Terminals, SWE-Gym, R2E-Gym, CLadder,
+DiscoveryWorld, AgentClinic, OrgForge-IT, Absolute Zero, CodeScientist,
+Aviary, Crafter, OMNI, PAIRED, etc.) movido de `tmp-research-synthetic-envs.md`
+a `research/synthesis/sota_synthetic_envs_for_rl.md` como doc canónico.
+
+Cross-check con plan post-Ronda 14 + Codex review priorizó **5 prácticas
+a adoptar** y **4 anti-patterns a descartar explícitamente**.
+
+**5 prácticas integradas al roadmap** (no implementadas todavía, anotadas
+en docs/issues para cuando arranquen Fases 2-7):
+
+1. **Shortcut resistance + Difficulty band** (Fase 5, van juntos):
+   - Shortcut: batería de baselines naive (`brief/prior-only`,
+     `crude marginal`, `single pooled regression`,
+     `wrong-but-standard adjustment`) scoreados contra el target.
+     Caso rechazado si baseline pasa demasiado alto.
+   - Difficulty band: reference investigator estándar; banda
+     esperada 0.4-0.7. Filtra "no trivial pero imposible".
+   - Validator transversal pasa de **10 a 12 checks**.
+
+2. **Evidence-consulted logging** (Fase 6, integrity gate):
+   - 3 estados (`supported`/`underspecified`/`fabricated`).
+   - Penalización dura solo a `fabricated`. Solo claims fuertes
+     requieren cita explícita.
+   - Probable adelantar `EvidenceArtifact.access_mode` (hoy hook v1.6).
+
+3. **Parametric variations** sobre SCM validado (Fase 2-3):
+   - Mismo SCM, variar N / ruido / effect size / prevalencia subgrupos.
+   - Curriculum sin re-diseñar mundos.
+
+4. **Semantic triplets** como suite de evaluación pareada (Fases 3-4):
+   - Tripletes `same world, same targets, same data, different
+     surface semantics` (realistic / abstract / anti_commonsensical).
+   - Implementar como suite separada, NO como flag global del
+     generator. Agregar `ResearchCase.semantic_mode` desde Fase 4.
+
+5. **`match="causal_equiv"` como hook futuro** (NO bloquear v1.5):
+   - DOVERIFIER (ACL 2026) existe pero repo verde. Diferir matching
+     simbólico a v2.
+
+**4 anti-patterns descartados explícitamente** (NO HACER):
+- Self-play estilo Absolute Zero (uh-oh moment documentado).
+- LLM-as-judge como verificador primario (~80% confiabilidad).
+- PRMs como dense process rewards (fluency detectors según
+  arXiv:2603.06621).
+- End-to-end scientific discovery (CodeScientist 6/19 minimal soundness).
+
+**Gaps que el SOTA review identifica como nicho real de SREG**:
+- Investigative-causal multi-paso con verificación formal (CLadder
+  estático, DOVERIFIER solo verifier, DiscoveryWorld con LLM-judge,
+  Auto-Bench discovery del DAG).
+- Operacionalización cuantitativa de razonamiento causal genuino vs
+  pattern matching.
+- Casos de investigación generables a escala con diversidad
+  estructuralmente controlada.
+
+**Docs actualizados** (sin cambios en código):
+- `research/synthesis/sota_synthetic_envs_for_rl.md` — movido desde
+  root `tmp-research-synthetic-envs.md`. Doc canónico permanente.
+- `research/synthesis/world_design_techniques_survey.md` — extendido
+  con §5.b "Adiciones del SOTA review".
+- `research/README.md` — refs al nuevo doc.
+- `CURRENT_STATE.md` — Fase 5 ahora 12 checks; Fase 4 Case Writer
+  ciego al bundle; Fase 6 con evidence logging; mención de Ronda 14
+  + SOTA review.
+- Issue #63 body — actualizado con sección "SOTA practices a integrar"
+  y tabla de fases con scope nuevo.
+- Memoria personal: `project_sota_practices_synthetic_envs.md` con
+  las 5 prácticas + 4 anti-patterns + decisiones operativas.
+
+Cross-check con Codex (thread `019dfe55-fe93`) confirmó:
+- Las 5 prioridades son las correctas (Codex sumó "difficulty band"
+  que no estaba en mis 4 originales).
+- Detectó deriva documental en CURRENT_STATE.md (corregida).
+- Sugirió priorizar shortcut resistance + difficulty band JUNTOS, no
+  separados (sin esa dupla SREG sigue exponiendo casos no-triviales
+  pero tampoco didácticos).
+
 ### 2026-05-06 — v1.5 Ronda 14: Discovery-first philosophy (GoldQuestion → DiscoveryTarget)
 
 Reformulación filosófica importante para v1.5, post Fase 1.2.b. Validada con

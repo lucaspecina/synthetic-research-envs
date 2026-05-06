@@ -228,6 +228,32 @@ Ordenadas por aplicabilidad inmediata × valor.
 - 4.11 skill library scripts,
 - 4.12 antagonist validator.
 
+---
+
+## 5.b Adiciones del SOTA review (2026-05-06)
+
+Tras el catálogo de ~30 proyectos del estado del arte (`sota_synthetic_envs_for_rl.md`) y la revisión post-Ronda 14 con Codex, se priorizan 5 técnicas que el survey original no cubría con el peso correcto. Se agregan al roadmap (los ítems 1, 2 y 4 absorben/extienden los items 4.6 y 4.10 originales que estaban marcados como "PARCIAL").
+
+| Técnica | Origen | Estado | Acción |
+|---|---|---|---|
+| 5.b.1 **Shortcut resistance** (batería de baselines naive) | SWE-bench fail-to-pass + CLadder anti-commonsensical | NO | **Agregar al Validator transversal** como gate compuesto. Por cada caso generado, scorear baselines (`brief/prior-only`, `crude marginal`, `single pooled regression`, `wrong-but-standard adjustment`) contra los `DiscoveryTarget`s con los mismos anchors/rubric. Si un baseline pasa demasiado alto → caso rechazado. Reemplaza la versión simple "lazy investigator < 0.3" del check #4 original. |
+| 5.b.2 **Difficulty band** (reference investigator) | UED + ACCEL + literatura RL | NO | **Agregar al Validator transversal**. Reference investigator estándar (no naive baseline) corrido contra el caso; banda esperada 0.4-0.7 sobre la rubric (ni trivial ni imposible). Distinto de 5.b.1: shortcut resistance descarta casos que un *naive* resuelve; difficulty band descarta casos que un *standard* no puede ni intentar. Los dos son necesarios. |
+| 5.b.3 **Evidence-consulted logging** (3 estados) | PATHWAYS, AgentClinic, OrgForge-IT | NO | **Agregar al Investigator runtime + Evaluator** (Fase 6). Trackear qué variables/subsets el Investigator efectivamente leyó en `python_exec` antes de cada claim. 3 estados: `supported` (claim cita evidence presente en trace), `underspecified` (claim correcta pero genérica, OK), `fabricated` (claim afirma evidence que nunca consultó, penalizar duro). Solo claims cuantitativas/comparativas/exclusionarias/mecanísticas fuertes requieren cita explícita. **Integrity gate, no trace scoring completo.** Probable adelantar `EvidenceArtifact.access_mode` (hoy hook v1.6) para diferenciar evidencia public vs latente. |
+| 5.b.4 **Parametric variations** (mismo SCM, variar N/ruido/effect size) | DiscoveryWorld parametric variations + Procgen seeds | NO | **Agregar al Architect / Designer** (Fase 2-3). Sobre un SCM topológico ya validado, generar N instancias variando: tamaño de muestra, magnitud del efecto, nivel de ruido, prevalencia de subgrupos. Da curriculum sin re-diseñar mundos desde cero. Reemplaza "muchos SCMs distintos" por "pocos SCMs explorados profundamente". |
+| 5.b.5 **Semantic triplets** (suite de evaluación pareada) | CLadder commonsensical/abstract/anti-commonsensical | NO | **Agregar al Discovery Designer / Case Writer** (Fases 3-4). Tripletes `same world, same targets, same data distribution, different surface semantics`. Mide contaminación semántica limpiamente (priors LLM vs estructura causal real). NO triplicar todos los casos del generator (sesga distribución, infla costo); implementar primero como **eval suite separada**, después samplear `semantic_mode` estocásticamente si entra al training. Agregar `ResearchCase.semantic_mode: Literal["realistic","abstract","anti_commonsensical"]` desde ya para trazabilidad. |
+
+**Nuevo orden de prioridad operativa** (post-Codex):
+
+1. **Shortcut resistance** acoplado a **difficulty band** (los dos van juntos: shortcut filtra "casos triviales" + difficulty band filtra "casos imposibles"). Sin esta dupla, SREG sigue exponiendo casos no-triviales pero tampoco didácticos.
+2. **Evidence logging liviano** (citas a steps, no variable-level perfecto).
+3. **Parametric variations** sobre SCM validado.
+4. **Semantic triplets** como eval suite (no flag global del generator).
+5. **DoVerifier-style symbolic equivalence**: dejar `match="causal_equiv"` como hook futuro, NO bloquear v1.5 por esto. El paper existe (ACL 2026) pero el repo está verde (3 commits, sin packaging).
+
+**Resultado en Validator transversal**: pasa de **10 checks** a **12 checks** (los 10 originales + shortcut resistance + difficulty band; nota que los #4 y #6 originales se compactan/refactorizan al fusionarse con los nuevos).
+
+**Anti-pattern crítico que el SOTA review confirma**: NO usar self-play estilo Absolute Zero (uh-oh moment), NO densos process rewards (PRMs son fluency detectors según arXiv:2603.06621), NO LLM-as-judge como verificador primario, NO expansión hacia "end-to-end scientific discovery" estilo CodeScientist (6/19 minimal soundness rate documenta el ceiling).
+
 ## 6. Anti-patterns consolidados
 
 De los 4 verticales, anti-patterns que SREG debe evitar:

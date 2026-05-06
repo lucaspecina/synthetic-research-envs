@@ -2,7 +2,7 @@
 
 > **Realidad runnable hoy** = dos cosas en paralelo:
 > - **SREG v1** (Open Investigation sobre SCM con compiler NL↔IR) congelado en `main` con tag `pre-v1.5`. Si querés correr el sistema completo end-to-end hoy, este es. Ver §2.
-> - **SREG v1.5** **EN IMPLEMENTACIÓN ACTIVA** en rama `dev`. Diseño cerrado (Ronda 13). Pipeline parcial ya funcional: contratos, compile_scm, Paper Digestion agent, Architect agent + lints. Falta: Validators, Question Designer, Case Writer, Validator transversal, Investigator runtime, Evaluator. Ver §3 con tabla de fases. Para detalle de cada fase ver `CHANGELOG.md`.
+> - **SREG v1.5** **EN IMPLEMENTACIÓN ACTIVA** en rama `dev`. Diseño cerrado (Ronda 13 + Ronda 14 filosófica). Pipeline parcial ya funcional: contratos, compile_scm, Paper Digestion agent, Architect agent + lints. Falta: Validators, Discovery Designer, Case Writer, Validator transversal, Investigator runtime, Evaluator. Ver §3 con tabla de fases. Para detalle de cada fase ver `CHANGELOG.md`.
 >
 > **v2 (Sherlock multi-turno)** y **v1.6 (SDE intrínseco)** son futuro.
 
@@ -105,7 +105,7 @@ Paper crudo
   → [Discovery Designer]   → DiscoveryBundle (descubrimientos esperados, mapping N:M; no 1:1)
   → [Case Writer]          → ResearchCase (CIEGO al DiscoveryBundle: brief sin
                                  referenciar textos de DiscoveryTargets)
-  → [Validator transversal] → ValidationReport (10 checks; único árbitro)
+  → [Validator transversal] → ValidationReport (12 checks; único árbitro)
                            ↓
                     Investigator (LLM single-turn) → Claims
                            ↓
@@ -121,16 +121,16 @@ Paper crudo
 
 | Fase | Componente | Estado | Commit / detalle |
 |---|---|:-:|---|
-| **#55** | Contratos Pydantic v1.5 (25 modelos: WorldSpec, IntendedPhenomenon, EvidenceArtifact, ValidatedPhenomenon, ValidatorVote, GoldQuestion, Rubric, AnswerKey, ResearchCase, etc.) | ✅ | `bfacb22` + ronda 13 endurecida en `890d735` |
+| **#55** | Contratos Pydantic v1.5 (25 modelos: WorldSpec, IntendedPhenomenon, EvidenceArtifact, ValidatedPhenomenon, ValidatorVote, GoldQuestion *(será DiscoveryTarget en Fase 3)*, Rubric, AnswerKey, ResearchCase, etc.) | ✅ | `bfacb22` + ronda 13 endurecida en `890d735` |
 | **#56** | Environment SCM ejecutable + adapter al `SCMEnvironment` Protocol | ✅ | parte de `48ba341`; bug fix latentes en `3841ffd` |
 | **Fase 1.1** | `compile_scm(WorldSpec) → SCMWorld` + Birth Weight Paradox E2E hardcoded | ✅ | `3841ffd` |
 | **Fase 1.2.a** | `PaperDigestionAgent` con LLM real + 3 seeds digeridos + tests wiring | ✅ | `4e16b19` |
 | **Fase 1.2.b** | `ArchitectAgent` con LLM real + 3 lints deterministas + harness con diagnósticos | ✅ | `378662f` |
 | **Fase 2** | Validators (N en paralelo, multi-iter con feedback al Architect) | ⏳ | **PRÓXIMO** — primer Validator determinista (materialization checks numéricos) antes de uno con LLM |
 | **Fase 3** | Discovery Designer (consume `list[ValidatedPhenomenon]`, mapping N:M no 1:1; produce `DiscoveryBundle` con descubrimientos esperados, no preguntas). Incluye renombre de schemas `GoldQuestion`→`DiscoveryTarget`, `QuestionsBundle`→`DiscoveryBundle`, campo `identification_hint`→`claim_match_hint`, agregar `source_validated_ids`. | ❌ | pendiente |
-| **Fase 4** | Case Writer (`ResearchCase` desde `QuestionsBundle` + `narrative_capsule`) | ❌ | pendiente |
-| **Fase 5** | Validator transversal (10 checks, único árbitro con `target_to_reiterate`) | ❌ | pendiente |
-| **Fase 6** | Investigator runtime + Evaluator (2 pasos, alpha=0.8) | ❌ | pendiente — issues #60/#61 |
+| **Fase 4** | Case Writer (`ResearchCase` desde `WorldSpec` público + `narrative_capsule` + lista de `DiscoveryTarget.kind`; **CIEGO al DiscoveryBundle**, sin acceso a los textos de los targets — Ronda 14) | ❌ | pendiente |
+| **Fase 5** | Validator transversal (12 checks, único árbitro con `target_to_reiterate`). Los 10 originales + 2 nuevos del SOTA review (post `sota_synthetic_envs_for_rl.md`): **shortcut resistance** (batería de baselines naive vs target — caso rechazado si baseline pasa demasiado alto) y **difficulty band** (reference investigator estándar; banda 0.4-0.7 esperada, ni trivial ni imposible). Fusión con check Three-Clue Rule (#11) bajo gate "discoverability + shortcut resistance". | ❌ | pendiente |
+| **Fase 6** | Investigator runtime + Evaluator (2 pasos, alpha=0.8). Incluye **evidence-consulted logging** (PATHWAYS-style) con 3 estados (`supported`/`underspecified`/`fabricated`); penalización dura solo a claims `fabricated`. Tratado como integrity gate, no trace scoring completo. | ❌ | pendiente — issues #60/#61 |
 | **Fase 7** | Casos diversos por formalismo + 3 tests go/no-go + pilot humano | ❌ | pendiente — issue #62 |
 
 ### Cómo retomar v1.5 después de un break
