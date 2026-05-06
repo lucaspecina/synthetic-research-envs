@@ -24,6 +24,11 @@ from __future__ import annotations
 from sreg.models.scm_spec import SCMSpec, SCMVariableSpec
 from sreg.tools.scm_world_gen import SCMWorldGenTool
 from sreg.v1_5.contracts.world import WorldSpec
+from sreg.v1_5.world.world_lints import (
+    lint_intended_phenomena_no_methodology,
+    lint_no_repeated_stochastic_in_branch,
+)
+from sreg.world.expression_compiler import extract_referenced_names
 from sreg.world.scm import SCMWorld
 
 
@@ -69,8 +74,69 @@ def compile_scm(world: WorldSpec, *, seed: int = 42) -> SCMWorld:
             f"{[v.name for v in world.variables]}."
         )
 
+    _check_edges_match_equations(world)
+    lint_no_repeated_stochastic_in_branch(world)
+    lint_intended_phenomena_no_methodology(world)
+
     spec_v1 = _world_to_scm_spec(world)
     return SCMWorldGenTool().generate(spec_v1, seed=seed)
+
+
+def _check_edges_match_equations(world: WorldSpec) -> None:
+    """Valida coherencia bidireccional edges ↔ equations.
+
+    Cierra el hueco detectado por Codex (2026-05-05): hoy podés declarar
+    edge `A → Y` pero `Y.equation` no usar `A`, y compila igual. Eso
+    permite DAGs falsos (estructura declarada que no se materializa).
+
+    Reglas (en SCM):
+    1. Para cada `edge=(parent, child)`: la equation de `child` DEBE
+       referenciar `parent`. Si no, el edge es decorativo.
+    2. Para cada variable, todos los nombres referenciados en su equation
+       (que sean otras variables del mundo) DEBEN tener un edge entrante
+       declarado. Si no, la dependencia causal es implícita y rompe el DAG.
+
+    Auto-referencias (`Y.equation` referencia `Y`) se ignoran — no
+    deberían existir en SCMs estáticos pero el ExpressionCompiler ya
+    las rechazaría más adelante.
+    """
+    if world.formalism != "scm":
+        return
+
+    var_by_name = {v.name: v for v in world.variables}
+    declared_parents: dict[str, set[str]] = {
+        v.name: set() for v in world.variables
+    }
+    for parent, child in world.edges:
+        declared_parents[child].add(parent)
+
+    for var in world.variables:
+        if var.equation is None:
+            continue
+        used = extract_referenced_names(var.equation)
+        # Filtrar auto-refs y nombres no-variable (no debería haber).
+        used = {n for n in used if n != var.name and n in var_by_name}
+        declared = declared_parents[var.name]
+
+        missing_edges = used - declared
+        if missing_edges:
+            raise ValueError(
+                f"WorldSpec inconsistente: la equation de '{var.name}' "
+                f"referencia {sorted(missing_edges)} pero no hay edges "
+                f"entrantes declarados para esos parents. Agregá "
+                f"{[(p, var.name) for p in sorted(missing_edges)]} a "
+                f"WorldSpec.edges, o quitá esos nombres de la equation."
+            )
+
+        unused_edges = declared - used
+        if unused_edges:
+            raise ValueError(
+                f"WorldSpec inconsistente: edges {sorted(unused_edges)} "
+                f"declarados como parents de '{var.name}' pero la "
+                f"equation no los usa. La estructura causal mentiría. "
+                f"Usá {sorted(unused_edges)} en '{var.name}.equation' "
+                f"o quitá los edges {[(p, var.name) for p in sorted(unused_edges)]}."
+            )
 
 
 def _world_to_scm_spec(world: WorldSpec) -> SCMSpec:

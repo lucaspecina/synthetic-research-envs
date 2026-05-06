@@ -21,6 +21,7 @@ Orden esperado del flujo (post Ronda 13):
     ValidationReport (passed=True ⇒ caso listo para Investigator)
 """
 
+from sreg.v1_5.agents.architect import ArchitectAgent
 from sreg.v1_5.agents.paper_digestion import PaperDigestionAgent
 
-__all__ = ["PaperDigestionAgent"]
+__all__ = ["ArchitectAgent", "PaperDigestionAgent"]

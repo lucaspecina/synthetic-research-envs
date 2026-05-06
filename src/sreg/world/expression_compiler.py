@@ -258,4 +258,36 @@ def _build_namespace(
     return ns
 
 
-__all__ = ["ExpressionCompiler", "ExpressionError"]
+def extract_referenced_names(expr: str) -> set[str]:
+    """Devuelve los nombres de variables (no funciones reservadas) referenciadas
+    en la expresión.
+
+    Uso típico: validar coherencia edges↔equation en SCMs. Si la equation de
+    `Y` referencia `A`, entonces el WorldSpec debería tener un edge
+    `A → Y`; recíprocamente, todo edge `A → Y` declarado debería usarse en
+    `Y.equation`.
+
+    Args:
+        expr: expresión simbólica (ej. ``"3200 - 250*X + normal(0, 380)"``).
+
+    Returns:
+        Set de nombres de variables. Excluye funciones reservadas
+        (``normal``, ``bernoulli``, ``sigmoid``, ``I``, etc.) y constantes.
+        Si la expresión es sintácticamente inválida, devuelve set vacío
+        (errores de sintaxis se reportan al compilar, no acá).
+    """
+    if not expr or not expr.strip():
+        return set()
+    try:
+        tree = ast.parse(expr.strip(), mode="eval")
+    except SyntaxError:
+        return set()
+
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id not in _ALLOWED_FUNCTIONS:
+            names.add(node.id)
+    return names
+
+
+__all__ = ["ExpressionCompiler", "ExpressionError", "extract_referenced_names"]

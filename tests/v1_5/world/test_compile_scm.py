@@ -185,6 +185,70 @@ def test_compile_propagates_runtime_error() -> None:
 
 
 # ---------------------------------------------------------------------------
+# edges ↔ equations coherence (cierra hueco detectado por Codex 2026-05-05)
+# ---------------------------------------------------------------------------
+
+
+def test_compile_rejects_decorative_edge() -> None:
+    """Edge declarado pero no usado en la equation: estructura causal mentirosa."""
+    world = _world(
+        variables=[
+            VariableSpec(name="A", equation="normal(0, 1)"),
+            VariableSpec(name="B", equation="normal(0, 1)"),  # NO usa A
+        ],
+        edges=[("A", "B")],
+    )
+    with pytest.raises(ValueError, match="declarados como parents"):
+        compile_scm(world)
+
+
+def test_compile_rejects_implicit_dependency() -> None:
+    """Equation usa variable sin edge declarado: dependencia oculta."""
+    world = _world(
+        variables=[
+            VariableSpec(name="A", equation="normal(0, 1)"),
+            VariableSpec(name="B", equation="A + normal(0, 0.1)"),  # usa A
+        ],
+        edges=[],  # pero NO hay edge declarado
+    )
+    with pytest.raises(ValueError, match="no hay edges entrantes"):
+        compile_scm(world)
+
+
+def test_compile_accepts_consistent_dag() -> None:
+    """Equation y edges coinciden: pasa."""
+    world = _world(
+        variables=[
+            VariableSpec(name="A", equation="normal(0, 1)"),
+            VariableSpec(name="B", equation="normal(0, 1)"),
+            VariableSpec(name="Y", equation="A + 2*B + normal(0, 0.1)"),
+        ],
+        edges=[("A", "Y"), ("B", "Y")],
+    )
+    scm = compile_scm(world)
+    # Sanity: el SCM compila y samplea.
+    df = scm.sample(n=10, seed=0)
+    assert set(df.columns) >= {"A", "B", "Y"}
+
+
+def test_compile_error_message_lists_missing_edges() -> None:
+    """Mensaje de error es accionable: dice qué edges agregar."""
+    world = _world(
+        variables=[
+            VariableSpec(name="A", equation="normal(0, 1)"),
+            VariableSpec(name="B", equation="normal(0, 1)"),
+            VariableSpec(name="Y", equation="A + B + normal(0, 0.1)"),
+        ],
+        edges=[("A", "Y")],  # falta el edge (B, Y)
+    )
+    with pytest.raises(ValueError) as exc_info:
+        compile_scm(world)
+    msg = str(exc_info.value)
+    assert "B" in msg  # menciona el parent faltante
+    assert "Y" in msg  # menciona el child
+
+
+# ---------------------------------------------------------------------------
 # Cobertura del adapter
 # ---------------------------------------------------------------------------
 

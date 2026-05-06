@@ -5,6 +5,109 @@
 
 ## [Unreleased]
 
+### 2026-05-06 — Fase 1.2.b v1.5: Architect agent + deterministic guardrails + honest diagnostics
+
+Segundo agente real del Designer multi-agente. Lee `PaperInsights` y
+emite `WorldSpec` SCM ejecutable. **Framing honesto**: el Architect
+aislado NO produce calibración correcta — para eso son los Validators
+(Fase 2). Esta fase entrega: (a) Architect funcional con LLM real,
+(b) lints deterministas que rechazan bugs estructurales antes de pasar
+al sampling, (c) harness con diagnósticos numéricos honestos por seed
+(ej. `Paradox materializes: False` cuando no se materializa).
+
+**Implementación**:
+- `src/sreg/v1_5/agents/architect.py`: function calling + single retry
+  tras error determinista (sin retries por intuición). Schema
+  simplificado en la frontera con el LLM (`ArchitectWorldDraft`) +
+  conversor determinista a `WorldSpec`.
+- `src/sreg/v1_5/agents/architect_draft.py`: `VariableDraft` con
+  `plausible_min/max` opcionales (Architect declara rangos del
+  dominio). `EdgeDraft` como objeto `{parent, child}` en lugar de
+  tuple para evitar `prefixItems` schemas frágiles en function calling.
+- `src/sreg/v1_5/agents/prompts/architect.md`: prompt genérico (no
+  sesgado a casos), con primitivas explícitas, plantillas por kind de
+  variable, regla de coherencia edges↔equations, regla positiva de
+  naming (no `_bias/_paradox/_effect`), vocabulario canónico para
+  `intended_phenomena.kind`, ejemplos negativos de errores comunes.
+  Suavizado para no disparar el filtro de jailbreak de Azure.
+- `scripts/run_architect.py`: harness manual que toma PaperInsights
+  ya digeridos, corre Architect, compila, samplea y deja artefactos
+  inspeccionables. Diagnósticos seed-específicos: para
+  `smoking_birthweight` imprime `diff_lbw1` vs `diff_lbw0` y declara
+  si la paradoja se materializa numéricamente.
+
+**Lints deterministas** (`src/sreg/v1_5/world/world_lints.py`):
+1. `lint_no_repeated_stochastic_in_branch`: rechaza ternarios con ≥2
+   calls a distros estocásticas (`normal/bernoulli/uniform/...`). En
+   el pilot esto atrapó el caso real donde `smoking_intensity` tenía
+   `bernoulli(0.55)` ... `bernoulli(0.75)` ... 5 veces dentro de un
+   mega-ternario, generando draws distintos por branch.
+2. `lint_intended_phenomena_no_methodology`: regex contra "adjusting
+   for", "conditioning on", "after adjustment", "backdoor path",
+   "would distort", etc. en `IntendedPhenomenon.description`. Atrapa
+   el caso real de `confounding_by_indication` donde el Architect
+   metió "hospital type does not directly affect outcome once patient
+   case mix is accounted for" en intended (que es consejo de análisis,
+   no mecanismo del mundo).
+3. **Plausible support lint** (en `architect.py`): post-compile, samplea
+   N=500 con seed fijo, valida que >99% del sample respeta los
+   `plausible_min/max` declarados por el Architect. Sin esto, casos
+   tenían `age=116` o `maternal_age=8.6` (bugs de soporte, no ruido).
+
+**Helper en ExpressionCompiler v1**:
+- `extract_referenced_names(expr) -> set[str]`: parsea AST y devuelve
+  nombres de variables (no funciones reservadas) referenciadas. Base
+  para validar coherencia edges↔equations en `compile_scm`.
+
+**Validación end-to-end** (3 seeds reales, LLM gpt-5.4 vía Azure):
+- `selection_bias_police`: 10 vars, 25 edges, 4 intended_phenomena.
+  Compila + samplea. Diagnóstico: crude camera→use_of_force +1.88
+  (signo esperado).
+- `confounding_by_indication`: 10 vars, 22 edges, 5 intended_phenomena
+  (incluye `physician_treatment_discretion` LATENTE). Diagnóstico:
+  crude drug→outcome dio +10.18 — el efecto del drug compensa el
+  confounding (calibración floja, esperable sin Validators).
+- `smoking_birthweight` (control con target conocido): 10 vars, 19
+  edges, 4 intended_phenomena. La paradoja NO se materializa
+  numéricamente (diff_lbw1 > diff_lbw0). Diagnóstico literal:
+  `Paradox materializes: False`. **Sistema honesto, no falsos positivos**.
+
+**Codex review final** (2 rondas vía MCP):
+- Ronda 1: identificó 4 problemas que NO veía. Bug causal real en
+  `confounding_by_indication`, bug de equation en
+  `smoking_birthweight` (doble draw en ternario), soportes
+  implausibles, leak metodológico en intended_phenomena. Pidió 3
+  patches deterministas + harness con diagnósticos por kind.
+- Ronda 2: confirmó que los lints atrapan los bugs en práctica. Luz
+  verde para commit. Detectó un patrón nuevo (`saturación por
+  clipping`: `prior_complaints` pegado al techo, `camera_assigned`
+  94%, `time_to_treatment` con sentinel 120) y propuso 3 lints
+  futuros (`boundary_mass_lint`, `binary_prevalence_lint`,
+  `sentinel_mediator_lint`) — anotados como ítems para iteración
+  posterior, no bloqueantes.
+
+**Tests**: 266 pasan. +11 wiring del Architect, +15 lints
+deterministas, +4 pre-check edges↔equations. Ruff limpio.
+
+**Issues conocidos** (no bloqueantes, target Fase 2 / lints futuros):
+- Calibración fina de los 3 mundos generados es floja. Esperable: el
+  Architect aislado no ve los samples, no puede iterar coefs sobre
+  fenómenos materializados. Es exactamente lo que el loop
+  Architect↔Validators de Ronda 13 está diseñado para resolver.
+- `protective_camera_effect` taggeado como `mediation` cuando es más
+  bien direct treatment effect — corregir en próxima iteración o vía
+  Validator semántico.
+- `time_to_treatment` en `confounding_by_indication` usa sentinel 120
+  para untreated (`120*(1-drug_prescription) + drug_prescription*...`).
+  No es solo calibración mala — cambia la semántica del nodo.
+  Codex lo marcó como target temprano para Validator o lint posterior.
+
+**Próximo (Fase 2 — Validators)**: arrancar por un Validator
+**determinista** centrado en materialization checks numéricos (¿el
+intended_phenomenon se materializa con magnitud razonable?), antes
+de cualquier crítica LLM. El loop Architect↔Validator es donde la
+calibración se cierra.
+
 ### 2026-05-05 — Fase 1.2.a v1.5: Paper Digestion agent (LLM real, prompt genérico)
 
 Primer agente real del Designer multi-agente: lee un paper crudo y emite
