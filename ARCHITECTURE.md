@@ -124,9 +124,15 @@ Convención externa respetada: `Environment` se alinea con SciGym, BoxingGym, Di
                            │
                            ▼
                     Validator transversal (ÚNICO ÁRBITRO)
-                    10 checks: cobertura, provenance, leak, trivialness,
-                    rubric coherence, answerability pública, modality match,
-                    stability AK, bundle redundancy, salience threshold.
+                    13 checks:
+                      10 originales: cobertura, provenance, leak, trivialness,
+                                     rubric coherence, answerability pública,
+                                     modality match, stability AK, bundle
+                                     redundancy, salience threshold.
+                       2 SOTA: shortcut resistance, difficulty band.
+                       1 Ronda 15: rubric respondibilidad pública
+                                   (cada item de rubric respondible desde
+                                    dataset visible + tools).
                     decide: passed | invalida con target_to_reiterate
                             ('world' / 'designer' / 'case'). Max 2 vueltas.
 
@@ -160,7 +166,7 @@ Convención externa respetada: `Environment` se alinea con SciGym, BoxingGym, Di
 | **Validator** | N (= len(intended_phenomena)) paralelo | `WorldSpec` + Environment + 1 `IntendedPhenomenon` | `ValidatorVote` | Escribe scripts libres contra el Environment. Devuelve vote + margin + fragility + delta_from_previous + evidence + failure_reason. Verify first, no inventa preguntas. |
 | **Discovery Designer** | 1 | `list[ValidatedPhenomenon]` + cápsula narrativa | `DiscoveryBundle` | Consume el bundle COMPLETO (mapping N:M, no 1:1). Cada DiscoveryTarget es un descubrimiento esperado en capa A (NL flexible) + capa B (anchors formales). Numeric reusado del EvidenceArtifact, provenance re-ejecutable, `source_validated_ids` para auditar. NO consulta el paper crudo. (Internamente el schema todavía se llama `GoldQuestion`/`QuestionsBundle` durante Fases 1.x; renombre va con la implementación de esta etapa.) |
 | **Case Writer** | 1 | `WorldSpec` (público) + `narrative_capsule` saneada + lista de `DiscoveryTarget.kind` (taxonomía descriptiva, sin textos) | `ResearchCase` | Brief abierto que **NO referencia los textos de los DiscoveryTargets** — el agente debe descubrir, no parafrasear. Datasets visibles (sin latentes), tools. **El Case Writer es ciego al DiscoveryBundle**: si recibiera los textos, el brief heredaría wording y se rompería la frontera anti-leak. |
-| **Validator (transversal)** | 1 | TODO | `ValidationReport` | ÚNICO ÁRBITRO. 10 checks (ver §3). Invalida con `target_to_reiterate` ('world' / 'designer' / 'case'). Max 2 vueltas. |
+| **Validator (transversal)** | 1 | TODO | `ValidationReport` | ÚNICO ÁRBITRO. **13 checks** (10 originales + shortcut resistance + difficulty band del SOTA review + rubric respondibilidad pública de Ronda 15). Invalida con `target_to_reiterate` ('world' / 'designer' / 'case'). Max 2 vueltas. |
 
 Decisiones operativas:
 
@@ -183,15 +189,15 @@ Cada handoff requiere artefacto Pydantic, no prosa. Los schemas viven en `src/sr
 - **`PaperInsights`**: `paper_id`, `objective`, `entities`, `mechanisms`, `phenomena`, `complications`, `counterintuitive_priors`, `realism_bounds`, `narrative_capsule` (cápsula saneada para Discovery Designer y Case Writer: dominio, población, unidades, convenciones, "estilo de investigación natural" — SIN frases icónicas del paper). El campo del estilo se renombrará de `natural_question_style` a `natural_investigation_style` cuando se implemente Fase 3, alineado con el cambio filosófico GoldQuestion → DiscoveryTarget.
 - **`WorldSpec`**: `formalism: Literal["scm","ode"]`, `variables`, `relationships`, `parameters`, `metadata`, `intended_phenomena: list[IntendedPhenomenon]`. Validator cruzado: `observation_noise` solo en ODE y `>= 0`.
 - **`IntendedPhenomenon`**: `id`, `kind: str` (libre, ej. "collider", "mediation"), `description`, `relevant_variables`. Vive a nivel mecanismo, NO a nivel pregunta.
-- **`EvidenceArtifact`**: `script: str` (Python ejecutable contra Environment), `numerical_result: dict`, `tag: str | None` (descriptivo, no normativo). **Hook v1.6**: campo `access_mode: Literal["public_data", "interventional", "omniscient_latent"]` para que el Validator transversal verifique que un anchor usado por un `DiscoveryTarget` es **discoverable** desde la interfaz pública del caso (el Investigator no debería tener que recuperar valores de variables latentes ni resultados de intervenciones que él no puede ejecutar).
+- **`EvidenceArtifact`**: `script: str` (Python ejecutable contra Environment, libre, sin catálogo cerrado), `numerical_result: dict` (resultado de correr el script offline con seeds múltiples), `tag: str | None` (descriptivo, no normativo). **Modelo de uso (Ronda 15)**: el script corre **una sola vez offline** durante Designer/Validators y deja el `numerical_result` fijado. El Evaluator **no re-ejecuta** el script en runtime — usa `numerical_result` como referencia para items numéricos de la rubric. El script queda reejecutable para auditoría manual. **Hook v1.6**: campo `access_mode: Literal["public_data", "interventional", "omniscient_latent"]` para que el Validator transversal verifique que un anchor usado por un `DiscoveryTarget` es **discoverable** desde la interfaz pública del caso (el Investigator no debería tener que recuperar valores de variables latentes ni resultados de intervenciones que él no puede ejecutar).
 - **`Phenomenon`**: `kind: str` (string libre, no enum cerrado), `description`, `evidence: EvidenceArtifact`, `tags: list[str]`.
 - **`PhenomenaManifest`**: lista de `Phenomenon`, `world_id`, `interesting_score`.
 - **`ValidatorVote`**: `validator_id`, `target_intended_id`, `iteration`, `vote: Literal["passes","weak_pass","fails"]`, `margin: float`, `fragility: float`, `delta_from_previous: dict | None`, `evidence: list[EvidenceArtifact]` (mínimo 1), `failure_reason: str | None`. Validator cruzado: `failure_reason` obligatorio si `vote != passes`.
 - **`ValidatedPhenomenon`**: `id`, `source_intended_id`, `kind`, `description`, `relevant_variables`, `validator_votes: list[ValidatorVote]` (todos `vote=passes`), `margin`, `fragility`, `evidence: list[EvidenceArtifact]` (mínimo 1).
 - **`DiscoveryTarget`** (final, internamente todavía `GoldQuestion` durante Fases 1.x): `id`, `text` (capa A: conclusión científica esperada en NL flexible — NO una pregunta), `weight ∈ {0.08, 0.12, 0.16, 0.20}`, `role: required|support`, `kind: str` (taxonomía descriptiva del descubrimiento, no operativa: `causal_mechanism`, `misleading_association`, `mediation`, `effect_heterogeneity`, `system_mapping`, `epistemic_limit`, `dynamic_regime`, `intervention_recommendation`, etc.), `answer_key` (capa B: anchors formales), `answer_key_provenance: list[EvidenceArtifact]` (mínimo 1), `claim_match_hint` (reemplaza `identification_hint`: cómo decidir si alguna claim del reporte llega a la conclusión), `source_validated_ids: list[str]` (qué `ValidatedPhenomenon` respaldan este descubrimiento, mapping N:M auditeable), `rubric`. **Capability-as-evidence**: si el descubrimiento involucra un modelo predictivo o una optimización, el target solo se admite con `role="support"` y peso capado, no como `required`. v1.5 score primario es knowledge, no capability. |
-- **`Rubric`**: lista de `Criterion` (`min_length=1`). Debe tener al menos uno con `role="core"`.
-- **`Criterion`**: `text`, `weight ∈ {1,2,3}`, `role: core|bonus`, `anchor: AnswerKeyAnchor`, `scoring_hint`, `requires_span: bool`.
-- **`AnswerKeyAnchor`**: `path`, `match: approx|equals|enum|mentioned`, `tolerance`, `value`. Validator cruzado por modo de match.
+- **`Rubric`**: lista de `Criterion` (`min_length=1`). Debe tener al menos uno con `role="core"`. **Semántica post Ronda 15**: cada `Criterion` es un ítem verificable de la rubric del `DiscoveryTarget` — sí/no o match numérico, NO ítems vagos ni holísticos. El split `core|bonus` sobrevive en el schema pero pierde el rol de "compensa N%": v1.5 trata todos los ítems con `weight ∈ {1,2,3}` y agrega proporcionalmente. La distinción `core|bonus` se conserva como metadato (para usos editoriales y para v1.6+).
+- **`Criterion`**: `text` (texto del ítem, en formato pregunta verificable), `weight ∈ {1,2,3}`, `role: core|bonus`, `anchor: AnswerKeyAnchor` (referenciado si `verifier="numeric_match"`), `scoring_hint` (semántica Ronda 15: actúa como **verifier instruction** — `judge_yes_no` o `numeric_match`, con criterio claro de aceptación), `requires_span: bool` (obligatorio en `judge_yes_no`).
+- **`AnswerKeyAnchor`**: `path`, `match: approx|equals|enum|mentioned`, `tolerance`, `value`. Validator cruzado por modo de match. El `value` viene del `EvidenceArtifact.numerical_result` correspondiente (computado offline una sola vez).
 - **`ResearchCase`**: `case_id`, `brief`, `context`, `datasets`, `tools`. **Sin** DiscoveryTargets, AnswerKeys, IntendedPhenomena, ni textos del DiscoveryBundle (frontera público/oculto, ver §10). El brief se redacta sin referenciar ningún DiscoveryTarget.text.
 - **`InvestigationLog`**: `actions`, `hypotheses_log`, `final_claims`, `extra_claims: list[Claim]` (claims fuera de los DiscoveryTargets; registrado en v1.5, NO scoreado; hook reservado para v1.6+ open scoring — claims correctos no anticipados podrían sumar bonus). Registrado siempre.
 - **`InvestigatorAction`**: `step`, `kind: Literal["python_exec","hypothesis","pivot","submit"]`, `payload`, `rationale`, `epistemic_tag: Literal["H","T","E","J","U","C"] | None`. El tag (Corral) es telemetría no-scoring (#53). `observe`, `intervene`, `simulate` NO son `kind` de v1.5 — son v2.
@@ -203,70 +209,105 @@ Pesos discretos en `DiscoveryTarget` y `Criterion` son anti-ajuste-fino (evita m
 
 ## 6. Rubric design
 
-Cada DiscoveryTarget tiene una Rubric. **Los criterios concretos los genera el Discovery Designer desde el contenido específico del descubrimiento esperado** (no desde un template categorizado por kind). El `kind` del DiscoveryTarget es taxonomía descriptiva — NO debe disparar templates de rubric ni "scoring profiles" por tipo, porque eso reintroduciría el catálogo cerrado que ya rechazamos.
+> **Post Ronda 15 (2026-05-12)**: el modelo cambió. Antes se hablaba de "completion graduada" con 4 dimensiones (fidelidad / justificación / calibración / especificidad) y split core/bonus. Eso mezclaba *"¿llegó a la conclusión?"* con *"¿el reporte está completo/calibrado?"*. El segundo componente es **proceso/calidad** y se difiere a v1.6+. En v1.5 la rubric mide **solo conclusión**.
 
-La Rubric evalúa si la **claim del agente coincide con la conclusión esperada del descubrimiento**, no si responde una pregunta. Acredita:
+Cada `DiscoveryTarget` tiene tres componentes con roles distintos:
 
-- Conclusiones equivalentes (paráfrasis con mismo contenido).
-- Claims cuantitativas que implican correctamente la conclusión cualitativa esperada (ej. "ATE = +0.3 (+/- 0.05)" satisface "el efecto es positivo y de magnitud moderada").
-- Caveats correctos (calibración de incertidumbre, mención de limitaciones epistémicas).
+- **`text` (Capa A, NL declarativa)**: descripción del descubrimiento para humanos / docs / auditoría. *"Estratificar por LBW invierte el signo del efecto Smoking → Mortality."* **NO scorea** — es identidad/contexto del target.
+- **`answer_key` (Capa B, anchors numéricos)**: cantidades con rango/CI, cada una respaldada por un `EvidenceArtifact` (script Python libre). Los anchors **son referencia para items numéricos de la rubric**, no veredicto por sí mismos.
+- **`rubric`**: lista de items verificables que el Evaluator usa para puntuar el target.
 
-NO premia: terminología técnica sin conclusión, wording exacto.
+### La rubric como puente verificable
 
-**4 dimensiones universales** — son **guideline editorial** para armar criterios, NO un enum del schema:
+La rubric **es el puente target↔reporte**. Sin ella, el judge solo tendría (a) parseo numérico ciego del reporte o (b) juicio holístico tipo *"¿este reporte llega a la conclusión?"*. (a) genera falsos negativos cuando el Investigator expresa la conclusión cualitativamente sin dar el número exacto. (b) es exactamente el anti-pattern LLM-as-judge primary descartado en el SOTA review.
 
-1. **Fidelidad**: ¿lo que dice corresponde a la verdad del WorldModel?
-2. **Justificación**: ¿está respaldada por evidencia o razonamiento, no por tono?
-3. **Calibración**: ¿maneja la incertidumbre? Incluye abstención calibrada.
-4. **Especificidad**: ¿es concreta y verificable, no vaga?
+La rubric descompone la pregunta global en **N items específicos al target**, donde cada item es:
 
-Los criterios concretos materializan estas dimensiones para esa pregunta. Las dimensiones son siempre las mismas; los criterios cambian.
+- **`judge_yes_no`**: pregunta cerrada que el judge responde sí/no con criterio claro. *"¿El reporte detecta que dentro de LBW=1 el efecto se vuelve cero o negativo?"*
+- **`numeric_match`**: comparación de un número parseado del reporte contra un anchor de `answer_key`. *"¿Algún valor numérico del reporte para el efecto estratificado cae en [-0.06, -0.02]?"*
 
-**Split core vs bonus en cada Rubric**:
-- **Core**: criterios obligatorios para responder bien la GQ. Aportan 70-85% del score_GQ.
-- **Bonus**: caveats, calibración, robustness. Aportan 15-30%. **No compensan errores del core.**
+**Reglas duras para escribir items**:
 
-**Fórmula**: `score_GQ = alpha × score_core + (1 - alpha) × score_bonus`, con `alpha = 0.8` por **default** (configurable).
+- Items específicos al descubrimiento concreto, NO genéricos. *"¿el reporte es claro?"* o *"¿usa evidencia?"* **están prohibidos** — son holísticos disfrazados.
+- Cada item debe ser respondible desde el dataset visible + tools del caso (chequeado por el Validator transversal — ver §4, check 13).
+- Generación por el `DiscoveryDesigner` libre, sin templates disparados por `DiscoveryTarget.kind`. El `kind` es taxonomía descriptiva, no operativa.
+- Items con span citado del reporte siempre que el verifier sea `judge_yes_no`. Sin span → ítem no satisfecho.
 
-**Reglas invariantes**:
-- **Span textual obligatorio**: cada criterion acreditado requiere span citado del reporte. Sin span → 0.
-- **Nunca acreditar por terminología sola** si el span contradice el anchor.
-- **Assertion entailment tolerante**: claim cuantitativo satisface criterio cualitativo con tolerancia.
-- **Alternative phrasings** dentro de cada Criterion (anti-ajuste fino al wording del Investigator).
+### Pesos y agregación
+
+Cada ítem tiene `weight ∈ {1, 2, 3}` (pesos discretos, anti-ajuste-fino). El score del target sale de la fracción ponderada de items satisfechos (ver §7 para fórmula completa).
+
+### Qué NO entra a la rubric en v1.5
+
+Las 4 dimensiones de Ronda 13 (fidelidad, justificación, calibración, especificidad) **sobreviven como guideline editorial para escribir items**, pero ya no son componentes del score. Se difieren a v1.6+ como dimensiones separables del Evaluator:
+
+- Calidad de evidencia / Evidence-consulted logging (SOTA práctica #2): **integrity gate separado**, NO componente del score.
+- Calibración epistémica como dimensión propia.
+- Claims espontáneas correctas fuera del bundle (`extra_claims`).
+- Justificación textual como dimensión separada.
+
+Estas piezas no desaparecen — quedan registradas en `InvestigationLog` y se pueden re-scorear cuando v1.6+ las incorpore al score.
 
 ---
 
 ## 7. Evaluator
 
-**Decisión clave: el Evaluator NO toca el Environment en runtime.** Toda la formalización vive en design-time; el Evaluator solo lee `AnswerKey` ya computado por el agente que armó la pregunta. Razones: reproducibilidad, costo en RL training, frontera limpia entre quién investiga y quién evalúa.
+> **Post Ronda 15 (2026-05-12)**: simplificado a **un solo paso** por target. La completion graduada como componente separado (alpha=0.2) se difiere a v1.6+. En v1.5: `alpha=1.0` al match+rubric.
 
-Pipeline: dos pasos por DiscoveryTarget.
+**Decisión clave: el Evaluator NO toca el Environment en runtime.** Toda la formalización vive en design-time; el Evaluator solo lee `AnswerKey` ya computado por el Designer/Validators. Razones: reproducibilidad, costo en RL training, frontera limpia entre quién investiga y quién evalúa.
+
+### Pipeline por target
 
 ```
 Para cada DiscoveryTarget del caso:
 
-  PASO 1 — DISCOVERY MATCH (binary)
-    Input: reporte completo + claims explícitas + DiscoveryTarget.claim_match_hint
-    Output: bool "¿alguna claim del reporte llega a la conclusión esperada?"
-    Cambio respecto a v1: ya NO es "¿aborda este tema?" — ahora exige
-    que el reporte HAYA LLEGADO al descubrimiento. Una claim vaga del
-    tipo "el efecto fue analizado" NO satisface el match.
-    Si no → score_DT = 0, siguiente DiscoveryTarget.
+  CHECK 1 — MATCH FILTER (binary, gate)
+    Input: reporte + DiscoveryTarget.claim_match_hint
+    Pregunta: "¿alguna claim del reporte ataca específicamente
+               este descubrimiento?"
+    NO es "¿aborda el tema?" — exige que el reporte haya intentado
+    el descubrimiento concreto del target (criterio del match_hint).
+    Si no → score_target = 0, siguiente target.
 
-  PASO 2 — COMPLETION (graduada, sólo si match)
-    Para cada Criterion de la Rubric:
-      Input: reporte + Criterion.scoring_hint + Criterion.anchor + AnswerKey (ya escrito)
-      Output: {cumplido: bool, span: str, razón: str}
+  CHECK 2 — RUBRIC SCORING (graduada, solo si match)
+    Para cada item de DiscoveryTarget.rubric:
+      Si verifier == "judge_yes_no":
+        Input: reporte + item.text
+        Output: {satisfecho: bool, span: str, razón: str}
+      Si verifier == "numeric_match":
+        Input: reporte parseado + item.anchor_ref → AnswerKeyAnchor
+        Output: {satisfecho: bool, parsed_value: float, razón: str}
 
-  score_GQ = identification × (alpha × score_core + (1 - alpha) × score_bonus)
+  rubric_score = Σ (item.weight × item.satisfecho) / Σ item.weight
 
-score_total_caso = Σ GQ.weight × score_GQ
+  score_target = rubric_score
+
+score_caso = Σ (target.weight × score_target) / Σ target.weight
+           (sobre todos los targets del DiscoveryBundle)
 ```
 
-**Reglas del Evaluator**:
-- **No ejecuta queries arbitrarias del Environment.** Si necesita verificar contra el SCM, eso lo hizo el Designer en design-time vía `EvidenceArtifact`.
-- **Claims espontáneas fuera de los DiscoveryTargets**: en v1.5 se registran en `InvestigationLog.extra_claims` pero NO entran al score principal. Hook reservado para v1.6+ (open scoring): bonus si son verdaderos contra el `WorldSpec` y relevantes al brief — útil para premiar descubrimientos no anticipados por el Architect.
-- **Contradicciones explícitas restan**: shotgun science (20 claims contradictorias) no se premia "la que aciertó".
+### Anchor model en eval time
+
+Los anchors **NO se re-ejecutan en evaluation time**. Cada `AnswerKeyAnchor` ya tiene `value` + `tolerance` (o `range`) fijados por el Designer/Validators corriendo el script offline contra el `Environment` con múltiples seeds. El script vive en `EvidenceArtifact.script` y queda **reejecutable** para auditoría manual, pero el Evaluator solo lee los números guardados. Ver §5 para el contrato.
+
+Esto preserva:
+- **Reproducibilidad**: el score no depende del seed de evaluación.
+- **Costo**: el LLM judge no ejecuta código.
+- **Auditabilidad**: el script reejecutable permite verificar manualmente un anchor sospechoso.
+
+### Reglas del Evaluator
+
+- **No ejecuta queries arbitrarias del Environment.** Toda verificación contra el SCM la hizo el Designer en design-time vía `EvidenceArtifact`.
+- **Items de rubric con `judge_yes_no` requieren span citado** del reporte. Sin span → item no satisfecho.
+- **Items de rubric con `numeric_match`**: el judge parsea el reporte buscando un número, lo compara contra el rango del anchor referenciado. Tolerancia viene del anchor.
+- **Match filter falla → target = 0**. NO se compensa parcialmente. Esto evita que un reporte que no tocó el target se "promedie" con uno que lo resolvió.
+- **Contradicciones explícitas restan**: shotgun science (20 claims contradictorias) no se premia "la que aciertó". Operativizado como check específico en items de rubric cuando aplica.
+
+### Qué NO scorea v1.5 (difiere a v1.6+)
+
+- **Claims espontáneas fuera de los DiscoveryTargets**: registradas en `InvestigationLog.extra_claims`, no scoreadas. Hook v1.6+ para open scoring (bonus si son verdaderas contra el WorldSpec y relevantes al brief).
+- **Calidad de evidencia / Evidence-consulted logging** (SOTA #2): **integrity gate separado**, NO componente del score primario. Marca claims fabricadas con penalización dura.
+- **Calibración epistémica como dimensión propia**, justificación textual, process quality del trace (#53).
 
 ---
 

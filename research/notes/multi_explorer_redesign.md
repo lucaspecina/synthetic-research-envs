@@ -431,3 +431,188 @@ NO se tocan ahora porque el código de Fases 1.x sigue válido. Se agendan para 
 - Rename de `narrative_capsule.natural_question_style` → `natural_investigation_style`.
 - Agregar `EvidenceArtifact.access_mode` (hook v1.6+, opcional ahora).
 - Update prompt de Paper Digestion (rename de field) + prompt de Architect (línea sobre downstream).
+
+---
+
+## Ronda 15 — Rubric como puente verificable + anchor model clarificado (2026-05-12)
+
+Sesión de pinchazo conceptual con Lucas mientras explicaba el flujo Designer end-to-end. Se detectaron tres ambigüedades operativas en cómo el Evaluator conecta el reporte del Investigator con un `DiscoveryTarget`. No es un cambio filosófico (sigue Ronda 14) — es una clarificación del rol de cada artefacto.
+
+### Las tres ambigüedades
+
+1. **¿Qué es la rubric en v1.5?** En Ronda 13/14 se hablaba de "Completion graduada" como segundo paso del Evaluator (alpha=0.8 al Discovery Match + alpha=0.2 a Completion). Eso mezclaba "¿llegó a la conclusión?" con "¿el reporte está completo/calibrado/justificado?". Lo segundo es **proceso/calidad**, no descubrimiento, y debe diferirse a v1.6+.
+2. **¿Cómo se usa el anchor formal?** El texto previo daba a entender que el anchor era "función ejecutable durante eval time" o "número de referencia sin contexto". Ninguna era precisa.
+3. **¿Cómo evita el judge ser holístico?** Si la rubric tiene items vagos tipo "¿el reporte está bien?", regresamos al anti-pattern LLM-judge holístico que el SOTA review descartó.
+
+### Decisiones (todas dentro del espíritu Ronda 14)
+
+#### Decisión 1: rubric **es** el evaluador del target
+
+Cada `DiscoveryTarget` tiene tres componentes con roles distintos:
+
+- **`text` (Capa A, NL declarativa)**: descripción del descubrimiento para humanos. *"Estratificar por LBW invierte el signo del efecto Smoking → Mortality."* NO scorea — es identidad/contexto del target.
+- **`answer_key` (Capa B, anchors numéricos)**: cantidades con rango/CI. Cada anchor está **respaldado por un `EvidenceArtifact` (script Python libre)** que produjo el número **una sola vez offline durante el Designer**. En evaluation time el anchor es **número de referencia**, no se re-ejecuta. El script queda como prueba reejecutable auditable.
+- **`rubric` (preguntas verificables)**: lista de items que el judge evalúa contra el reporte. **Cada item es sí/no o match numérico contra un anchor**. NO hay items vagos tipo "¿es claro?" ni "¿está bien estructurado?". Si el item no puede responderse con criterio claro, NO va a la rubric.
+
+La rubric **es el puente target↔reporte**: sin ella, el judge solo tendría (a) parseo numérico ciego del reporte o (b) juicio holístico. La rubric descompone la pregunta *"¿este reporte llega a la conclusión del target?"* en N preguntas verificables específicas.
+
+#### Decisión 2: anchor model — script offline, número en eval
+
+Flujo del anchor:
+
+1. **Offline (Designer / Validator)**: el script Python del anchor corre contra el `Environment` con seeds múltiples, computa número + CI empírico. Número queda **fijado** en `AnswerKeyAnchor.value` + `tolerance` o `range`.
+2. **Online (Evaluator)**: el judge ya tiene el número guardado. Para items numéricos de la rubric (*"¿el reporte da un valor en [-0.06, -0.02]?"*), parsea el reporte y compara. **NO re-ejecuta el script.**
+3. **Auditoría**: el script vive en `EvidenceArtifact.script`, reejecutable manualmente si hay sospecha de que un anchor está mal.
+
+Esto preserva los principios:
+
+- No hay catálogo cerrado de funciones — el script es Python libre.
+- La verdad sale de correr código contra el mundo formal, no de un LLM "estimando".
+- Reproducibilidad: el anchor no depende del seed de evaluación.
+- Costo: el LLM judge no necesita ejecutar nada, solo lee.
+
+#### Decisión 3: rol del `claim_match_hint` — atacar target primero, resolver bien después
+
+El campo `claim_match_hint` (Ronda 14, reemplaza `identification_hint`) se materializa en **dos checks distintos** del Evaluator por target:
+
+1. **Match filter**: ¿alguna claim del reporte ataca este target específico? Si no → `score_target = 0`, siguiente target. Esto evita que un reporte sobre un tema no relacionado se "promedie" con uno que tocó el descubrimiento.
+2. **Rubric scoring**: si match, recorrer los items de la rubric. Cada item devuelve `{pasó: bool, span: str, razón: str}`.
+
+`score_target` = proporción ponderada de items satisfechos (con threshold, ver Decisión 4).
+
+#### Decisión 4: alpha=1.0 en v1.5
+
+```
+score_caso = promedio_ponderado(score_target_i para target_i en bundle)
+
+score_target = 0                                    si match_filter == False
+score_target = rubric_score                         si match_filter == True
+
+rubric_score = Σ (item.weight × item.satisfecho) / Σ item.weight
+             (sobre items de la rubric del target)
+```
+
+**Lo que se difiere a v1.6+** (NO entra en score v1.5):
+
+- Cobertura cualitativa entre múltiples targets (ya entra naturalmente en el promedio).
+- Calidad de evidencia / Evidence-consulted logging (SOTA práctica #2 — integrity gate separado, NO scoring component).
+- Calibración epistémica como dimensión separada.
+- Claims espontáneas correctas fuera del bundle (`extra_claims`).
+- Justificación textual evaluada por LLM judge holístico.
+
+Estos artefactos del completion graduado de Ronda 13 (4 dimensiones: fidelidad, justificación, calibración, especificidad) **siguen siendo guideline editorial para redactar items de rubric**, no componentes del score directos.
+
+#### Decisión 5: nuevo check del Validator transversal — rubric respondibilidad
+
+El Validator transversal (Fase 5) ya tiene 12 checks (10 originales + shortcut resistance + difficulty band). Se agrega un **check 13**:
+
+- **Rubric respondibilidad pública**: cada item de la rubric debe ser **respondible desde el dataset visible + tools del caso**. Items que requieran ver variables latentes, conocer parámetros del SCM, o ejecutar intervenciones que el Investigator no puede hacer → invalidan el target. Análogo al check #6 (answerability) pero a nivel ítem.
+
+### Ejemplo concreto — Birth Weight Paradox
+
+`DiscoveryTarget`:
+
+```yaml
+id: "bwp_dt_2"
+kind: "misleading_association"
+
+text: |
+  Estratificar por LBW invierte el signo del efecto Smoking sobre Mortality:
+  marginalmente fumar aumenta mortalidad, pero dentro de LBW=1 aparece como
+  protector — patrón de collider con un confounder no observado de mortalidad.
+
+answer_key:
+  anchors:
+    - name: effect_marginal
+      range: [+0.03, +0.07]
+      provenance: ea_001
+    - name: effect_stratified_lbw1
+      range: [-0.06, -0.02]
+      provenance: ea_002
+
+answer_key_provenance:
+  - id: ea_001
+    script: |
+      data = env.sample(n=10_000, seed_array=range(20))
+      effects = [sm.OLS.from_formula("Mortality ~ Smoking", d).fit().params["Smoking"]
+                 for d in data]
+      return {"mean": np.mean(effects), "ci_95": np.percentile(effects, [2.5, 97.5])}
+    numerical_result: {mean: 0.052, ci_95: [0.038, 0.066]}
+  - id: ea_002
+    script: |
+      ...stratified version...
+    numerical_result: {mean: -0.041, ci_95: [-0.058, -0.024]}
+
+claim_match_hint:
+  match_if:
+    - El reporte estima o discute el efecto de Smoking sobre Mortality
+    - Y considera al menos una forma de análisis condicional/estratificado
+      relacionada con peso al nacer
+
+rubric:
+  - id: r1
+    text: "¿El reporte estima el efecto crudo (no condicional) de Smoking sobre Mortality?"
+    weight: 1
+    verifier: judge_yes_no
+  - id: r2
+    text: "¿El reporte estratifica por LBW (o variable equivalente de peso al nacer) o aplica análisis condicional?"
+    weight: 2
+    verifier: judge_yes_no
+  - id: r3
+    text: "¿El reporte detecta que dentro de LBW=1 el efecto se vuelve cero o negativo (cambia de signo o magnitud)?"
+    weight: 3
+    verifier: judge_yes_no
+  - id: r4
+    text: "¿Algún valor numérico del reporte para el efecto estratificado cae en [-0.06, -0.02]?"
+    weight: 2
+    verifier: numeric_match
+    anchor_ref: effect_stratified_lbw1
+  - id: r5
+    text: "¿El reporte conecta el cambio de signo con un mecanismo (collider / confounding / selection bias / Simpson)?"
+    weight: 2
+    verifier: judge_yes_no
+```
+
+Evaluator sobre este target:
+
+1. Match filter (`claim_match_hint`): ¿el reporte habla de Smoking, Mortality y análisis condicional por LBW? Si no → `score_target = 0`.
+2. Si match, recorrer rubric. Suponé que satisface r1, r2, r3 (pesos 1+2+3=6); falla r4 (no da número); satisface r5 (pesos 2). Items total = 1+2+3+2+2 = 10. Satisfechos = 1+2+3+2 = 8.
+3. `score_target = 8/10 = 0.8`.
+
+### Tensión abierta — flagueada, no resuelta acá
+
+El **Case Writer ciego al DiscoveryBundle** sigue siendo correcto (evita leak en el brief). Pero **el rol de pasarle `DiscoveryTarget.kind`** queda como decisión abierta para Fase 4: la justificación oficial es que el brief tenga el "tipo de problema" del dominio, pero ese olor podría salir solo de `WorldSpec + narrative_capsule` sin necesidad de los kinds. Pasarle kinds roza catálogo cerrado disfrazado.
+
+**Decisión diferida a inicio de Fase 4**, opciones:
+
+- **A**: Case Writer recibe solo `WorldSpec + narrative_capsule`. Cero metadato del bundle. Brief 100% abierto.
+- **B**: Case Writer recibe `kinds` (status quo doc actual).
+- **C**: Case Writer recibe abstracción más vaga ("este caso tiene N descubrimientos", sin tipo).
+
+Instinto actual: opción A. Validar antes de implementar Case Writer.
+
+### Cambios en docs y código requeridos
+
+| Doc | Cambio |
+|---|---|
+| `multi_explorer_redesign.md` | Esta ronda. ✅ Aplicado. |
+| `ARCHITECTURE.md` | §6 Rubric reescrita (items verificables, sin core/bonus complicado); §7 Evaluator un solo paso alpha=1.0; clarificar anchor model en §5. ⏳ |
+| `CHANGELOG.md` | Entrada nueva. ⏳ |
+| Memoria personal `project_oi_scoring_fundamentals.md` | Actualizar con el modelo final. ⏳ |
+| Body de issue #63 | Ajustar texto de Fase 5 (check 13) y Fase 7 (un solo paso). ⏳ |
+| Contratos Pydantic | **Sin cambios** — `Rubric`, `Criterion`, `AnswerKeyAnchor`, `AnswerKey` ya existen y soportan el modelo. La semántica de `Criterion.scoring_hint` se interpreta como "verifier instruction" (judge_yes_no / numeric_match). Eventual ajuste cosmético al implementar Evaluator (Fase 7), no antes. |
+| Código | **Sin cambios** — Discovery Designer (Fase 3) y Evaluator (Fase 7) no están implementados todavía. |
+
+### Por qué este modelo evita los anti-patterns conocidos
+
+- **No catálogo cerrado**: rubric e ítems generados libremente por el Discovery Designer para cada target. Vocabulario libre, sin templates por `kind`.
+- **No LLM-judge primary holístico**: el judge responde preguntas sí/no específicas, no juicio global. Esto coincide con la mitigación "rubric-based decomposition" / "J1-style thinking judges" mencionada en el HF guide.
+- **No PRM dense process rewards**: process quality, calibration, justification quality se difieren a v1.6+. v1.5 mide solo conclusión.
+- **No fake completeness**: el match filter (`claim_match_hint`) descarta reportes que no tocaron el target. No se "premia parcialmente" a quien pasó por al lado.
+
+### Status post-ronda
+
+- Diseño cerrado conceptualmente.
+- Pendiente aplicar a `ARCHITECTURE.md`, `CHANGELOG.md`, memoria, issue #63.
+- Pendiente decidir kinds → Case Writer al inicio de Fase 4.
+- Pendiente arranque de Fase 2 (Validators deterministas).

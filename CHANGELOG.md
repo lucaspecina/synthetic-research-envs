@@ -5,6 +5,47 @@
 
 ## [Unreleased]
 
+### 2026-05-12 — v1.5 Ronda 15: rubric como puente verificable + anchor model clarificado
+
+Sesión de pinchazo conceptual con Lucas mientras se explicaba el flujo Designer end-to-end. No es un cambio filosófico (Ronda 14 sigue) — clarifica el rol operativo de cada artefacto del `DiscoveryTarget`.
+
+**Tres ambigüedades resueltas**:
+
+1. **¿Qué es la rubric en v1.5?** Se hablaba de "Completion graduada" con peso del 20% al score (alpha=0.8 al Discovery Match + 0.2 a Completion). Eso mezclaba "¿llegó a la conclusión?" con "¿el reporte está completo/calibrado?". Lo segundo es **proceso/calidad** y se difiere a v1.6+. **En v1.5 la rubric mide solo conclusión, alpha=1.0**.
+
+2. **¿Cómo se usa el anchor formal?** El texto previo daba a entender que era función ejecutable en eval time o número aislado. Ninguno preciso. **Modelo final**: el `EvidenceArtifact.script` corre **una sola vez offline** durante Designer/Validators, deja `numerical_result` fijado. El Evaluator **no re-ejecuta** el script — usa el número como referencia para items numéricos de la rubric. El script queda reejecutable solo para auditoría manual.
+
+3. **¿Cómo evita el judge ser holístico?** La rubric se descompone en items **específicos al target**, cada uno con verifier `judge_yes_no` (pregunta cerrada con criterio claro) o `numeric_match` (comparación contra anchor). Items vagos tipo *"¿el reporte es claro?"* están prohibidos. Esto coincide con la mitigación "rubric-based decomposition" / "J1-style thinking judges" mencionada en el HF guide.
+
+**Modelo final del `DiscoveryTarget`** (tres componentes con roles distintos):
+
+- **`text` (Capa A, NL declarativa)**: descripción del descubrimiento para humanos / docs / auditoría. NO scorea.
+- **`answer_key` (Capa B, anchors numéricos)**: cantidades con rango/CI, respaldadas por `EvidenceArtifact` (script Python libre, corrido offline).
+- **`rubric`**: items verificables (sí/no o numéricos) que el Evaluator usa para puntuar el target.
+
+**Pipeline del Evaluator** (un solo paso por target, ver `ARCHITECTURE.md` §7):
+
+```
+Para cada DiscoveryTarget:
+  match_filter (claim_match_hint) → bool
+  if not match: score_target = 0
+  else: rubric_score = Σ (item.weight × item.satisfecho) / Σ item.weight
+        score_target = rubric_score
+score_caso = promedio_ponderado(score_target_i)
+```
+
+**Validator transversal** pasa de 12 a **13 checks**: agrega "rubric respondibilidad pública" — cada item de rubric debe ser respondible desde el dataset visible + tools del caso.
+
+**Tensión abierta flagueada** (no resuelta en esta ronda): el rol de pasarle `DiscoveryTarget.kind` al Case Writer roza catálogo cerrado disfrazado. Decisión diferida al inicio de Fase 4. Opciones A/B/C documentadas en `multi_explorer_redesign.md`.
+
+**Docs tocados**:
+- `research/notes/multi_explorer_redesign.md` — sección Ronda 15 + ejemplo Birth Weight Paradox completo.
+- `ARCHITECTURE.md` §4 (Validator 13 checks), §5 (EvidenceArtifact y Criterion clarificados), §6 (Rubric reescrita), §7 (Evaluator un solo paso, alpha=1.0).
+- Issue #63 body — Fase 5 (check 13) y Fase 7 (un solo paso) actualizadas.
+- Memoria personal `project_oi_scoring_fundamentals.md` — modelo final.
+
+**Sin cambios en contratos Pydantic ni código**: `Rubric`, `Criterion`, `AnswerKeyAnchor`, `EvidenceArtifact` ya existen y soportan el modelo. La semántica de `Criterion.scoring_hint` se interpreta como verifier instruction (`judge_yes_no` / `numeric_match`). El split `core|bonus` sobrevive como metadato; pierde el rol "compensa N%" en v1.5 (todos los items se agregan ponderado por `weight ∈ {1,2,3}`).
+
 ### 2026-05-06 — v1.5 SOTA review: 5 buenas prácticas integradas al roadmap
 
 Catálogo de ~30 proyectos del estado del arte en generación/validación de
