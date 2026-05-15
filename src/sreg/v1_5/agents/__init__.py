@@ -23,5 +23,11 @@ Orden esperado del flujo (post Ronda 13):
 
 from sreg.v1_5.agents.architect import ArchitectAgent
 from sreg.v1_5.agents.paper_digestion import PaperDigestionAgent
+from sreg.v1_5.agents.validator import ValidatorAgent, ValidatorError
 
-__all__ = ["ArchitectAgent", "PaperDigestionAgent"]
+__all__ = [
+    "ArchitectAgent",
+    "PaperDigestionAgent",
+    "ValidatorAgent",
+    "ValidatorError",
+]

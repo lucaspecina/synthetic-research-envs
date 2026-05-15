@@ -126,7 +126,8 @@ Paper crudo
 | **Fase 1.1** | `compile_scm(WorldSpec) → SCMWorld` + Birth Weight Paradox E2E hardcoded | ✅ | `3841ffd` |
 | **Fase 1.2.a** | `PaperDigestionAgent` con LLM real + 3 seeds digeridos + tests wiring | ✅ | `4e16b19` |
 | **Fase 1.2.b** | `ArchitectAgent` con LLM real + 3 lints deterministas + harness con diagnósticos | ✅ | `378662f` |
-| **Fase 2** | Validators (N en paralelo, multi-iter con feedback al Architect) | ⏳ | **PRÓXIMO** — primer Validator determinista (materialization checks numéricos) antes de uno con LLM |
+| **Fase 2.b** | `ValidatorAgent` LLM por intended_phenomenon (scripts Python libres contra `env`, emite `ValidatorVote` via function call; margin/fragility autoevaluación gruesa, sin DSL ni fórmula universal). Plomería reusable: `make_python_namespace` acepta `extras`; `ToolEnrichedClient` acepta `namespace_factory` + para el loop ante terminal tools custom. 14 tests wiring pasan. | ✅ | `<pending>` |
+| **Fase 2.c** | Loop Architect ↔ N Validators con cap=3 iters, paralelización + promoción a `ValidatedPhenomenon`, script `run_validator.py` para E2E real, parametric variations | ⏳ | **PRÓXIMO** |
 | **Fase 3** | Discovery Designer (consume `list[ValidatedPhenomenon]`, mapping N:M no 1:1; produce `DiscoveryBundle` con descubrimientos esperados, no preguntas). Incluye renombre de schemas `GoldQuestion`→`DiscoveryTarget`, `QuestionsBundle`→`DiscoveryBundle`, campo `identification_hint`→`claim_match_hint`, agregar `source_validated_ids`. | ❌ | pendiente |
 | **Fase 4** | Case Writer (`ResearchCase` desde `WorldSpec` público + `narrative_capsule` + lista de `DiscoveryTarget.kind`; **CIEGO al DiscoveryBundle**, sin acceso a los textos de los targets — Ronda 14) | ❌ | pendiente |
 | **Fase 5** | Validator transversal (12 checks, único árbitro con `target_to_reiterate`). Los 10 originales + 2 nuevos del SOTA review (post `sota_synthetic_envs_for_rl.md`): **shortcut resistance** (batería de baselines naive vs target — caso rechazado si baseline pasa demasiado alto) y **difficulty band** (reference investigator estándar; banda 0.4-0.7 esperada, ni trivial ni imposible). Fusión con check Three-Clue Rule (#11) bajo gate "discoverability + shortcut resistance". | ❌ | pendiente |
@@ -139,7 +140,7 @@ Paper crudo
 2. Leer Epic **[#63](https://github.com/lucaspecina/synthetic-research-envs/issues/63)** body para roadmap actualizado.
 3. Doc canónico del Designer: **`research/notes/multi_explorer_redesign.md`** (Ronda 13).
 4. Estado de outputs reales: **`experiments/architect/<timestamp>/<seed>.summary.txt`** (gitignored, regenerar con `scripts/run_architect.py`).
-5. Próxima fase: **Fase 2 (Validators)** — ver Issue #58 body.
+5. Próxima fase: **Fase 2.c (loop Architect↔Validators + run_validator.py para E2E real)** — ver Issue #58 body.
 
 Para detalles del target arquitectónico: `ARCHITECTURE.md`. Para historia de decisiones: `research/notes/v1_5_debates.md` (12 rondas). Para ejemplo canónico hand-authored: `research/examples/birth_weight_paradox.md`.
 

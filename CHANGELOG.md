@@ -5,6 +5,54 @@
 
 ## [Unreleased]
 
+### 2026-05-15 — v1.5 Fase 2.b: ValidatorAgent LLM por intended_phenomenon
+
+Implementación del agente `ValidatorAgent` que prueba empíricamente un `IntendedPhenomenon` contra el `SCMEnvironment` compilado por el Architect. Es la primera pieza del loop multi-agente de validación (Fase 2). El loop Architect↔Validators con cap=3 iters + paralelización + parametric variations queda para Fase 2.c.
+
+**Diseño** (post Ronda 15 + Codex review):
+
+- **Scripts Python libres**, NO DSL intermedia. El LLM resuelve cada fenómeno con el método que corresponda (do-intervenciones, estratificación observacional, d-separación, etc.) — el doc canónico §2 lo exige así.
+- **`margin / fragility` son autoevaluación gruesa** del LLM (señales para el Architect, no medición determinista). El doc + contratos no especifican semántica determinista, y agregarla requeriría infraestructura nueva (output estructurado del executor + política por fenómeno) — se difiere hasta que aparezca un problema concreto que la justifique.
+- **`delta_from_previous`** se computa determinista en el wrapper comparando campos canónicos del `ValidatorVote` (vote/margin/fragility), NO se lo damos al LLM ni lo computa el Architect (rompería disciplina de votos inmutables).
+- **Single retry con error feedback** tras invalidación Pydantic (mismo patrón que `ArchitectAgent`).
+- **Schema simplificado** `ValidatorVoteDraft` para function calling (omite los campos administrados por el sistema: `validator_id`, `target_intended_id`, `iteration`, `delta_from_previous`).
+
+**Plomería reusable** (cambios mínimos retrocompatibles):
+
+- `make_python_namespace(...)` acepta nuevo kwarg `extras: dict | None` para inyectar objetos arbitrarios en el namespace (usado por el Validator para inyectar `env`).
+- `ToolEnrichedClient(...)` acepta `namespace_factory: Callable[[], dict] | None` para personalizar el namespace por chat.
+- `ToolEnrichedClient.chat()` detecta **terminal tools** (no en `SOLVER_TOOLS`) y termina el loop devolviendo el `ChatResponse` para que el caller lo procese (necesario para que el Validator emita `emit_validator_vote` como function call final).
+
+**Decisión operativa explícita** (tras consulta con Codex):
+
+El hueco real en doc + contratos es cómo se va de "scripts libres" a "margin/fragility: float". Codex confirmó:
+- Inventar una fórmula universal (`|effect| / CI_radius` o similar) es regresión a verificador cerrado.
+- Inventar una DSL intermedia (`tests[] / perturbations[] / thresholds[]`) es la misma regresión por la puerta de atrás.
+- La opción más alineada con el repo y el doc actual es: **LLM autoevalúa `margin/fragility`** con guidance cualitativa, scripts libres como evidencia ejecutable, y el sistema se queda con autoría sobre `delta_from_previous`.
+
+Costo asumido: `margin/fragility` son señales blandas en v1.5 hasta que el loop Architect↔Validators (Fase 2.c) muestre si son suficientes para iteración inteligente.
+
+**Archivos nuevos**:
+- `src/sreg/v1_5/agents/validator.py` — `ValidatorAgent`, `ValidatorError`, `ValidatorVoteDraft`.
+- `src/sreg/v1_5/agents/prompts/validator.md` — system prompt.
+- `tests/v1_5/agents/test_validator_wiring.py` — 14 tests deterministas (happy path, retry, delta, errores, tool spec).
+
+**Archivos modificados**:
+- `src/sreg/agent/python_exec.py` — kwarg `extras`.
+- `src/sreg/inference/tool_client.py` — `namespace_factory` + terminal-tool detection.
+- `src/sreg/v1_5/agents/__init__.py` — exports `ValidatorAgent`, `ValidatorError`.
+
+**Validación**:
+- 14/14 tests del Validator pasan.
+- 17/17 tests existentes de `python_exec` siguen pasando (cambio retrocompatible).
+- E2E con LLM real contra Birth Weight Paradox queda como próximo paso (`scripts/run_validator.py` aún no existe).
+
+**Lo que NO entra en este PR**:
+- Loop Architect↔N Validators con cap=3 iters (Fase 2.c).
+- Paralelización efectiva (Fase 2.d).
+- Parametric variations sobre SCM validado (Fase 2.e).
+- E2E con LLM real (script `run_validator.py`).
+
 ### 2026-05-12 — v1.5 Ronda 15: rubric como puente verificable + anchor model clarificado
 
 Sesión de pinchazo conceptual con Lucas mientras se explicaba el flujo Designer end-to-end. No es un cambio filosófico (Ronda 14 sigue) — clarifica el rol operativo de cada artefacto del `DiscoveryTarget`.

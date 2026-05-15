@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from sreg.agent.engine import SOLVER_TOOLS, _handle_solver_tool
 from sreg.agent.python_exec import make_python_namespace
@@ -57,9 +57,13 @@ class ToolEnrichedClient:
         self,
         base_client: Any,
         max_iterations: int = 8,
+        namespace_factory: Callable[[], dict] | None = None,
     ):
         self.base = base_client
         self.max_iterations = max_iterations
+        # Optional factory for custom namespaces (e.g. v1.5 Validators
+        # inject `env`). If None, defaults to make_python_namespace().
+        self._namespace_factory = namespace_factory
         # Fresh namespace per question (reset on each chat call)
         self._namespace: dict = {}
 
@@ -76,8 +80,11 @@ class ToolEnrichedClient:
         Adds python_exec and think tools, runs multi-turn loop,
         returns final text response.
         """
-        # Fresh namespace for each question
-        self._namespace = make_python_namespace()
+        # Fresh namespace for each question (custom factory if provided).
+        self._namespace = (
+            self._namespace_factory() if self._namespace_factory is not None
+            else make_python_namespace()
+        )
 
         # Convert Messages to dicts for the base client
         msg_dicts = []
@@ -129,7 +136,19 @@ class ToolEnrichedClient:
             # but the base client handles this through its protocol
             msg_dicts.append(assistant_dict)
 
-            # Execute each tool call
+            # Detect terminal (non-solver) tool calls — return immediately
+            # so the caller can process them (used by v1.5 Validators that
+            # emit their final vote via a custom function call).
+            solver_tool_names = {t["function"]["name"] for t in SOLVER_TOOLS}
+            terminal_calls = [
+                tc for tc in response.tool_calls if tc.name not in solver_tool_names
+            ]
+            if terminal_calls:
+                if response.usage:
+                    response.usage.total_tokens = total_tokens
+                return response
+
+            # Execute each solver tool call
             for tc in response.tool_calls:
                 try:
                     args = json.loads(tc.arguments) if isinstance(tc.arguments, str) else tc.arguments

@@ -42,6 +42,7 @@ class ExecResult:
 def make_python_namespace(
     data_assets: list | None = None,
     observations: dict[str, str] | None = None,
+    extras: dict | None = None,
 ) -> dict:
     """Build a pre-loaded Python namespace for the agent.
 
@@ -51,6 +52,9 @@ def make_python_namespace(
     - df: first tabular dataset as DataFrame (if available)
     - df_1, df_2, ...: additional datasets
     - observations: dict of observed variable values (updated live)
+    - extras: arbitrary extra objects merged into the namespace
+      (overrides preloaded names if keys collide). Used by v1.5
+      Validators to inject `env` (SCMEnvironment).
     """
     import collections as _collections
     import functools as _functools
@@ -92,6 +96,10 @@ def make_python_namespace(
                 var_name = "df" if df_count == 0 else f"df_{df_count}"
                 namespace[var_name] = df
                 df_count += 1
+
+    # Merge extras last so caller-provided objects override defaults.
+    if extras:
+        namespace.update(extras)
 
     return namespace
 
