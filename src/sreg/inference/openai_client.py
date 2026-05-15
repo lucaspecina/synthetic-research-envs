@@ -81,7 +81,22 @@ class OpenAIClient:
             elif m.role == MessageRole.USER:
                 input_items.append({"role": "user", "content": m.content or ""})
             elif m.role == MessageRole.ASSISTANT:
-                input_items.append({"role": "assistant", "content": m.content or ""})
+                if m.content:
+                    input_items.append({"role": "assistant", "content": m.content})
+                # If the assistant invoked tools previously, the Responses
+                # API requires the function_call items in the history so
+                # subsequent function_call_output items can be matched.
+                for tc in m.tool_calls or []:
+                    input_items.append({
+                        "type": "function_call",
+                        "call_id": tc.id,
+                        "name": tc.name,
+                        "arguments": (
+                            tc.raw_arguments
+                            if tc.raw_arguments is not None
+                            else json.dumps(tc.arguments)
+                        ),
+                    })
             elif m.role == MessageRole.TOOL:
                 input_items.append({
                     "type": "function_call_output",

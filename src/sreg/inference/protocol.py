@@ -47,6 +47,12 @@ class Message(BaseModel):
     content: str | None = None
     tool_call_id: str | None = None
     name: str | None = None
+    tool_calls: list["ToolCall"] | None = None
+    """Tool calls emitted by an ASSISTANT message. Required when
+    feeding multi-turn tool-call history back to providers that expect
+    explicit `function_call` items in the request (e.g. OpenAI
+    Responses API). Optional; only set on ASSISTANT messages that
+    invoked tools in a previous turn."""
 
 
 class ToolSpec(BaseModel):

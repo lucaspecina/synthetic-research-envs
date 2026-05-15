@@ -127,14 +127,14 @@ class ToolEnrichedClient:
                     response.usage.total_tokens = total_tokens
                 return response
 
-            # Append assistant message with tool calls
-            assistant_dict: dict[str, Any] = {
+            # Append assistant message including its tool_calls so the
+            # next request carries the function_call items (required by
+            # the Responses API to match upcoming function_call_output).
+            msg_dicts.append({
                 "role": "assistant",
                 "content": response.message.content or "",
-            }
-            # We need the tool_calls in the message history for the next call
-            # but the base client handles this through its protocol
-            msg_dicts.append(assistant_dict)
+                "tool_calls": [tc.model_dump() for tc in response.tool_calls],
+            })
 
             # Detect terminal (non-solver) tool calls — return immediately
             # so the caller can process them (used by v1.5 Validators that

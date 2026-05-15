@@ -5,6 +5,35 @@
 
 ## [Unreleased]
 
+### 2026-05-15 — v1.5 Fase 2.b E2E real: bug fix Responses API multi-turn + Validator funciona contra Birth Weight
+
+Validación end-to-end del `ValidatorAgent` con LLM real (Azure gpt-5.2-codex) sobre los 4 `intended_phenomena` del Birth Weight Paradox: **4/4 passes** con margins 0.60-0.78. El LLM hizo trabajo genuino:
+
+- Multi-turno real de python_exec contra `env` inyectado.
+- Para el collider, identificó la firma exacta: `corr(smoking, congenital_condition) ≈ -0.016` overall pero **`-0.58` condicionando en LBW=1**.
+- Para confounding: 10 seeds con `statsmodels` OLS/logit, coeficientes con desvíos.
+- Margins razonables (no inflados); fragility=0.5 honesto cuando no perturbó coefs.
+
+**Bug pre-existente arreglado** (descubierto en el primer intento de E2E):
+
+`ToolEnrichedClient` + `OpenAIClient` no encadenaban bien multi-turno con la **Responses API**. Al volver a llamar después de un `function_call_output`, el historial NO incluía los `function_call` items del asistente — solo el `content`. La API rebotaba con `"No tool call found for function call output with call_id ..."`. El benchmark no lo dispara (1 sola vuelta de tools); el Validator sí (muchas vueltas).
+
+**Fix mínimo en 3 lugares**:
+- `src/sreg/inference/protocol.py`: campo opcional `Message.tool_calls: list[ToolCall] | None`.
+- `src/sreg/inference/openai_client.py`: `MessageRole.ASSISTANT` con `tool_calls` ahora emite `function_call` items en el input de la Responses API.
+- `src/sreg/inference/tool_client.py`: el assistant message agregado al historial incluye los `tool_calls` del response, no solo el content.
+
+**Nuevo**: `scripts/run_validator.py` — harness manual paralelo a `run_architect.py`. Default toma el último directorio de `experiments/architect/`, corre Validators sobre cada fenómeno con LLM real, persiste `.vote.json` + `.summary.txt` por fenómeno en `experiments/validator/<timestamp>/<seed>/`.
+
+**Validación**:
+- 14/14 tests del Validator siguen pasando tras el fix.
+- E2E real: `python scripts/run_validator.py --seeds smoking_birthweight` → 4/4 passes.
+
+**Lo que NO entra en este PR**:
+- Run completo sobre todos los seeds de architect (solo smoking_birthweight).
+- Loop Architect↔Validators con cap=3 iters (Fase 2.c).
+- Paralelización efectiva.
+
 ### 2026-05-15 — v1.5 Fase 2.b: ValidatorAgent LLM por intended_phenomenon
 
 Implementación del agente `ValidatorAgent` que prueba empíricamente un `IntendedPhenomenon` contra el `SCMEnvironment` compilado por el Architect. Es la primera pieza del loop multi-agente de validación (Fase 2). El loop Architect↔Validators con cap=3 iters + paralelización + parametric variations queda para Fase 2.c.
