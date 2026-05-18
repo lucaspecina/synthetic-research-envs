@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### 2026-05-18 — v1.5 Fase 2.b validación diversa: 9/9 fenómenos passes en 5 tipos distintos
+
+E2E real del Validator sobre dos worlds independientes generados por Architect (`selection_bias_police` + `smoking_birthweight`). 9 fenómenos en total, tipos diversos: collider, mediation, selection_bias, confounding, threshold_effect. **Resultado: 9/9 passes** con margins 0.70-0.86.
+
+**Primer intento (8/9)**: el caso `selection_bias_police / confounding_rollout` falló dos veces seguidas porque el LLM emitía `EvidenceArtifact` sin llenar `numerical_result` (campo obligatorio del contrato). El script computaba los números, pero el LLM no los copiaba al dict.
+
+**Fix**: edición del prompt `validator.md` con énfasis explícito + ejemplo concreto + entrada en "Common mistakes". El LLM ahora copia los resultados manualmente al dict.
+
+**Segundo intento (9/9)**: todos los fenómenos pasan, incluido `confounding_rollout` que ahora reporta 12 keys (means + CIs para cada predictor de camera_assigned y use_of_force).
+
+**Observación menor**: el seed `confounding_by_indication` falló en el Architect mismo (lints de equation↔edges + plausible support out of range). NO es problema del Validator. Queda como caso a iterar en prompt del Architect.
+
+**Validación tests**: 14/14 tests del Validator wiring siguen pasando.
+
+**Archivo modificado**:
+- `src/sreg/v1_5/agents/prompts/validator.md` — sección "What goes into evidence" reescrita + entry en "Common mistakes" sobre `numerical_result` omitido.
+
 ### 2026-05-15 — v1.5 Fase 2.b E2E real: bug fix Responses API multi-turn + Validator funciona contra Birth Weight
 
 Validación end-to-end del `ValidatorAgent` con LLM real (Azure gpt-5.2-codex) sobre los 4 `intended_phenomena` del Birth Weight Paradox: **4/4 passes** con margins 0.60-0.78. El LLM hizo trabajo genuino:

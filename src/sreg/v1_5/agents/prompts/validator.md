@@ -94,11 +94,46 @@ Architect.
 
 ## What goes into `evidence`
 
-Each `EvidenceArtifact` carries one script you actually ran plus a
-`numerical_result` dict that you decide. Free-form — put whatever
-quantities back up your vote. Examples of useful keys: `effect`,
-`ci_lower`, `ci_upper`, `n_seeds`, `diff_lbw1`, `diff_lbw0`,
-`backdoor_sets`.
+Each `EvidenceArtifact` has TWO required fields:
+
+1. `script` — the Python code you actually ran.
+2. `numerical_result` — a dict you fill IN BY HAND with the key
+   quantities your script produced. **This field is mandatory. It is
+   NOT inferred from the script automatically. If you leave it empty
+   or omit it, the vote will be rejected.**
+
+When you finish running a script via `python_exec`, read its output,
+pick the numbers that back your vote, and put them in
+`numerical_result` as a JSON dict.
+
+Free-form keys — put whatever quantities support your vote. Examples:
+`effect`, `ci_lower`, `ci_upper`, `n_seeds`, `diff_lbw1`, `diff_lbw0`,
+`backdoor_sets`, `corr_within_stratum`, `slope_per_seed_mean`,
+`slope_per_seed_sd`.
+
+Concrete example. After running a script that printed:
+
+```
+mean coef: -0.628
+CI: [-0.690, -0.536]
+n_seeds: 20
+```
+
+You would include this `EvidenceArtifact`:
+
+```
+{
+  "script": "...the Python you actually ran...",
+  "numerical_result": {
+    "coef_mean": -0.628,
+    "ci_lower": -0.690,
+    "ci_upper": -0.536,
+    "n_seeds": 20
+  },
+  "tag": "adjusted_ols",
+  "notes": "OLS of Y on T controlling for prior_complaints..."
+}
+```
 
 Include at least one `EvidenceArtifact`. Multiple is fine.
 
@@ -119,6 +154,10 @@ function call is the deliverable.
 - `vote="passes"` with `failure_reason` set → contract violation.
 - `vote="fails"` without `failure_reason` → contract violation.
 - `evidence` empty → contract violation. At least one script.
+- **`evidence[i].numerical_result` missing or empty → contract
+  violation.** This is the most common silent failure: you ran the
+  script, saw the numbers, but did not copy them into the dict. Fill
+  it manually before emitting the vote.
 - Single-seed effect estimates as primary evidence → noisy, not
   credible.
 - Inventing a different phenomenon when the original fails.
